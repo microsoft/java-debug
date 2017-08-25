@@ -142,6 +142,10 @@ public abstract class VariableUtils {
                 res.add(var);
             }
         } catch (AbsentInformationException ex) {
+            // avoid listing variable on native methods 
+            if (stackFrame.location().method().isNative()) {
+                return res;
+            }
             // 1. in oracle implementations, when there is no debug information, the AbsentInformationException will be
             // thrown, then we need to retrieve arguments from stackFrame#getArgumentValues.
             // 2. in eclipse jdt implementations, when there is no debug information, stackFrame#visibleVariables will
