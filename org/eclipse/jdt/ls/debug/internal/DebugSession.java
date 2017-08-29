@@ -84,6 +84,7 @@ public class DebugSession implements IDebugSession {
         ArrayList<ExceptionRequest> legacy = new ArrayList<ExceptionRequest>(manager.exceptionRequests());
         manager.deleteEventRequests(legacy);
         ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
+        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         request.enable();
     }
 
