@@ -11,7 +11,68 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
-import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.eclipse.jdt.ls.debug.DebugEvent;
+import org.eclipse.jdt.ls.debug.DebugException;
+import org.eclipse.jdt.ls.debug.DebugUtility;
+import org.eclipse.jdt.ls.debug.IBreakpoint;
+import org.eclipse.jdt.ls.debug.IDebugSession;
+import org.eclipse.jdt.ls.debug.adapter.Messages.Response;
+import org.eclipse.jdt.ls.debug.adapter.Requests.Arguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.AttachArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.Command;
+import org.eclipse.jdt.ls.debug.adapter.Requests.ConfigurationDoneArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.ContinueArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.DisconnectArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.EvaluateArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.LaunchArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.NextArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.PauseArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.ScopesArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.SetBreakpointArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.SetExceptionBreakpointsArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.SetFunctionBreakpointsArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.SetVariableArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.SourceArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.StackTraceArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.StepInArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.StepOutArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.ThreadsArguments;
+import org.eclipse.jdt.ls.debug.adapter.Requests.VariablesArguments;
+import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatEnum;
+import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatter;
+import org.eclipse.jdt.ls.debug.adapter.formatter.SimpleTypeFormatter;
+import org.eclipse.jdt.ls.debug.adapter.handler.InitializeRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
+import org.eclipse.jdt.ls.debug.adapter.variables.JdiObjectProxy;
+import org.eclipse.jdt.ls.debug.adapter.variables.StackFrameScope;
+import org.eclipse.jdt.ls.debug.adapter.variables.ThreadObjectReference;
+import org.eclipse.jdt.ls.debug.adapter.variables.Variable;
+import org.eclipse.jdt.ls.debug.adapter.variables.VariableFormatterFactory;
+import org.eclipse.jdt.ls.debug.adapter.variables.VariableUtils;
+import org.eclipse.jdt.ls.debug.internal.Logger;
+
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ArrayType;
@@ -43,46 +104,8 @@ import com.sun.jdi.event.ThreadStartEvent;
 import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.event.VMStartEvent;
-import io.reactivex.disposables.Disposable;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.ls.debug.DebugEvent;
-import org.eclipse.jdt.ls.debug.DebugException;
-import org.eclipse.jdt.ls.debug.DebugUtility;
-import org.eclipse.jdt.ls.debug.IBreakpoint;
-import org.eclipse.jdt.ls.debug.IDebugSession;
-import org.eclipse.jdt.ls.debug.adapter.Requests.StackTraceArguments;
-import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatEnum;
-import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatter;
-import org.eclipse.jdt.ls.debug.adapter.formatter.SimpleTypeFormatter;
-import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
-import org.eclipse.jdt.ls.debug.adapter.variables.JdiObjectProxy;
-import org.eclipse.jdt.ls.debug.adapter.variables.StackFrameScope;
-import org.eclipse.jdt.ls.debug.adapter.variables.ThreadObjectReference;
-import org.eclipse.jdt.ls.debug.adapter.variables.Variable;
-import org.eclipse.jdt.ls.debug.adapter.variables.VariableFormatterFactory;
-import org.eclipse.jdt.ls.debug.adapter.variables.VariableUtils;
-import org.eclipse.jdt.ls.debug.internal.Logger;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import io.reactivex.disposables.Disposable;
 
 public class DebugAdapter implements IDebugAdapter {
     private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
@@ -94,254 +117,261 @@ public class DebugAdapter implements IDebugAdapter {
 
     private boolean isAttached = false;
 
-    private String cwd;
     private String[] sourcePath;
     private IDebugSession debugSession;
     private BreakpointManager breakpointManager;
     private List<Disposable> eventSubscriptions;
-    private IProviderContext context;
+    private IProviderContext providerContext;
     private VariableRequestHandler variableRequestHandler;
     private IdCollection<String> sourceCollection = new IdCollection<>();
-    private AtomicInteger messageId = new AtomicInteger(1);
+
+    private IDebugAdapterContext debugContext = null;
+    private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
 
     /**
      * Constructor.
      */
-    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext context) {
+    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext providerContext) {
         this.eventConsumer = consumer;
         this.breakpointManager = new BreakpointManager();
         this.eventSubscriptions = new ArrayList<>();
-        this.context = context;
+        this.providerContext = providerContext;
         this.variableRequestHandler = new VariableRequestHandler(VariableFormatterFactory.createVariableFormatter());
+        this.debugContext = new DebugAdapterContext(this);
+        this.requestHandlers = new HashMap<>();
+        initialize();
     }
 
     @Override
     public Messages.Response dispatchRequest(Messages.Request request) {
-        Responses.ResponseBody responseBody = null;
-        JsonObject arguments = request.arguments != null ? request.arguments : new JsonObject();
+        Messages.Response response = new Messages.Response();
+        response.request_seq = request.seq;
+        response.command = request.command;
+        response.success = true;
+
+        Command command = Command.parse(request.command);
+        Arguments cmdArgs = JsonUtils.fromJson(request.arguments, command.getArgumentType());
 
         try {
-            switch (request.command) {
-                case "initialize":
-                    responseBody = initialize(JsonUtils.fromJson(arguments, Requests.InitializeArguments.class));
+            switch (command) {
+                case LAUNCH:
+                    launch((LaunchArguments) cmdArgs, response);
                     break;
 
-                case "launch":
-                    responseBody = launch(JsonUtils.fromJson(arguments, Requests.LaunchArguments.class));
+                case ATTACH:
+                    attach((AttachArguments) cmdArgs, response);
                     break;
 
-                case "attach":
-                    responseBody = attach(JsonUtils.fromJson(arguments, Requests.AttachArguments.class));
+                case DISCONNECT:
+                    disconnect((DisconnectArguments) cmdArgs, response);
                     break;
 
-                case "disconnect":
-                    responseBody = disconnect(JsonUtils.fromJson(arguments, Requests.DisconnectArguments.class));
+                case CONFIGURATIONDONE:
+                    configurationDone((ConfigurationDoneArguments) cmdArgs, response);
                     break;
 
-                case "configurationDone":
-                    responseBody = configurationDone();
+                case NEXT:
+                    next((NextArguments) cmdArgs, response);
                     break;
 
-                case "next":
-                    responseBody = next(JsonUtils.fromJson(arguments, Requests.NextArguments.class));
+                case CONTINUE:
+                    resume((ContinueArguments) cmdArgs, response);
                     break;
 
-                case "continue":
-                    responseBody = resume(JsonUtils.fromJson(arguments, Requests.ContinueArguments.class));
+                case STEPIN:
+                    stepIn((StepInArguments) cmdArgs, response);
                     break;
 
-                case "stepIn":
-                    responseBody = stepIn(JsonUtils.fromJson(arguments, Requests.StepInArguments.class));
+                case STEPOUT:
+                    stepOut((StepOutArguments) cmdArgs, response);
                     break;
 
-                case "stepOut":
-                    responseBody = stepOut(JsonUtils.fromJson(arguments, Requests.StepOutArguments.class));
+                case PAUSE:
+                    pause((PauseArguments) cmdArgs, response);
                     break;
 
-                case "pause":
-                    responseBody = pause(JsonUtils.fromJson(arguments, Requests.PauseArguments.class));
+                case STACKTRACE:
+                    stackTrace((StackTraceArguments) cmdArgs, response);
                     break;
 
-                case "stackTrace":
-                    responseBody = stackTrace(JsonUtils.fromJson(arguments, Requests.StackTraceArguments.class));
+                case SCOPES:
+                    scopes((ScopesArguments) cmdArgs, response);
                     break;
 
-                case "scopes":
-                    responseBody = scopes(JsonUtils.fromJson(arguments, Requests.ScopesArguments.class));
-                    break;
-
-                case "variables":
-                    Requests.VariablesArguments varArguments = JsonUtils.fromJson(arguments, Requests.VariablesArguments.class);
+                case VARIABLES:
+                    Requests.VariablesArguments varArguments = (VariablesArguments) cmdArgs;
                     if (varArguments.variablesReference == -1) {
-                        responseBody = new Responses.ErrorResponseBody(
-                                this.convertDebuggerMessageToClient("VariablesRequest: property 'variablesReference' is missing, null, or empty"));
+                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                                "VariablesRequest: property 'variablesReference' is missing, null, or empty");
                     } else {
-                        responseBody = variables(varArguments);
+                        variables(varArguments, response);
                     }
                     break;
 
-                case "setVariable":
-                    Requests.SetVariableArguments setVarArguments = JsonUtils.fromJson(arguments,
-                            Requests.SetVariableArguments.class);
+                case SETVARIABLE:
+                    Requests.SetVariableArguments setVarArguments = (SetVariableArguments) cmdArgs;
                     if (setVarArguments.value == null) {
                         // Just exit out of editing if we're given an empty expression.
-                        responseBody = new Responses.ResponseBody();
+                        response.body = new Responses.ResponseBody();
                     } else if (setVarArguments.variablesReference == -1) {
-                        responseBody = new Responses.ErrorResponseBody(
-                                this.convertDebuggerMessageToClient("SetVariablesRequest: property 'variablesReference' is missing, null, or empty"));
+                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                                "SetVariablesRequest: property 'variablesReference' is missing, null, or empty");
                     } else if (setVarArguments.name == null) {
-                        responseBody = new Responses.ErrorResponseBody(
-                                this.convertDebuggerMessageToClient("SetVariablesRequest: property 'name' is missing, null, or empty"));
+                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                                "SetVariablesRequest: property 'name' is missing, null, or empty");
                     } else {
-                        responseBody = setVariable(setVarArguments);
+                        setVariable(setVarArguments, response);
                     }
                     break;
 
-                case "source":
-                    Requests.SourceArguments sourceArguments = JsonUtils.fromJson(arguments, Requests.SourceArguments.class);
+                case SOURCE:
+                    Requests.SourceArguments sourceArguments = (SourceArguments) cmdArgs;
                     if (sourceArguments.sourceReference == -1) {
-                        responseBody = new Responses.ErrorResponseBody(
-                                this.convertDebuggerMessageToClient("SourceRequest: property 'sourceReference' is missing, null, or empty"));
+                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                                "SourceRequest: property 'sourceReference' is missing, null, or empty");
                     } else {
-                        responseBody = source(sourceArguments);
+                        source(sourceArguments, response);
                     }
                     break;
 
-                case "threads":
-                    responseBody = threads();
+                case THREADS:
+                    threads((ThreadsArguments) cmdArgs, response);
                     break;
 
-                case "setBreakpoints":
-                    Requests.SetBreakpointArguments setBreakpointArguments = JsonUtils.fromJson(arguments,
-                            Requests.SetBreakpointArguments.class);
-                    responseBody = setBreakpoints(setBreakpointArguments);
+                case SETBREAKPOINTS:
+                    setBreakpoints((SetBreakpointArguments) cmdArgs, response);
                     break;
 
-                case "setExceptionBreakpoints":
-                    responseBody = setExceptionBreakpoints(JsonUtils.fromJson(arguments, Requests.SetExceptionBreakpointsArguments.class));
+                case SETEXCEPTIONBREAKPOINTS:
+                    setExceptionBreakpoints((SetExceptionBreakpointsArguments) cmdArgs, response);
                     break;
 
-                case "setFunctionBreakpoints":
-                    Requests.SetFunctionBreakpointsArguments setFuncBreakpointArguments = JsonUtils.fromJson(arguments,
-                            Requests.SetFunctionBreakpointsArguments.class);
+                case SETFUNCTIONBREAKPOINTS:
+                    Requests.SetFunctionBreakpointsArguments setFuncBreakpointArguments = (SetFunctionBreakpointsArguments) cmdArgs;
                     if (setFuncBreakpointArguments.breakpoints != null) {
-                        responseBody = setFunctionBreakpoints(setFuncBreakpointArguments);
+                        setFunctionBreakpoints(setFuncBreakpointArguments, response);
                     } else {
-                        responseBody = new Responses.ErrorResponseBody(
-                                this.convertDebuggerMessageToClient("SetFunctionBreakpointsRequest: property 'breakpoints' is missing, null, or empty"));
+                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                                "SetFunctionBreakpointsRequest: property 'breakpoints' is missing, null, or empty");
                     }
                     break;
 
-                case "evaluate":
-                    Requests.EvaluateArguments evaluateArguments = JsonUtils.fromJson(arguments,
-                            Requests.EvaluateArguments.class);
+                case EVALUATE:
+                    Requests.EvaluateArguments evaluateArguments = (EvaluateArguments) cmdArgs;
                     if (evaluateArguments.expression == null) {
-                        responseBody = new Responses.ErrorResponseBody(
-                                this.convertDebuggerMessageToClient("EvaluateRequest: property 'expression' is missing, null, or empty"));
+                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                                "EvaluateRequest: property 'expression' is missing, null, or empty");
                     } else {
-                        responseBody = evaluate(evaluateArguments);
+                        evaluate(evaluateArguments, response);
                     }
                     break;
 
                 default:
-                    responseBody = new Responses.ErrorResponseBody(
-                            this.convertDebuggerMessageToClient(String.format("unrecognized request: { _request: %s }", request.command)));
+                    List<IDebugRequestHandler> handlers = requestHandlers.get(command);
+                    if (handlers != null && !handlers.isEmpty()) {
+                        for (IDebugRequestHandler handler : handlers) {
+                            handler.handle(command, cmdArgs, response, this.debugContext);
+                        }
+                    } else {
+                        AdapterUtils.setErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
+                                String.format("Unrecognized request: { _request: %s }", request.command));
+                    }
             }
         } catch (Exception e) {
             Logger.logException("DebugSession dispatch exception", e);
-            // When there are uncaught exception during dispatching, send an error response back and terminate debuggee.
-            responseBody = new Responses.ErrorResponseBody(
-                    this.convertDebuggerMessageToClient(e.getMessage() != null ? e.getMessage() : e.toString()));
-            this.sendEventLater(new Events.TerminatedEvent());
+            AdapterUtils.setErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
+                    e.getMessage() != null ? e.getMessage() : e.toString());
         }
 
-        Messages.Response response = new Messages.Response();
-        response.request_seq = request.seq;
-        response.command = request.command;
-        return setBody(response, responseBody);
+        return response;
+    }
+
+    /**
+     * Send event to DA immediately.
+     *
+     * @see ProtocolServer#sendEvent(String, Object)
+     */
+    public void sendEvent(Events.DebugEvent event) {
+        this.eventConsumer.accept(event, false);
+    }
+
+    /**
+     * Send event to DA after the current dispatching request is resolved.
+     *
+     * @see ProtocolServer#sendEventLater(String, Object)
+     */
+    public void sendEventLater(Events.DebugEvent event) {
+        this.eventConsumer.accept(event, true);
+    }
+
+    public <T extends IProvider> T getProvider(Class<T> clazz) {
+        return providerContext.getProvider(clazz);
+    }
+
+    private void initialize() {
+        // Register request handlers.
+        registerHandler(new InitializeRequestHandler());
+    }
+
+    private void registerHandler(IDebugRequestHandler handler) {
+        for (Command command : handler.getTargetCommands()) {
+            List<IDebugRequestHandler> handlerList = requestHandlers.get(command);
+            if (handlerList == null) {
+                handlerList = new ArrayList<>();
+                requestHandlers.put(command, handlerList);
+            }
+            handlerList.add(handler);
+        }
     }
 
     /* ======================================================*/
     /* Invoke different dispatch logic for different request */
     /* ======================================================*/
 
-    private Responses.ResponseBody initialize(Requests.InitializeArguments arguments) {
-        this.clientLinesStartAt1 = arguments.linesStartAt1;
-        String pathFormat = arguments.pathFormat;
-        if (pathFormat != null) {
-            switch (pathFormat) {
-                case "uri":
-                    this.clientPathsAreUri = true;
-                    break;
-                default:
-                    this.clientPathsAreUri = false;
-            }
-        }
-        // Send an InitializedEvent
-        this.sendEventLater(new Events.InitializedEvent());
-
-        Types.Capabilities caps = new Types.Capabilities();
-        caps.supportsConfigurationDoneRequest = true;
-        caps.supportsHitConditionalBreakpoints = true;
-        caps.supportTerminateDebuggee = true;
-        Types.ExceptionBreakpointFilter[] exceptionFilters = {
-                Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER,
-                Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER,
-        };
-        caps.exceptionBreakpointFilters = exceptionFilters;
-        return new Responses.InitializeResponseBody(caps);
-    }
-
-    private Responses.ResponseBody launch(Requests.LaunchArguments arguments) {
+    private void launch(Requests.LaunchArguments arguments, Response response) {
         try {
             this.isAttached = false;
             this.launchDebugSession(arguments);
         } catch (DebugException e) {
             // When launching failed, send a TerminatedEvent to tell DA the debugger would exit.
             this.sendEventLater(new Events.TerminatedEvent());
-            return new Responses.ErrorResponseBody(
-                    this.convertDebuggerMessageToClient("Cannot launch debuggee vm: " + e.getMessage()));
+            AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE, e);
         }
-        return new Responses.ResponseBody();
     }
 
-    private Responses.ResponseBody attach(Requests.AttachArguments arguments) {
+    private void attach(Requests.AttachArguments arguments, Response response) {
         try {
             this.isAttached = true;
             this.attachDebugSession(arguments);
         } catch (DebugException e) {
             // When attaching failed, send a TerminatedEvent to tell DA the debugger would exit.
             this.sendEventLater(new Events.TerminatedEvent());
-            return new Responses.ErrorResponseBody(
-                    this.convertDebuggerMessageToClient(e.getMessage()));
+            AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE, e);
         }
-        return new Responses.ResponseBody();
     }
 
     /**
      * VS Code terminates a debug session with the disconnect request.
      */
-    private Responses.ResponseBody disconnect(Requests.DisconnectArguments arguments) {
+    private void disconnect(Requests.DisconnectArguments arguments, Response response) {
         this.shutdownDebugSession(arguments.terminateDebuggee && !this.isAttached);
-        return new Responses.ResponseBody();
     }
 
     /**
      * VS Code sends a configurationDone request to indicate the end of configuration sequence.
      */
-    private Responses.ResponseBody configurationDone() {
+    private void configurationDone(Requests.ConfigurationDoneArguments arguments, Response response) {
         this.eventSubscriptions.add(this.debugSession.eventHub().events().subscribe(debugEvent -> {
             handleEvent(debugEvent);
         }));
         this.debugSession.start();
-        return new Responses.ResponseBody();
     }
 
-    private Responses.ResponseBody setFunctionBreakpoints(Requests.SetFunctionBreakpointsArguments arguments) {
-        return new Responses.ResponseBody();
+    private void setFunctionBreakpoints(Requests.SetFunctionBreakpointsArguments arguments, Response response) {
+        // TODO
     }
 
-    private Responses.ResponseBody setBreakpoints(Requests.SetBreakpointArguments arguments) {
+    private void setBreakpoints(Requests.SetBreakpointArguments arguments, Response response) {
         String clientPath = arguments.source.path;
         if (AdapterUtils.isWindows()) {
             // VSCode may send drive letters with inconsistent casing which will mess up the key
@@ -364,8 +394,9 @@ public class DebugAdapter implements IDebugAdapter {
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (sourcePath == null) {
-            return new Responses.ErrorResponseBody(this.convertDebuggerMessageToClient(
-                    String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", arguments.source.path)));
+            AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
+                    String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", arguments.source.path));
+            return ;
         }
         try {
             List<Types.Breakpoint> res = new ArrayList<>();
@@ -384,14 +415,14 @@ public class DebugAdapter implements IDebugAdapter {
                 }
                 res.add(this.convertDebuggerBreakpointToClient(added[i]));
             }
-            return new Responses.SetBreakpointsResponseBody(res);
+            response.body = new Responses.SetBreakpointsResponseBody(res);
         } catch (DebugException e) {
-            return new Responses.ErrorResponseBody(this.convertDebuggerMessageToClient(
-                    String.format("Failed to setBreakpoint. Reason: '%s'", e.getMessage())));
+            AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
+                    String.format("Failed to setBreakpoint. Reason: '%s'", e.getMessage()));
         }
     }
 
-    private Responses.ResponseBody setExceptionBreakpoints(Requests.SetExceptionBreakpointsArguments arguments) {
+    private void setExceptionBreakpoints(Requests.SetExceptionBreakpointsArguments arguments, Response response) {
         String[] filters = arguments.filters;
         try {
             boolean notifyCaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER_NAME);
@@ -399,14 +430,12 @@ public class DebugAdapter implements IDebugAdapter {
 
             this.debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught);
         } catch (Exception ex) {
-            return new Responses.ErrorResponseBody(this.convertDebuggerMessageToClient(
-                    String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.getMessage())));
+            AdapterUtils.setErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
+                    String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.getMessage()));
         }
-
-        return new Responses.ResponseBody();
     }
 
-    private Responses.ResponseBody resume(Requests.ContinueArguments arguments) {
+    private void resume(Requests.ContinueArguments arguments, Response response) {
         boolean allThreadsContinued = true;
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
@@ -417,37 +446,34 @@ public class DebugAdapter implements IDebugAdapter {
             this.debugSession.resume();
             this.variableRequestHandler.recyclableAllObject();
         }
-        return new Responses.ContinueResponseBody(allThreadsContinued);
+        response.body = new Responses.ContinueResponseBody(allThreadsContinued);
     }
 
-    private Responses.ResponseBody next(Requests.NextArguments arguments) {
+    private void next(Requests.NextArguments arguments, Response response) {
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
             DebugUtility.stepOver(thread, this.debugSession.eventHub());
             checkThreadRunningAndRecycleIds(thread);
         }
-        return new Responses.ResponseBody();
     }
 
-    private Responses.ResponseBody stepIn(Requests.StepInArguments arguments) {
+    private void stepIn(Requests.StepInArguments arguments, Response response) {
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
             DebugUtility.stepInto(thread, this.debugSession.eventHub());
             checkThreadRunningAndRecycleIds(thread);
         }
-        return new Responses.ResponseBody();
     }
 
-    private Responses.ResponseBody stepOut(Requests.StepOutArguments arguments) {
+    private void stepOut(Requests.StepOutArguments arguments, Response response) {
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
             DebugUtility.stepOut(thread, this.debugSession.eventHub());
             checkThreadRunningAndRecycleIds(thread);
         }
-        return new Responses.ResponseBody();
     }
 
-    private Responses.ResponseBody pause(Requests.PauseArguments arguments) {
+    private void pause(Requests.PauseArguments arguments, Response response) {
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
             thread.suspend();
@@ -456,58 +482,56 @@ public class DebugAdapter implements IDebugAdapter {
             this.debugSession.suspend();
             this.sendEventLater(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
-        return new Responses.ResponseBody();
     }
 
-    private Responses.ResponseBody threads() {
+    private void threads(Requests.ThreadsArguments arguments, Response response) {
         ArrayList<Types.Thread> threads = new ArrayList<>();
         for (ThreadReference thread : this.safeGetAllThreads()) {
             Types.Thread clientThread = this.convertDebuggerThreadToClient(thread);
             threads.add(clientThread);
         }
-        return new Responses.ThreadsResponseBody(threads);
+        response.body = new Responses.ThreadsResponseBody(threads);
     }
 
-    private Responses.ResponseBody stackTrace(Requests.StackTraceArguments arguments) {
+    private void stackTrace(Requests.StackTraceArguments arguments, Response response) {
         try {
-            return this.variableRequestHandler.stackTrace(arguments);
+            response.body = this.variableRequestHandler.stackTrace(arguments);
         } catch (IncompatibleThreadStateException | AbsentInformationException | URISyntaxException e) {
-            return new Responses.ErrorResponseBody(this.convertDebuggerMessageToClient(
-                    String.format("Failed to get stackTrace. Reason: '%s'", e.getMessage())));
+            AdapterUtils.setErrorResponse(response, ErrorCode.GET_STACKTRACE_FAILURE,
+                    String.format("Failed to get stackTrace. Reason: '%s'", e.getMessage()));
         }
     }
 
-    private Responses.ResponseBody scopes(Requests.ScopesArguments arguments) {
-        return this.variableRequestHandler.scopes(arguments);
+    private void scopes(Requests.ScopesArguments arguments, Response response) {
+        response.body = this.variableRequestHandler.scopes(arguments);
     }
 
-    private Responses.ResponseBody variables(Requests.VariablesArguments arguments) {
+    private void variables(Requests.VariablesArguments arguments, Response response) {
         try {
-            return this.variableRequestHandler.variables(arguments);
+            response.body = this.variableRequestHandler.variables(arguments);
         } catch (AbsentInformationException e) {
-            return new Responses.ErrorResponseBody(this.convertDebuggerMessageToClient(
-                    String.format("Failed to get variables. Reason: '%s'", e.getMessage())));
+            AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                    String.format("Failed to get variables. Reason: '%s'", e.getMessage()));
         }
     }
 
-    private Responses.ResponseBody setVariable(Requests.SetVariableArguments arguments) {
-        return this.variableRequestHandler.setVariable(arguments);
+    private void setVariable(Requests.SetVariableArguments arguments, Response response) {
+        response.body = this.variableRequestHandler.setVariable(arguments);
     }
 
-    private Responses.ResponseBody source(Requests.SourceArguments arguments) {
+    private void source(Requests.SourceArguments arguments, Response response) {
         int sourceReference = arguments.sourceReference;
         String uri = sourceCollection.get(sourceReference);
         String contents = this.convertDebuggerSourceToClient(uri);
-        return new Responses.SourceResponseBody(contents);
+        response.body = new Responses.SourceResponseBody(contents);
     }
 
-    private Responses.ResponseBody evaluate(Requests.EvaluateArguments arguments) {
+    private void evaluate(Requests.EvaluateArguments arguments, Response response) {
         try {
-            return this.variableRequestHandler.evaluate(arguments);
+            response.body = this.variableRequestHandler.evaluate(arguments);
         } catch (IllegalArgumentException | NullPointerException ex) {
-            return new Responses.ErrorResponseBody(this.convertDebuggerMessageToClient(
-                    String.format("Failed to evaluate expression %s . Reason: '%s'",
-                            arguments.expression, ex.getMessage())));
+            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                    String.format("Failed to evaluate expression %s . Reason: '%s'", arguments.expression, ex.toString()));
         }
     }
 
@@ -553,58 +577,15 @@ public class DebugAdapter implements IDebugAdapter {
         }
     }
 
-    private Messages.Response setBody(Messages.Response response, Responses.ResponseBody body) {
-        response.body = body;
-        if (body instanceof Responses.ErrorResponseBody) {
-            response.success = false;
-            Types.Message error = ((Responses.ErrorResponseBody) body).error;
-            if (error.format != null) {
-                response.message = error.format;
-            } else {
-                response.message = "Error response body";
-            }
-        } else {
-            response.success = true;
-            if (body instanceof Responses.InitializeResponseBody) {
-                response.body = ((Responses.InitializeResponseBody) body).body;
-            }
-        }
-        return response;
-    }
-
-    /**
-     * Send event to DA immediately.
-     *
-     * @see ProtocolServer#sendEvent(String, Object)
-     */
-    private void sendEvent(Events.DebugEvent event) {
-        this.eventConsumer.accept(event, false);
-    }
-
-    /**
-     * Send event to DA after the current dispatching request is resolved.
-     *
-     * @see ProtocolServer#sendEventLater(String, Object)
-     */
-    private void sendEventLater(Events.DebugEvent event) {
-        this.eventConsumer.accept(event, true);
-    }
-
     private void launchDebugSession(Requests.LaunchArguments arguments) throws DebugException {
-        this.cwd = arguments.cwd;
         String mainClass = arguments.startupClass;
         String classpath = arguments.classpath;
-        if (arguments.sourcePath == null || arguments.sourcePath.length == 0) {
-            this.sourcePath = new String[] { cwd };
-        } else {
-            this.sourcePath = new String[arguments.sourcePath.length];
-            System.arraycopy(arguments.sourcePath, 0, this.sourcePath, 0, arguments.sourcePath.length);
-        }
+        this.sourcePath = arguments.sourcePath != null ? arguments.sourcePath : new String[0];
 
         Logger.logInfo("Launch JVM with main class \"" + mainClass + "\", -classpath \"" + classpath + "\"");
 
         try {
-            this.debugSession = DebugUtility.launch(context.getVirtualMachineManagerProvider().getVirtualMachineManager(), mainClass, classpath);
+            this.debugSession = DebugUtility.launch(providerContext.getVirtualMachineManagerProvider().getVirtualMachineManager(), mainClass, classpath);
             ProcessConsole debuggeeConsole = new ProcessConsole(this.debugSession.process(), "Debuggee");
             debuggeeConsole.onStdout((output) -> {
                 // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
@@ -616,26 +597,22 @@ public class DebugAdapter implements IDebugAdapter {
             });
             debuggeeConsole.start();
         } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            Logger.logException("Launching debuggee vm exception", e);
-            throw new DebugException("Launching debuggee vm exception \"" + e.getMessage() + "\"", e);
+            String errorMessage = String.format("Failed to launch debuggee vm. Reason: \"%s\"", e.toString());
+            Logger.logException(errorMessage, e);
+            throw new DebugException(errorMessage, e);
         }
     }
 
     private void attachDebugSession(Requests.AttachArguments arguments) throws DebugException {
-        this.cwd = arguments.cwd;
-        if (arguments.sourcePath == null || arguments.sourcePath.length == 0) {
-            this.sourcePath = new String[] { cwd };
-        } else {
-            this.sourcePath = new String[arguments.sourcePath.length];
-            System.arraycopy(arguments.sourcePath, 0, this.sourcePath, 0, arguments.sourcePath.length);
-        }
+        this.sourcePath = arguments.sourcePath != null ? arguments.sourcePath : new String[0];
 
         try {
-            this.debugSession = DebugUtility.attach(context.getVirtualMachineManagerProvider().getVirtualMachineManager(),
+            this.debugSession = DebugUtility.attach(providerContext.getVirtualMachineManagerProvider().getVirtualMachineManager(),
                     arguments.hostName, arguments.port, arguments.attachTimeout);
         } catch (IOException | IllegalConnectorArgumentsException e) {
-            Logger.logException("Failed to attach to remote debuggee vm. Reason: " + e.getMessage(), e);
-            throw new DebugException("Failed to attach to remote debuggee vm. Reason: " + e.getMessage(), e);
+            String errorMessage = String.format("Failed to attach to remote debuggee vm. Reason: \"%s\"", e.toString());
+            Logger.logException(errorMessage, e);
+            throw new DebugException(errorMessage, e);
         }
     }
 
@@ -764,7 +741,7 @@ public class DebugAdapter implements IDebugAdapter {
             return sourceBreakpoint.line;
         }).mapToInt(line -> line).toArray();
         int[] debuggerLines = this.convertClientLineToDebugger(lines);
-        String[] fqns = context.getSourceLookUpProvider().getFullyQualifiedName(sourceFile, debuggerLines, null);
+        String[] fqns = providerContext.getSourceLookUpProvider().getFullyQualifiedName(sourceFile, debuggerLines, null);
         IBreakpoint[] breakpoints = new IBreakpoint[lines.length];
         for (int i = 0; i < lines.length; i++) {
             int hitCount = 0;
@@ -792,25 +769,23 @@ public class DebugAdapter implements IDebugAdapter {
             sourceName = enclosingType.substring(enclosingType.lastIndexOf('.') + 1) + ".java";
             relativeSourcePath = enclosingType.replace('.', '/') + ".java";
         }
-        String uri = context.getSourceLookUpProvider().getSourceFileURI(fullyQualifiedName, relativeSourcePath);
-        // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
-        if (uri == null) {
-            String absoluteSourcepath = AdapterUtils.sourceLookup(this.sourcePath, relativeSourcePath);
-            if (absoluteSourcepath == null) {
-                absoluteSourcepath = Paths.get(this.cwd, relativeSourcePath).toString();
+        String uri = providerContext.getSourceLookUpProvider().getSourceFileURI(fullyQualifiedName, relativeSourcePath);
+        if (uri != null) {
+            String clientPath = this.convertDebuggerPathToClient(uri);
+            if (uri.startsWith("file:")) {
+                return new Types.Source(sourceName, clientPath, 0);
+            } else {
+                return new Types.Source(sourceName, clientPath, this.sourceCollection.create(uri));
             }
-            uri = Paths.get(absoluteSourcepath).toUri().toString();
-        }
-        String clientPath = this.convertDebuggerPathToClient(uri);
-        if (uri.startsWith("file:")) {
-            return new Types.Source(sourceName, clientPath, 0);
         } else {
-            return new Types.Source(sourceName, clientPath, this.sourceCollection.create(uri));
+            // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
+            String absoluteSourcepath = AdapterUtils.sourceLookup(this.sourcePath, relativeSourcePath);
+            return new Types.Source(sourceName, absoluteSourcepath, 0);
         }
     }
 
     private String convertDebuggerSourceToClient(String uri) {
-        return context.getSourceLookUpProvider().getSourceContents(uri);
+        return providerContext.getSourceLookUpProvider().getSourceContents(uri);
     }
 
     private Types.Thread convertDebuggerThreadToClient(ThreadReference thread) {
@@ -824,10 +799,6 @@ public class DebugAdapter implements IDebugAdapter {
         Types.Source clientSource = this.convertDebuggerSourceToClient(location);
         return new Types.StackFrame(frameId, method.name(), clientSource,
                 this.convertDebuggerLineToClient(location.lineNumber()), 0);
-    }
-
-    private Types.Message convertDebuggerMessageToClient(String message) {
-        return new Types.Message(this.messageId.getAndIncrement(), message);
     }
 
     private void checkThreadRunningAndRecycleIds(ThreadReference thread) {
@@ -1037,7 +1008,8 @@ public class DebugAdapter implements IDebugAdapter {
 
             // obj is null means the stackframe is continued by user manually,
             if (obj == null) {
-                return new Responses.ErrorResponseBody(convertDebuggerMessageToClient("Cannot set value because the thread is resumed."));
+                return new Responses.ErrorResponseBody(
+                        new Types.Message(ErrorCode.SET_VARIABLE_FAILURE.getId(), "Cannot set value because the thread is resumed."));
             }
             ThreadReference thread;
             String name = arguments.name;
@@ -1066,7 +1038,7 @@ public class DebugAdapter implements IDebugAdapter {
                 }
             } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
                     | UnsupportedOperationException | ClassNotLoadedException e) {
-                return new Responses.ErrorResponseBody(convertDebuggerMessageToClient(e.getMessage()));
+                return new Responses.ErrorResponseBody(new Types.Message(ErrorCode.SET_VARIABLE_FAILURE.getId(), e.toString()));
             }
             int referenceId = getReferenceId(thread, newValue, showStaticVariables);
 
@@ -1169,9 +1141,9 @@ public class DebugAdapter implements IDebugAdapter {
             JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>)this.objectPool.getObjectById(arguments.frameId);
             if (stackFrameProxy == null) {
                 // stackFrameProxy is null means the stackframe is continued by user manually,
-                return new Responses.ErrorResponseBody(convertDebuggerMessageToClient("Cannot evaluate because the thread is resumed."));
+                return new Responses.ErrorResponseBody(
+                        new Types.Message(ErrorCode.EVALUATE_FAILURE.getId(), "Cannot evaluate because the thread is resumed."));
             }
-
 
             // split a.b.c => ["a", "b", "c"]
             List<String> referenceExpressions = Arrays.stream(StringUtils.split(expression, '.'))

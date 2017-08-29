@@ -14,9 +14,8 @@ package org.eclipse.jdt.ls.debug.adapter;
 import java.util.List;
 
 public interface IDebugRequestHandler {
-    List<String> getTargetCommands();
+    List<Requests.Command> getTargetCommands();
     
-    void handle(String command, Requests.Arguments arguments, Messages.Response response,
-                IDebugAdapterContext context);
+    void handle(Requests.Command command, Requests.Arguments arguments, Messages.Response response, IDebugAdapterContext context);
 
 }

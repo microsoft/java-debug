@@ -21,15 +21,14 @@ import org.eclipse.jdt.ls.debug.adapter.Messages;
 import org.eclipse.jdt.ls.debug.adapter.Requests;
 import org.eclipse.jdt.ls.debug.adapter.Types;  
 
-public class InitializeHandler implements IDebugRequestHandler {
+public class InitializeRequestHandler implements IDebugRequestHandler {
     @Override
-    public List<String> getTargetCommands() {
-        return Arrays.asList("initialize");
+    public List<Requests.Command> getTargetCommands() {
+        return Arrays.asList(Requests.Command.INITIALIZE);
     }
 
-
     @Override
-    public void handle(String command, Requests.Arguments argument, Messages.Response response,
+    public void handle(Requests.Command command, Requests.Arguments argument, Messages.Response response,
                        IDebugAdapterContext context) {
         Requests.InitializeArguments initializeArguments = (Requests.InitializeArguments) argument;
         context.setClientLinesStartAt1(initializeArguments.linesStartAt1);
@@ -50,8 +49,12 @@ public class InitializeHandler implements IDebugRequestHandler {
         Types.Capabilities caps = new Types.Capabilities();
         caps.supportsConfigurationDoneRequest = true;
         caps.supportsHitConditionalBreakpoints = true;
-        caps.supportsRestartRequest = true;
         caps.supportTerminateDebuggee = true;
+        Types.ExceptionBreakpointFilter[] exceptionFilters = {
+                Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER,
+                Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER,
+        };
+        caps.exceptionBreakpointFilters = exceptionFilters;
         response.body = caps;
     }
 }

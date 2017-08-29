@@ -14,14 +14,6 @@ package org.eclipse.jdt.ls.debug.adapter;
 import org.eclipse.jdt.ls.debug.IDebugSession;
 
 public interface IDebugAdapterContext {
-
-    /**
-     * Get the debug session.
-     * 
-     * @return the debug session.
-     */
-    IDebugSession getDebugSession();
-
     /**
      * Send debug event synchronously.
      * 
@@ -40,6 +32,20 @@ public interface IDebugAdapterContext {
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 
+    /**
+     * Set the debug session.
+     * @param session
+     *              the new debug session
+     */
+    void setDebugSession(IDebugSession session);
+
+    /**
+     * Get the debug session.
+     * 
+     * @return the debug session.
+     */
+    IDebugSession getDebugSession();
+
     boolean isDebuggerLinesStartAt1();
 
     void setDebuggerLinesStartAt1(boolean debuggerLinesStartAt1);
@@ -55,4 +61,8 @@ public interface IDebugAdapterContext {
     boolean isClientPathsAreUri();
 
     void setClientPathsAreUri(boolean clientPathsAreUri);
+
+    boolean isAttached();
+
+    void setAttached(boolean attached);
 }

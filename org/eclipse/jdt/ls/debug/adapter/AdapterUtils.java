@@ -11,11 +11,17 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.eclipse.jdt.ls.debug.adapter.Messages.Response;
 
 public class AdapterUtils {
     private static final String osName = System.getProperty("os.name", "").toLowerCase();
@@ -66,5 +72,97 @@ public class AdapterUtils {
             return matcher.group();
         }
         return null;
+    }
+
+    /**
+     * Convert the source platform's line number to the target platform's line number.
+     *
+     * @param line
+     *           the line number from the source platform
+     * @param sourceLinesStartAt1
+     *           the source platform's line starts at 1 or not
+     * @param targetLinesStartAt1
+     *           the target platform's line starts at 1 or not
+     * @return the new line number
+     */
+    public static int convertLineNumber(int line, boolean sourceLinesStartAt1, boolean targetLinesStartAt1) {
+        if (sourceLinesStartAt1) {
+            return targetLinesStartAt1 ? line : line - 1;
+        } else {
+            return targetLinesStartAt1 ? line + 1 : line;
+        }
+    }
+
+    /**
+     * Convert the source platform's path format to the target platform's path format.
+     *
+     * @param path
+     *           the path value from the source platform
+     * @param sourceIsUri
+     *           the path format of the source platform is uri or not
+     * @param targetIsUri
+     *           the path format of the target platform is uri or not
+     * @return the new path value
+     */
+    public static String convertPath(String path, boolean sourceIsUri, boolean targetIsUri) {
+        if (path == null) {
+            return null;
+        }
+
+        if (sourceIsUri) {
+            if (targetIsUri) {
+                return path;
+            } else {
+                try {
+                    return Paths.get(new URI(path)).toString();
+                } catch (URISyntaxException | IllegalArgumentException
+                        | FileSystemNotFoundException | SecurityException e) {
+                    return null;
+                }
+            }
+        } else {
+            if (targetIsUri) {
+                try {
+                    return Paths.get(path).toUri().toString();
+                } catch (InvalidPathException e) {
+                    return null;
+                }
+            } else {
+                return path;
+            }
+        }
+    }
+
+    /**
+     * Generate an error response with the given error message.
+     *
+     * @param response
+     *              the response object
+     * @param errorCode
+     *              the error code
+     * @param errorMessage
+     *              the error message
+     */
+    public static void setErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
+        response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
+        response.message = errorMessage;
+        response.success = false;
+    }
+
+    /**
+     * Generate an error response with the given exception.
+     *
+     * @param response
+     *              the response object
+     * @param errorCode
+     *              the error code
+     * @param e
+     *              the exception
+     */
+    public static void setErrorResponse(Response response, ErrorCode errorCode, Exception e) {
+        String errorMessage = e.toString();
+        response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
+        response.message = errorMessage;
+        response.success = false;
     }
 }

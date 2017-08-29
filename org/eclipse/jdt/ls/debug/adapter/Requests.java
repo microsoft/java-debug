@@ -11,6 +11,8 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
+import java.util.Arrays;
+
 /**
  * The request arguments types defined by VSCode Debug Protocol.
  */
@@ -39,7 +41,6 @@ public class Requests {
         public String type;
         public String name;
         public String request;
-        public String cwd;
         public String startupClass;
         public String projectName;
         public String classpath;
@@ -52,7 +53,6 @@ public class Requests {
         public String type;
         public String name;
         public String request;
-        public String cwd;
         public String hostName;
         public int port;
         public int attachTimeout;
@@ -69,6 +69,10 @@ public class Requests {
         // the debugger would choose to terminate debuggee by default.
         public boolean terminateDebuggee = true;
         public boolean restart;
+    }
+
+    public static class ConfigurationDoneArguments extends Arguments {
+
     }
 
     public static class SetBreakpointArguments extends Arguments {
@@ -90,6 +94,10 @@ public class Requests {
 
     public static class SetExceptionBreakpointsArguments extends Arguments {
         public String[] filters = new String[0];
+    }
+
+    public static class ThreadsArguments extends Arguments {
+
     }
 
     public static class ContinueArguments extends Arguments {
@@ -141,5 +149,63 @@ public class Requests {
         public int frameId;
         public String context;
         public ValueFormat format;
+    }
+
+    public static enum Command {
+        INITIALIZE("initialize", InitializeArguments.class),
+        LAUNCH("launch", LaunchArguments.class),
+        ATTACH("attach", AttachArguments.class),
+        DISCONNECT("disconnect", DisconnectArguments.class),
+        CONFIGURATIONDONE("configurationDone", ConfigurationDoneArguments.class),
+        NEXT("next", NextArguments.class),
+        CONTINUE("continue", ContinueArguments.class),
+        STEPIN("stepIn", StepInArguments.class),
+        STEPOUT("stepOut", StepOutArguments.class),
+        PAUSE("pause", PauseArguments.class),
+        STACKTRACE("stackTrace", StackTraceArguments.class),
+        SCOPES("scopes", ScopesArguments.class),
+        VARIABLES("variables", VariablesArguments.class),
+        SETVARIABLE("setVariable", SetVariableArguments.class),
+        SOURCE("source", SourceArguments.class),
+        THREADS("threads", ThreadsArguments.class),
+        SETBREAKPOINTS("setBreakpoints", SetBreakpointArguments.class),
+        SETEXCEPTIONBREAKPOINTS("setExceptionBreakpoints", SetExceptionBreakpointsArguments.class),
+        SETFUNCTIONBREAKPOINTS("setFunctionBreakpoints", SetFunctionBreakpointsArguments.class),
+        EVALUATE("evaluate", EvaluateArguments.class),
+        UNSUPPORTED("", Arguments.class);
+
+        private String command;
+        private Class<? extends Arguments> argumentType;
+
+        Command(String command, Class<? extends Arguments> argumentType) {
+            this.command = command;
+            this.argumentType = argumentType;
+        }
+
+        public String toString() {
+            return this.command;
+        }
+
+        public Class<? extends Arguments> getArgumentType() {
+            return this.argumentType;
+        }
+
+        /**
+         * Get the corresponding Command type by the command name.
+         * If the command is not defined in the enum type, return UNSUPPORTED.
+         * @param command
+         *             the command name
+         * @return the Command type
+         */
+        public static Command parse(String command) {
+            Command[] found = Arrays.stream(Command.values()).filter(cmd -> {
+                return cmd.toString().equals(command);
+            }).toArray(Command[]::new);
+
+            if (found.length > 0) {
+                return found[0];
+            }
+            return UNSUPPORTED;
+        }
     }
 }

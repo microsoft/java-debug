@@ -182,7 +182,6 @@ public class ProtocolServer {
                     Messages.Response response = this.debugAdapter.dispatchRequest(message);
                     if (message.command.equals("disconnect")) {
                         this.stop();
-                        this.debugAdapter = null;
                     }
                     sendMessage(response);
                 } catch (Exception e) {
