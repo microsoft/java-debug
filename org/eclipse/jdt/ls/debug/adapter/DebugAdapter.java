@@ -930,6 +930,11 @@ public class DebugAdapter implements IDebugAdapter {
             List<Types.Variable> list = new ArrayList<>();
             List<Variable> variables;
             Object obj = this.objectPool.getObjectById(arguments.variablesReference);
+            // vscode will always send variables request to a staled scope, return the empty list is ok since the next
+            // variable request will contain the right variablesReference.
+            if (obj == null) {
+                return new Responses.VariablesResponseBody(list);
+            }
             ThreadReference thread;
             if (obj instanceof StackFrameScope) {
                 StackFrame frame = ((StackFrameScope) obj).getStackFrame();
@@ -1029,6 +1034,11 @@ public class DebugAdapter implements IDebugAdapter {
             }
 
             Object obj = this.objectPool.getObjectById(arguments.variablesReference);
+
+            // obj is null means the stackframe is continued by user manually,
+            if (obj == null) {
+                return new Responses.ErrorResponseBody(convertDebuggerMessageToClient("Cannot set value because the thread is resumed."));
+            }
             ThreadReference thread;
             String name = arguments.name;
             Value newValue;
@@ -1158,7 +1168,8 @@ public class DebugAdapter implements IDebugAdapter {
 
             JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>)this.objectPool.getObjectById(arguments.frameId);
             if (stackFrameProxy == null) {
-                throw new IllegalArgumentException("Invalid stackframe.");
+                // stackFrameProxy is null means the stackframe is continued by user manually,
+                return new Responses.ErrorResponseBody(convertDebuggerMessageToClient("Cannot evaluate because the thread is resumed."));
             }
 
 
