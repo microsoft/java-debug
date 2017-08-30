@@ -23,7 +23,9 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
     private boolean isAttached = false;
+
     private String[] sourcePath;
+    private IdCollection<String> sourceReferences = new IdCollection<>();
 
     public DebugAdapterContext(DebugAdapter debugAdapter) {
         this.debugAdapter = debugAdapter;
@@ -110,5 +112,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     public void setSourcePath(String[] sourcePath) {
         this.sourcePath = sourcePath;
+    }
+
+    @Override
+    public String getSourceUri(int sourceReference) {
+        return this.sourceReferences.get(sourceReference);
+    }
+
+    @Override
+    public int createSourceReference(String uri) {
+        return this.sourceReferences.create(uri);
     }
 }

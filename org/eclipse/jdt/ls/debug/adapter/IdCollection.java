@@ -18,6 +18,7 @@ public class IdCollection<T> {
     private int startId;
     private AtomicInteger nextId;
     private HashMap<Integer, T> idMap;
+    private HashMap<T, Integer> reverseMap;
 
     public IdCollection() {
         this(1);
@@ -32,27 +33,47 @@ public class IdCollection<T> {
         this.startId = startId;
         this.nextId = new AtomicInteger(startId);
         this.idMap = new HashMap<>();
-    }
-
-    public void reset() {
-        this.nextId.set(this.startId);
-        this.idMap.clear();
+        this.reverseMap = new HashMap<>();
     }
 
     /**
-     * Creates a id number for the given value.
+     * Reset the id to the initial start number.
+     */
+    public void reset() {
+        this.nextId.set(this.startId);
+        this.idMap.clear();
+        this.reverseMap.clear();
+    }
+
+    /**
+     * Create a new id if the id doesn't exist for the given value.
+     * Otherwise return the existing id. 
      */
     public int create(T value) {
+        if (this.reverseMap.containsKey(value)) {
+            return this.reverseMap.get(value);
+        }
         int id = this.nextId.getAndIncrement();
         this.idMap.put(id, value);
+        this.reverseMap.put(value, id);
         return id;
     }
 
+    /**
+     * Get the original value by the id.
+     */
     public T get(int id) {
         return this.idMap.get(id);
     }
 
+    /**
+     * Remove the id from the id collection.
+     */
     public T remove(int id) {
-        return this.idMap.remove(id);
+        T target = this.idMap.remove(id);
+        if (target != null) {
+            this.reverseMap.remove(target);
+        }
+        return target;
     }
 }

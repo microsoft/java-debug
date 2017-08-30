@@ -24,12 +24,8 @@ import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.ls.debug.DebugException;
 import org.eclipse.jdt.ls.debug.DebugUtility;
-import org.eclipse.jdt.ls.debug.IBreakpoint;
 import org.eclipse.jdt.ls.debug.adapter.Messages.Response;
 import org.eclipse.jdt.ls.debug.adapter.Requests.Arguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.Command;
@@ -38,11 +34,7 @@ import org.eclipse.jdt.ls.debug.adapter.Requests.EvaluateArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.NextArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.PauseArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.ScopesArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.SetBreakpointArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.SetExceptionBreakpointsArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.SetFunctionBreakpointsArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.SetVariableArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.SourceArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.StackTraceArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.StepInArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.StepOutArguments;
@@ -56,6 +48,9 @@ import org.eclipse.jdt.ls.debug.adapter.handler.ConfigurationDoneRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.handler.DisconnectRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.handler.InitializeRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.handler.LaunchRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.SetBreakpointsRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.SetExceptionBreakpointsRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.SourceRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
 import org.eclipse.jdt.ls.debug.adapter.variables.JdiObjectProxy;
 import org.eclipse.jdt.ls.debug.adapter.variables.StackFrameScope;
@@ -89,10 +84,8 @@ import com.sun.jdi.Value;
 public class DebugAdapter implements IDebugAdapter {
     private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
 
-    private BreakpointManager breakpointManager;
     private IProviderContext providerContext;
     private VariableRequestHandler variableRequestHandler;
-    private IdCollection<String> sourceCollection = new IdCollection<>();
 
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
@@ -102,7 +95,6 @@ public class DebugAdapter implements IDebugAdapter {
      */
     public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext providerContext) {
         this.eventConsumer = consumer;
-        this.breakpointManager = new BreakpointManager();
         this.providerContext = providerContext;
         this.variableRequestHandler = new VariableRequestHandler(VariableFormatterFactory.createVariableFormatter());
         this.debugContext = new DebugAdapterContext(this);
@@ -176,36 +168,8 @@ public class DebugAdapter implements IDebugAdapter {
                     }
                     break;
 
-                case SOURCE:
-                    Requests.SourceArguments sourceArguments = (SourceArguments) cmdArgs;
-                    if (sourceArguments.sourceReference == -1) {
-                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                                "SourceRequest: property 'sourceReference' is missing, null, or empty");
-                    } else {
-                        source(sourceArguments, response);
-                    }
-                    break;
-
                 case THREADS:
                     threads((ThreadsArguments) cmdArgs, response);
-                    break;
-
-                case SETBREAKPOINTS:
-                    setBreakpoints((SetBreakpointArguments) cmdArgs, response);
-                    break;
-
-                case SETEXCEPTIONBREAKPOINTS:
-                    setExceptionBreakpoints((SetExceptionBreakpointsArguments) cmdArgs, response);
-                    break;
-
-                case SETFUNCTIONBREAKPOINTS:
-                    Requests.SetFunctionBreakpointsArguments setFuncBreakpointArguments = (SetFunctionBreakpointsArguments) cmdArgs;
-                    if (setFuncBreakpointArguments.breakpoints != null) {
-                        setFunctionBreakpoints(setFuncBreakpointArguments, response);
-                    } else {
-                        AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                                "SetFunctionBreakpointsRequest: property 'breakpoints' is missing, null, or empty");
-                    }
                     break;
 
                 case EVALUATE:
@@ -267,6 +231,9 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new AttachRequestHandler());
         registerHandler(new ConfigurationDoneRequestHandler());
         registerHandler(new DisconnectRequestHandler());
+        registerHandler(new SetBreakpointsRequestHandler());
+        registerHandler(new SetExceptionBreakpointsRequestHandler());
+        registerHandler(new SourceRequestHandler());
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
@@ -283,74 +250,6 @@ public class DebugAdapter implements IDebugAdapter {
     /* ======================================================*/
     /* Invoke different dispatch logic for different request */
     /* ======================================================*/
-
-    private void setFunctionBreakpoints(Requests.SetFunctionBreakpointsArguments arguments, Response response) {
-        // TODO
-    }
-
-    private void setBreakpoints(Requests.SetBreakpointArguments arguments, Response response) {
-        String clientPath = arguments.source.path;
-        if (AdapterUtils.isWindows()) {
-            // VSCode may send drive letters with inconsistent casing which will mess up the key
-            // in the BreakpointManager. See https://github.com/Microsoft/vscode/issues/6268
-            // Normalize the drive letter casing. Note that drive letters
-            // are not localized so invariant is safe here.
-            String drivePrefix = FilenameUtils.getPrefix(clientPath);
-            if (drivePrefix != null && drivePrefix.length() >= 2
-                    && Character.isLowerCase(drivePrefix.charAt(0)) && drivePrefix.charAt(1) == ':') {
-                drivePrefix = drivePrefix.substring(0, 2); // d:\ is an illegal regex string, convert it to d:
-                clientPath = clientPath.replaceFirst(drivePrefix, drivePrefix.toUpperCase());
-            }
-        }
-        String sourcePath = clientPath;
-        if (arguments.source.sourceReference != 0 && this.sourceCollection.get(arguments.source.sourceReference) != null) {
-            sourcePath = this.sourceCollection.get(arguments.source.sourceReference);
-        } else {
-            sourcePath = this.convertClientPathToDebugger(clientPath);
-        }
-
-        // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
-        if (sourcePath == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
-                    String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", arguments.source.path));
-            return ;
-        }
-        try {
-            List<Types.Breakpoint> res = new ArrayList<>();
-            IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, arguments.breakpoints);
-            IBreakpoint[] added = this.breakpointManager.setBreakpoints(sourcePath, toAdds, arguments.sourceModified);
-            for (int i = 0; i < arguments.breakpoints.length; i++) {
-                // For newly added breakpoint, should install it to debuggee first.
-                if (toAdds[i] == added[i] && added[i].className() != null) {
-                    added[i].install().thenAccept(bp -> {
-                        Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp));
-                        sendEventLater(bpEvent);
-                    });
-                } else if (toAdds[i].hitCount() != added[i].hitCount() && added[i].className() != null) {
-                    // Update hitCount condition.
-                    added[i].setHitCount(toAdds[i].hitCount());
-                }
-                res.add(this.convertDebuggerBreakpointToClient(added[i]));
-            }
-            response.body = new Responses.SetBreakpointsResponseBody(res);
-        } catch (DebugException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
-                    String.format("Failed to setBreakpoint. Reason: '%s'", e.getMessage()));
-        }
-    }
-
-    private void setExceptionBreakpoints(Requests.SetExceptionBreakpointsArguments arguments, Response response) {
-        String[] filters = arguments.filters;
-        try {
-            boolean notifyCaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER_NAME);
-            boolean notifyUncaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME);
-
-            this.debugContext.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
-        } catch (Exception ex) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
-                    String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.getMessage()));
-        }
-    }
 
     private void resume(Requests.ContinueArguments arguments, Response response) {
         boolean allThreadsContinued = true;
@@ -436,13 +335,6 @@ public class DebugAdapter implements IDebugAdapter {
         response.body = this.variableRequestHandler.setVariable(arguments);
     }
 
-    private void source(Requests.SourceArguments arguments, Response response) {
-        int sourceReference = arguments.sourceReference;
-        String uri = sourceCollection.get(sourceReference);
-        String contents = this.convertDebuggerSourceToClient(uri);
-        response.body = new Responses.SourceResponseBody(contents);
-    }
-
     private void evaluate(Requests.EvaluateArguments arguments, Response response) {
         try {
             response.body = this.variableRequestHandler.evaluate(arguments);
@@ -477,50 +369,8 @@ public class DebugAdapter implements IDebugAdapter {
         return AdapterUtils.convertLineNumber(line, this.debugContext.isDebuggerLinesStartAt1(), this.debugContext.isClientLinesStartAt1());
     }
 
-    private int convertClientLineToDebugger(int line) {
-        return AdapterUtils.convertLineNumber(line, this.debugContext.isClientLinesStartAt1(), this.debugContext.isDebuggerLinesStartAt1());
-    }
-
-    private int[] convertClientLineToDebugger(int[] lines) {
-        int[] newLines = new int[lines.length];
-        for (int i = 0; i < lines.length; i++) {
-            newLines[i] = convertClientLineToDebugger(lines[i]);
-        }
-        return newLines;
-    }
-
-    private String convertClientPathToDebugger(String clientPath) {
-        return AdapterUtils.convertPath(clientPath, this.debugContext.isClientPathsAreUri(), this.debugContext.isDebuggerPathsAreUri());
-    }
-
     private String convertDebuggerPathToClient(String debuggerPath) {
         return AdapterUtils.convertPath(debuggerPath, this.debugContext.isDebuggerPathsAreUri(), this.debugContext.isClientPathsAreUri());
-    }
-
-    private Types.Breakpoint convertDebuggerBreakpointToClient(IBreakpoint breakpoint) {
-        int id = (int) breakpoint.getProperty("id");
-        boolean verified = breakpoint.getProperty("verified") != null ? (boolean) breakpoint.getProperty("verified") : false;
-        int lineNumber = this.convertDebuggerLineToClient(breakpoint.lineNumber());
-        return new Types.Breakpoint(id, verified, lineNumber, "");
-    }
-
-    private IBreakpoint[] convertClientBreakpointsToDebugger(String sourceFile, Types.SourceBreakpoint[] sourceBreakpoints) throws DebugException {
-        int[] lines = Arrays.asList(sourceBreakpoints).stream().map(sourceBreakpoint -> {
-            return sourceBreakpoint.line;
-        }).mapToInt(line -> line).toArray();
-        int[] debuggerLines = this.convertClientLineToDebugger(lines);
-        String[] fqns = providerContext.getSourceLookUpProvider().getFullyQualifiedName(sourceFile, debuggerLines, null);
-        IBreakpoint[] breakpoints = new IBreakpoint[lines.length];
-        for (int i = 0; i < lines.length; i++) {
-            int hitCount = 0;
-            try {
-                hitCount = Integer.parseInt(sourceBreakpoints[i].hitCondition);
-            } catch (NumberFormatException e) {
-                hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
-            }
-            breakpoints[i] = this.debugContext.getDebugSession().createBreakpoint(fqns[i], debuggerLines[i], hitCount);
-        }
-        return breakpoints;
     }
 
     private Types.Source convertDebuggerSourceToClient(Location location) throws URISyntaxException {
@@ -543,17 +393,13 @@ public class DebugAdapter implements IDebugAdapter {
             if (uri.startsWith("file:")) {
                 return new Types.Source(sourceName, clientPath, 0);
             } else {
-                return new Types.Source(sourceName, clientPath, this.sourceCollection.create(uri));
+                return new Types.Source(sourceName, clientPath, this.debugContext.createSourceReference(uri));
             }
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
             String absoluteSourcepath = AdapterUtils.sourceLookup(this.debugContext.getSourcePath(), relativeSourcePath);
             return new Types.Source(sourceName, absoluteSourcepath, 0);
         }
-    }
-
-    private String convertDebuggerSourceToClient(String uri) {
-        return providerContext.getSourceLookUpProvider().getSourceContents(uri);
     }
 
     private Types.Thread convertDebuggerThreadToClient(ThreadReference thread) {

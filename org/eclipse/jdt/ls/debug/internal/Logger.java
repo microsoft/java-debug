@@ -14,17 +14,13 @@ package org.eclipse.jdt.ls.debug.internal;
 import org.eclipse.jdt.ls.debug.internal.JavaDebuggerServerPlugin;
 
 public class Logger {
-    private static boolean isVerbose = Boolean.getBoolean("jdt.ls.debug");
-
     /**
      * Log the info message with the plugin's logger.
      * @param message
      *               message to log
      */
     public static void logInfo(String message) {
-        if (isVerbose) {
-            JavaDebuggerServerPlugin.logInfo(message);
-        }
+        JavaDebuggerServerPlugin.logInfo(message);
     }
 
     public static void logException(String message, Exception e) {

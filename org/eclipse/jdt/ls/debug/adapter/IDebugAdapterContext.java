@@ -69,4 +69,8 @@ public interface IDebugAdapterContext {
     String[] getSourcePath();
 
     void setSourcePath(String[] sourcePath);
+
+    String getSourceUri(int sourceReference);
+
+    int createSourceReference(String uri);
 }
