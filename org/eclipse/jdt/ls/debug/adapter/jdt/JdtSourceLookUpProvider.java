@@ -34,6 +34,7 @@ import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.handlers.JsonRpcHelpers;
 import org.eclipse.jdt.ls.debug.DebugException;
 import org.eclipse.jdt.ls.debug.adapter.AdapterUtils;
+import org.eclipse.jdt.ls.debug.adapter.Constants;
 import org.eclipse.jdt.ls.debug.adapter.ISourceLookUpProvider;
 import org.eclipse.jdt.ls.debug.internal.JavaDebuggerServerPlugin;
 import org.eclipse.jdt.ls.debug.internal.Logger;

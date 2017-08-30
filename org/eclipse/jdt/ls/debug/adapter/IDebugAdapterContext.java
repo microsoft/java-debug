@@ -65,4 +65,8 @@ public interface IDebugAdapterContext {
     boolean isAttached();
 
     void setAttached(boolean attached);
+
+    String[] getSourcePath();
+
+    void setSourcePath(String[] sourcePath);
 }

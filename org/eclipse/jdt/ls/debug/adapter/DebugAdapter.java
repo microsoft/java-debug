@@ -11,12 +11,7 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
-import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -33,20 +27,14 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.ls.debug.DebugEvent;
 import org.eclipse.jdt.ls.debug.DebugException;
 import org.eclipse.jdt.ls.debug.DebugUtility;
 import org.eclipse.jdt.ls.debug.IBreakpoint;
-import org.eclipse.jdt.ls.debug.IDebugSession;
 import org.eclipse.jdt.ls.debug.adapter.Messages.Response;
 import org.eclipse.jdt.ls.debug.adapter.Requests.Arguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.AttachArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.Command;
-import org.eclipse.jdt.ls.debug.adapter.Requests.ConfigurationDoneArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.ContinueArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.DisconnectArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.EvaluateArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.LaunchArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.NextArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.PauseArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.ScopesArguments;
@@ -63,7 +51,11 @@ import org.eclipse.jdt.ls.debug.adapter.Requests.VariablesArguments;
 import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatEnum;
 import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatter;
 import org.eclipse.jdt.ls.debug.adapter.formatter.SimpleTypeFormatter;
+import org.eclipse.jdt.ls.debug.adapter.handler.AttachRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.ConfigurationDoneRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.DisconnectRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.handler.InitializeRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.LaunchRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
 import org.eclipse.jdt.ls.debug.adapter.variables.JdiObjectProxy;
 import org.eclipse.jdt.ls.debug.adapter.variables.StackFrameScope;
@@ -93,34 +85,11 @@ import com.sun.jdi.Type;
 import com.sun.jdi.TypeComponent;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.Value;
-import com.sun.jdi.connect.IllegalConnectorArgumentsException;
-import com.sun.jdi.connect.VMStartException;
-import com.sun.jdi.event.BreakpointEvent;
-import com.sun.jdi.event.Event;
-import com.sun.jdi.event.ExceptionEvent;
-import com.sun.jdi.event.StepEvent;
-import com.sun.jdi.event.ThreadDeathEvent;
-import com.sun.jdi.event.ThreadStartEvent;
-import com.sun.jdi.event.VMDeathEvent;
-import com.sun.jdi.event.VMDisconnectEvent;
-import com.sun.jdi.event.VMStartEvent;
-
-import io.reactivex.disposables.Disposable;
 
 public class DebugAdapter implements IDebugAdapter {
     private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
 
-    private boolean debuggerLinesStartAt1 = true;
-    private boolean debuggerPathsAreUri = true;
-    private boolean clientLinesStartAt1 = true;
-    private boolean clientPathsAreUri = false;
-
-    private boolean isAttached = false;
-
-    private String[] sourcePath;
-    private IDebugSession debugSession;
     private BreakpointManager breakpointManager;
-    private List<Disposable> eventSubscriptions;
     private IProviderContext providerContext;
     private VariableRequestHandler variableRequestHandler;
     private IdCollection<String> sourceCollection = new IdCollection<>();
@@ -134,7 +103,6 @@ public class DebugAdapter implements IDebugAdapter {
     public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext providerContext) {
         this.eventConsumer = consumer;
         this.breakpointManager = new BreakpointManager();
-        this.eventSubscriptions = new ArrayList<>();
         this.providerContext = providerContext;
         this.variableRequestHandler = new VariableRequestHandler(VariableFormatterFactory.createVariableFormatter());
         this.debugContext = new DebugAdapterContext(this);
@@ -154,22 +122,6 @@ public class DebugAdapter implements IDebugAdapter {
 
         try {
             switch (command) {
-                case LAUNCH:
-                    launch((LaunchArguments) cmdArgs, response);
-                    break;
-
-                case ATTACH:
-                    attach((AttachArguments) cmdArgs, response);
-                    break;
-
-                case DISCONNECT:
-                    disconnect((DisconnectArguments) cmdArgs, response);
-                    break;
-
-                case CONFIGURATIONDONE:
-                    configurationDone((ConfigurationDoneArguments) cmdArgs, response);
-                    break;
-
                 case NEXT:
                     next((NextArguments) cmdArgs, response);
                     break;
@@ -311,6 +263,10 @@ public class DebugAdapter implements IDebugAdapter {
     private void initialize() {
         // Register request handlers.
         registerHandler(new InitializeRequestHandler());
+        registerHandler(new LaunchRequestHandler());
+        registerHandler(new AttachRequestHandler());
+        registerHandler(new ConfigurationDoneRequestHandler());
+        registerHandler(new DisconnectRequestHandler());
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
@@ -327,45 +283,6 @@ public class DebugAdapter implements IDebugAdapter {
     /* ======================================================*/
     /* Invoke different dispatch logic for different request */
     /* ======================================================*/
-
-    private void launch(Requests.LaunchArguments arguments, Response response) {
-        try {
-            this.isAttached = false;
-            this.launchDebugSession(arguments);
-        } catch (DebugException e) {
-            // When launching failed, send a TerminatedEvent to tell DA the debugger would exit.
-            this.sendEventLater(new Events.TerminatedEvent());
-            AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE, e);
-        }
-    }
-
-    private void attach(Requests.AttachArguments arguments, Response response) {
-        try {
-            this.isAttached = true;
-            this.attachDebugSession(arguments);
-        } catch (DebugException e) {
-            // When attaching failed, send a TerminatedEvent to tell DA the debugger would exit.
-            this.sendEventLater(new Events.TerminatedEvent());
-            AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE, e);
-        }
-    }
-
-    /**
-     * VS Code terminates a debug session with the disconnect request.
-     */
-    private void disconnect(Requests.DisconnectArguments arguments, Response response) {
-        this.shutdownDebugSession(arguments.terminateDebuggee && !this.isAttached);
-    }
-
-    /**
-     * VS Code sends a configurationDone request to indicate the end of configuration sequence.
-     */
-    private void configurationDone(Requests.ConfigurationDoneArguments arguments, Response response) {
-        this.eventSubscriptions.add(this.debugSession.eventHub().events().subscribe(debugEvent -> {
-            handleEvent(debugEvent);
-        }));
-        this.debugSession.start();
-    }
 
     private void setFunctionBreakpoints(Requests.SetFunctionBreakpointsArguments arguments, Response response) {
         // TODO
@@ -428,7 +345,7 @@ public class DebugAdapter implements IDebugAdapter {
             boolean notifyCaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER_NAME);
             boolean notifyUncaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME);
 
-            this.debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught);
+            this.debugContext.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
         } catch (Exception ex) {
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
                     String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.getMessage()));
@@ -443,7 +360,7 @@ public class DebugAdapter implements IDebugAdapter {
             thread.resume();
             checkThreadRunningAndRecycleIds(thread);
         } else {
-            this.debugSession.resume();
+            this.debugContext.getDebugSession().resume();
             this.variableRequestHandler.recyclableAllObject();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
@@ -452,7 +369,7 @@ public class DebugAdapter implements IDebugAdapter {
     private void next(Requests.NextArguments arguments, Response response) {
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepOver(thread, this.debugSession.eventHub());
+            DebugUtility.stepOver(thread, this.debugContext.getDebugSession().eventHub());
             checkThreadRunningAndRecycleIds(thread);
         }
     }
@@ -460,7 +377,7 @@ public class DebugAdapter implements IDebugAdapter {
     private void stepIn(Requests.StepInArguments arguments, Response response) {
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepInto(thread, this.debugSession.eventHub());
+            DebugUtility.stepInto(thread, this.debugContext.getDebugSession().eventHub());
             checkThreadRunningAndRecycleIds(thread);
         }
     }
@@ -468,7 +385,7 @@ public class DebugAdapter implements IDebugAdapter {
     private void stepOut(Requests.StepOutArguments arguments, Response response) {
         ThreadReference thread = getThread(arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepOut(thread, this.debugSession.eventHub());
+            DebugUtility.stepOut(thread, this.debugContext.getDebugSession().eventHub());
             checkThreadRunningAndRecycleIds(thread);
         }
     }
@@ -479,7 +396,7 @@ public class DebugAdapter implements IDebugAdapter {
             thread.suspend();
             this.sendEventLater(new Events.StoppedEvent("pause", arguments.threadId));
         } else {
-            this.debugSession.suspend();
+            this.debugContext.getDebugSession().suspend();
             this.sendEventLater(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
     }
@@ -539,97 +456,6 @@ public class DebugAdapter implements IDebugAdapter {
     /* Dispatch logic End */
     /* ======================================================*/
 
-    // This is a global event handler to handle the JDI Event from Virtual Machine.
-    private void handleEvent(DebugEvent debugEvent) {
-        Event event = debugEvent.event;
-        if (event instanceof VMStartEvent) {
-            // do nothing.
-        } else if (event instanceof VMDeathEvent) {
-            this.sendEventLater(new Events.ExitedEvent(0));
-        } else if (event instanceof VMDisconnectEvent) {
-            this.sendEventLater(new Events.TerminatedEvent());
-            // Terminate eventHub thread.
-            try {
-                this.debugSession.eventHub().close();
-            } catch (Exception e) {
-                // do nothing.
-            }
-        } else if (event instanceof ThreadStartEvent) {
-            ThreadReference startThread = ((ThreadStartEvent) event).thread();
-            Events.ThreadEvent threadEvent = new Events.ThreadEvent("started", startThread.uniqueID());
-            this.sendEventLater(threadEvent);
-        } else if (event instanceof ThreadDeathEvent) {
-            ThreadReference deathThread = ((ThreadDeathEvent) event).thread();
-            Events.ThreadEvent threadDeathEvent = new Events.ThreadEvent("exited", deathThread.uniqueID());
-            this.sendEventLater(threadDeathEvent);
-        } else if (event instanceof BreakpointEvent) {
-            ThreadReference bpThread = ((BreakpointEvent) event).thread();
-            this.sendEventLater(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
-            debugEvent.shouldResume = false;
-        } else if (event instanceof StepEvent) {
-            ThreadReference stepThread = ((StepEvent) event).thread();
-            this.sendEventLater(new Events.StoppedEvent("step", stepThread.uniqueID()));
-            debugEvent.shouldResume = false;
-        } else if (event instanceof ExceptionEvent) {
-            ThreadReference thread = ((ExceptionEvent) event).thread();
-            this.sendEventLater(new Events.StoppedEvent("exception", thread.uniqueID()));
-            debugEvent.shouldResume = false;
-        }
-    }
-
-    private void launchDebugSession(Requests.LaunchArguments arguments) throws DebugException {
-        String mainClass = arguments.startupClass;
-        String classpath = arguments.classpath;
-        this.sourcePath = arguments.sourcePath != null ? arguments.sourcePath : new String[0];
-
-        Logger.logInfo("Launch JVM with main class \"" + mainClass + "\", -classpath \"" + classpath + "\"");
-
-        try {
-            this.debugSession = DebugUtility.launch(providerContext.getVirtualMachineManagerProvider().getVirtualMachineManager(), mainClass, classpath);
-            ProcessConsole debuggeeConsole = new ProcessConsole(this.debugSession.process(), "Debuggee");
-            debuggeeConsole.onStdout((output) -> {
-                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
-                // That means the debugger can send OutputEvent to DA at any time.
-                sendEvent(Events.OutputEvent.createStdoutOutput(output));
-            });
-            debuggeeConsole.onStderr((err) -> {
-                sendEvent(Events.OutputEvent.createStderrOutput(err));
-            });
-            debuggeeConsole.start();
-        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            String errorMessage = String.format("Failed to launch debuggee vm. Reason: \"%s\"", e.toString());
-            Logger.logException(errorMessage, e);
-            throw new DebugException(errorMessage, e);
-        }
-    }
-
-    private void attachDebugSession(Requests.AttachArguments arguments) throws DebugException {
-        this.sourcePath = arguments.sourcePath != null ? arguments.sourcePath : new String[0];
-
-        try {
-            this.debugSession = DebugUtility.attach(providerContext.getVirtualMachineManagerProvider().getVirtualMachineManager(),
-                    arguments.hostName, arguments.port, arguments.attachTimeout);
-        } catch (IOException | IllegalConnectorArgumentsException e) {
-            String errorMessage = String.format("Failed to attach to remote debuggee vm. Reason: \"%s\"", e.toString());
-            Logger.logException(errorMessage, e);
-            throw new DebugException(errorMessage, e);
-        }
-    }
-
-    private void shutdownDebugSession(boolean terminateDebuggee) {
-        this.eventSubscriptions.clear();
-        this.breakpointManager.reset();
-        this.variableRequestHandler.recyclableAllObject();
-        this.sourceCollection.reset();
-        if (this.debugSession != null) {
-            if (terminateDebuggee) {
-                this.debugSession.terminate();
-            } else {
-                this.debugSession.detach();
-            }
-        }
-    }
-
     private ThreadReference getThread(int threadId) {
         for (ThreadReference thread : this.safeGetAllThreads()) {
             if (thread.uniqueID() == threadId) {
@@ -641,26 +467,18 @@ public class DebugAdapter implements IDebugAdapter {
 
     private List<ThreadReference> safeGetAllThreads() {
         try {
-            return this.debugSession.allThreads();
+            return this.debugContext.getDebugSession().allThreads();
         } catch (VMDisconnectedException ex) {
             return new ArrayList<>();
         }
     }
 
     private int convertDebuggerLineToClient(int line) {
-        if (this.debuggerLinesStartAt1) {
-            return this.clientLinesStartAt1 ? line : line - 1;
-        } else {
-            return this.clientLinesStartAt1 ? line + 1 : line;
-        }
+        return AdapterUtils.convertLineNumber(line, this.debugContext.isDebuggerLinesStartAt1(), this.debugContext.isClientLinesStartAt1());
     }
 
     private int convertClientLineToDebugger(int line) {
-        if (this.debuggerLinesStartAt1) {
-            return this.clientLinesStartAt1 ? line : line + 1;
-        } else {
-            return this.clientLinesStartAt1 ? line - 1 : line;
-        }
+        return AdapterUtils.convertLineNumber(line, this.debugContext.isClientLinesStartAt1(), this.debugContext.isDebuggerLinesStartAt1());
     }
 
     private int[] convertClientLineToDebugger(int[] lines) {
@@ -672,61 +490,11 @@ public class DebugAdapter implements IDebugAdapter {
     }
 
     private String convertClientPathToDebugger(String clientPath) {
-        if (clientPath == null) {
-            return null;
-        }
-
-        if (this.debuggerPathsAreUri) {
-            if (this.clientPathsAreUri) {
-                return clientPath;
-            } else {
-                try {
-                    return Paths.get(clientPath).toUri().toString();
-                } catch (InvalidPathException e) {
-                    return null;
-                }
-            }
-        } else {
-            if (this.clientPathsAreUri) {
-                try {
-                    return Paths.get(new URI(clientPath)).toString();
-                } catch (URISyntaxException | IllegalArgumentException
-                        | FileSystemNotFoundException | SecurityException e) {
-                    return null;
-                }
-            } else {
-                return clientPath;
-            }
-        }
+        return AdapterUtils.convertPath(clientPath, this.debugContext.isClientPathsAreUri(), this.debugContext.isDebuggerPathsAreUri());
     }
 
     private String convertDebuggerPathToClient(String debuggerPath) {
-        if (debuggerPath == null) {
-            return null;
-        }
-
-        if (this.debuggerPathsAreUri) {
-            if (this.clientPathsAreUri) {
-                return debuggerPath;
-            } else {
-                try {
-                    return Paths.get(new URI(debuggerPath)).toString();
-                } catch (URISyntaxException | IllegalArgumentException
-                        | FileSystemNotFoundException | SecurityException e) {
-                    return null;
-                }
-            }
-        } else {
-            if (this.clientPathsAreUri) {
-                try {
-                    return Paths.get(debuggerPath).toUri().toString();
-                } catch (InvalidPathException e) {
-                    return null;
-                }
-            } else {
-                return debuggerPath;
-            }
-        }
+        return AdapterUtils.convertPath(debuggerPath, this.debugContext.isDebuggerPathsAreUri(), this.debugContext.isClientPathsAreUri());
     }
 
     private Types.Breakpoint convertDebuggerBreakpointToClient(IBreakpoint breakpoint) {
@@ -750,7 +518,7 @@ public class DebugAdapter implements IDebugAdapter {
             } catch (NumberFormatException e) {
                 hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
             }
-            breakpoints[i] = this.debugSession.createBreakpoint(fqns[i], debuggerLines[i], hitCount);
+            breakpoints[i] = this.debugContext.getDebugSession().createBreakpoint(fqns[i], debuggerLines[i], hitCount);
         }
         return breakpoints;
     }
@@ -779,7 +547,7 @@ public class DebugAdapter implements IDebugAdapter {
             }
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
-            String absoluteSourcepath = AdapterUtils.sourceLookup(this.sourcePath, relativeSourcePath);
+            String absoluteSourcepath = AdapterUtils.sourceLookup(this.debugContext.getSourcePath(), relativeSourcePath);
             return new Types.Source(sourceName, absoluteSourcepath, 0);
         }
     }

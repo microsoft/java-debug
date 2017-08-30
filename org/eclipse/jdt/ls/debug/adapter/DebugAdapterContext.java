@@ -23,6 +23,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
     private boolean isAttached = false;
+    private String[] sourcePath;
 
     public DebugAdapterContext(DebugAdapter debugAdapter) {
         this.debugAdapter = debugAdapter;
@@ -101,5 +102,13 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setAttached(boolean attached) {
         this.isAttached = attached;
+    }
+
+    public String[] getSourcePath() {
+        return this.sourcePath;
+    }
+
+    public void setSourcePath(String[] sourcePath) {
+        this.sourcePath = sourcePath;
     }
 }
