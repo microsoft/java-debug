@@ -73,4 +73,8 @@ public interface IDebugAdapterContext {
     String getSourceUri(int sourceReference);
 
     int createSourceReference(String uri);
+
+    RecyclableObjectPool<Long, Object> getRecyclableIdPool();
+
+    void setRecyclableIdPool(RecyclableObjectPool<Long, Object> idPool);
 }

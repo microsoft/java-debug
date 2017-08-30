@@ -83,7 +83,7 @@ public class Requests {
     }
 
     public static class StackTraceArguments extends Arguments {
-        public int threadId;
+        public long threadId;
         public int startFrame;
         public int levels;
     }
@@ -101,24 +101,24 @@ public class Requests {
     }
 
     public static class ContinueArguments extends Arguments {
-        public int threadId;
+        public long threadId;
     }
 
     public static class NextArguments extends Arguments {
-        public int threadId;
+        public long threadId;
     }
 
     public static class StepInArguments extends Arguments {
-        public int threadId;
+        public long threadId;
         public int targetId;
     }
 
     public static class StepOutArguments extends Arguments {
-        public int threadId;
+        public long threadId;
     }
 
     public static class PauseArguments extends Arguments {
-        public int threadId;
+        public long threadId;
     }
 
     public static class ScopesArguments extends Arguments {

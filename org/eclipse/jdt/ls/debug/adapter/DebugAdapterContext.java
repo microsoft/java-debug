@@ -26,6 +26,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     private String[] sourcePath;
     private IdCollection<String> sourceReferences = new IdCollection<>();
+    private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
 
     public DebugAdapterContext(DebugAdapter debugAdapter) {
         this.debugAdapter = debugAdapter;
@@ -123,4 +124,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     public int createSourceReference(String uri) {
         return this.sourceReferences.create(uri);
     }
+
+    @Override
+    public RecyclableObjectPool<Long, Object> getRecyclableIdPool() {
+        return this.recyclableIdPool;
+    }
+
+    @Override
+    public void setRecyclableIdPool(RecyclableObjectPool<Long, Object> idPool) {
+        this.recyclableIdPool = idPool;
+    }
+
 }

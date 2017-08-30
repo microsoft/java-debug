@@ -13,6 +13,7 @@ package org.eclipse.jdt.ls.debug;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -21,6 +22,7 @@ import org.eclipse.jdt.ls.debug.internal.DebugSession;
 
 import com.sun.jdi.Location;
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachineManager;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector.Argument;
@@ -157,5 +159,40 @@ public class DebugUtility {
         thread.resume();
 
         return future;
+    }
+
+    /**
+     * Get the ThreadReference instance by the thread id.
+     * @param debugSession
+     *                  the debug session
+     * @param threadId
+     *                  the thread id
+     * @return the ThreadReference instance
+     */
+    public static ThreadReference getThread(IDebugSession debugSession, long threadId) {
+        for (ThreadReference thread : getAllThreadsSafely(debugSession)) {
+            if (thread.uniqueID() == threadId) {
+                return thread;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get the available ThreadReference list in the debug session.
+     * If the debug session has terminated, return an empty list instead of VMDisconnectedException.
+     * @param debugSession
+     *                  the debug session
+     * @return the available ThreadReference list
+     */
+    public static List<ThreadReference> getAllThreadsSafely(IDebugSession debugSession) {
+        if (debugSession != null) {
+            try {
+                return debugSession.allThreads();
+            } catch (VMDisconnectedException ex) {
+                // do nothing.
+            }
+        }
+        return new ArrayList<>();
     }
 }

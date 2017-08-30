@@ -11,7 +11,6 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,20 +24,12 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.ls.debug.DebugUtility;
 import org.eclipse.jdt.ls.debug.adapter.Messages.Response;
 import org.eclipse.jdt.ls.debug.adapter.Requests.Arguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.Command;
-import org.eclipse.jdt.ls.debug.adapter.Requests.ContinueArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.EvaluateArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.NextArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.PauseArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.ScopesArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.SetVariableArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.StackTraceArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.StepInArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.StepOutArguments;
-import org.eclipse.jdt.ls.debug.adapter.Requests.ThreadsArguments;
 import org.eclipse.jdt.ls.debug.adapter.Requests.VariablesArguments;
 import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatEnum;
 import org.eclipse.jdt.ls.debug.adapter.formatter.NumericFormatter;
@@ -51,6 +42,8 @@ import org.eclipse.jdt.ls.debug.adapter.handler.LaunchRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.handler.SetBreakpointsRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.handler.SetExceptionBreakpointsRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.handler.SourceRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.StackTraceRequestHandler;
+import org.eclipse.jdt.ls.debug.adapter.handler.ThreadsRequestHandler;
 import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
 import org.eclipse.jdt.ls.debug.adapter.variables.JdiObjectProxy;
 import org.eclipse.jdt.ls.debug.adapter.variables.StackFrameScope;
@@ -66,11 +59,8 @@ import com.sun.jdi.ArrayType;
 import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.ClassType;
 import com.sun.jdi.Field;
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.InvalidTypeException;
 import com.sun.jdi.LocalVariable;
-import com.sun.jdi.Location;
-import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.PrimitiveValue;
 import com.sun.jdi.ReferenceType;
@@ -78,7 +68,6 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Type;
 import com.sun.jdi.TypeComponent;
-import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.Value;
 
 public class DebugAdapter implements IDebugAdapter {
@@ -114,30 +103,6 @@ public class DebugAdapter implements IDebugAdapter {
 
         try {
             switch (command) {
-                case NEXT:
-                    next((NextArguments) cmdArgs, response);
-                    break;
-
-                case CONTINUE:
-                    resume((ContinueArguments) cmdArgs, response);
-                    break;
-
-                case STEPIN:
-                    stepIn((StepInArguments) cmdArgs, response);
-                    break;
-
-                case STEPOUT:
-                    stepOut((StepOutArguments) cmdArgs, response);
-                    break;
-
-                case PAUSE:
-                    pause((PauseArguments) cmdArgs, response);
-                    break;
-
-                case STACKTRACE:
-                    stackTrace((StackTraceArguments) cmdArgs, response);
-                    break;
-
                 case SCOPES:
                     scopes((ScopesArguments) cmdArgs, response);
                     break;
@@ -166,10 +131,6 @@ public class DebugAdapter implements IDebugAdapter {
                     } else {
                         setVariable(setVarArguments, response);
                     }
-                    break;
-
-                case THREADS:
-                    threads((ThreadsArguments) cmdArgs, response);
                     break;
 
                 case EVALUATE:
@@ -234,6 +195,8 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new SetBreakpointsRequestHandler());
         registerHandler(new SetExceptionBreakpointsRequestHandler());
         registerHandler(new SourceRequestHandler());
+        registerHandler(new ThreadsRequestHandler());
+        registerHandler(new StackTraceRequestHandler());
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
@@ -250,73 +213,6 @@ public class DebugAdapter implements IDebugAdapter {
     /* ======================================================*/
     /* Invoke different dispatch logic for different request */
     /* ======================================================*/
-
-    private void resume(Requests.ContinueArguments arguments, Response response) {
-        boolean allThreadsContinued = true;
-        ThreadReference thread = getThread(arguments.threadId);
-        if (thread != null) {
-            allThreadsContinued = false;
-            thread.resume();
-            checkThreadRunningAndRecycleIds(thread);
-        } else {
-            this.debugContext.getDebugSession().resume();
-            this.variableRequestHandler.recyclableAllObject();
-        }
-        response.body = new Responses.ContinueResponseBody(allThreadsContinued);
-    }
-
-    private void next(Requests.NextArguments arguments, Response response) {
-        ThreadReference thread = getThread(arguments.threadId);
-        if (thread != null) {
-            DebugUtility.stepOver(thread, this.debugContext.getDebugSession().eventHub());
-            checkThreadRunningAndRecycleIds(thread);
-        }
-    }
-
-    private void stepIn(Requests.StepInArguments arguments, Response response) {
-        ThreadReference thread = getThread(arguments.threadId);
-        if (thread != null) {
-            DebugUtility.stepInto(thread, this.debugContext.getDebugSession().eventHub());
-            checkThreadRunningAndRecycleIds(thread);
-        }
-    }
-
-    private void stepOut(Requests.StepOutArguments arguments, Response response) {
-        ThreadReference thread = getThread(arguments.threadId);
-        if (thread != null) {
-            DebugUtility.stepOut(thread, this.debugContext.getDebugSession().eventHub());
-            checkThreadRunningAndRecycleIds(thread);
-        }
-    }
-
-    private void pause(Requests.PauseArguments arguments, Response response) {
-        ThreadReference thread = getThread(arguments.threadId);
-        if (thread != null) {
-            thread.suspend();
-            this.sendEventLater(new Events.StoppedEvent("pause", arguments.threadId));
-        } else {
-            this.debugContext.getDebugSession().suspend();
-            this.sendEventLater(new Events.StoppedEvent("pause", arguments.threadId, true));
-        }
-    }
-
-    private void threads(Requests.ThreadsArguments arguments, Response response) {
-        ArrayList<Types.Thread> threads = new ArrayList<>();
-        for (ThreadReference thread : this.safeGetAllThreads()) {
-            Types.Thread clientThread = this.convertDebuggerThreadToClient(thread);
-            threads.add(clientThread);
-        }
-        response.body = new Responses.ThreadsResponseBody(threads);
-    }
-
-    private void stackTrace(Requests.StackTraceArguments arguments, Response response) {
-        try {
-            response.body = this.variableRequestHandler.stackTrace(arguments);
-        } catch (IncompatibleThreadStateException | AbsentInformationException | URISyntaxException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.GET_STACKTRACE_FAILURE,
-                    String.format("Failed to get stackTrace. Reason: '%s'", e.getMessage()));
-        }
-    }
 
     private void scopes(Requests.ScopesArguments arguments, Response response) {
         response.body = this.variableRequestHandler.scopes(arguments);
@@ -348,150 +244,24 @@ public class DebugAdapter implements IDebugAdapter {
     /* Dispatch logic End */
     /* ======================================================*/
 
-    private ThreadReference getThread(int threadId) {
-        for (ThreadReference thread : this.safeGetAllThreads()) {
-            if (thread.uniqueID() == threadId) {
-                return thread;
-            }
-        }
-        return null;
-    }
-
-    private List<ThreadReference> safeGetAllThreads() {
-        try {
-            return this.debugContext.getDebugSession().allThreads();
-        } catch (VMDisconnectedException ex) {
-            return new ArrayList<>();
-        }
-    }
-
-    private int convertDebuggerLineToClient(int line) {
-        return AdapterUtils.convertLineNumber(line, this.debugContext.isDebuggerLinesStartAt1(), this.debugContext.isClientLinesStartAt1());
-    }
-
-    private String convertDebuggerPathToClient(String debuggerPath) {
-        return AdapterUtils.convertPath(debuggerPath, this.debugContext.isDebuggerPathsAreUri(), this.debugContext.isClientPathsAreUri());
-    }
-
-    private Types.Source convertDebuggerSourceToClient(Location location) throws URISyntaxException {
-        String fullyQualifiedName = location.declaringType().name();
-        String sourceName = "";
-        String relativeSourcePath = "";
-        try {
-            // When the .class file doesn't contain source information in meta data,
-            // invoking Location#sourceName() would throw AbsentInformationException.
-            sourceName = location.sourceName();
-            relativeSourcePath = location.sourcePath();
-        } catch (AbsentInformationException e) {
-            String enclosingType = AdapterUtils.parseEnclosingType(fullyQualifiedName);
-            sourceName = enclosingType.substring(enclosingType.lastIndexOf('.') + 1) + ".java";
-            relativeSourcePath = enclosingType.replace('.', '/') + ".java";
-        }
-        String uri = providerContext.getSourceLookUpProvider().getSourceFileURI(fullyQualifiedName, relativeSourcePath);
-        if (uri != null) {
-            String clientPath = this.convertDebuggerPathToClient(uri);
-            if (uri.startsWith("file:")) {
-                return new Types.Source(sourceName, clientPath, 0);
-            } else {
-                return new Types.Source(sourceName, clientPath, this.debugContext.createSourceReference(uri));
-            }
-        } else {
-            // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
-            String absoluteSourcepath = AdapterUtils.sourceLookup(this.debugContext.getSourcePath(), relativeSourcePath);
-            return new Types.Source(sourceName, absoluteSourcepath, 0);
-        }
-    }
-
-    private Types.Thread convertDebuggerThreadToClient(ThreadReference thread) {
-        return new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
-    }
-
-    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId)
-            throws URISyntaxException, AbsentInformationException {
-        Location location = stackFrame.location();
-        Method method = location.method();
-        Types.Source clientSource = this.convertDebuggerSourceToClient(location);
-        return new Types.StackFrame(frameId, method.name(), clientSource,
-                this.convertDebuggerLineToClient(location.lineNumber()), 0);
-    }
-
-    private void checkThreadRunningAndRecycleIds(ThreadReference thread) {
-        try {
-            if (allThreadRunning()) {
-                this.variableRequestHandler.recyclableAllObject();
-            } else {
-                this.variableRequestHandler.recyclableThreads(thread);
-            }
-        } catch (VMDisconnectedException ex) {
-            this.variableRequestHandler.recyclableAllObject();
-        }
-    }
-
-    private boolean allThreadRunning() {
-        return !safeGetAllThreads().stream().anyMatch(ThreadReference::isSuspended);
-    }
-
     private class VariableRequestHandler {
         private static final String PATTERN = "([a-zA-Z_0-9$]+)\\s*\\(([^)]+)\\)";
         private final Pattern simpleExprPattern = Pattern.compile("[A-Za-z0-9_.\\s]+");
         private IVariableFormatter variableFormatter;
-        private RecyclableObjectPool<Long, Object> objectPool;
 
         public VariableRequestHandler(IVariableFormatter variableFormatter) {
-            this.objectPool = new RecyclableObjectPool<>();
             this.variableFormatter = variableFormatter;
-        }
-
-        public void recyclableAllObject() {
-            this.objectPool.removeAllObjects();
-        }
-
-        public void recyclableThreads(ThreadReference thread) {
-            this.objectPool.removeObjectsByOwner(thread.uniqueID());
-        }
-
-        Responses.ResponseBody stackTrace(StackTraceArguments arguments)
-                throws IncompatibleThreadStateException, AbsentInformationException, URISyntaxException {
-            List<Types.StackFrame> result = new ArrayList<>();
-            if (arguments.startFrame < 0 || arguments.levels < 0) {
-                return new Responses.StackTraceResponseBody(result, 0);
-            }
-            ThreadReference thread = getThread(arguments.threadId);
-            int totalFrames = 0;
-            if (thread != null) {
-                totalFrames = thread.frameCount();
-                if (totalFrames <= arguments.startFrame) {
-                    return new Responses.StackTraceResponseBody(result, totalFrames);
-                }
-                try {
-                    List<StackFrame> stackFrames = arguments.levels == 0
-                            ? thread.frames(arguments.startFrame, totalFrames - arguments.startFrame)
-                            : thread.frames(arguments.startFrame,
-                            Math.min(totalFrames - arguments.startFrame, arguments.levels));
-                    for (int i = 0; i < arguments.levels; i++) {
-                        StackFrame stackFrame = stackFrames.get(arguments.startFrame + i);
-                        int frameId = this.objectPool.addObject(stackFrame.thread().uniqueID(),
-                                new JdiObjectProxy<>(stackFrame));
-                        Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId);
-                        result.add(clientStackFrame);
-                    }
-                } catch (IndexOutOfBoundsException ex) {
-                    // ignore if stack frames overflow
-                    return new Responses.StackTraceResponseBody(result, totalFrames);
-                }
-            }
-            return new Responses.StackTraceResponseBody(result, totalFrames);
         }
 
         Responses.ResponseBody scopes(Requests.ScopesArguments arguments) {
             List<Types.Scope> scopes = new ArrayList<>();
-            JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) this.objectPool.getObjectById(arguments.frameId);
+            JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) debugContext.getRecyclableIdPool().getObjectById(arguments.frameId);
             if (stackFrameProxy == null) {
                 return new Responses.ScopesResponseBody(scopes);
             }
             StackFrameScope localScope = new StackFrameScope(stackFrameProxy.getProxiedObject(), "Local");
             scopes.add(new Types.Scope(
-                    localScope.getScope(), this.objectPool.addObject(stackFrameProxy.getProxiedObject()
+                    localScope.getScope(), debugContext.getRecyclableIdPool().addObject(stackFrameProxy.getProxiedObject()
                     .thread().uniqueID(), localScope), false));
 
             return new Responses.ScopesResponseBody(scopes);
@@ -514,7 +284,7 @@ public class DebugAdapter implements IDebugAdapter {
 
             List<Types.Variable> list = new ArrayList<>();
             List<Variable> variables;
-            Object obj = this.objectPool.getObjectById(arguments.variablesReference);
+            Object obj = debugContext.getRecyclableIdPool().getObjectById(arguments.variablesReference);
             // vscode will always send variables request to a staled scope, return the empty list is ok since the next
             // variable request will contain the right variablesReference.
             if (obj == null) {
@@ -592,7 +362,7 @@ public class DebugAdapter implements IDebugAdapter {
                 int referenceId = 0;
                 if (value instanceof ObjectReference && VariableUtils.hasChildren(value, showStaticVariables)) {
                     ThreadObjectReference threadObjectReference = new ThreadObjectReference(thread, (ObjectReference) value);
-                    referenceId = this.objectPool.addObject(thread.uniqueID(), threadObjectReference);
+                    referenceId = debugContext.getRecyclableIdPool().addObject(thread.uniqueID(), threadObjectReference);
                 }
                 Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
                         variableFormatter.typeToString(value == null ? null : value.type(), options), referenceId, null);
@@ -618,7 +388,7 @@ public class DebugAdapter implements IDebugAdapter {
                 options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, showFullyQualifiedNames);
             }
 
-            Object obj = this.objectPool.getObjectById(arguments.variablesReference);
+            Object obj = debugContext.getRecyclableIdPool().getObjectById(arguments.variablesReference);
 
             // obj is null means the stackframe is continued by user manually,
             if (obj == null) {
@@ -752,7 +522,7 @@ public class DebugAdapter implements IDebugAdapter {
                 throw new IllegalArgumentException("Complicate expression is not supported currently.");
             }
 
-            JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>)this.objectPool.getObjectById(arguments.frameId);
+            JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) debugContext.getRecyclableIdPool().getObjectById(arguments.frameId);
             if (stackFrameProxy == null) {
                 // stackFrameProxy is null means the stackframe is continued by user manually,
                 return new Responses.ErrorResponseBody(
@@ -828,7 +598,7 @@ public class DebugAdapter implements IDebugAdapter {
                 // save the evaluated value in object pool, because like java.lang.String, the evaluated object will have sub structures
                 // we need to set up the id map.
                 ThreadObjectReference threadObjectReference = new ThreadObjectReference(thread, (ObjectReference) currentValue);
-                referenceId = this.objectPool.addObject(thread.uniqueID(), threadObjectReference);
+                referenceId = debugContext.getRecyclableIdPool().addObject(thread.uniqueID(), threadObjectReference);
             }
             int indexedVariables = 0;
             if (currentValue instanceof ArrayReference) {
@@ -905,7 +675,7 @@ public class DebugAdapter implements IDebugAdapter {
         private int getReferenceId(ThreadReference thread, Value value, boolean includeStatic) {
             if (value instanceof ObjectReference && VariableUtils.hasChildren(value, includeStatic)) {
                 ThreadObjectReference threadObjectReference = new ThreadObjectReference(thread, (ObjectReference) value);
-                return this.objectPool.addObject(thread.uniqueID(), threadObjectReference);
+                return debugContext.getRecyclableIdPool().addObject(thread.uniqueID(), threadObjectReference);
             }
             return 0;
         }
