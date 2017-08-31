@@ -13,6 +13,8 @@ package org.eclipse.jdt.ls.debug.adapter;
 
 import org.eclipse.jdt.ls.debug.IDebugSession;
 import org.eclipse.jdt.ls.debug.adapter.Events.DebugEvent;
+import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
+import org.eclipse.jdt.ls.debug.adapter.variables.VariableFormatterFactory;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private DebugAdapter debugAdapter;
@@ -23,10 +25,11 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
     private boolean isAttached = false;
-
     private String[] sourcePath;
+
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
+    private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
     public DebugAdapterContext(DebugAdapter debugAdapter) {
         this.debugAdapter = debugAdapter;
@@ -135,4 +138,13 @@ public class DebugAdapterContext implements IDebugAdapterContext {
         this.recyclableIdPool = idPool;
     }
 
+    @Override
+    public IVariableFormatter getVariableFormatter() {
+        return this.variableFormatter;
+    }
+
+    @Override
+    public void setVariableFormatter(IVariableFormatter variableFormatter) {
+        this.variableFormatter = variableFormatter;
+    }
 }

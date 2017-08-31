@@ -12,6 +12,7 @@
 package org.eclipse.jdt.ls.debug.adapter;
 
 import org.eclipse.jdt.ls.debug.IDebugSession;
+import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
 
 public interface IDebugAdapterContext {
     /**
@@ -77,4 +78,8 @@ public interface IDebugAdapterContext {
     RecyclableObjectPool<Long, Object> getRecyclableIdPool();
 
     void setRecyclableIdPool(RecyclableObjectPool<Long, Object> idPool);
+
+    IVariableFormatter getVariableFormatter();
+
+    void setVariableFormatter(IVariableFormatter variableFormatter);
 }
