@@ -94,7 +94,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private Types.Breakpoint convertDebuggerBreakpointToClient(IBreakpoint breakpoint, IDebugAdapterContext context) {
         int id = (int) breakpoint.getProperty("id");
-        boolean verified = breakpoint.getProperty("verified") != null ? (boolean) breakpoint.getProperty("verified") : false;
+        boolean verified = breakpoint.getProperty("verified") != null && (boolean) breakpoint.getProperty("verified");
         int lineNumber = AdapterUtils.convertLineNumber(breakpoint.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         return new Types.Breakpoint(id, verified, lineNumber, "");
     }

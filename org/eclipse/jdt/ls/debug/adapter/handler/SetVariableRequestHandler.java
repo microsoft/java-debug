@@ -53,7 +53,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
 
     @Override
     public List<Command> getTargetCommands() {
-       return Arrays.asList(Command.SETVARIABLE);
+        return Arrays.asList(Command.SETVARIABLE);
     }
 
     @Override

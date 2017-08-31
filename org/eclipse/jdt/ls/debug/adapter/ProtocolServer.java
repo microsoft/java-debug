@@ -63,7 +63,7 @@ public class ProtocolServer {
                     this.sendEvent(debugEvent.type, debugEvent);
                 }
             }
-       }, context);
+        }, context);
     }
 
     /**

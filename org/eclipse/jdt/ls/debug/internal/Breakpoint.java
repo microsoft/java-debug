@@ -104,11 +104,11 @@ public class Breakpoint implements IBreakpoint {
         this.hitCount = hitCount;
 
         Observable.fromIterable(this.requests())
-        .filter(request -> request instanceof BreakpointRequest)
-        .subscribe(request -> {
-            request.addCountFilter(hitCount);
-            request.enable();
-        });
+            .filter(request -> request instanceof BreakpointRequest)
+            .subscribe(request -> {
+                request.addCountFilter(hitCount);
+                request.enable();
+            });
     }
 
     @Override

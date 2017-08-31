@@ -69,9 +69,9 @@ public class VariableFormatter implements IVariableFormatter {
     public Map<String, Object> getDefaultOptions() {
         Map<String, Object> defaultOptions = new HashMap<>();
         int count1 = valueFormatterMap.keySet().stream().mapToInt(
-                formatter -> this.mergeDefaultOptions(formatter, defaultOptions)).sum();
+            formatter -> this.mergeDefaultOptions(formatter, defaultOptions)).sum();
         int count2 = typeFormatterMap.keySet().stream().mapToInt(
-                formatter -> this.mergeDefaultOptions(formatter, defaultOptions)).sum();
+            formatter -> this.mergeDefaultOptions(formatter, defaultOptions)).sum();
         if (count1 + count2 != defaultOptions.size()) {
             throw new IllegalStateException("There is some configuration conflicts on type and value formatters.");
         }
