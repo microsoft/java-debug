@@ -11,12 +11,17 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.eclipse.jdt.ls.debug.IDebugSession;
 import org.eclipse.jdt.ls.debug.adapter.Events.DebugEvent;
 import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
 import org.eclipse.jdt.ls.debug.adapter.variables.VariableFormatterFactory;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
+    private static final int MAX_CACHE_ITEMS = 10000;
+    private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
     private DebugAdapter debugAdapter;
 
     private IDebugSession debugSession;
@@ -146,5 +151,10 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setVariableFormatter(IVariableFormatter variableFormatter) {
         this.variableFormatter = variableFormatter;
+    }
+
+    @Override
+    public Map<String, String> getSourceLookupCache() {
+        return this.sourceMappingCache;
     }
 }

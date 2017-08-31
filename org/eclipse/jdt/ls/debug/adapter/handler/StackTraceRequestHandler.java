@@ -94,7 +94,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
     }
 
     private Types.Source convertDebuggerSourceToClient(Location location, IDebugAdapterContext context) throws URISyntaxException {
-        String fullyQualifiedName = location.declaringType().name();
+        final String fullyQualifiedName = location.declaringType().name();
         String sourceName = "";
         String relativeSourcePath = "";
         try {
@@ -107,8 +107,13 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             sourceName = enclosingType.substring(enclosingType.lastIndexOf('.') + 1) + ".java";
             relativeSourcePath = enclosingType.replace('.', '/') + ".java";
         }
-        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        String uri = sourceProvider.getSourceFileURI(fullyQualifiedName, relativeSourcePath);
+
+        final String finalRelativeSourcePath = relativeSourcePath;
+        // use a lru cache for better performance
+        String uri = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key ->
+            context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, finalRelativeSourcePath)
+        );
+
         if (uri != null) {
             String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
             if (uri.startsWith("file:")) {
