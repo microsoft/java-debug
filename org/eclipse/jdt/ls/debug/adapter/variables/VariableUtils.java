@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.sun.jdi.InternalException;
 import org.eclipse.jdt.ls.debug.internal.Logger;
 
 import com.sun.jdi.AbsentInformationException;
@@ -23,6 +22,7 @@ import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ArrayType;
 import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.Field;
+import com.sun.jdi.InternalException;
 import com.sun.jdi.LocalVariable;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;

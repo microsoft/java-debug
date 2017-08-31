@@ -11,16 +11,17 @@
 
 package org.eclipse.jdt.ls.debug.adapter.variables;
 
-import com.sun.jdi.Type;
-import com.sun.jdi.Value;
-import org.eclipse.jdt.ls.debug.adapter.formatter.IFormatter;
-import org.eclipse.jdt.ls.debug.adapter.formatter.ITypeFormatter;
-import org.eclipse.jdt.ls.debug.adapter.formatter.IValueFormatter;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.eclipse.jdt.ls.debug.adapter.formatter.IFormatter;
+import org.eclipse.jdt.ls.debug.adapter.formatter.ITypeFormatter;
+import org.eclipse.jdt.ls.debug.adapter.formatter.IValueFormatter;
+
+import com.sun.jdi.Type;
+import com.sun.jdi.Value;
 
 public class VariableFormatter implements IVariableFormatter {
     private Map<IValueFormatter, Integer> valueFormatterMap;

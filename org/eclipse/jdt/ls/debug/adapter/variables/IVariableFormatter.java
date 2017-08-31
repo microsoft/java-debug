@@ -11,12 +11,13 @@
 
 package org.eclipse.jdt.ls.debug.adapter.variables;
 
-import com.sun.jdi.Type;
-import com.sun.jdi.Value;
+import java.util.Map;
+
 import org.eclipse.jdt.ls.debug.adapter.formatter.ITypeFormatter;
 import org.eclipse.jdt.ls.debug.adapter.formatter.IValueFormatter;
 
-import java.util.Map;
+import com.sun.jdi.Type;
+import com.sun.jdi.Value;
 
 public interface IVariableFormatter {
     /**

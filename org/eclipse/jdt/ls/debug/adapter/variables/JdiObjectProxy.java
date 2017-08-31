@@ -47,7 +47,7 @@ public class JdiObjectProxy<T> {
         if (!(o instanceof JdiObjectProxy)) {
             return false;
         }
-        final JdiObjectProxy other = (JdiObjectProxy) o;
+        final JdiObjectProxy<?> other = (JdiObjectProxy<?>) o;
         return Objects.equals(this.getProxiedObject(), other.getProxiedObject());
     }
 

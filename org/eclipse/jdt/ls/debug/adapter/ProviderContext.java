@@ -36,13 +36,4 @@ public class ProviderContext implements IProviderContext {
         providerMap.put(clazz, provider);
     }
 
-    @Override
-    public ISourceLookUpProvider getSourceLookUpProvider() {
-        return getProvider(ISourceLookUpProvider.class);
-    }
-
-    @Override
-    public IVirtualMachineManagerProvider getVirtualMachineManagerProvider() {
-        return getProvider(IVirtualMachineManagerProvider.class);
-    }
 }

@@ -11,10 +11,10 @@
 
 package org.eclipse.jdt.ls.debug.adapter.formatter;
 
+import java.util.Map;
+
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
-
-import java.util.Map;
 
 public interface IValueFormatter extends IFormatter {
     /**

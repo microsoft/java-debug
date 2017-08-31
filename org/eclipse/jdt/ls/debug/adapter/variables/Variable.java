@@ -11,11 +11,12 @@
 
 package org.eclipse.jdt.ls.debug.adapter.variables;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.sun.jdi.Field;
 import com.sun.jdi.LocalVariable;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * This class represents a variable on a stopped stack frame, it contains more informations
