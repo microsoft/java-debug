@@ -77,7 +77,7 @@ public class DebugSession implements IDebugSession {
     public IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount) {
         return new Breakpoint(this.vm, this.eventHub(), className, lineNumber, hitCount);
     }
-    
+
     @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught) {
         EventRequestManager manager = vm.eventRequestManager();

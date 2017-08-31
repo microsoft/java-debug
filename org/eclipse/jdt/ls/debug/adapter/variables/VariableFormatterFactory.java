@@ -26,11 +26,11 @@ public final class VariableFormatterFactory {
      * Private constructor to prevent instance of <code>VariableFormatterFactory</code>.
      */
     private VariableFormatterFactory() {
-        
+
     }
-    
+
     /**
-     * Create an <code>IVariableFormatter</code> instance with proper value and type formatters.  
+     * Create an <code>IVariableFormatter</code> instance with proper value and type formatters.
      * @return an <code>IVariableFormatter</code> instance
      */
     public static IVariableFormatter createVariableFormatter() {

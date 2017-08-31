@@ -12,5 +12,5 @@
 package org.eclipse.jdt.ls.debug.adapter;
 
 public final class Constants {
-    public static final String PROJECTNAME = "projectName"; 
+    public static final String PROJECTNAME = "projectName";
 }

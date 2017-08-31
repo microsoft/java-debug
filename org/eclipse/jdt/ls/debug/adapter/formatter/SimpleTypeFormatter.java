@@ -24,7 +24,7 @@ public class SimpleTypeFormatter implements ITypeFormatter {
             return NullObjectFormatter.NULL_STRING;
         }
 
-        String typeName = ((Type)type).name();
+        String typeName = ((Type) type).name();
         return showQualifiedClassName(options) ? typeName : trimTypeName(typeName);
     }
 
@@ -39,10 +39,10 @@ public class SimpleTypeFormatter implements ITypeFormatter {
         options.put(QUALIFIED_CLASS_NAME_OPTION, DEFAULT_QUALIFIED_CLASS_NAME_OPTION);
         return options;
     }
-    
+
     /**
-     * An utility method for convert fully qualified class name to the simplified class name. 
-     * @param type the fully qualified class name  
+     * An utility method for convert fully qualified class name to the simplified class name.
+     * @param type the fully qualified class name
      * @return the simplified class name
      */
     public static String trimTypeName(String type) {
@@ -54,6 +54,6 @@ public class SimpleTypeFormatter implements ITypeFormatter {
 
     private static boolean showQualifiedClassName(Map<String, Object> options) {
         return options.containsKey(QUALIFIED_CLASS_NAME_OPTION)
-                ? (Boolean)options.get(QUALIFIED_CLASS_NAME_OPTION) : DEFAULT_QUALIFIED_CLASS_NAME_OPTION;
+                ? (Boolean) options.get(QUALIFIED_CLASS_NAME_OPTION) : DEFAULT_QUALIFIED_CLASS_NAME_OPTION;
     }
 }

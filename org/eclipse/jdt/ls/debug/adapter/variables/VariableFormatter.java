@@ -95,7 +95,7 @@ public class VariableFormatter implements IVariableFormatter {
 
     @Override
     public Value stringToValue(String stringValue, Type type, Map<String, Object> options) {
-        IValueFormatter formatter = (IValueFormatter)getFormatter(this.valueFormatterMap, type, options);
+        IValueFormatter formatter = (IValueFormatter) getFormatter(this.valueFormatterMap, type, options);
         return formatter.valueOf(stringValue, type, options);
     }
 
@@ -107,7 +107,6 @@ public class VariableFormatter implements IVariableFormatter {
         typeFormatterMap.put(typeFormatter, priority);
     }
 
-    
     private int mergeDefaultOptions(IFormatter formatter, Map<String, Object> options) {
         int count = 0;
         for (Map.Entry<String, Object> entry : formatter.getDefaultOptions().entrySet()) {

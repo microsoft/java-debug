@@ -18,7 +18,6 @@ import org.eclipse.jdt.ls.debug.adapter.ProviderContext;
 
 /**
  * <code>IProviderContext</code> creator using language server.
- * 
  */
 public abstract class JdtProviderContextFactory {
     /**

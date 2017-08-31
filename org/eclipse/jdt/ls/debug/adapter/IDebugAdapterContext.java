@@ -19,7 +19,7 @@ import org.eclipse.jdt.ls.debug.adapter.variables.IVariableFormatter;
 public interface IDebugAdapterContext {
     /**
      * Send debug event synchronously.
-     * 
+     *
      * @param event
      *            the debug event
      */
@@ -27,7 +27,7 @@ public interface IDebugAdapterContext {
 
     /**
      * Send debug event asynchronously.
-     * 
+     *
      * @param event
      *            the debug event
      */
@@ -44,7 +44,7 @@ public interface IDebugAdapterContext {
 
     /**
      * Get the debug session.
-     * 
+     *
      * @return the debug session.
      */
     IDebugSession getDebugSession();

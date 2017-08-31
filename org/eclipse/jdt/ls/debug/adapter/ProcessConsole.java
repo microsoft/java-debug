@@ -26,7 +26,7 @@ public class ProcessConsole {
     private PublishSubject<String> stderrSubject = PublishSubject.<String>create();
     private Thread stdoutThread = null;
     private Thread stderrThread = null;
-    
+
     public ProcessConsole(Process process) {
         this(process, "Process");
     }

@@ -24,14 +24,14 @@ import java.util.regex.Pattern;
 import org.eclipse.jdt.ls.debug.adapter.Messages.Response;
 
 public class AdapterUtils {
-    private static final String osName = System.getProperty("os.name", "").toLowerCase();
+    private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
     private static final Pattern ENCLOSING_CLASS_REGEX = Pattern.compile("^([^\\$]*)");
 
     /**
      * Check if the OS is windows or not.
      */
     public static boolean isWindows() {
-        return osName.contains("win");
+        return OS_NAME.contains("win");
     }
 
     /**

@@ -20,30 +20,30 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
 public class JsonUtils {
-    private static final Gson gson = new Gson();
+    private static final Gson GSON = new Gson();
 
     public static <T> T fromJson(String json, Class<T> classOfT) throws JsonSyntaxException {
-        return gson.fromJson(json, classOfT);
+        return GSON.fromJson(json, classOfT);
     }
 
     public static <T> T fromJson(String json, Type typeOfT) throws JsonSyntaxException {
-        return gson.fromJson(json, typeOfT);
+        return GSON.fromJson(json, typeOfT);
     }
 
     public static <T> T fromJson(JsonElement json, Class<T> classOfT) throws JsonSyntaxException {
-        return gson.fromJson(json, classOfT);
+        return GSON.fromJson(json, classOfT);
     }
 
     public <T> T fromJson(JsonElement json, Type typeOfT) throws JsonSyntaxException {
-        return gson.fromJson(json, typeOfT);
+        return GSON.fromJson(json, typeOfT);
     }
 
     public static String toJson(Object src) {
-        return gson.toJson(src);
+        return GSON.toJson(src);
     }
 
     public static String toJson(Object src, Type typeOfSrc) {
-        return gson.toJson(src, typeOfSrc);
+        return GSON.toJson(src, typeOfSrc);
     }
 
     /**

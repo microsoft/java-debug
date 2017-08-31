@@ -13,8 +13,6 @@ package org.eclipse.jdt.ls.debug.adapter;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
 
 public class LRUCache<K, V> extends LinkedHashMap<K, V> {
     private static final long serialVersionUID = -7068164191168103891L;

@@ -47,7 +47,7 @@ public class IdCollection<T> {
 
     /**
      * Create a new id if the id doesn't exist for the given value.
-     * Otherwise return the existing id. 
+     * Otherwise return the existing id.
      */
     public int create(T value) {
         if (this.reverseMap.containsKey(value)) {

@@ -109,7 +109,7 @@ public class ProtocolServer {
      * Else add the new event to an eventQueue first and send them when dispatcher becomes idle again.
      * @param eventType
      *              event type
-     * @param body 
+     * @param body
      *              event content
      */
     private void sendEventLater(String eventType, Object body) {

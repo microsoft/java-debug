@@ -24,11 +24,11 @@ public final class TypeIdentifiers {
     public static final char BOOLEAN = 'Z';
     public static final char STRING = 's';
     public static final char THREAD = 't';
-    
+
     public static final char THREAD_GROUP = 'g';
     public static final char CLASS_LOADER = 'l';
     public static final char CLASS_OBJECT = 'c';
-    
+
     public static final String STRING_SIGNATURE = "Ljava/lang/String;";
     public static final String CLASS_SIGNATURE = "Ljava/lang/Class;";
 }

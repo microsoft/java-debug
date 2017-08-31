@@ -198,7 +198,7 @@ public class Types {
 
         public String label;
         public String filter;
-        
+
         public ExceptionBreakpointFilter(String value, String label) {
             this.filter = value;
             this.label = label;

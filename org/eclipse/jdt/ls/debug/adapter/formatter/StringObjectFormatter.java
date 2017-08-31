@@ -45,7 +45,7 @@ public class StringObjectFormatter extends ObjectFormatter implements IValueForm
         return String.format("\"%s\" %s",
                 StringUtils.abbreviate(((StringReference) value).value(),
                         getMaxStringLength(options)),
-                getIdPostfix((ObjectReference)value, options));
+                getIdPostfix((ObjectReference) value, options));
     }
 
     @Override
@@ -68,7 +68,7 @@ public class StringObjectFormatter extends ObjectFormatter implements IValueForm
     }
 
     private static int getMaxStringLength(Map<String, Object> options) {
-        return options.containsKey(MAX_STRING_LENGTH_OPTION) 
-                ? (int)options.get(MAX_STRING_LENGTH_OPTION) : DEFAULT_MAX_STRING_LENGTH;
+        return options.containsKey(MAX_STRING_LENGTH_OPTION)
+                ? (int) options.get(MAX_STRING_LENGTH_OPTION) : DEFAULT_MAX_STRING_LENGTH;
     }
 }

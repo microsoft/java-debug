@@ -6,15 +6,15 @@ import java.util.Map;
 public class ProviderContext implements IProviderContext {
 
     private Map<Class<? extends IProvider>, IProvider> providerMap;
-    
+
     public ProviderContext() {
-        providerMap = new HashMap<>();  
+        providerMap = new HashMap<>();
     }
-    
+
     /**
-     * Get the registered provider with the interface type, <code>IllegalArgumentException</code> 
+     * Get the registered provider with the interface type, <code>IllegalArgumentException</code>
      * will raise if the provider is absent. The returned object is type-safe to be assigned to T since
-     * registerProvider will check the compatibility, so suppress unchecked rule.  
+     * registerProvider will check the compatibility, so suppress unchecked rule.
      */
     @SuppressWarnings("unchecked")
     @Override
@@ -24,7 +24,7 @@ public class ProviderContext implements IProviderContext {
         }
         return (T) providerMap.get(clazz);
     }
-    
+
     @Override
     public void registerProvider(Class<? extends IProvider> clazz, IProvider provider) {
         if (providerMap.containsKey(clazz)) {

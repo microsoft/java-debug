@@ -90,7 +90,7 @@ public class Breakpoint implements IBreakpoint {
             return super.equals(obj);
         }
 
-        IBreakpoint breakpoint = (IBreakpoint)obj;
+        IBreakpoint breakpoint = (IBreakpoint) obj;
         return this.className().equals(breakpoint.className()) && this.lineNumber() == breakpoint.lineNumber();
     }
 

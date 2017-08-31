@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * An utility object pool class with the following  ability: 
+ * An utility object pool class with the following  ability:
  * 1. store an object to get an object id.
  * 2. remove an object.
  * 3. remove objects which has specified owner.
@@ -35,11 +35,11 @@ public class RecyclableObjectPool<O, V> {
     private final IdCollection<V> objectCollection = new IdCollection<>();
     private final Map<V, Set<O>> referenceMap = new HashMap<>();
     private final Map<V, Integer> objectIdMap = new HashMap<>();
-    
+
     /**
-     * Add an object into this pool, if the object is already added, the original id will be used, it will also create a 
-     * reference link from the object to its owner. 
-     * 
+     * Add an object into this pool, if the object is already added, the original id will be used, it will also create a
+     * reference link from the object to its owner.
+     *
      * @param owner the owner of this object
      * @param object the object
      * @return the inner id of this object
@@ -70,7 +70,7 @@ public class RecyclableObjectPool<O, V> {
 
     /**
      * Get the object by object id.
-     * 
+     *
      * @param id the object id.
      * @return the object, null if the object cannot be found.
      */
@@ -82,7 +82,7 @@ public class RecyclableObjectPool<O, V> {
 
     /**
      * Remove the object by object id.
-     * 
+     *
      * @param id the object id.
      * @return true if the object is removed successfully, false if the object cannot be found.
      */
@@ -100,7 +100,7 @@ public class RecyclableObjectPool<O, V> {
 
     /**
      * Remove a group of objects with the owner, the objects which only refers this owner will be removed.
-     *  
+     *
      * @param owner the owner.
      * @return true if any object is removed.
      */

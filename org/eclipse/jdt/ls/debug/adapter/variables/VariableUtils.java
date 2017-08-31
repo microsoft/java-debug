@@ -52,7 +52,7 @@ public abstract class VariableUtils {
         return value.type() instanceof ReferenceType && ((ReferenceType) type).allFields().stream()
                 .filter(t -> includeStatic || !t.isStatic()).toArray().length > 0;
     }
-    
+
     /**
      * Get the variables of the object.
      *
@@ -146,14 +146,14 @@ public abstract class VariableUtils {
                 res.add(var);
             }
         } catch (AbsentInformationException ex) {
-            // avoid listing variable on native methods 
-           
+            // avoid listing variable on native methods
+
             try {
                 if (stackFrame.location().method().argumentTypes().size() == 0) {
                     return res;
                 }
             } catch (ClassNotLoadedException ex2) {
-                // ignore since the method is hit.                
+                // ignore since the method is hit.
             }
             // 1. in oracle implementations, when there is no debug information, the AbsentInformationException will be
             // thrown, then we need to retrieve arguments from stackFrame#getArgumentValues.

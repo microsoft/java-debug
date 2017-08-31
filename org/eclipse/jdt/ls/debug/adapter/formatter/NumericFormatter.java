@@ -20,13 +20,13 @@ public class NumericFormatter implements IValueFormatter {
     private static final NumericFormatEnum DEFAULT_NUMERIC_FORMAT = NumericFormatEnum.DEC;
     private static final int DEFAULT_NUMERIC_PRECISION = 0;
     private static final Map<NumericFormatEnum, String> enumFormatMap = new HashMap<>();
-    
+
     static {
         enumFormatMap.put(NumericFormatEnum.DEC, "%d");
         enumFormatMap.put(NumericFormatEnum.HEX, "%#x");
         enumFormatMap.put(NumericFormatEnum.OCT, "%#o");
     }
-    
+
     /**
      * Get the string representations for an object.
      *
@@ -34,8 +34,9 @@ public class NumericFormatter implements IValueFormatter {
      * @param options extra information for printing
      * @return the string representations.
      */
+    @Override
     public String toString(Object obj, Map<String, Object> options) {
-        Value value = (Value)obj;
+        Value value = (Value) obj;
         char signature0 = value.type().signature().charAt(0);
         if (signature0 == LONG
                 || signature0 == INT
@@ -127,8 +128,8 @@ public class NumericFormatter implements IValueFormatter {
     }
 
     private static NumericFormatEnum getNumericFormatOption(Map<String, Object> options) {
-        return options.containsKey(NUMERIC_FORMAT_OPTION) 
-                ? (NumericFormatEnum)options.get(NUMERIC_FORMAT_OPTION) : DEFAULT_NUMERIC_FORMAT;
+        return options.containsKey(NUMERIC_FORMAT_OPTION)
+                ? (NumericFormatEnum) options.get(NUMERIC_FORMAT_OPTION) : DEFAULT_NUMERIC_FORMAT;
     }
 
     private static boolean hasFraction(char signature0) {
@@ -137,7 +138,7 @@ public class NumericFormatter implements IValueFormatter {
     }
 
     private static int getFractionPrecision(Map<String, Object> options) {
-        return options.containsKey(NUMERIC_PRECISION_OPTION) 
-                ? (int)options.get(NUMERIC_PRECISION_OPTION) : DEFAULT_NUMERIC_PRECISION;
+        return options.containsKey(NUMERIC_PRECISION_OPTION)
+                ? (int) options.get(NUMERIC_PRECISION_OPTION) : DEFAULT_NUMERIC_PRECISION;
     }
 }

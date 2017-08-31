@@ -154,34 +154,36 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     private String searchDeclarationFileByFqn(String fullyQualifiedName) {
-        String projectName = (String)context.get(Constants.PROJECTNAME);
+        String projectName = (String) context.get(Constants.PROJECTNAME);
         try {
             IJavaSearchScope searchScope = projectName != null
-                    ? JDTUtils.createSearchScope(getJavaProjectFromName(projectName))
-                    : SearchEngine.createWorkspaceScope();
+                ? JDTUtils.createSearchScope(getJavaProjectFromName(projectName))
+                : SearchEngine.createWorkspaceScope();
             SearchPattern pattern = SearchPattern.createPattern(
-                    fullyQualifiedName,
-                    IJavaSearchConstants.TYPE,
-                    IJavaSearchConstants.DECLARATIONS,
-                    SearchPattern.R_EXACT_MATCH);
+                fullyQualifiedName,
+                IJavaSearchConstants.TYPE,
+                IJavaSearchConstants.DECLARATIONS,
+                SearchPattern.R_EXACT_MATCH);
             ArrayList<String> uris = new ArrayList<String>();
             SearchRequestor requestor = new SearchRequestor() {
                 @Override
                 public void acceptSearchMatch(SearchMatch match) {
                     Object element = match.getElement();
                     if (element instanceof IType) {
-                        IType type = (IType)element;
+                        IType type = (IType) element;
                         uris.add(type.isBinary() ? JDTUtils.getFileURI(type.getClassFile()) : JDTUtils.getFileURI(type.getResource()));
                     }
                 }
             };
             SearchEngine searchEngine = new SearchEngine();
             searchEngine.search(
-                    pattern,
-                    new SearchParticipant[] { SearchEngine.getDefaultSearchParticipant() },
-                    searchScope,
-                    requestor,
-                    null /* progress monitor */);
+                pattern,
+                new SearchParticipant[]{
+                    SearchEngine.getDefaultSearchParticipant()
+                },
+                searchScope,
+                requestor,
+                null /* progress monitor */);
             return uris.size() == 0 ? null : uris.get(0);
         } catch (CoreException e) {
             Logger.logException("Failed to parse java project", e);

@@ -21,7 +21,7 @@ public class Requests {
     public static class ValueFormat {
         public boolean hex;
     }
-    
+
     public static class Arguments {
 
     }
@@ -129,7 +129,7 @@ public class Requests {
         public int variablesReference = -1;
         public String filter;
         public int start;
-        public int count;        
+        public int count;
         public ValueFormat format;
     }
 

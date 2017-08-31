@@ -43,7 +43,7 @@ public class EventHub implements IEventHub {
 
     /**
      * Starts retrieving events from the event queue of the specified virtual machine.
-     * 
+     *
      * @param vm
      *            the target virtual machine.
      */

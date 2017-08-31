@@ -21,9 +21,9 @@ import org.osgi.framework.BundleContext;
 public class JavaDebuggerServerPlugin implements BundleActivator {
 
     public static final String PLUGIN_ID = "org.eclipse.jdt.ls.debug";
-    
+
     private static BundleContext context;
-    
+
     @Override
     public void start(BundleContext context) throws Exception {
         JavaDebuggerServerPlugin.context = context;
@@ -33,7 +33,7 @@ public class JavaDebuggerServerPlugin implements BundleActivator {
     public void stop(BundleContext context) throws Exception {
 
     }
-    
+
     /**
      * Log the specific status with the plugin's logger.
      * @param status

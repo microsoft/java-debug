@@ -109,7 +109,7 @@ public class BreakpointManager {
 
         removeBreakpointsInternally(source, toRemove.toArray(new IBreakpoint[0]));
         addBreakpointsInternally(source, toAdd.toArray(new IBreakpoint[0]));
-        
+
         return result.toArray(new IBreakpoint[0]);
     }
 
@@ -131,7 +131,7 @@ public class BreakpointManager {
     private void removeBreakpointsInternally(String source, IBreakpoint[] breakpoints) {
         Map<String, IBreakpoint> breakpointMap = this.sourceToBreakpoints.get(source);
         if (breakpointMap == null || breakpointMap.isEmpty() || breakpoints.length == 0) {
-            return ;
+            return;
         }
 
         for (IBreakpoint breakpoint : breakpoints) {
