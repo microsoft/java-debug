@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.ls.debug.DebugException;
 import org.eclipse.jdt.ls.debug.IBreakpoint;
 import org.eclipse.jdt.ls.debug.adapter.AdapterUtils;
@@ -115,7 +116,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
             }
             breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount);
+            if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(fqns[i])) {
+                breakpoints[i].putProperty("verified", true);
+            }
         }
         return breakpoints;
     }
+
 }

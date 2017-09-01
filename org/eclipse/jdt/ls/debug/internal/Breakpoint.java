@@ -14,6 +14,7 @@ package org.eclipse.jdt.ls.debug.internal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.jdt.ls.debug.IBreakpoint;
@@ -91,7 +92,7 @@ public class Breakpoint implements IBreakpoint {
         }
 
         IBreakpoint breakpoint = (IBreakpoint) obj;
-        return this.className().equals(breakpoint.className()) && this.lineNumber() == breakpoint.lineNumber();
+        return Objects.equals(this.className(), breakpoint.className()) && this.lineNumber() == breakpoint.lineNumber();
     }
 
     @Override
