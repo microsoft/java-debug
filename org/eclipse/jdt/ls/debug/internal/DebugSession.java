@@ -14,6 +14,7 @@ package org.eclipse.jdt.ls.debug.internal;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.ls.debug.DebugUtility;
 import org.eclipse.jdt.ls.debug.IBreakpoint;
 import org.eclipse.jdt.ls.debug.IDebugSession;
 import org.eclipse.jdt.ls.debug.IEventHub;
@@ -54,6 +55,10 @@ public class DebugSession implements IDebugSession {
     @Override
     public void resume() {
         vm.resume();
+        // Ensure that all threads are fully resumed when the VM is resumed.
+        for (ThreadReference tr : DebugUtility.getAllThreadsSafely(this)) {
+            DebugUtility.resumeThread(tr);
+        }
     }
 
     @Override

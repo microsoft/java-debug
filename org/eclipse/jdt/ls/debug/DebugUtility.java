@@ -208,4 +208,23 @@ public class DebugUtility {
         }
         return new ArrayList<>();
     }
+
+    /**
+     * Resume the thread. Ensure the thread is fully resumed by checking the suspend count is not larger than 0.
+     *
+     * @param thread
+     *              the thread reference
+     */
+    public static void resumeThread(ThreadReference thread) {
+        if (thread == null) {
+            return;
+        }
+        while (thread.suspendCount() > 0) {
+            /**
+             * Invoking this method will decrement the count of pending suspends on this thread.
+             * If it is decremented to 0, the thread will continue to execute.
+             */
+            thread.resume();
+        }
+    }
 }
