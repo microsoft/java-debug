@@ -15,6 +15,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 import io.reactivex.functions.Consumer;
 import io.reactivex.subjects.PublishSubject;
@@ -81,7 +82,7 @@ public class ProcessConsole {
     }
 
     private void monitor(InputStream input, PublishSubject<String> subject) {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
         final int BUFFERSIZE = 4096;
         char[] buffer = new char[BUFFERSIZE];
         while (true) {
@@ -95,8 +96,7 @@ public class ProcessConsole {
                     subject.onComplete();
                     return;
                 }
-                // TODO The buffer data may be not simple UTF8 chars,
-                // in future we should consider supporting decoding it with user specified Charset.
+
                 subject.onNext(new String(buffer, 0, read));
             } catch (IOException e) {
                 subject.onError(e);

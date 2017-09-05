@@ -11,10 +11,7 @@
 
 package org.eclipse.jdt.ls.debug.adapter.jdt;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
@@ -127,9 +124,8 @@ public class JavaDebugServer implements IDebugServer {
         return new Runnable() {
             public void run() {
                 try {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                    PrintWriter out = new PrintWriter(connection.getOutputStream(), true);
-                    ProtocolServer protocolServer = new ProtocolServer(in, out, JdtProviderContextFactory.createProviderContext());
+                    ProtocolServer protocolServer = new ProtocolServer(connection.getInputStream(), connection.getOutputStream(),
+                            JdtProviderContextFactory.createProviderContext());
                     // protocol server will dispatch request and send response in a while-loop.
                     protocolServer.start();
                 } catch (IOException e) {

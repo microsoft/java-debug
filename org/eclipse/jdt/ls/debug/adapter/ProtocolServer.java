@@ -11,9 +11,17 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -40,17 +48,17 @@ public class ProtocolServer {
     private IDebugAdapter debugAdapter;
 
     /**
-     * Constructs a protocol server instance based on the given reader and writer.
-     * @param reader
-     *              the input reader
-     * @param writer
-     *              the output writer
+     * Constructs a protocol server instance based on the given input stream and output stream.
+     * @param input
+     *              the input stream
+     * @param output
+     *              the output stream
      * @param context
      *              provider context for a series of provider implementation
      */
-    public ProtocolServer(Reader reader, Writer writer, IProviderContext context) {
-        this.reader = reader;
-        this.writer = writer;
+    public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
+        this.reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
+        this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8)));
         this.bodyLength = -1;
         this.rawData = new CharBuffer();
         this.eventQueue = new ConcurrentLinkedQueue<>();
@@ -126,18 +134,20 @@ public class ProtocolServer {
         message.seq = this.sequenceNumber.getAndIncrement();
 
         String jsonMessage = JsonUtils.toJson(message);
-        char[] jsonBytes = jsonMessage.toCharArray();
+        byte[] jsonBytes = jsonMessage.getBytes(StandardCharsets.UTF_8);
 
         String header = String.format("Content-Length: %d%s", jsonBytes.length, TWO_CRLF);
-        char[] headerBytes = header.toCharArray();
+        byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
 
-        char[] data = new char[headerBytes.length + jsonBytes.length];
+        byte[] data = new byte[headerBytes.length + jsonBytes.length];
         System.arraycopy(headerBytes, 0, data, 0, headerBytes.length);
         System.arraycopy(jsonBytes, 0, data, headerBytes.length, jsonBytes.length);
 
+        String utf8Data = new String(data, StandardCharsets.UTF_8);
+
         try {
             Logger.logInfo("\n[[RESPONSE]]\n" + new String(data));
-            this.writer.write(data, 0, data.length);
+            this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
             Logger.logException("Write data to io exception", e);
