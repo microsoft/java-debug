@@ -30,7 +30,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
     private boolean isAttached = false;
-    private String[] sourcePath;
+    private String[] sourcePaths;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -115,12 +115,12 @@ public class DebugAdapterContext implements IDebugAdapterContext {
         this.isAttached = attached;
     }
 
-    public String[] getSourcePath() {
-        return this.sourcePath;
+    public String[] getSourcePaths() {
+        return this.sourcePaths;
     }
 
-    public void setSourcePath(String[] sourcePath) {
-        this.sourcePath = sourcePath;
+    public void setSourcePaths(String[] sourcePaths) {
+        this.sourcePaths = sourcePaths;
     }
 
     @Override

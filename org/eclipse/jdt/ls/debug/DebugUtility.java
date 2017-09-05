@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.ls.debug.internal.DebugSession;
 
 import com.sun.jdi.Location;
@@ -34,9 +35,9 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, List<String> classPaths)
+    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return DebugUtility.launch(vmManager, mainClass, String.join(File.pathSeparator, classPaths));
+        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths));
     }
 
     /**
@@ -46,6 +47,10 @@ public class DebugUtility {
      *            the virtual machine manager.
      * @param mainClass
      *            the main class.
+     * @param programArguments
+     *            the program arguments.
+     * @param vmArguments
+     *            the vm arguments.
      * @param classPaths
      *            the class paths.
      * @return an instance of IDebugSession.
@@ -57,15 +62,23 @@ public class DebugUtility {
      *             when the debuggee was successfully launched, but terminated
      *             with an error before a connection could be established.
      */
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String classPaths)
+    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
 
         Map<String, Argument> arguments = connector.defaultArguments();
-        arguments.get("options").setValue("-cp " + classPaths);
         arguments.get("suspend").setValue("true");
-        arguments.get("main").setValue(mainClass);
+        if (StringUtils.isNotBlank(vmArguments)) {
+            arguments.get("options").setValue(vmArguments + " -cp \"" + classPaths + "\"");
+        } else {
+            arguments.get("options").setValue("-cp \"" + classPaths + "\"");
+        }
+        if (StringUtils.isNotBlank(programArguments)) {
+            arguments.get("main").setValue(mainClass + " " + programArguments);
+        } else {
+            arguments.get("main").setValue(mainClass);
+        }
 
         return new DebugSession(connector.launch(arguments));
     }

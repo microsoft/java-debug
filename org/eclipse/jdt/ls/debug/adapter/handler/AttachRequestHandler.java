@@ -44,7 +44,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         AttachArguments attachArguments = (AttachArguments) arguments;
         context.setAttached(true);
-        context.setSourcePath(attachArguments.sourcePath);
+        context.setSourcePaths(attachArguments.sourcePaths);
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
@@ -58,7 +58,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
             Logger.logInfo(String.format("Trying to attach to remote debuggee VM %s:%d .",
                     attachArguments.hostName, attachArguments.port));
             IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(),
-                    attachArguments.hostName, attachArguments.port, attachArguments.attachTimeout);
+                    attachArguments.hostName, attachArguments.port, attachArguments.timeout);
             context.setDebugSession(debugSession);
             Logger.logInfo("Attaching to debuggee VM succeeded.");
         } catch (IOException | IllegalConnectorArgumentsException e) {

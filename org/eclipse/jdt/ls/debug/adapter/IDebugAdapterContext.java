@@ -69,9 +69,9 @@ public interface IDebugAdapterContext {
 
     void setAttached(boolean attached);
 
-    String[] getSourcePath();
+    String[] getSourcePaths();
 
-    void setSourcePath(String[] sourcePath);
+    void setSourcePaths(String[] sourcePaths);
 
     String getSourceUri(int sourceReference);
 

@@ -41,12 +41,12 @@ public class Requests {
         public String type;
         public String name;
         public String request;
-        public String startupClass;
         public String projectName;
-        public String classpath;
-        public String[] sourcePath = new String[0];
-        public boolean stopOnEntry = false;
-        public String[] options = new String[0];
+        public String mainClass;
+        public String args = "";
+        public String vmArgs = "";
+        public String[] classPaths = new String[0];
+        public String[] sourcePaths = new String[0];
     }
 
     public static class AttachArguments extends Arguments {
@@ -55,8 +55,8 @@ public class Requests {
         public String request;
         public String hostName;
         public int port;
-        public int attachTimeout;
-        public String[] sourcePath = new String[0];
+        public int timeout = 30000; // Default to 30s.
+        public String[] sourcePaths = new String[0];
         public String projectName;
     }
 
