@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.internal;
+package com.microsoft.java.debug.plugin.internal;
 
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;

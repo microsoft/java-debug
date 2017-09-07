@@ -7,9 +7,9 @@
         <artifactId>parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>com.microsoft.java.debug</artifactId>
+    <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
-    <name>${base.name} :: Debug</name>
+    <name>${base.name} :: Plugin</name>
     <properties>
     </properties>
     <build>
