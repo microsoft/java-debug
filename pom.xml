@@ -1,58 +1,58 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.microsoft.java</groupId>
-	<artifactId>parent</artifactId>
-	<name>${base.name} :: Parent</name>
-	<version>0.0.1-SNAPSHOT</version>
-	<packaging>pom</packaging>
-	<properties>
-		<base.name>Vscode Java Debug Server</base.name>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<tycho-version>1.0.0</tycho-version>
-	</properties>
-	<modules>
-		<module>com.microsoft.java.debug</module>
-	</modules>
-	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-dependency-plugin</artifactId>
-					<executions>
-						<execution>
-							<?m2e execute onConfiguration?>
-							<id>get-libs</id>
-							<goals>
-								<goal>copy</goal>
-							</goals>
-							<phase>validate</phase>
-						</execution>
-					</executions>
-					<configuration>
-						<skip>false</skip>
-						<outputDirectory>${basedir}/lib/</outputDirectory>
-						<!-- baseVersion is to avoid SNAPSHOT dependencies being copied with 
-							ever daily changing timestamp -->
-						<useBaseVersion>true</useBaseVersion>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-	</build>
-	<repositories>
-		<repository>
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.microsoft.java</groupId>
+    <artifactId>parent</artifactId>
+    <name>${base.name} :: Parent</name>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <properties>
+        <base.name>Vscode Java Debug Server</base.name>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <tycho-version>1.0.0</tycho-version>
+    </properties>
+    <modules>
+        <module>com.microsoft.java.debug</module>
+    </modules>
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <?m2e execute onConfiguration?>
+                            <id>get-libs</id>
+                            <goals>
+                                <goal>copy</goal>
+                            </goals>
+                            <phase>validate</phase>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <skip>false</skip>
+                        <outputDirectory>${basedir}/lib/</outputDirectory>
+                        <!-- baseVersion is to avoid SNAPSHOT dependencies being copied with
+                            ever daily changing timestamp -->
+                        <useBaseVersion>true</useBaseVersion>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+    <repositories>
+        <repository>
             <id>oxygen</id>
             <layout>p2</layout>
             <url>http://download.eclipse.org/releases/oxygen</url>
         </repository>
-		<repository>
-			<id>oss.sonatype.org</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
+        <repository>
+            <id>oss.sonatype.org</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 </project>
