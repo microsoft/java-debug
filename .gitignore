@@ -22,7 +22,7 @@
 hs_err_pid*
 
 
-.idea
+**/.idea/
 **/node_modules/
 .DS_Store
 .idea
