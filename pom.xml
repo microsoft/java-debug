@@ -12,7 +12,8 @@
         <tycho-version>1.0.0</tycho-version>
     </properties>
     <modules>
-        <module>com.microsoft.java.debug</module>
+        <module>com.microsoft.java.debug.core</module>
+        <module>com.microsoft.java.debug.plugin</module>
     </modules>
     <build>
         <pluginManagement>
