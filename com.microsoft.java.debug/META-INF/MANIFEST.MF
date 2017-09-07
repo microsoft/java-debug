@@ -1,0 +1,22 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Debug
+Bundle-SymbolicName: com.microsoft.java.debug;singleton:=true
+Bundle-Version: 0.0.1.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Bundle-ActivationPolicy: lazy
+Bundle-Activator: com.microsoft.java.debug.internal.JavaDebuggerServerPlugin
+Import-Package: org.eclipse.jdt.core,
+ org.eclipse.jdt.launching,
+ org.osgi.framework;version="1.3.0"
+Require-Bundle: org.eclipse.core.runtime;bundle-version="3.12.0",
+ org.eclipse.debug.core;bundle-version="3.11.0",
+ org.eclipse.jdt.debug,
+ org.eclipse.jdt.core,
+ org.apache.commons.io,
+ org.apache.commons.lang3
+Bundle-ClassPath: lib/gson-2.7.jar,
+ .,
+ lib/rxjava-2.1.1.jar,
+ lib/reactive-streams-1.0.0.jar
+
