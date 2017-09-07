@@ -210,7 +210,7 @@ public class DebugUtility {
     }
 
     /**
-     * Resume the thread. Ensure the thread is fully resumed by checking the suspend count is not larger than 0.
+     * Resume the thread the times as it has been suspended.
      *
      * @param thread
      *              the thread reference
@@ -219,7 +219,8 @@ public class DebugUtility {
         if (thread == null) {
             return;
         }
-        while (thread.suspendCount() > 0) {
+        int suspends = thread.suspendCount();
+        for (int i = 0; i < suspends; i++) {
             /**
              * Invoking this method will decrement the count of pending suspends on this thread.
              * If it is decremented to 0, the thread will continue to execute.

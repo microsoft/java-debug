@@ -54,11 +54,19 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public void resume() {
-        vm.resume();
-        // Ensure that all threads are fully resumed when the VM is resumed.
+        /**
+         * To ensure that all threads are fully resumed when the VM is resumed, make sure the suspend count
+         * of each thread is no larger than 1.
+         * Notes: Decrementing the thread' suspend count to 1 is on purpose, because it doesn't break the
+         * the thread's suspend state, and also make sure the next instruction vm.resume() is able to resume
+         * all threads fully.
+         */
         for (ThreadReference tr : DebugUtility.getAllThreadsSafely(this)) {
-            DebugUtility.resumeThread(tr);
+            while (tr.suspendCount() > 1) {
+                tr.resume();
+            }
         }
+        vm.resume();
     }
 
     @Override
