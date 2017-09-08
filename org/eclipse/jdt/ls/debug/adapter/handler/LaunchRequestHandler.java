@@ -12,6 +12,7 @@
 package org.eclipse.jdt.ls.debug.adapter.handler;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
+        // TODO Currently the debuggee console just supports UTF-8 format.
+        // In future, we could let user to specify the debuggee encoding in launch.json.
+        context.setDebuggeeEncoding(StandardCharsets.UTF_8);
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
@@ -71,9 +75,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
                     launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths));
             context.setDebugSession(debugSession);
-
             Logger.logInfo("Launching debuggee VM succeeded.");
-            ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee");
+
+            ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
             debuggeeConsole.onStdout((output) -> {
                 // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
                 // That means the debugger can send OutputEvent to DA at any time.

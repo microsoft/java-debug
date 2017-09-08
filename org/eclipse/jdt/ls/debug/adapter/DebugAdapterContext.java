@@ -11,6 +11,7 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
+import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
 
@@ -31,6 +32,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean clientPathsAreUri = false;
     private boolean isAttached = false;
     private String[] sourcePaths;
+    private Charset debuggeeEncoding;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -156,5 +158,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public Map<String, String> getSourceLookupCache() {
         return this.sourceMappingCache;
+    }
+
+    @Override
+    public void setDebuggeeEncoding(Charset encoding) {
+        this.debuggeeEncoding = encoding;
+    }
+
+    @Override
+    public Charset getDebuggeeEncoding() {
+        return this.debuggeeEncoding;
     }
 }

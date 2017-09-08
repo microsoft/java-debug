@@ -21,6 +21,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,13 +34,14 @@ public class ProtocolServer {
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
     private static final Pattern CONTENT_LENGTH_MATCHER = Pattern.compile("Content-Length: (\\d+)");
+    private static final Charset PROTOCOL_ENCODING = StandardCharsets.UTF_8; // vscode protocol uses UTF-8 as encoding format.
 
     private Reader reader;
     private Writer writer;
 
-    private CharBuffer rawData;
+    private ByteBuffer rawData;
     private boolean terminateSession = false;
-    private int bodyLength = -1;
+    private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
 
     private boolean isDispatchingData;
@@ -57,10 +59,10 @@ public class ProtocolServer {
      *              provider context for a series of provider implementation
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
-        this.reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
-        this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8)));
-        this.bodyLength = -1;
-        this.rawData = new CharBuffer();
+        this.reader = new BufferedReader(new InputStreamReader(input, PROTOCOL_ENCODING));
+        this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
+        this.contentLength = -1;
+        this.rawData = new ByteBuffer();
         this.eventQueue = new ConcurrentLinkedQueue<>();
         this.debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
             // If the protocolServer has been stopped, it'll no longer receive any event.
@@ -86,7 +88,7 @@ public class ProtocolServer {
                     break;
                 }
 
-                this.rawData.append(buffer, read);
+                this.rawData.append(new String(buffer, 0, read).getBytes(PROTOCOL_ENCODING));
                 this.processData();
             }
         } catch (IOException e) {
@@ -134,16 +136,16 @@ public class ProtocolServer {
         message.seq = this.sequenceNumber.getAndIncrement();
 
         String jsonMessage = JsonUtils.toJson(message);
-        byte[] jsonBytes = jsonMessage.getBytes(StandardCharsets.UTF_8);
+        byte[] jsonBytes = jsonMessage.getBytes(PROTOCOL_ENCODING);
 
         String header = String.format("Content-Length: %d%s", jsonBytes.length, TWO_CRLF);
-        byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
+        byte[] headerBytes = header.getBytes(PROTOCOL_ENCODING);
 
         byte[] data = new byte[headerBytes.length + jsonBytes.length];
         System.arraycopy(headerBytes, 0, data, 0, headerBytes.length);
         System.arraycopy(jsonBytes, 0, data, headerBytes.length, jsonBytes.length);
 
-        String utf8Data = new String(data, StandardCharsets.UTF_8);
+        String utf8Data = new String(data, PROTOCOL_ENCODING);
 
         try {
             Logger.logInfo("\n[[RESPONSE]]\n" + new String(data));
@@ -156,21 +158,25 @@ public class ProtocolServer {
 
     private void processData() {
         while (true) {
-            if (this.bodyLength >= 0) {
-                if (this.rawData.length() >= this.bodyLength) {
-                    char[] buf = this.rawData.removeFirst(this.bodyLength);
-                    this.bodyLength = -1;
-                    dispatchRequest(new String(buf));
+            /**
+             * In vscode debug protocol, the content length represents the message's byte length with utf8 format.
+             */
+            if (this.contentLength >= 0) {
+                if (this.rawData.length() >= this.contentLength) {
+                    byte[] buf = this.rawData.removeFirst(this.contentLength);
+                    this.contentLength = -1;
+                    dispatchRequest(new String(buf, PROTOCOL_ENCODING));
                     continue;
                 }
             } else {
-                String body = this.rawData.getString();
-                int idx = body.indexOf(TWO_CRLF);
+                String rawMessage = this.rawData.getString(PROTOCOL_ENCODING);
+                int idx = rawMessage.indexOf(TWO_CRLF);
                 if (idx != -1) {
-                    Matcher matcher = CONTENT_LENGTH_MATCHER.matcher(body);
+                    Matcher matcher = CONTENT_LENGTH_MATCHER.matcher(rawMessage);
                     if (matcher.find()) {
-                        this.bodyLength = Integer.parseInt(matcher.group(1));
-                        this.rawData.removeFirst(idx + TWO_CRLF.length());
+                        this.contentLength = Integer.parseInt(matcher.group(1));
+                        int headerByteLength = rawMessage.substring(0, idx + TWO_CRLF.length()).getBytes(PROTOCOL_ENCODING).length;
+                        this.rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
                         continue;
                     }
                 }
@@ -209,32 +215,36 @@ public class ProtocolServer {
         }
     }
 
-    class CharBuffer {
-        private char[] buffer;
+    class ByteBuffer {
+        private byte[] buffer;
 
-        public CharBuffer() {
-            this.buffer = new char[0];
+        public ByteBuffer() {
+            this.buffer = new byte[0];
         }
 
         public int length() {
             return this.buffer.length;
         }
 
-        public String getString() {
-            return new String(this.buffer);
+        public String getString(Charset cs) {
+            return new String(this.buffer, cs);
         }
 
-        public void append(char[] b, int length) {
-            char[] newBuffer = new char[this.buffer.length + length];
+        public void append(byte[] b) {
+            append(b, b.length);
+        }
+
+        public void append(byte[] b, int length) {
+            byte[] newBuffer = new byte[this.buffer.length + length];
             System.arraycopy(buffer, 0, newBuffer, 0, this.buffer.length);
             System.arraycopy(b, 0, newBuffer, this.buffer.length, length);
             this.buffer = newBuffer;
         }
 
-        public char[] removeFirst(int n) {
-            char[] b = new char[n];
+        public byte[] removeFirst(int n) {
+            byte[] b = new byte[n];
             System.arraycopy(this.buffer, 0, b, 0, n);
-            char[] newBuffer = new char[this.buffer.length - n];
+            byte[] newBuffer = new byte[this.buffer.length - n];
             System.arraycopy(this.buffer, n, newBuffer, 0, this.buffer.length - n);
             this.buffer = newBuffer;
             return b;

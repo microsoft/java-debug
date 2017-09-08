@@ -11,6 +11,7 @@
 
 package org.eclipse.jdt.ls.debug.adapter;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 import org.eclipse.jdt.ls.debug.IDebugSession;
@@ -87,4 +88,7 @@ public interface IDebugAdapterContext {
 
     Map<String, String> getSourceLookupCache();
 
+    void setDebuggeeEncoding(Charset encoding);
+
+    Charset getDebuggeeEncoding();
 }

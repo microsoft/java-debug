@@ -15,6 +15,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import io.reactivex.functions.Consumer;
@@ -23,18 +24,29 @@ import io.reactivex.subjects.PublishSubject;
 public class ProcessConsole {
     private Process process;
     private String name;
+    private Charset encoding;
     private PublishSubject<String> stdoutSubject = PublishSubject.<String>create();
     private PublishSubject<String> stderrSubject = PublishSubject.<String>create();
     private Thread stdoutThread = null;
     private Thread stderrThread = null;
 
     public ProcessConsole(Process process) {
-        this(process, "Process");
+        this(process, "Process", StandardCharsets.UTF_8);
     }
 
-    public ProcessConsole(Process process, String name) {
+    /**
+     * Constructor.
+     * @param process
+     *              the process
+     * @param name
+     *              the process name
+     * @param encoding
+     *              the process encoding format
+     */
+    public ProcessConsole(Process process, String name, Charset encoding) {
         this.process = process;
         this.name = name;
+        this.encoding = encoding;
     }
 
     /**
@@ -82,7 +94,7 @@ public class ProcessConsole {
     }
 
     private void monitor(InputStream input, PublishSubject<String> subject) {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(input, encoding));
         final int BUFFERSIZE = 4096;
         char[] buffer = new char[BUFFERSIZE];
         while (true) {
