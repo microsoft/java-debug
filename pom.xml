@@ -66,6 +66,7 @@
                     </dependencies>
                     <configuration>
                         <configLocation>${project.parent.basedir}/check_style.xml</configLocation>
+                        <propertyExpansion>basedir=${project.parent.basedir}</propertyExpansion>
                         <failOnViolation>true</failOnViolation>
                     </configuration>
                 </plugin>
