@@ -1,10 +1,10 @@
-package org.eclipse.jdt.ls.debug.adapter.jdt;
+package com.microsoft.java.debug.plugin.internal.jdt;
 
 import java.util.Map;
 
 import org.eclipse.jdi.Bootstrap;
-import org.eclipse.jdt.ls.debug.adapter.IVirtualMachineManagerProvider;
 
+import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.sun.jdi.VirtualMachineManager;
 
 public class JdtVirtualMachineManagerProvider implements IVirtualMachineManagerProvider {
