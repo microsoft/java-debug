@@ -41,11 +41,6 @@
                             <artifactId>reactive-streams</artifactId>
                             <version>1.0.0</version>
                         </artifactItem>
-                        <artifactItem>
-                            <groupId>com.microsoft.java</groupId>
-                            <artifactId>com.microsoft.java.debug.core</artifactId>
-                            <version>0.1.0-SNAPSHOT</version>
-                        </artifactItem>
                     </artifactItems>
                 </configuration>
             </plugin>
@@ -55,4 +50,11 @@
             </plugin>
         </plugins>
     </build>
+    <dependencies>
+        <dependency>
+            <groupId>com.microsoft.java</groupId>
+            <artifactId>com.microsoft.java.debug.core</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
 </project>
