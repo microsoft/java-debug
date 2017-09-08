@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package org.eclipse.jdt.ls.debug.adapter.jdt;
+package com.microsoft.java.debug.plugin.internal;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -19,9 +19,8 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.jdt.ls.core.debug.IDebugServer;
-import org.eclipse.jdt.ls.debug.adapter.ProtocolServer;
-import org.eclipse.jdt.ls.debug.internal.Logger;
+import com.microsoft.java.debug.core.Logger;
+import com.microsoft.java.debug.core.adapter.ProtocolServer;
 
 public class JavaDebugServer implements IDebugServer {
     private static JavaDebugServer singletonInstance;

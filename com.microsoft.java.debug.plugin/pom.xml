@@ -5,12 +5,13 @@
     <parent>
         <groupId>com.microsoft.java</groupId>
         <artifactId>parent</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.1.0-SNAPSHOT</version>
     </parent>
     <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
     <name>${base.name} :: Debugger Plugin</name>
     <properties>
+        <checkstyle.skip>true</checkstyle.skip>
     </properties>
     <build>
         <plugins>
@@ -39,6 +40,11 @@
                             <groupId>org.reactivestreams</groupId>
                             <artifactId>reactive-streams</artifactId>
                             <version>1.0.0</version>
+                        </artifactItem>
+                        <artifactItem>
+                            <groupId>com.microsoft.java</groupId>
+                            <artifactId>com.microsoft.java.debug.core</artifactId>
+                            <version>0.1.0-SNAPSHOT</version>
                         </artifactItem>
                     </artifactItems>
                 </configuration>

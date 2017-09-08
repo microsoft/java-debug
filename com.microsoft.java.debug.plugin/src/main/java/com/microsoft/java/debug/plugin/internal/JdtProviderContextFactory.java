@@ -9,12 +9,12 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package org.eclipse.jdt.ls.debug.adapter.jdt;
+package com.microsoft.java.debug.plugin.internal;
 
-import org.eclipse.jdt.ls.debug.adapter.IProviderContext;
-import org.eclipse.jdt.ls.debug.adapter.ISourceLookUpProvider;
-import org.eclipse.jdt.ls.debug.adapter.IVirtualMachineManagerProvider;
-import org.eclipse.jdt.ls.debug.adapter.ProviderContext;
+import com.microsoft.java.debug.core.adapter.IProviderContext;
+import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
+import com.microsoft.java.debug.core.adapter.ProviderContext;
 
 /**
  * <code>IProviderContext</code> creator using language server.
