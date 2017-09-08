@@ -9,7 +9,7 @@
     </parent>
     <artifactId>com.microsoft.java.debug.core</artifactId>
     <packaging>jar</packaging>
-    <name>${base.name} :: Core</name>
+    <name>${base.name} :: Debugger Core</name>
     <properties>
     </properties>
     <build>
@@ -33,11 +33,6 @@
                             <groupId>org.reactivestreams</groupId>
                             <artifactId>reactive-streams</artifactId>
                             <version>1.0.0</version>
-                        </artifactItem>
-                        <artifactItem>
-                           <groupId>com.github.olivergondza</groupId>
-                          <artifactId>maven-jdk-tools-wrapper</artifactId>
-                          <version>0.1</version>
                         </artifactItem>
                     </artifactItems>
                 </configuration>

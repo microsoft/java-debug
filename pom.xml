@@ -7,7 +7,7 @@
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <properties>
-        <base.name>Java Debug Server</base.name>
+        <base.name>Java Debug Server for Visual Studio Code</base.name>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <tycho-version>1.0.0</tycho-version>
     </properties>

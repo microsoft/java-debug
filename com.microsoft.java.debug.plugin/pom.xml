@@ -9,7 +9,7 @@
     </parent>
     <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
-    <name>${base.name} :: Plugin</name>
+    <name>${base.name} :: Debugger Plugin</name>
     <properties>
     </properties>
     <build>
