@@ -87,4 +87,7 @@ public interface IDebugAdapterContext {
 
     Map<String, String> getSourceLookupCache();
 
+    void setDebuggeeEncoding(Charset encoding);
+
+    Charset getDebuggeeEncoding();
 }
