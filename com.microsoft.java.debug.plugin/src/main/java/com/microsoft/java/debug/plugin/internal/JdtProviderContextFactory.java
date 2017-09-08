@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.plugin.internal.jdt;
+package com.microsoft.java.debug.plugin.internal;
 
 import com.microsoft.java.debug.core.adapter.IProviderContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;

@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.plugin.internal.jdt;
+package com.microsoft.java.debug.plugin.internal;
 
 import java.io.IOException;
 import java.net.ServerSocket;

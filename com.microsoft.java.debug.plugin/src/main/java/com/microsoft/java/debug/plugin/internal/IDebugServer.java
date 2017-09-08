@@ -9,16 +9,12 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.plugin.internal.jdt;
+package com.microsoft.java.debug.plugin.internal;
 
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IExecutableExtensionFactory;
-
-public class DebugServerFactory implements IExecutableExtensionFactory {
-
-    @Override
-    public Object create() throws CoreException {
-        return JavaDebugServer.getInstance();
-    }
-
+public interface IDebugServer {
+    int getPort();
+    
+    void start();
+    
+    void stop();
 }

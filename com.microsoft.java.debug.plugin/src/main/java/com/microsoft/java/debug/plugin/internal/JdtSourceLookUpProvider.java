@@ -1,4 +1,4 @@
-package com.microsoft.java.debug.plugin.internal.jdt;
+package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.HashMap;
