@@ -1,5 +1,5 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.microsoft.java</groupId>
     <artifactId>parent</artifactId>
@@ -92,6 +92,14 @@
                         <configLocation>${project.parent.basedir}/check_style.xml</configLocation>
                         <propertyExpansion>basedir=${project.parent.basedir}</propertyExpansion>
                         <failOnViolation>true</failOnViolation>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.eclipse.tycho</groupId>
+                    <artifactId>target-platform-configuration</artifactId>
+                    <version>${tycho-version}</version>
+                    <configuration>
+                        <pomDependencies>consider</pomDependencies>
                     </configuration>
                 </plugin>
             </plugins>
