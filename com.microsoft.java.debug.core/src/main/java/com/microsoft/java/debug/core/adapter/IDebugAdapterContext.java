@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
