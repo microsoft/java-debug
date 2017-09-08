@@ -9,7 +9,7 @@
  *     Microsoft Corporation - initial API and implementation
  *******************************************************************************/
 
-package org.eclipse.jdt.ls.debug.adapter.variables;
+package com.microsoft.java.debug.core.adapter.variables;
 
 import java.util.Objects;
 

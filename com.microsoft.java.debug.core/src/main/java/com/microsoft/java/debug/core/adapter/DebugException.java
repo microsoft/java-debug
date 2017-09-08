@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package org.eclipse.jdt.ls.debug;
+package com.microsoft.java.debug.core.adapter;
 
 public class DebugException extends Exception {
     private static final long serialVersionUID = 1L;
