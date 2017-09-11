@@ -14,7 +14,6 @@ import static org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin.logExcep
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
@@ -103,15 +102,15 @@ public class ResolveClasspathsHandler {
 	/**
 	 * Accord to the project name and the main class, compute runtime classpath.
 	 *
+	 * @param mainClass
+     *            fully qualified class name
 	 * @param projectName
 	 *            project name
-	 * @param mainClass
-	 *            full qualified class name
 	 * @return class path
 	 * @throws CoreException
 	 *             CoreException
 	 */
-	private static String[] computeClassPath(String projectName, String mainClass) throws CoreException {
+	private static String[] computeClassPath(String mainClass, String projectName) throws CoreException {
 		IJavaProject project = null;
 		// if type exists in multiple projects, debug configuration need provide
 		// project name.
