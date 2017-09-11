@@ -1,5 +1,7 @@
 package com.microsoft.java.debug.plugin.internal;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,17 +30,18 @@ import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
-//import org.eclipse.jdt.ls.core.internal.JDTUtils;
+import org.eclipse.jdt.ls.core.internal.JDTUtils;
 
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.Logger;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
-import com.microsoft.java.debug.plugin.internal.JavaDebuggerServerPlugin;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private HashMap<String, Object> context = new HashMap<String, Object>();
+    private static final String JDT_SCHEME = "jdt";
+    private static final String PATH_SEPARATOR = "/";
 
     @Override
     public void initialize(Map<String, Object> props) {
@@ -72,35 +75,35 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         }
 
         String[] fqns = new String[lines.length];
-//        ITypeRoot typeRoot = JDTUtils.resolveCompilationUnit(uri);
-//        if (typeRoot == null) {
-//            typeRoot = JDTUtils.resolveClassFile(uri);
-//        }
-//
-//        if (typeRoot != null && lines.length > 0) {
-//            // Currently we only support Java SE 8 Edition (JLS8).
-//            final ASTParser parser = ASTParser.newParser(AST.JLS8);
-//            parser.setResolveBindings(true);
-//            parser.setBindingsRecovery(true);
-//            parser.setStatementsRecovery(true);
-//            parser.setSource(typeRoot);
-//            CompilationUnit cunit = (CompilationUnit) parser.createAST(null);
-//            for (int i = 0; i < lines.length; i++) {
-//                // TODO
-//                // The ValidBreakpointLocationLocator will verify if the current line is a valid location or not.
-//                // If so, it will return the fully qualified name of the class type that contains the current line.
-//                // Otherwise, it will try to find a valid location from the next lines and return it's fully qualified name.
-//                // In current stage, we don't support to move the invalid breakpoint down to the next valid location, and just
-//                // mark it as "unverified".
-//                // In future, we could consider supporting to update the breakpoint to a valid location.
-//                ValidBreakpointLocationLocator locator = new ValidBreakpointLocationLocator(cunit, lines[i], true, true);
-//                cunit.accept(locator);
-//                // When the final valid line location is same as the original line, that represents it's a valid breakpoint.
-//                if (lines[i] == locator.getLineLocation()) {
-//                    fqns[i] = locator.getFullyQualifiedTypeName();
-//                }
-//            }
-//        }
+        ITypeRoot typeRoot = JDTUtils.resolveCompilationUnit(uri);
+        if (typeRoot == null) {
+            typeRoot = JDTUtils.resolveClassFile(uri);
+        }
+
+        if (typeRoot != null && lines.length > 0) {
+            // Currently we only support Java SE 8 Edition (JLS8).
+            final ASTParser parser = ASTParser.newParser(AST.JLS8);
+            parser.setResolveBindings(true);
+            parser.setBindingsRecovery(true);
+            parser.setStatementsRecovery(true);
+            parser.setSource(typeRoot);
+            CompilationUnit cunit = (CompilationUnit) parser.createAST(null);
+            for (int i = 0; i < lines.length; i++) {
+                // TODO
+                // The ValidBreakpointLocationLocator will verify if the current line is a valid location or not.
+                // If so, it will return the fully qualified name of the class type that contains the current line.
+                // Otherwise, it will try to find a valid location from the next lines and return it's fully qualified name.
+                // In current stage, we don't support to move the invalid breakpoint down to the next valid location, and just
+                // mark it as "unverified".
+                // In future, we could consider supporting to update the breakpoint to a valid location.
+                ValidBreakpointLocationLocator locator = new ValidBreakpointLocationLocator(cunit, lines[i], true, true);
+                cunit.accept(locator);
+                // When the final valid line location is same as the original line, that represents it's a valid breakpoint.
+                if (lines[i] == locator.getLineLocation()) {
+                    fqns[i] = locator.getFullyQualifiedTypeName();
+                }
+            }
+        }
         return fqns;
     }
 
@@ -124,9 +127,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         if (uri == null) {
             throw new IllegalArgumentException("uri is null");
         }
-//        IClassFile cf = JDTUtils.resolveClassFile(uri);
-//        return getContents(cf);
-        return "";
+        IClassFile cf = JDTUtils.resolveClassFile(uri);
+        return getContents(cf);
     }
 
     private String getContents(IClassFile cf) {
@@ -138,7 +140,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     source = buffer.getContents();
                 }
                 if (source == null) {
-//                    source = JDTUtils.disassemble(cf);
+                    source = JDTUtils.disassemble(cf);
                 }
             } catch (JavaModelException e) {
                 Logger.logException("Failed to parse the source contents of the class file", e);
@@ -164,40 +166,52 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     private String searchDeclarationFileByFqn(String fullyQualifiedName) {
-//        String projectName = (String) context.get(Constants.PROJECTNAME);
-//        try {
-//            IJavaSearchScope searchScope = projectName != null
-//                ? JDTUtils.createSearchScope(getJavaProjectFromName(projectName))
-//                : SearchEngine.createWorkspaceScope();
-//            SearchPattern pattern = SearchPattern.createPattern(
-//                fullyQualifiedName,
-//                IJavaSearchConstants.TYPE,
-//                IJavaSearchConstants.DECLARATIONS,
-//                SearchPattern.R_EXACT_MATCH);
-//            ArrayList<String> uris = new ArrayList<String>();
-//            SearchRequestor requestor = new SearchRequestor() {
-//                @Override
-//                public void acceptSearchMatch(SearchMatch match) {
-//                    Object element = match.getElement();
-//                    if (element instanceof IType) {
-//                        IType type = (IType) element;
-//                       uris.add(type.isBinary() ? JDTUtils.getFileURI(type.getClassFile()) : JDTUtils.getFileURI(type.getResource()));
-//                    }
-//                }
-//            };
-//            SearchEngine searchEngine = new SearchEngine();
-//            searchEngine.search(
-//                pattern,
-//                new SearchParticipant[]{
-//                    SearchEngine.getDefaultSearchParticipant()
-//                },
-//                searchScope,
-//                requestor,
-//                null /* progress monitor */);
-//            return uris.size() == 0 ? null : uris.get(0);
-//        } catch (CoreException e) {
-//            Logger.logException("Failed to parse java project", e);
-//        }
+        String projectName = (String) context.get(Constants.PROJECTNAME);
+        try {
+            IJavaSearchScope searchScope = projectName != null
+                ? JDTUtils.createSearchScope(getJavaProjectFromName(projectName))
+                : SearchEngine.createWorkspaceScope();
+            SearchPattern pattern = SearchPattern.createPattern(
+                fullyQualifiedName,
+                IJavaSearchConstants.TYPE,
+                IJavaSearchConstants.DECLARATIONS,
+                SearchPattern.R_EXACT_MATCH);
+            ArrayList<String> uris = new ArrayList<String>();
+            SearchRequestor requestor = new SearchRequestor() {
+                @Override
+                public void acceptSearchMatch(SearchMatch match) {
+                    Object element = match.getElement();
+                    if (element instanceof IType) {
+                        IType type = (IType) element;
+                       uris.add(type.isBinary() ? getFileURI(type.getClassFile()) : JDTUtils.getFileURI(type.getResource()));
+                    }
+                }
+            };
+            SearchEngine searchEngine = new SearchEngine();
+            searchEngine.search(
+                pattern,
+                new SearchParticipant[]{
+                    SearchEngine.getDefaultSearchParticipant()
+                },
+                searchScope,
+                requestor,
+                null /* progress monitor */);
+            return uris.size() == 0 ? null : uris.get(0);
+        } catch (CoreException e) {
+            Logger.logException("Failed to parse java project", e);
+        }
         return null;
     }
+
+    private static String getFileURI(IClassFile classFile) {
+        String packageName = classFile.getParent().getElementName();
+        String jarName = classFile.getParent().getParent().getElementName();
+        try {
+            return new URI(JDT_SCHEME, "contents", PATH_SEPARATOR + jarName + PATH_SEPARATOR + packageName + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null).toASCIIString();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 }

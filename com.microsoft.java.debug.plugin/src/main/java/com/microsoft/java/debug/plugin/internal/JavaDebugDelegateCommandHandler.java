@@ -16,7 +16,9 @@ public class JavaDebugDelegateCommandHandler implements  IDelegateCommandHandler
 	@Override
 	public Object executeCommand(String commandId, List<Object> arguments) {
 		if (DEBUG_STARTSESSION.equals(commandId)) {
-			
+		    IDebugServer debugServer = JavaDebugServer.getInstance();
+		    debugServer.start();
+		    return debugServer.getPort();
 		} else if (RESOLVE_CLASSPATH.equals(commandId)) {
 			ResolveClasspathsHandler handler = new ResolveClasspathsHandler();
 			return handler.resolveClasspaths(arguments);

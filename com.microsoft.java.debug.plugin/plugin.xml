@@ -2,7 +2,7 @@
 <?eclipse version="3.4"?>
 <plugin>
    <extension point="org.eclipse.jdt.ls.core.delegateCommandHandler">
-      <delegateCommandHandler class="org.eclipse.jdt.ls.core.internal.DebugDelegateCommandHandlerFactory">
+      <delegateCommandHandler class="com.microsoft.java.debug.plugin.internal.JavaDebugDelegateCommandHandler">
             <command id="vscode.java.startDebugSession"/>
             <command id="vscode.java.resolveClasspath"/>
             <command id="vscode.java.buildWorkspace"/>
