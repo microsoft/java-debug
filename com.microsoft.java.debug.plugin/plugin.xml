@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
-   <extension
-         point="org.eclipse.m2e.core.lifecycleMappingMetadataSource">
+   <extension point="org.eclipse.jdt.ls.core.delegateCommandHandler">
+      <delegateCommandHandler class="org.eclipse.jdt.ls.core.internal.DebugDelegateCommandHandlerFactory">
+            <command id="vscode.java.startDebugSession"/>
+            <command id="vscode.java.resolveClasspath"/>
+            <command id="vscode.java.buildWorkspace"/>
+       </delegateCommandHandler>
    </extension>
 </plugin>

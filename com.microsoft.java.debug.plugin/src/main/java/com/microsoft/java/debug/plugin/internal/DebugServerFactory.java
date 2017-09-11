@@ -18,7 +18,7 @@ public class DebugServerFactory implements IExecutableExtensionFactory {
 
     @Override
     public Object create() throws CoreException {
-        return JavaDebugServer.getInstance();
+        return JavaDebugDelegateCommandHandler.getInstance();
     }
 
 }
