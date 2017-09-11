@@ -36,3 +36,6 @@ javaConfig.json
 target/
 bin/
 **/lib/
+
+jdt-language-server-latest.tar.gz
+jdtls/
