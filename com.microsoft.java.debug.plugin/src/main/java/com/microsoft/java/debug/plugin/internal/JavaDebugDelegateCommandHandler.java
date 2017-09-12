@@ -25,6 +25,9 @@ public class JavaDebugDelegateCommandHandler implements  IDelegateCommandHandler
 		} else if (BUILD_WORKSPACE.equals(commandId)) {
 			
 		}
+		// TODO language server jsonRpc doesn't support null value as response.
+		// To workaround it, return an empty string as response.
+		// Will revisit lsp4j and vscode-jsonrpc projects to see if it's a json-rpc bug.
 		return "";
 	}
 	
