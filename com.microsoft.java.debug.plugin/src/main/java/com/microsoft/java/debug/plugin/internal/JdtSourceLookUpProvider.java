@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
@@ -32,13 +33,14 @@ import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
-import com.microsoft.java.debug.core.Logger;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private HashMap<String, Object> context = new HashMap<String, Object>();
     private static final String JDT_SCHEME = "jdt";
     private static final String PATH_SEPARATOR = "/";
@@ -143,7 +145,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     source = JDTUtils.disassemble(cf);
                 }
             } catch (JavaModelException e) {
-                Logger.logException("Failed to parse the source contents of the class file", e);
+                logger.severe(String.format("Failed to parse the source contents of the class file: %s", e));
             }
             if (source == null) {
                 source = "";
@@ -198,7 +200,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 null /* progress monitor */);
             return uris.size() == 0 ? null : uris.get(0);
         } catch (CoreException e) {
-            Logger.logException("Failed to parse java project", e);
+            logger.severe(String.format("Failed to parse java project: %s", e));
         }
         return null;
     }

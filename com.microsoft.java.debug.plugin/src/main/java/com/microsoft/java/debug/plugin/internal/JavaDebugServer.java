@@ -18,11 +18,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Logger;
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.ProtocolServer;
 
 public class JavaDebugServer implements IDebugServer {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static JavaDebugServer singletonInstance;
 
     private ServerSocket serverSocket = null;
@@ -33,7 +35,7 @@ public class JavaDebugServer implements IDebugServer {
         try {
             this.serverSocket = new ServerSocket(0, 1);
         } catch (IOException e) {
-            Logger.logException("Failed to create Java Debug Server", e);
+            logger.severe(String.format("Failed to create Java Debug Server: %s", e));
         }
     }
 
@@ -78,7 +80,7 @@ public class JavaDebugServer implements IDebugServer {
                             Socket connection = serverSocket.accept();
                             executor.submit(createConnectionTask(connection));
                         } catch (IOException e1) {
-                            Logger.logException("Setup socket connection exception", e1);
+                            logger.severe(String.format("Setup socket connection exception: %s", e1));
                             closeServerSocket();
                             // If exception occurs when waiting for new client connection, shut down the connection pool
                             // to make sure no new tasks are accepted. But the previously submitted tasks will continue to run.
@@ -100,10 +102,10 @@ public class JavaDebugServer implements IDebugServer {
     private synchronized void closeServerSocket() {
         if (serverSocket != null) {
             try {
-                Logger.logInfo("Close debugserver socket port " + serverSocket.getLocalPort());
+                logger.info("Close debugserver socket port " + serverSocket.getLocalPort());
                 serverSocket.close();
             } catch (IOException e) {
-                Logger.logException("Close ServerSocket exception", e);
+                logger.severe(String.format("Close ServerSocket exception: %s", e));
             }
         }
         serverSocket = null;
@@ -128,9 +130,9 @@ public class JavaDebugServer implements IDebugServer {
                     // protocol server will dispatch request and send response in a while-loop.
                     protocolServer.start();
                 } catch (IOException e) {
-                    Logger.logException("Socket connection exception", e);
+                    logger.severe(String.format("Socket connection exception: %s", e));
                 } finally {
-                    Logger.logInfo("Debug connection closed");
+                    logger.info("Debug connection closed");
                 }
             }
         };
