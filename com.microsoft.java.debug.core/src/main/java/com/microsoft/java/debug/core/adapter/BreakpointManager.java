@@ -17,11 +17,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IBreakpoint;
-import com.microsoft.java.debug.core.Logger;
 
 public class BreakpointManager {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     /**
      * A collection of breakpoints registered with this manager.
      */
@@ -72,7 +74,7 @@ public class BreakpointManager {
                     // Destroy the breakpoint on the debugee VM.
                     bp.close();
                 } catch (Exception e) {
-                    Logger.logException("Remove breakpoint exception", e);
+                    logger.severe(String.format("Remove breakpoint exception: %s", e));
                 }
                 this.breakpoints.remove(bp);
             }
@@ -142,7 +144,7 @@ public class BreakpointManager {
                     this.breakpoints.remove(breakpoint);
                     breakpointMap.remove(String.valueOf(breakpoint.lineNumber()));
                 } catch (Exception e) {
-                    Logger.logException("Remove breakpoint exception", e);
+                    logger.severe(String.format("Remove breakpoint exception: %s", e));
                 }
             }
         }

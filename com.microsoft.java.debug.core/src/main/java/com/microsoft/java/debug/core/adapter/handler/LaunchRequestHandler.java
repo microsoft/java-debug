@@ -16,12 +16,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.Logger;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -39,6 +40,7 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {
@@ -70,12 +72,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         try {
-            Logger.logInfo(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
+            logger.info(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
                     launchArguments.vmArgs, launchArguments.classPaths, launchArguments.mainClass, launchArguments.args));
             IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
                     launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths));
             context.setDebugSession(debugSession);
-            Logger.logInfo("Launching debuggee VM succeeded.");
+            logger.info("Launching debuggee VM succeeded.");
 
             ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
             debuggeeConsole.onStdout((output) -> {

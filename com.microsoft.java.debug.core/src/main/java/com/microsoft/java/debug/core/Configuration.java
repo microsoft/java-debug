@@ -11,24 +11,7 @@
 
 package com.microsoft.java.debug.core;
 
-
-public class Logger {
-    /**
-     * Log the info message with the plugin's logger.
-     * @param message
-     *               message to log
-     */
-    public static void logInfo(String message) {
-    	System.out.println(message);
-    }
-
-    public static void logException(String message, Exception e) {
-    	System.err.println(message);
-    	e.printStackTrace();
-    }
-
-    public static void logError(String error) {
-    	System.err.println(error);
-    }
+public class Configuration {
+    public static final String LOGGER_NAME = "java-debug";
 
 }
