@@ -25,7 +25,7 @@ public class JavaDebugDelegateCommandHandler implements  IDelegateCommandHandler
 		} else if (BUILD_WORKSPACE.equals(commandId)) {
 			
 		}
-		return null;
+		return "";
 	}
 	
 	public static JavaDebugDelegateCommandHandler  getInstance() {

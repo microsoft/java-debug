@@ -42,7 +42,7 @@ public class ResolveClasspathsHandler {
 		} catch (CoreException e) {
 			logException("Failed to resolve classpath.", e);
 		}
-		return null;
+		return new String[0];
 	}
 
 	/**
