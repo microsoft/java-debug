@@ -22,11 +22,13 @@ public class JavaDebuggerServerPlugin implements BundleActivator {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     public static final String PLUGIN_ID = "com.microsoft.java.debug";
-
+    public static BundleContext context = null;
 
     @Override
     public void start(BundleContext context) throws Exception {
-    	logger.info("Starting " + PLUGIN_ID);
+        JavaDebuggerServerPlugin.context = context;
+        logger.addHandler(new JdtLogHandler());
+        logger.info("Starting " + PLUGIN_ID);
     }
 
     @Override
