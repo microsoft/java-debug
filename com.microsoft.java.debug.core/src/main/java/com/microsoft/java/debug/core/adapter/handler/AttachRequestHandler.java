@@ -15,10 +15,11 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.Logger;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -33,6 +34,7 @@ import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {
@@ -54,12 +56,12 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         }
 
         try {
-            Logger.logInfo(String.format("Trying to attach to remote debuggee VM %s:%d .",
+            logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .",
                     attachArguments.hostName, attachArguments.port));
             IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(),
                     attachArguments.hostName, attachArguments.port, attachArguments.timeout);
             context.setDebugSession(debugSession);
-            Logger.logInfo("Attaching to debuggee VM succeeded.");
+            logger.info("Attaching to debuggee VM succeeded.");
         } catch (IOException | IllegalConnectorArgumentsException e) {
             AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE,
                     String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
