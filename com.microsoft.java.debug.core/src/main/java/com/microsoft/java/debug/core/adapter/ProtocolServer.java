@@ -25,12 +25,13 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.microsoft.java.debug.core.Logger;
-
 public class ProtocolServer {
+    private final Logger logger = Logger.getLogger(this.getClass().getName());
+
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
     private static final Pattern CONTENT_LENGTH_MATCHER = Pattern.compile("Content-Length: (\\d+)");
@@ -92,7 +93,7 @@ public class ProtocolServer {
                 this.processData();
             }
         } catch (IOException e) {
-            Logger.logException("Read data from io exception", e);
+            logger.severe(String.format("Read data from io exception: %s", e));
         }
     }
 
@@ -148,11 +149,11 @@ public class ProtocolServer {
         String utf8Data = new String(data, PROTOCOL_ENCODING);
 
         try {
-            Logger.logInfo("\n[[RESPONSE]]\n" + new String(data));
+            logger.info("\n[[RESPONSE]]\n" + new String(data));
             this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
-            Logger.logException("Write data to io exception", e);
+            logger.severe(String.format("Write data to io exception: %s", e));
         }
     }
 
@@ -187,7 +188,7 @@ public class ProtocolServer {
 
     private void dispatchRequest(String request) {
         try {
-            Logger.logInfo("\n[REQUEST]\n" + request);
+            logger.info("\n[REQUEST]\n" + request);
             Messages.Request message = JsonUtils.fromJson(request, Messages.Request.class);
             if (message.type.equals("request")) {
                 synchronized (this) {
@@ -201,7 +202,7 @@ public class ProtocolServer {
                     }
                     sendMessage(response);
                 } catch (Exception e) {
-                    Logger.logException("Dispatch debug protocol error", e);
+                    logger.severe(String.format("Dispatch debug protocol error: %s", e));
                 }
             }
         } finally {
