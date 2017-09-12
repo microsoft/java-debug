@@ -11,22 +11,27 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
+import java.util.logging.Logger;
+
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 
+import com.microsoft.java.debug.core.Configuration;
+
 public class JavaDebuggerServerPlugin implements BundleActivator {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     public static final String PLUGIN_ID = "com.microsoft.java.debug";
 
 
     @Override
     public void start(BundleContext context) throws Exception {
-    	System.out.println("Starting " + PLUGIN_ID);
+    	logger.info("Starting " + PLUGIN_ID);
     }
 
     @Override
     public void stop(BundleContext context) throws Exception {
-
+        logger.info("Stopping " + PLUGIN_ID);
     }
 
 }
