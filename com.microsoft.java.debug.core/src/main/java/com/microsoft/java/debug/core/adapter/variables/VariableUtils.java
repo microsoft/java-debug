@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ArrayType;
@@ -31,7 +32,7 @@ import com.sun.jdi.TypeComponent;
 import com.sun.jdi.Value;
 
 public abstract class VariableUtils {
-    private static final Logger logger = Logger.getLogger(VariableUtils.class.getName());
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     /**
      * Test whether the value has referenced objects.

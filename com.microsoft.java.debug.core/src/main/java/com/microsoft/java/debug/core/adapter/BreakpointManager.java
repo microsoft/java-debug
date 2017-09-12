@@ -19,10 +19,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IBreakpoint;
 
 public class BreakpointManager {
-    private final Logger logger = Logger.getLogger(this.getClass().getName());
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     /**
      * A collection of breakpoints registered with this manager.
      */

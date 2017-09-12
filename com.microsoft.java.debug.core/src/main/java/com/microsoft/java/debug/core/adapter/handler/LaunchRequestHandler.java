@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -39,7 +40,7 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
-    private final Logger logger = Logger.getLogger(this.getClass().getName());
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {

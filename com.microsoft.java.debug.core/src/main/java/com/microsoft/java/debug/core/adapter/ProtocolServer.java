@@ -29,8 +29,10 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.microsoft.java.debug.core.Configuration;
+
 public class ProtocolServer {
-    private final Logger logger = Logger.getLogger(this.getClass().getName());
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";

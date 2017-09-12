@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -33,7 +34,7 @@ import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {
-    private final Logger logger = Logger.getLogger(this.getClass().getName());
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {

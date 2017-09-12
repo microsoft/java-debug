@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.Requests.Arguments;
 import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
@@ -36,7 +37,7 @@ import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
 
 public class DebugAdapter implements IDebugAdapter {
-    private final Logger logger = Logger.getLogger(this.getClass().getName());
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
     private IProviderContext providerContext;
