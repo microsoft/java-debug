@@ -1,5 +1,5 @@
 cd %~dp0
-bitsadmin.exe /transfer "downloadjdtls" /download /priority FOREGROUND https://vscjavaci.cloudapp.net/job/yaohai_jdtls_gzsnapshot/lastSuccessfulBuild/Azure/processDownloadRequest/yaohai/jdt-language-server-latest.tar.gz "%cd%/jdt-language-server-latest.tar.gz"
+bitsadmin.exe /transfer "downloadjdtls" /download /priority FOREGROUND http://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz "%cd%/jdt-language-server-latest.tar.gz"
 if exist jdtls (
     rd /s /q jdtls
 )
