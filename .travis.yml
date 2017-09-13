@@ -1,12 +1,14 @@
 language: java
 
 os:
-- linux
-- osx
+  - linux
+  - osx
+
+before_install:
+  - ./installjdtls.sh
 
 script: 
-- ./installjdtls.sh
-- ./mvnw clean verify
+  - ./mvnw clean verify
 
 cache:
   directories:
