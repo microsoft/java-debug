@@ -11,9 +11,9 @@
 
 package com.microsoft.java.debug.core;
 
-import java.util.ArrayList;
 import java.util.List;
 
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.EventRequest;
@@ -89,11 +89,21 @@ public class DebugSession implements IDebugSession {
     @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught) {
         EventRequestManager manager = vm.eventRequestManager();
-        ArrayList<ExceptionRequest> legacy = new ArrayList<ExceptionRequest>(manager.exceptionRequests());
+        List<ExceptionRequest> legacy = manager.exceptionRequests();
         manager.deleteEventRequests(legacy);
-        ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
-        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-        request.enable();
+        if (notifyCaught || notifyUncaught) {
+            ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
+            request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+            int retryTimes = 2; // retry multiple times if not enabled.
+            while (!request.isEnabled() && retryTimes > 0) {
+                try {
+                    request.enable();
+                } catch (ObjectCollectedException e) {
+                    // do nothing
+                }
+                retryTimes--;
+            }
+        }
     }
 
     @Override
