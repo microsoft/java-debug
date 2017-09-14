@@ -88,6 +88,7 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught) {
+        vm.allThreads();
         EventRequestManager manager = vm.eventRequestManager();
         ArrayList<ExceptionRequest> legacy = new ArrayList<ExceptionRequest>(manager.exceptionRequests());
         manager.deleteEventRequests(legacy);
