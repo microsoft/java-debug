@@ -1,0 +1,15 @@
+language: java
+
+os:
+  - linux
+  - osx
+
+before_install:
+  - ./installjdtls.sh
+
+script: 
+  - ./mvnw clean verify
+
+cache:
+  directories:
+  - $HOME/.m2
