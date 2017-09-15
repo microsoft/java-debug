@@ -62,12 +62,13 @@ import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private HashMap<String, Object> context = new HashMap<String, Object>();
     private static final String JDT_SCHEME = "jdt";
     private static final String PATH_SEPARATOR = "/";
     private static final String MISSING_SOURCES_HEADER = " // Failed to get sources. Instead, stub sources have been generated.\n"
             + " // Implementation of methods is unavailable.\n";
     private static final String LF = "\n";
+
+    private HashMap<String, Object> context = new HashMap<String, Object>();
 
     @Override
     public void initialize(Map<String, Object> props) {
@@ -87,7 +88,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
      * If the line location points an empty line or invalid line, it returns a null fully qualified name.
      */
     @Override
-    public String[] getFullyQualifiedName(String uri, int[] lines, int[] columns, Charset cs) throws DebugException {
+    public String[] getFullyQualifiedName(String uri, int[] lines, int[] columns) throws DebugException {
         if (uri == null) {
             throw new IllegalArgumentException("sourceFilePath is null");
         }
@@ -112,6 +113,10 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
+            Charset cs = (Charset) this.context.get(Constants.DEBUGGEE_ENCODING);
+            if (cs == null) {
+                cs = Charset.defaultCharset();
+            }
             String source = readFile(filePath, cs);
             parser.setSource(source.toCharArray());
             astUnit = (CompilationUnit) parser.createAST(null);

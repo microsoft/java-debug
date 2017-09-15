@@ -47,15 +47,16 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         AttachArguments attachArguments = (AttachArguments) arguments;
         context.setAttached(true);
         context.setSourcePaths(attachArguments.sourcePaths);
-        context.setDebuggeeEncoding(StandardCharsets.UTF_8);
+        context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        Map<String, Object> options = sourceProvider.getDefaultOptions();
+        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
         if (attachArguments.projectName != null) {
-            Map<String, Object> options = sourceProvider.getDefaultOptions();
             options.put(Constants.PROJECTNAME, attachArguments.projectName);
-            sourceProvider.initialize(options);
         }
+        sourceProvider.initialize(options);
 
         try {
             logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .",

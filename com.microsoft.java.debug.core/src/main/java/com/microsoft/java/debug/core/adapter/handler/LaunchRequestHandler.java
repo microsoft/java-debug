@@ -59,17 +59,16 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
-        // TODO Currently the debuggee console just supports UTF-8 format.
-        // In future, we could let user to specify the debuggee encoding in launch.json.
-        context.setDebuggeeEncoding(StandardCharsets.UTF_8);
+        context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        Map<String, Object> options = sourceProvider.getDefaultOptions();
+        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
         if (launchArguments.projectName != null) {
-            Map<String, Object> options = sourceProvider.getDefaultOptions();
             options.put(Constants.PROJECTNAME, launchArguments.projectName);
-            sourceProvider.initialize(options);
         }
+        sourceProvider.initialize(options);
 
         try {
             logger.info(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
