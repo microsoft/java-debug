@@ -88,7 +88,13 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught) {
-        vm.allThreads();
+        // workaround for JDT bug.
+        // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
+        // The first request calls vm.getIDSizes() to read related sizes including ReferenceTypeIdSize,
+        // which is required to construct requests with null ReferenceType (such as ExceptionRequest)
+        // Without this line, it throws ObjectCollectedException in request.enable().
+        // See https://github.com/Microsoft/java-debug/issues/23
+        vm.version();
         EventRequestManager manager = vm.eventRequestManager();
         ArrayList<ExceptionRequest> legacy = new ArrayList<ExceptionRequest>(manager.exceptionRequests());
         manager.deleteEventRequests(legacy);
