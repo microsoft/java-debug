@@ -11,12 +11,14 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.nio.charset.Charset;
+
 import com.microsoft.java.debug.core.DebugException;
 
 public interface ISourceLookUpProvider extends IProvider {
     boolean supportsRealtimeBreakpointVerification();
 
-    String[] getFullyQualifiedName(String uri, int[] lines, int[] columns) throws DebugException;
+    String[] getFullyQualifiedName(String uri, int[] lines, int[] columns, Charset cs) throws DebugException;
 
     String getSourceFileURI(String fullyQualifiedName, String sourcePath);
 

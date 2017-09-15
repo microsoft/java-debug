@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core.adapter.handler;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         AttachArguments attachArguments = (AttachArguments) arguments;
         context.setAttached(true);
         context.setSourcePaths(attachArguments.sourcePaths);
+        context.setDebuggeeEncoding(StandardCharsets.UTF_8);
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);

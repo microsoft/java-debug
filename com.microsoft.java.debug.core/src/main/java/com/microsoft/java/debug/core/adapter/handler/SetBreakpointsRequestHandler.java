@@ -107,7 +107,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             return AdapterUtils.convertLineNumber(sourceBreakpoint.line, context.isClientLinesStartAt1(), context.isDebuggerLinesStartAt1());
         }).mapToInt(line -> line).toArray();
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        String[] fqns = sourceProvider.getFullyQualifiedName(sourceFile, lines, null);
+        String[] fqns = sourceProvider.getFullyQualifiedName(sourceFile, lines, null, context.getDebuggeeEncoding());
         IBreakpoint[] breakpoints = new IBreakpoint[lines.length];
         for (int i = 0; i < lines.length; i++) {
             int hitCount = 0;

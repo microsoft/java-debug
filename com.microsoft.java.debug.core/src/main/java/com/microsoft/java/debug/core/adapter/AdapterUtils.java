@@ -113,23 +113,43 @@ public class AdapterUtils {
             if (targetIsUri) {
                 return path;
             } else {
-                try {
-                    return Paths.get(new URI(path)).toString();
-                } catch (URISyntaxException | IllegalArgumentException
-                        | FileSystemNotFoundException | SecurityException e) {
-                    return null;
-                }
+                return toPath(path);
             }
         } else {
             if (targetIsUri) {
-                try {
-                    return Paths.get(path).toUri().toString();
-                } catch (InvalidPathException e) {
-                    return null;
-                }
+                return toUri(path);
             } else {
                 return path;
             }
+        }
+    }
+
+    /**
+     * Convert a file uri to a file path, or null if this uri does not represent a file in the local file system.
+     * @param uri
+     *              the uri string
+     * @return the file path
+     */
+    public static String toPath(String uri) {
+        try {
+            return Paths.get(new URI(uri)).toString();
+        } catch (URISyntaxException | IllegalArgumentException | FileSystemNotFoundException
+                | SecurityException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Convert a file path to an uri string.
+     * @param path
+     *          the file path
+     * @return the uri string
+     */
+    public static String toUri(String path) {
+        try {
+            return Paths.get(path).toUri().toString();
+        } catch (InvalidPathException e) {
+            return null;
         }
     }
 
