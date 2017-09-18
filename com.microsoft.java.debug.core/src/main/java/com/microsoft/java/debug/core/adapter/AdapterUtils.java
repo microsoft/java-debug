@@ -109,18 +109,12 @@ public class AdapterUtils {
             return null;
         }
 
-        if (sourceIsUri) {
-            if (targetIsUri) {
-                return path;
-            } else {
-                return toPath(path);
-            }
+        if (sourceIsUri == targetIsUri) {
+            return path;
+        } else if (sourceIsUri && !targetIsUri) {
+            return toPath(path);
         } else {
-            if (targetIsUri) {
-                return toUri(path);
-            } else {
-                return path;
-            }
+            return toUri(path);
         }
     }
 

@@ -104,7 +104,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new String[0];
         }
 
-        // Currently the debugger only supports Java SE 8 Edition (JLS8).
+        // Currently the highest version the debugger supports is Java SE 8 Edition (JLS8).
         final ASTParser parser = ASTParser.newParser(AST.JLS8);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
@@ -200,7 +200,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
         IProject project = root.getProject(projectName);
         if (!project.exists()) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not an existed project."));
+            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not an existing project."));
         }
         if (!project.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
             throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not a project with java nature."));
@@ -306,10 +306,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
     private static String readFile(String filePath, Charset cs) {
         StringBuilder builder = new StringBuilder();
-        BufferedReader bufferReader = null;
-        try {
-            FileInputStream inputStream = new FileInputStream(filePath);
-            bufferReader = new BufferedReader(new InputStreamReader(inputStream, cs));
+        try (BufferedReader bufferReader =
+                new BufferedReader(new InputStreamReader(new FileInputStream(filePath), cs))) {
             final int BUFFER_SIZE = 4096;
             char[] buffer = new char[BUFFER_SIZE];
             while (true) {
@@ -321,14 +319,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             }
         } catch (IOException e) {
             // do nothing.
-        } finally {
-            if (bufferReader != null) {
-                try {
-                    bufferReader.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
         }
         return builder.toString();
     }
