@@ -10,9 +10,6 @@
     <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
     <name>${base.name} :: Debugger Plugin</name>
-    <properties>
-        <checkstyle.skip>true</checkstyle.skip>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>org.eclipse.jdt.ls</groupId>
@@ -27,6 +24,10 @@
                 <artifactId>tycho-maven-plugin</artifactId>
                 <version>${tycho-version}</version>
                 <extensions>true</extensions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
