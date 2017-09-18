@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import com.sun.jdi.Location;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
+import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.VirtualMachineManager;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector.Argument;
@@ -78,8 +79,15 @@ public class DebugUtility {
         } else {
             arguments.get("main").setValue(mainClass);
         }
-
-        return new DebugSession(connector.launch(arguments));
+        VirtualMachine vm = connector.launch(arguments);
+        // workaround for JDT bug.
+        // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
+        // It calls vm.getIDSizes() to read related sizes including ReferenceTypeIdSize,
+        // which is required to construct requests with null ReferenceType (such as ExceptionRequest)
+        // Without this line, it throws ObjectCollectedException in ExceptionRequest.enable().
+        // See https://github.com/Microsoft/java-debug/issues/23
+        vm.version();
+        return new DebugSession(vm);
     }
 
     /**
