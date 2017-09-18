@@ -69,9 +69,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     /**
-     * For a given source file and a list of line locations,
-     * return the fully qualified names of the type of the line location.
-     * If the line location points an empty line or invalid line, it returns a null fully qualified name.
+     * For a given source file and a list of line locations, return the fully
+     * qualified names of the type of the line location. If the line location points
+     * an empty line or invalid line, it returns a null fully qualified name.
      */
     @Override
     public String[] getFullyQualifiedName(String uri, int[] lines, int[] columns) throws DebugException {
@@ -169,10 +169,12 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
         IProject project = root.getProject(projectName);
         if (!project.exists()) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not an existed project."));
+            throw new CoreException(
+                    new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not an existed project."));
         }
         if (!project.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not a project with java nature."));
+            throw new CoreException(
+                    new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not a project with java nature."));
         }
         IJavaProject javaProject = JavaCore.create(project);
         return javaProject;
@@ -182,13 +184,10 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String projectName = (String) context.get(Constants.PROJECTNAME);
         try {
             IJavaSearchScope searchScope = projectName != null
-                ? JDTUtils.createSearchScope(getJavaProjectFromName(projectName))
-                : SearchEngine.createWorkspaceScope();
-            SearchPattern pattern = SearchPattern.createPattern(
-                fullyQualifiedName,
-                IJavaSearchConstants.TYPE,
-                IJavaSearchConstants.DECLARATIONS,
-                SearchPattern.R_EXACT_MATCH);
+                    ? JDTUtils.createSearchScope(getJavaProjectFromName(projectName))
+                    : SearchEngine.createWorkspaceScope();
+            SearchPattern pattern = SearchPattern.createPattern(fullyQualifiedName, IJavaSearchConstants.TYPE,
+                    IJavaSearchConstants.DECLARATIONS, SearchPattern.R_EXACT_MATCH);
             ArrayList<String> uris = new ArrayList<String>();
             SearchRequestor requestor = new SearchRequestor() {
                 @Override
@@ -196,19 +195,15 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     Object element = match.getElement();
                     if (element instanceof IType) {
                         IType type = (IType) element;
-                       uris.add(type.isBinary() ? getFileURI(type.getClassFile()) : JDTUtils.getFileURI(type.getResource()));
+                        uris.add(type.isBinary() ? getFileURI(type.getClassFile())
+                                : JDTUtils.getFileURI(type.getResource()));
                     }
                 }
             };
             SearchEngine searchEngine = new SearchEngine();
-            searchEngine.search(
-                pattern,
-                new SearchParticipant[]{
+            searchEngine.search(pattern, new SearchParticipant[] {
                     SearchEngine.getDefaultSearchParticipant()
-                },
-                searchScope,
-                requestor,
-                null /* progress monitor */);
+                }, searchScope, requestor, null /* progress monitor */);
             return uris.size() == 0 ? null : uris.get(0);
         } catch (CoreException e) {
             logger.severe(String.format("Failed to parse java project: %s", e));
@@ -220,7 +215,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String packageName = classFile.getParent().getElementName();
         String jarName = classFile.getParent().getParent().getElementName();
         try {
-            return new URI(JDT_SCHEME, "contents", PATH_SEPARATOR + jarName + PATH_SEPARATOR + packageName + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null).toASCIIString();
+            return new URI(JDT_SCHEME, "contents", PATH_SEPARATOR + jarName + PATH_SEPARATOR + packageName
+                    + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null)
+                            .toASCIIString();
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return null;

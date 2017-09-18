@@ -8,6 +8,7 @@
  * Contributors:
  *     Microsoft Corporation - initial API and implementation
  *******************************************************************************/
+
 package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
@@ -37,6 +38,12 @@ import com.microsoft.java.debug.core.Configuration;
 public class ResolveClasspathsHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
+    /**
+     * Resolves class path for a java project.
+     * @param arguments a list contains the main class name and  project name
+     * @return the class paths entries
+     * @throws Exception when there are any errors during resolving class path
+     */
     public String[] resolveClasspaths(List<Object> arguments) throws Exception {
         try {
             return computeClassPath((String) arguments.get(0), (String) arguments.get(1));
@@ -94,8 +101,9 @@ public class ResolveClasspathsHandler {
             }
         };
         SearchEngine searchEngine = new SearchEngine();
-        searchEngine.search(pattern, new SearchParticipant[] { SearchEngine.getDefaultSearchParticipant() }, scope,
-                requestor, null /* progress monitor */);
+        searchEngine.search(pattern, new SearchParticipant[] {
+            SearchEngine.getDefaultSearchParticipant() }, scope,
+            requestor, null /* progress monitor */);
 
         return projects;
     }

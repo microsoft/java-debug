@@ -13,8 +13,8 @@ package com.microsoft.java.debug.plugin.internal;
 
 public interface IDebugServer {
     int getPort();
-    
+
     void start();
-    
+
     void stop();
 }
