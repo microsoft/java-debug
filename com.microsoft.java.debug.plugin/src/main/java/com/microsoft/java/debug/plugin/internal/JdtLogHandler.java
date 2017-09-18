@@ -12,15 +12,14 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.util.logging.Handler;
-import java.util.logging.LogRecord;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
-import com.microsoft.java.debug.core.Configuration;
 
-class JdtLogHandler extends Handler{
+class JdtLogHandler extends Handler {
 
     public void close() {
         // do nothing
@@ -30,7 +29,7 @@ class JdtLogHandler extends Handler{
         // do nothing
     }
 
-    public void publish (LogRecord record) {
+    public void publish(LogRecord record) {
         int severity = IStatus.INFO;
         if (record.getLevel() == Level.SEVERE) {
             severity = IStatus.ERROR;

@@ -83,9 +83,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     /**
-     * For a given source file and a list of line locations,
-     * return the fully qualified names of the type of the line location.
-     * If the line location points an empty line or invalid line, it returns a null fully qualified name.
+     * For a given source file and a list of line locations, return the fully
+     * qualified names of the type of the line location. If the line location points
+     * an empty line or invalid line, it returns a null fully qualified name.
      */
     @Override
     public String[] getFullyQualifiedName(String uri, int[] lines, int[] columns) throws DebugException {
@@ -232,14 +232,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 }
             };
             SearchEngine searchEngine = new SearchEngine();
-            searchEngine.search(
-                pattern,
-                new SearchParticipant[]{
+            searchEngine.search(pattern, new SearchParticipant[] {
                     SearchEngine.getDefaultSearchParticipant()
-                },
-                searchScope,
-                requestor,
-                null /* progress monitor */);
+                }, searchScope, requestor, null /* progress monitor */);
             return uris.size() == 0 ? null : uris.get(0);
         } catch (CoreException e) {
             logger.severe(String.format("Failed to parse java project: %s", e));
@@ -251,7 +246,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String packageName = classFile.getParent().getElementName();
         String jarName = classFile.getParent().getParent().getElementName();
         try {
-            return new URI(JDT_SCHEME, "contents", PATH_SEPARATOR + jarName + PATH_SEPARATOR + packageName + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null).toASCIIString();
+            return new URI(JDT_SCHEME, "contents", PATH_SEPARATOR + jarName + PATH_SEPARATOR + packageName
+                    + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null)
+                            .toASCIIString();
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return null;
@@ -268,7 +265,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return null;
     }
 
-    private static IClassFile resolveClassFile(String uriString){
+    private static IClassFile resolveClassFile(String uriString) {
         if (uriString == null || uriString.isEmpty()) {
             return null;
         }
@@ -281,6 +278,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 return cf;
             }
         } catch (URISyntaxException e) {
+            // ignore
         }
         return null;
     }
@@ -293,6 +291,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     ClassFileBytesDisassembler.WORKING_COPY);
             disassembledByteCode = MISSING_SOURCES_HEADER + LF + disassembledByteCode;
         } catch (Exception e) {
+            // ignore
         }
         return disassembledByteCode;
     }
@@ -301,7 +300,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         if (project == null) {
             return SearchEngine.createWorkspaceScope();
         }
-        return SearchEngine.createJavaSearchScope(new IJavaProject[] { project },
+        return SearchEngine.createJavaSearchScope(new IJavaProject[] {project},
                 IJavaSearchScope.SOURCES | IJavaSearchScope.APPLICATION_LIBRARIES | IJavaSearchScope.SYSTEM_LIBRARIES);
     }
 
@@ -311,7 +310,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         try {
             FileInputStream inputStream = new FileInputStream(filePath);
             bufferReader = new BufferedReader(new InputStreamReader(inputStream, cs));
-            int BUFFER_SIZE = 4096;
+            final int BUFFER_SIZE = 4096;
             char[] buffer = new char[BUFFER_SIZE];
             while (true) {
                 int read = bufferReader.read(buffer, 0, BUFFER_SIZE);
@@ -327,6 +326,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 try {
                     bufferReader.close();
                 } catch (IOException e) {
+                    // ignore
                 }
             }
         }
