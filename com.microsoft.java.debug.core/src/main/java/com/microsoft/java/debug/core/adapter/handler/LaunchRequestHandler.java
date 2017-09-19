@@ -69,13 +69,15 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 return;
             }
 
-            if (StringUtils.isBlank(launchArguments.vmArgs)) {
-                launchArguments.vmArgs = String.format("-Dfile.encoding=%s", launchArguments.encoding);
-            } else {
-                // if vmArgs already has the file.encoding settings, duplicate options for jvm will not cause an error, the right most value wins
-                launchArguments.vmArgs = String.format("%s -Dfile.encoding=%s", launchArguments.vmArgs, launchArguments.encoding);
-            }
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
+        }
+
+
+        if (StringUtils.isBlank(launchArguments.vmArgs)) {
+            launchArguments.vmArgs = String.format("-Dfile.encoding=%s", context.getDebuggeeEncoding().name());
+        } else {
+            // if vmArgs already has the file.encoding settings, duplicate options for jvm will not cause an error, the right most value wins
+            launchArguments.vmArgs = String.format("%s -Dfile.encoding=%s", launchArguments.vmArgs, context.getDebuggeeEncoding().name());
         }
 
 
