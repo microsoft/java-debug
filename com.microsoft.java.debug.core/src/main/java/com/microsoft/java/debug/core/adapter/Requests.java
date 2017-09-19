@@ -45,6 +45,7 @@ public class Requests {
         public String mainClass;
         public String args = "";
         public String vmArgs = "";
+        public String encoding = "";
         public String[] classPaths = new String[0];
         public String[] sourcePaths = new String[0];
     }
