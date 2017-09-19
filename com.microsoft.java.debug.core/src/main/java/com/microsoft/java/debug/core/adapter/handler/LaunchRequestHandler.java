@@ -60,6 +60,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
+
         if (StringUtils.isBlank(launchArguments.encoding)) {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);
         } else {
@@ -83,11 +84,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        Map<String, Object> options = sourceProvider.getDefaultOptions();
+        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
         if (launchArguments.projectName != null) {
-            Map<String, Object> options = sourceProvider.getDefaultOptions();
             options.put(Constants.PROJECTNAME, launchArguments.projectName);
-            sourceProvider.initialize(options);
         }
+        sourceProvider.initialize(options);
 
         try {
             logger.info(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
