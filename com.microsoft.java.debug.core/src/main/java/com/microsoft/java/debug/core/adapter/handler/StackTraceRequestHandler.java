@@ -123,7 +123,11 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
             String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), relativeSourcePath);
-            return new Types.Source(sourceName, absoluteSourcepath, 0);
+            if (absoluteSourcepath != null) {
+                return new Types.Source(sourceName, absoluteSourcepath, 0);
+            } else {
+                return null;
+            }
         }
     }
 }

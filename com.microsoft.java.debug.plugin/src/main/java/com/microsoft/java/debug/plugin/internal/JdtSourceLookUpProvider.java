@@ -227,7 +227,18 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     Object element = match.getElement();
                     if (element instanceof IType) {
                         IType type = (IType) element;
-                        uris.add(type.isBinary() ? getFileURI(type.getClassFile()) : getFileURI(type.getResource()));
+                        if (type.isBinary()) {
+                            try {
+                                // let the search engine to ignore those class files without attached source.
+                                if (type.getSource() != null) {
+                                    uris.add(getFileURI(type.getClassFile()));
+                                }
+                            } catch (JavaModelException e) {
+                                // ignore
+                            }
+                        } else {
+                            uris.add(getFileURI(type.getResource()));
+                        }
                     }
                 }
             };
