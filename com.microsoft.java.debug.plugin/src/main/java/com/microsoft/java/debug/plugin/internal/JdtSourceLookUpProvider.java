@@ -23,6 +23,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.core.resources.IProject;
@@ -78,6 +79,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         context.putAll(props);
     }
 
+    @Override
     public boolean supportsRealtimeBreakpointVerification() {
         return true;
     }
@@ -187,7 +189,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     source = disassemble(cf);
                 }
             } catch (JavaModelException e) {
-                logger.severe(String.format("Failed to parse the source contents of the class file: %s", e));
+                logger.log(Level.SEVERE, String.format("Failed to parse the source contents of the class file: %s", e.toString()), e);
             }
             if (source == null) {
                 source = "";
@@ -248,7 +250,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 }, searchScope, requestor, null /* progress monitor */);
             return uris.size() == 0 ? null : uris.get(0);
         } catch (CoreException e) {
-            logger.severe(String.format("Failed to parse java project: %s", e));
+            logger.log(Level.SEVERE, String.format("Failed to parse java project: %s", e.toString()), e);
         }
         return null;
     }

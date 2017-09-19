@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -35,7 +36,7 @@ public class JavaDebugServer implements IDebugServer {
         try {
             this.serverSocket = new ServerSocket(0, 1);
         } catch (IOException e) {
-            logger.severe(String.format("Failed to create Java Debug Server: %s", e));
+            logger.log(Level.SEVERE, String.format("Failed to create Java Debug Server: %s", e.toString()), e);
         }
     }
 
@@ -53,6 +54,7 @@ public class JavaDebugServer implements IDebugServer {
     /**
      * Gets the server port.
      */
+    @Override
     public synchronized int getPort() {
         if (this.serverSocket != null) {
             return this.serverSocket.getLocalPort();
@@ -63,6 +65,7 @@ public class JavaDebugServer implements IDebugServer {
     /**
      * Starts the server if it's not started yet.
      */
+    @Override
     public synchronized void start() {
         if (this.serverSocket != null && !this.isStarted) {
             this.isStarted = true;
@@ -79,8 +82,8 @@ public class JavaDebugServer implements IDebugServer {
                             // Then the server goes back to listen for new connection request.
                             Socket connection = serverSocket.accept();
                             executor.submit(createConnectionTask(connection));
-                        } catch (IOException e1) {
-                            logger.severe(String.format("Setup socket connection exception: %s", e1));
+                        } catch (IOException e) {
+                            logger.log(Level.SEVERE, String.format("Setup socket connection exception: %s", e.toString()), e);
                             closeServerSocket();
                             // If exception occurs when waiting for new client connection, shut down the connection pool
                             // to make sure no new tasks are accepted. But the previously submitted tasks will continue to run.
@@ -94,6 +97,7 @@ public class JavaDebugServer implements IDebugServer {
         }
     }
 
+    @Override
     public synchronized void stop() {
         closeServerSocket();
         shutdownConnectionPool(true);
@@ -105,7 +109,7 @@ public class JavaDebugServer implements IDebugServer {
                 logger.info("Close debugserver socket port " + serverSocket.getLocalPort());
                 serverSocket.close();
             } catch (IOException e) {
-                logger.severe(String.format("Close ServerSocket exception: %s", e));
+                logger.log(Level.SEVERE, String.format("Close ServerSocket exception: %s", e.toString()), e);
             }
         }
         serverSocket = null;
@@ -123,6 +127,7 @@ public class JavaDebugServer implements IDebugServer {
 
     private Runnable createConnectionTask(Socket connection) {
         return new Runnable() {
+            @Override
             public void run() {
                 try {
                     ProtocolServer protocolServer = new ProtocolServer(connection.getInputStream(), connection.getOutputStream(),
@@ -130,7 +135,7 @@ public class JavaDebugServer implements IDebugServer {
                     // protocol server will dispatch request and send response in a while-loop.
                     protocolServer.start();
                 } catch (IOException e) {
-                    logger.severe(String.format("Socket connection exception: %s", e));
+                    logger.log(Level.SEVERE, String.format("Socket connection exception: %s", e.toString()), e);
                 } finally {
                     logger.info("Debug connection closed");
                 }

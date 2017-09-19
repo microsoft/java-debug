@@ -25,6 +25,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -95,7 +96,7 @@ public class ProtocolServer {
                 this.processData();
             }
         } catch (IOException e) {
-            logger.severe(String.format("Read data from io exception: %s", e));
+            logger.log(Level.SEVERE, String.format("Read data from io exception: %s", e.toString()), e);
         }
     }
 
@@ -155,7 +156,7 @@ public class ProtocolServer {
             this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
-            logger.severe(String.format("Write data to io exception: %s", e));
+            logger.log(Level.SEVERE, String.format("Write data to io exception: %s", e.toString()), e);
         }
     }
 
@@ -204,7 +205,7 @@ public class ProtocolServer {
                     }
                     sendMessage(response);
                 } catch (Exception e) {
-                    logger.severe(String.format("Dispatch debug protocol error: %s", e));
+                    logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
                 }
             }
         } finally {

@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -76,7 +77,7 @@ public class DebugAdapter implements IDebugAdapter {
                         String.format("Unrecognized request: { _request: %s }", request.command));
             }
         } catch (Exception e) {
-            logger.severe(String.format("DebugSession dispatch exception:%s", e.toString()));
+            logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
             AdapterUtils.setErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
                     e.getMessage() != null ? e.getMessage() : e.toString());
         }

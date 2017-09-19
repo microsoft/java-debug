@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter.variables;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -88,7 +89,7 @@ public abstract class VariableUtils {
                         }
                         return a.name().compareToIgnoreCase(b.name());
                     } catch (Exception e) {
-                        logger.severe(String.format("Cannot sort fields: %s", e));
+                        logger.log(Level.SEVERE, String.format("Cannot sort fields: %s", e), e);
                         return -1;
                     }
                 }).collect(Collectors.toList());
