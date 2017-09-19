@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core.adapter.handler;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -59,7 +60,27 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
-        context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
+
+        if (StringUtils.isBlank(launchArguments.encoding)) {
+            context.setDebuggeeEncoding(StandardCharsets.UTF_8);
+        } else {
+            if (!Charset.isSupported(launchArguments.encoding)) {
+                AdapterUtils.setErrorResponse(response, ErrorCode.INVALID_ENCODING,
+                        String.format("Failed to launch debuggee VM. 'encoding' options in launch configuration is not recognized."));
+                return;
+            }
+
+            context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
+        }
+
+
+        if (StringUtils.isBlank(launchArguments.vmArgs)) {
+            launchArguments.vmArgs = String.format("-Dfile.encoding=%s", context.getDebuggeeEncoding().name());
+        } else {
+            // if vmArgs already has the file.encoding settings, duplicate options for jvm will not cause an error, the right most value wins
+            launchArguments.vmArgs = String.format("%s -Dfile.encoding=%s", launchArguments.vmArgs, context.getDebuggeeEncoding().name());
+        }
+
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
