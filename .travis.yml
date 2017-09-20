@@ -4,9 +4,6 @@ os:
   - linux
   - osx
 
-before_install:
-  - ./installjdtls.sh
-
 script: 
   - ./mvnw clean verify
 
