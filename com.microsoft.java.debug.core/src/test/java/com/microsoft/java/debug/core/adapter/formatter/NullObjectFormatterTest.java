@@ -19,9 +19,11 @@ import org.junit.Test;
 
 import com.sun.jdi.LocalVariable;
 import com.sun.jdi.ObjectReference;
+import com.sun.jdi.Value;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class NullObjectFormatterTest extends BaseFormatterTest{
@@ -61,6 +63,13 @@ public class NullObjectFormatterTest extends BaseFormatterTest{
 
         assertEquals("Should be able to format string type.", "null",
             formatter.toString(null, options));
+    }
+
+    @Test
+    public void testValueOf() throws Exception {
+        Map<String, Object> options = formatter.getDefaultOptions();
+        assertNull("Should return null for null formatter", formatter.valueOf("null", null, options));
+        assertNull("Should return null for null formatter", formatter.valueOf(null, null, options));
     }
 
     @Test(expected = UnsupportedOperationException.class)

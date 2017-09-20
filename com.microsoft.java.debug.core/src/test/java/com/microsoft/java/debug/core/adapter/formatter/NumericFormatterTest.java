@@ -17,11 +17,14 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.sun.jdi.ByteValue;
 import com.sun.jdi.DoubleValue;
 import com.sun.jdi.FloatValue;
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.LocalVariable;
+import com.sun.jdi.LongValue;
 import com.sun.jdi.ObjectReference;
+import com.sun.jdi.ShortValue;
 import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
 
@@ -67,6 +70,9 @@ public class NumericFormatterTest extends BaseFormatterTest {
 
         assertTrue("NumericFormatter should accept byte type.",
             formatter.acceptType(vm.mirrorOf((byte)12).type(), new HashMap<>()));
+
+        assertTrue("NumericFormatter should accept short type.",
+            formatter.acceptType(vm.mirrorOf((short)12121).type(), new HashMap<>()));
     }
 
     @Test
@@ -150,11 +156,25 @@ public class NumericFormatterTest extends BaseFormatterTest {
         assertTrue("Should create an float value.", newValue instanceof FloatValue);
         assertEquals("Should create an float with right value.", "0.0", newValue.toString());
 
-
         newValue = formatter.valueOf("10.0", vm.mirrorOf(10.0).type(), options);
         assertNotNull("NumericFormatter should be able to create double by string.", newValue);
         assertTrue("Should create an double value.", newValue instanceof DoubleValue);
         assertEquals("Should create an double with right value.", "10.0", newValue.toString());
+
+        newValue = formatter.valueOf("10", vm.mirrorOf((short)10).type(), options);
+        assertNotNull("NumericFormatter should be able to create short by string.", newValue);
+        assertTrue("Should create an short value.", newValue instanceof ShortValue);
+        assertEquals("Should create an short with right value.", "10", newValue.toString());
+
+        newValue = formatter.valueOf("10", vm.mirrorOf(10L).type(), options);
+        assertNotNull("NumericFormatter should be able to create long by string.", newValue);
+        assertTrue("Should create an long value.", newValue instanceof LongValue);
+        assertEquals("Should create an long with right value.", "10", newValue.toString());
+
+        newValue = formatter.valueOf("10", vm.mirrorOf((byte) 10).type(), options);
+        assertNotNull("NumericFormatter should be able to create byte by string.", newValue);
+        assertTrue("Should create an byte value.", newValue instanceof ByteValue);
+        assertEquals("Should create an byte with right value.", "10", newValue.toString());
     }
 
     @Test(expected = UnsupportedOperationException.class)

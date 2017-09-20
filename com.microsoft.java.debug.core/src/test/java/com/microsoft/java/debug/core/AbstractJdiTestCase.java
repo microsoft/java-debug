@@ -75,7 +75,6 @@ public abstract class AbstractJdiTestCase extends EasyMockSupport {
     }
 
     protected Value getLocalValue(String name) throws AbsentInformationException {
-
         StackFrame frame = getStackFrame();
         return frame.getValue(frame.visibleVariableByName(name));
 

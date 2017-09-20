@@ -53,7 +53,7 @@ public class VariableTest extends Foo {
         i++;
         ArrayList<Integer>[] d = new ArrayList[0];
         System.out.println(d.length);
-
+        Boolean boolVar = false;
         GenericsFoo<Foo> dd = new GenericsFoo<Foo>(new Foo());
         ArrayList<int[]> list = new ArrayList<>();
         list.add(new int[] { 1 });
