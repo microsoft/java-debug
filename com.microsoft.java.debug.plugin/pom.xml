@@ -10,13 +10,6 @@
     <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
     <name>${base.name} :: Debugger Plugin</name>
-    <dependencies>
-        <dependency>
-            <groupId>org.eclipse.jdt.ls</groupId>
-            <artifactId>org.eclipse.jdt.ls.core</artifactId>
-            <version>0.4.0</version>
-        </dependency>
-    </dependencies>
     <build>
         <plugins>
             <plugin>

@@ -1,5 +1,5 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.microsoft.java</groupId>
     <artifactId>parent</artifactId>
@@ -12,6 +12,7 @@
         <tycho-version>1.0.0</tycho-version>
     </properties>
     <modules>
+        <module>com.microsoft.java.debug.target</module>
         <module>com.microsoft.java.debug.core</module>
         <module>com.microsoft.java.debug.plugin</module>
     </modules>
@@ -99,18 +100,28 @@
                     <artifactId>target-platform-configuration</artifactId>
                     <version>${tycho-version}</version>
                     <configuration>
-                        <pomDependencies>consider</pomDependencies>
+                        <target>
+                            <artifact>
+                                <groupId>com.microsoft.java</groupId>
+                                <artifactId>com.microsoft.java.debug.tp</artifactId>
+                                <version>${project.version}</version>
+                            </artifact>
+                        </target>
                     </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-maven-plugin</artifactId>
+                <version>${tycho-version}</version>
+                <extensions>true</extensions>
+            </plugin>
+        </plugins>
+
     </build>
     <repositories>
-        <repository>
-            <id>oxygen</id>
-            <layout>p2</layout>
-            <url>http://download.eclipse.org/releases/oxygen</url>
-        </repository>
         <repository>
             <id>oss.sonatype.org</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
