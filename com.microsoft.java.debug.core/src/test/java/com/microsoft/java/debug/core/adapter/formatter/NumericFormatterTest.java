@@ -17,6 +17,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.microsoft.java.debug.core.adapter.BaseJdiTestCase;
 import com.sun.jdi.ByteValue;
 import com.sun.jdi.DoubleValue;
 import com.sun.jdi.FloatValue;
@@ -32,7 +33,7 @@ import static com.microsoft.java.debug.core.adapter.formatter.NumericFormatter.N
 import static com.microsoft.java.debug.core.adapter.formatter.NumericFormatter.NUMERIC_PRECISION_OPTION;
 import static org.junit.Assert.*;
 
-public class NumericFormatterTest extends BaseFormatterTest {
+public class NumericFormatterTest extends BaseJdiTestCase {
     protected NumericFormatter formatter;
     @Before
     public void setup() throws Exception {

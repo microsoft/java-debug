@@ -17,6 +17,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.microsoft.java.debug.core.adapter.BaseJdiTestCase;
 import com.sun.jdi.BooleanValue;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.Value;
@@ -26,7 +27,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class BooleanFormatterTest extends BaseFormatterTest {
+public class BooleanFormatterTest extends BaseJdiTestCase {
     protected BooleanFormatter formatter;
     @Before
     public void setup() throws Exception {

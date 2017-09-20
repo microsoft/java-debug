@@ -17,7 +17,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.sun.jdi.BooleanValue;
+import com.microsoft.java.debug.core.adapter.BaseJdiTestCase;
 import com.sun.jdi.CharValue;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.Value;
@@ -27,7 +27,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class CharacterFormatterTest extends BaseFormatterTest {
+public class CharacterFormatterTest extends BaseJdiTestCase {
     private CharacterFormatter formatter;
     @Before
     public void setup() throws Exception {

@@ -9,7 +9,7 @@
  *     Microsoft Corporation - initial API and implementation
  *******************************************************************************/
 
-package com.microsoft.java.debug.core.adapter.formatter;
+package com.microsoft.java.debug.core.adapter;
 
 import com.microsoft.java.debug.core.AbstractJdiTestCase;
 import com.microsoft.java.debug.core.DebugSessionFactory;
@@ -19,7 +19,7 @@ import org.junit.Before;
 
 import static com.microsoft.java.debug.core.DebugSessionFactory.shutdownDebugSession;
 
-public abstract class BaseFormatterTest extends AbstractJdiTestCase {
+public abstract class BaseJdiTestCase extends AbstractJdiTestCase {
     protected static final String PROJECT_NAME = "4.variable";
     protected IDebugSession debugSession;
 

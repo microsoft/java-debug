@@ -17,15 +17,15 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.microsoft.java.debug.core.adapter.BaseJdiTestCase;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.Value;
 
-import static com.microsoft.java.debug.core.adapter.formatter.NumericFormatter.NUMERIC_FORMAT_OPTION;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class SimpleTypeFormatterTest extends BaseFormatterTest {
+public class SimpleTypeFormatterTest extends BaseJdiTestCase {
     protected SimpleTypeFormatter formatter;
     @Before
     public void setup() throws Exception {

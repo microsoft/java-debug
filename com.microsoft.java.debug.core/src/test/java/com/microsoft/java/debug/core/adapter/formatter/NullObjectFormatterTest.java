@@ -17,16 +17,16 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.microsoft.java.debug.core.adapter.BaseJdiTestCase;
 import com.sun.jdi.LocalVariable;
 import com.sun.jdi.ObjectReference;
-import com.sun.jdi.Value;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public class NullObjectFormatterTest extends BaseFormatterTest{
+public class NullObjectFormatterTest extends BaseJdiTestCase {
     protected NullObjectFormatter formatter;
     @Before
     public void setup() throws Exception {

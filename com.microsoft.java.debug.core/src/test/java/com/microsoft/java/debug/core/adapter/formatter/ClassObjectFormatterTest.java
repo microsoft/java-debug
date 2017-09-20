@@ -17,6 +17,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.microsoft.java.debug.core.adapter.BaseJdiTestCase;
 import com.sun.jdi.LocalVariable;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.Value;
@@ -27,7 +28,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class ClassObjectFormatterTest extends BaseFormatterTest {
+public class ClassObjectFormatterTest extends BaseJdiTestCase {
     private ClassObjectFormatter formatter;
     @Before
     public void setup() throws Exception {
