@@ -23,6 +23,8 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -31,9 +33,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.adapter.Messages.Request;
 
 public class ProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
+    private static final Logger loggerUserdata = Logger.getLogger(Configuration.USERDATA_LOGGER_NAME);
 
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
@@ -52,6 +57,16 @@ public class ProtocolServer {
     private ConcurrentLinkedQueue<Messages.Event> eventQueue;
 
     private IDebugAdapter debugAdapter;
+
+    /* userdataMap Schema:
+     * command: { timestamp: Request JSON String } */
+    private Map<String, Map<Long, String>> userdataMap = new HashMap<>();
+
+    private void recordRequest(Request message) {
+        userdataMap.putIfAbsent(message.command, new HashMap<Long, String>());
+        userdataMap.get(message.command).put(System.currentTimeMillis(),
+                message.arguments != null ? message.arguments.toString() : null);
+    }
 
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
@@ -84,6 +99,7 @@ public class ProtocolServer {
      * A while-loop to parse input data and send output data constantly.
      */
     public void start() {
+        userdataMap.clear();
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
@@ -105,6 +121,8 @@ public class ProtocolServer {
      */
     public void stop() {
         this.terminateSession = true;
+        // telemetry
+        loggerUserdata.log(Level.INFO, null, userdataMap);
     }
 
     /**
@@ -193,6 +211,7 @@ public class ProtocolServer {
         try {
             logger.info("\n[REQUEST]\n" + request);
             Messages.Request message = JsonUtils.fromJson(request, Messages.Request.class);
+            recordRequest(message);
             if (message.type.equals("request")) {
                 synchronized (this) {
                     this.isDispatchingData = true;

@@ -18,6 +18,8 @@ import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
 
 public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler {
 
+    public static String FETCH_USER_DATA = "vscode.java.fetchUserData";
+
     public static String DEBUG_STARTSESSION = "vscode.java.startDebugSession";
 
     public static String RESOLVE_CLASSPATH = "vscode.java.resolveClasspath";
@@ -35,7 +37,10 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             return handler.resolveClasspaths(arguments);
         } else if (BUILD_WORKSPACE.equals(commandId)) {
             // TODO
+        } else if (FETCH_USER_DATA.equals(commandId)) {
+            return UserDataPool.getInstance().fetchAll();
         }
+
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));
     }
 
