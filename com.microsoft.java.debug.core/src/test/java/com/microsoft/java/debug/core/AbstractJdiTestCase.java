@@ -37,11 +37,12 @@ public abstract class AbstractJdiTestCase extends EasyMockSupport {
             return staticBreakpointEvent;
         }
         IDebugSession debugSession = getCurrentDebugSession();
-        debugSession.start();
+
         IBreakpoint breakpointToAdd = getCurrentDebugSession().createBreakpoint(breakpointAtClass, line);
         breakpointToAdd.install().thenAccept(t -> {
             System.out.println("Breakpoint is accepted.");
         });
+        debugSession.start();
         debugSession.eventHub().breakpointEvents().subscribe(breakpoint -> {
             System.out.println("Breakpoint is hit.");
             breakpoint.shouldResume = false;

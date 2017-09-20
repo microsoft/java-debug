@@ -33,7 +33,7 @@ public abstract class BaseFormatterTest extends AbstractJdiTestCase {
     public void setup() throws Exception {
         debugSession = DebugSessionFactory.getDebugSession(PROJECT_NAME, "VariableTest");
         if (staticBreakpointEvent == null) {
-            staticBreakpointEvent = waitForBreakPointEvent("VariableTest", 48);
+            staticBreakpointEvent = waitForBreakPointEvent("VariableTest", 60);
         }
     }
 
