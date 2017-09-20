@@ -222,4 +222,7 @@ public abstract class VariableUtils {
         return res;
     }
 
+    private VariableUtils() {
+
+    }
 }

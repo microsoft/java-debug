@@ -1,0 +1,21 @@
+/*******************************************************************************
+ * Copyright (c) 2017 Microsoft Corporation and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Microsoft Corporation - initial API and implementation
+ *******************************************************************************/
+
+package com.microsoft.java.debug.core.adapter.formatter;
+
+import junit.framework.TestCase;
+
+public class TypeIdentifiersTest extends TestCase {
+    public void testStringSignature() {
+        assertEquals("Should have string signature constants.", "Ljava/lang/String;",
+            TypeIdentifiers.STRING_SIGNATURE);
+    }
+}
