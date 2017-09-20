@@ -23,9 +23,10 @@ public class ProviderContext implements IProviderContext {
     }
 
     /**
-     * Get the registered provider with the interface type, <code>IllegalArgumentException</code>
-     * will raise if the provider is absent. The returned object is type-safe to be assigned to T since
-     * registerProvider will check the compatibility, so suppress unchecked rule.
+     * Get the registered provider with the interface type,
+     * <code>IllegalArgumentException</code> will raise if the provider is absent.
+     * The returned object is type-safe to be assigned to T since registerProvider
+     * will check the compatibility, so suppress unchecked rule.
      */
     @SuppressWarnings("unchecked")
     @Override
@@ -38,12 +39,26 @@ public class ProviderContext implements IProviderContext {
 
     @Override
     public void registerProvider(Class<? extends IProvider> clazz, IProvider provider) {
+        if (clazz == null) {
+            throw new IllegalArgumentException("Null provider class is illegal.");
+        }
+
+        if (provider == null) {
+            throw new IllegalArgumentException("Null provider is illegal.");
+        }
+
         if (providerMap.containsKey(clazz)) {
             throw new IllegalArgumentException(String.format("%s has already been registered.", clazz.getName()));
         }
+
         if (!clazz.isInstance(provider)) {
             throw new IllegalArgumentException(String.format("The provider doesn't implement interface %s.", clazz.getName()));
         }
+
+        if (!clazz.isInterface()) {
+            throw new IllegalArgumentException("The provider class should be an interface");
+        }
+
         providerMap.put(clazz, provider);
     }
 
