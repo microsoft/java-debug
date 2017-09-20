@@ -15,7 +15,7 @@ import junit.framework.TestCase;
 
 public class TypeIdentifiersTest extends TestCase {
     public void testStringSignature() {
-        assertEquals("Should have string signature constants.", ":Ljava.lang.String;",
+        assertEquals("Should have string signature constants.", "Ljava/lang/String;",
             TypeIdentifiers.STRING_SIGNATURE);
     }
 }
