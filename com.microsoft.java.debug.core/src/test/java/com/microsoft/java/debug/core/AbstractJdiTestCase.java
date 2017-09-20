@@ -94,5 +94,18 @@ public abstract class AbstractJdiTestCase extends EasyMockSupport {
         }
     }
 
+    protected StackFrame getSecondLevelStackFrame() {
+        if (this.staticBreakpointEvent == null || !this.staticBreakpointEvent.thread().isAtBreakpoint()) {
+            return null;
+        }
+        try {
+            return this.staticBreakpointEvent.thread().frame(1);
+
+        } catch (IncompatibleThreadStateException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     protected abstract IDebugSession getCurrentDebugSession();
 }

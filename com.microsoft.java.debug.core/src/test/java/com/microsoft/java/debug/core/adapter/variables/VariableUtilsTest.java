@@ -83,7 +83,8 @@ public class VariableUtilsTest extends BaseJdiTestCase {
 
     @Test
     public void testGetThisVariable() throws Exception {
-        assertNull("Should return null on static method.", VariableUtils.getThisVariable(getStackFrame()));
+        assertNotNull("Should not return null on test method.", VariableUtils.getThisVariable(getStackFrame()));
+        assertNull("Should return null on main method.", VariableUtils.getThisVariable(getSecondLevelStackFrame()));
     }
 
 }
