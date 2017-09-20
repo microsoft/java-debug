@@ -24,7 +24,7 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.BreakpointEvent;
 
 public abstract class AbstractJdiTestCase extends EasyMockSupport {
-    private int timeout = 1000 * 10;
+    private static int TEST_TIME_OUT = 1000 * 10;
 
     protected static BreakpointEvent staticBreakpointEvent;
 
@@ -53,7 +53,7 @@ public abstract class AbstractJdiTestCase extends EasyMockSupport {
         });
 
         synchronized (debugSession) {
-            debugSession.wait(timeout);
+            debugSession.wait(TEST_TIME_OUT);
         }
         return staticBreakpointEvent;
 
