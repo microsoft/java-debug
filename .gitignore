@@ -40,5 +40,4 @@ bin/
 jdt-language-server-latest.tar.gz
 jdtls/
 
-.vscode/
 !.mvn/wrapper/maven-wrapper.jar
