@@ -98,9 +98,6 @@
                     <groupId>org.eclipse.tycho</groupId>
                     <artifactId>target-platform-configuration</artifactId>
                     <version>${tycho-version}</version>
-                    <configuration>
-                        <pomDependencies>consider</pomDependencies>
-                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -117,6 +114,11 @@
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
+        </repository>
+        <repository>
+            <id>JDT.LS</id>
+            <layout>p2</layout>
+            <url>http://download.eclipse.org/jdtls/snapshots/repository/latest/</url>
         </repository>
     </repositories>
 </project>
