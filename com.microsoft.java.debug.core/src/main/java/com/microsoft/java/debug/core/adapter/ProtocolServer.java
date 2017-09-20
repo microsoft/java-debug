@@ -65,7 +65,7 @@ public class ProtocolServer {
     private void recordRequest(Request message) {
         userdataMap.putIfAbsent(message.command, new HashMap<Long, String>());
         userdataMap.get(message.command).put(System.currentTimeMillis(),
-                message.arguments != null ? message.arguments.toString() : null);
+                message.arguments != null ? message.arguments.toString() : "");
     }
 
     /**
