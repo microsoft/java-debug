@@ -117,7 +117,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             return StringUtils.isBlank(fromProvider) ? "" : fromProvider;
         });
 
-        if (StringUtils.isBlank(uri)) {
+        if (!StringUtils.isBlank(uri)) {
             String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
             if (uri.startsWith("file:")) {
                 return new Types.Source(sourceName, clientPath, 0);
