@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -109,11 +111,13 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
 
         final String finalRelativeSourcePath = relativeSourcePath;
         // use a lru cache for better performance
-        String uri = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key ->
-            context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, finalRelativeSourcePath)
-        );
+        String uri = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key -> {
+            String fromProvider = context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, finalRelativeSourcePath);
+            // avoid return null which will cause the compute function executed again
+            return StringUtils.isBlank(fromProvider) ? "" : fromProvider;
+        });
 
-        if (uri != null) {
+        if (!StringUtils.isBlank(uri)) {
             String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
             if (uri.startsWith("file:")) {
                 return new Types.Source(sourceName, clientPath, 0);
