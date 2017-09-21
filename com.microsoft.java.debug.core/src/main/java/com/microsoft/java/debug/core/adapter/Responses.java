@@ -118,9 +118,15 @@ public class Responses {
 
     public static class SourceResponseBody extends ResponseBody {
         public String content;
+        public String mimeType = "text/x-java"; // Set mimeType to tell VSCode to recognize the source contents as java source.
 
-        public SourceResponseBody(String cont) {
-            content = cont;
+        public SourceResponseBody(String content) {
+            this.content = content;
+        }
+
+        public SourceResponseBody(String content, String mimeType) {
+            this.content = content;
+            this.mimeType = mimeType;
         }
     }
 
