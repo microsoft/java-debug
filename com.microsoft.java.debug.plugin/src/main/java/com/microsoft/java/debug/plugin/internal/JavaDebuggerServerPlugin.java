@@ -21,7 +21,7 @@ import com.microsoft.java.debug.core.Configuration;
 
 public class JavaDebuggerServerPlugin implements BundleActivator {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final Logger loggerUserdata = Logger.getLogger(Configuration.USERDATA_LOGGER_NAME);
+    private static final Logger loggerUserdata = Logger.getLogger(Configuration.USER_DATA_LOGGER_NAME);
 
     public static final String PLUGIN_ID = "com.microsoft.java.debug";
     public static BundleContext context = null;

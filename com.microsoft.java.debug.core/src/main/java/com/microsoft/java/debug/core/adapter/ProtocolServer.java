@@ -38,7 +38,7 @@ import com.microsoft.java.debug.core.adapter.Messages.Request;
 public class ProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
-    private static final Logger loggerUserdata = Logger.getLogger(Configuration.USERDATA_LOGGER_NAME);
+    private static final Logger userDataLogger = Logger.getLogger(Configuration.USER_DATA_LOGGER_NAME);
 
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
@@ -58,13 +58,15 @@ public class ProtocolServer {
 
     private IDebugAdapter debugAdapter;
 
-    /* userdataMap Schema:
-     * command: { timestamp: Request JSON String } */
-    private Map<String, Map<Long, String>> userdataMap = new HashMap<>();
+    /**
+     * userDataMap Schema.
+     * command: { timestamp: Request JSON String }
+     */
+    private Map<String, Map<Long, String>> userDataMap = new HashMap<>();
 
     private void recordRequest(Request message) {
-        userdataMap.putIfAbsent(message.command, new HashMap<Long, String>());
-        userdataMap.get(message.command).put(System.currentTimeMillis(),
+        userDataMap.putIfAbsent(message.command, new HashMap<Long, String>());
+        userDataMap.get(message.command).put(System.currentTimeMillis(),
                 message.arguments != null ? message.arguments.toString() : "");
     }
 
@@ -99,7 +101,7 @@ public class ProtocolServer {
      * A while-loop to parse input data and send output data constantly.
      */
     public void start() {
-        userdataMap.clear();
+        userDataMap.clear();
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
@@ -122,7 +124,7 @@ public class ProtocolServer {
     public void stop() {
         this.terminateSession = true;
         // telemetry
-        loggerUserdata.log(Level.INFO, null, userdataMap);
+        userDataLogger.log(Level.INFO, null, userDataMap);
     }
 
     /**
