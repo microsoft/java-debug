@@ -22,6 +22,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.UsageDataStore;
 import com.microsoft.java.debug.core.adapter.ProtocolServer;
 
 public class JavaDebugServer implements IDebugServer {
@@ -130,6 +131,7 @@ public class JavaDebugServer implements IDebugServer {
             @Override
             public void run() {
                 try {
+                    UsageDataStore.getInstance().createSessionGUID();
                     ProtocolServer protocolServer = new ProtocolServer(connection.getInputStream(), connection.getOutputStream(),
                             JdtProviderContextFactory.createProviderContext());
                     // protocol server will dispatch request and send response in a while-loop.
@@ -138,6 +140,7 @@ public class JavaDebugServer implements IDebugServer {
                     logger.log(Level.SEVERE, String.format("Socket connection exception: %s", e.toString()), e);
                 } finally {
                     logger.info("Debug connection closed");
+                    UsageDataStore.getInstance().resetSessionGUID();
                 }
             }
         };

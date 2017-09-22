@@ -75,7 +75,7 @@ public class BreakpointManager {
                     // Destroy the breakpoint on the debugee VM.
                     bp.close();
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
+                    logger.log(Level.SEVERE, "Remove breakpoint exception", e);
                 }
                 this.breakpoints.remove(bp);
             }
@@ -145,7 +145,7 @@ public class BreakpointManager {
                     this.breakpoints.remove(breakpoint);
                     breakpointMap.remove(String.valueOf(breakpoint.lineNumber()));
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
+                    logger.log(Level.SEVERE, "Remove breakpoint exception", e);
                 }
             }
         }

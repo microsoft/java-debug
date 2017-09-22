@@ -6,7 +6,7 @@
             <command id="vscode.java.startDebugSession"/>
             <command id="vscode.java.resolveClasspath"/>
             <command id="vscode.java.buildWorkspace"/>
-            <command id="vscode.java.fetchUserData"/>
+            <command id="vscode.java.fetchUsageData"/>
        </delegateCommandHandler>
    </extension>
 </plugin>

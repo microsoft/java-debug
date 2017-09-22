@@ -13,6 +13,7 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.core.resources.IProject;
@@ -48,7 +49,7 @@ public class ResolveClasspathsHandler {
         try {
             return computeClassPath((String) arguments.get(0), (String) arguments.get(1));
         } catch (CoreException e) {
-            logger.severe("Failed to resolve classpath: " + e.getMessage());
+            logger.log(Level.SEVERE, "Failed to resolve classpath: " + e.getMessage(), e);
             throw new Exception("Failed to resolve classpath: " + e.getMessage(), e);
         }
     }

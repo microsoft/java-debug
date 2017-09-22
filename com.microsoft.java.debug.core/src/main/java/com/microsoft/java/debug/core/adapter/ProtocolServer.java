@@ -23,8 +23,6 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -33,12 +31,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.adapter.Messages.Request;
+import com.microsoft.java.debug.core.UsageDataSession;
 
 public class ProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
-    private static final Logger userDataLogger = Logger.getLogger(Configuration.USER_DATA_LOGGER_NAME);
 
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
@@ -58,17 +54,7 @@ public class ProtocolServer {
 
     private IDebugAdapter debugAdapter;
 
-    /**
-     * userDataMap Schema.
-     * command: { timestamp: Request JSON String }
-     */
-    private Map<String, Map<Long, String>> userDataMap = new HashMap<>();
-
-    private void recordRequest(Request message) {
-        userDataMap.putIfAbsent(message.command, new HashMap<Long, String>());
-        userDataMap.get(message.command).put(System.currentTimeMillis(),
-                message.arguments != null ? message.arguments.toString() : "");
-    }
+    private UsageDataSession usageDataSession = new UsageDataSession();
 
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
@@ -101,7 +87,7 @@ public class ProtocolServer {
      * A while-loop to parse input data and send output data constantly.
      */
     public void start() {
-        userDataMap.clear();
+        usageDataSession.reportStart();
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
@@ -122,9 +108,9 @@ public class ProtocolServer {
      * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
      */
     public void stop() {
+        usageDataSession.reportStop();
         this.terminateSession = true;
-        // telemetry
-        userDataLogger.log(Level.INFO, null, userDataMap);
+        usageDataSession.submitUsageData();
     }
 
     /**
@@ -213,7 +199,7 @@ public class ProtocolServer {
         try {
             logger.info("\n[REQUEST]\n" + request);
             Messages.Request message = JsonUtils.fromJson(request, Messages.Request.class);
-            recordRequest(message);
+            usageDataSession.recordRequest(message);
             if (message.type.equals("request")) {
                 synchronized (this) {
                     this.isDispatchingData = true;
@@ -225,6 +211,7 @@ public class ProtocolServer {
                         this.stop();
                     }
                     sendMessage(response);
+                    usageDataSession.recordResponse(response);
                 } catch (Exception e) {
                     logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
                 }

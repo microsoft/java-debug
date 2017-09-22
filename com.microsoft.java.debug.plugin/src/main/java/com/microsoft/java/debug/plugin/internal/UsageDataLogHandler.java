@@ -11,21 +11,34 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
+import java.util.Map;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
-public class UserDataLogHandler extends Handler {
+import com.microsoft.java.debug.core.UsageDataStore;
+
+public class UsageDataLogHandler extends Handler {
     Level thresholdLevel = Level.SEVERE;
 
-    public UserDataLogHandler(Level level) {
+    public UsageDataLogHandler(Level level) {
         thresholdLevel = level;
     }
 
     @Override
     public void publish(LogRecord record) {
         if (record.getLevel().intValue() >= thresholdLevel.intValue()) {
-            UserDataPool.getInstance().logUserdata(record.getMessage(), record.getParameters());
+            if (record.getThrown() != null) {
+                // error message
+                UsageDataStore.getInstance().logErrorData(record.getMessage(), record.getThrown());
+            } else if (record.getParameters() != null) {
+                // debug session details
+                Object[] params = record.getParameters();
+                if (params.length == 1 && params[0].getClass() != null
+                        && Map.class.isAssignableFrom(params[0].getClass())) {
+                    UsageDataStore.getInstance().logSessionData(record.getMessage(), (Map<String, String>) params[0]);
+                }
+            }
         }
     }
 
