@@ -13,9 +13,7 @@ package com.microsoft.java.debug.core;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -43,11 +41,9 @@ public class UsageDataStore {
      * Fetch all pending user data records
      * @return List of user data Object.
      */
-    public List<Object> fetchAll() {
-        List<Object> ret = new ArrayList<>();
-        while (!queue.isEmpty()) {
-            ret.add(queue.poll());
-        }
+    public synchronized Object[] fetchAll() {
+        Object[] ret = queue.toArray();
+        queue.clear();
         return ret;
     }
 

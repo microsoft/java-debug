@@ -11,15 +11,14 @@
 
 package com.microsoft.java.debug.core;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.JsonUtils;
 import com.microsoft.java.debug.core.adapter.Messages.Request;
 import com.microsoft.java.debug.core.adapter.Messages.Response;
 
@@ -61,18 +60,15 @@ public class UsageDataSession {
 
         // bp count
         if ("setBreakpoints".equals(request.command)) {
-            String filename = request.arguments.get("source").getAsJsonObject().get("path").getAsString();
-            String filenameHash = "error in filename hashing";
-            try {
-                byte[] hashBytes = MessageDigest.getInstance("SHA-256").digest(filename.getBytes(StandardCharsets.UTF_8));
-                StringBuffer buf = new StringBuffer();
-                for (byte b : hashBytes) {
-                    buf.append(Integer.toHexString((b & 0xFF) + 0x100).substring(1));
-                }
-                filenameHash = buf.toString();
-            } catch (NoSuchAlgorithmException e) {
-                // ignore it.
+            String fileIdentifier = "unknown file";
+            JsonElement pathElement = request.arguments.get("source").getAsJsonObject().get("path");
+            JsonElement nameElement = request.arguments.get("source").getAsJsonObject().get("name");
+            if (pathElement != null) {
+                fileIdentifier = pathElement.getAsString();
+            } else if (nameElement != null) {
+                fileIdentifier = nameElement.getAsString();
             }
+            String filenameHash = AdapterUtils.getSHA256HexDigest(fileIdentifier);
             int bpCount = request.arguments.get("breakpoints").getAsJsonArray().size();
             breakpointCountMap.put(filenameHash, breakpointCountMap.getOrDefault(filenameHash, 0) + bpCount);
         }
@@ -84,20 +80,20 @@ public class UsageDataSession {
     public void recordResponse(Response response) {
         long responseMillis = System.currentTimeMillis();
         long requestMillis = responseMillis;
-        String requestCommand = null;
+        String command = null;
 
         RequestEvent requestEvent = requestEventMap.getOrDefault(response.request_seq, null);
         if (requestEvent != null) {
-            requestCommand = requestEvent.request.command;
+            command = requestEvent.request.command;
             requestMillis = requestEvent.timestamp;
             requestEventMap.remove(response.request_seq);
         }
-        long respondingTime = responseMillis - requestMillis;
+        long duration = responseMillis - requestMillis;
 
-        if (!response.success || respondingTime > RESPONSE_MAX_DELAY_MS) {
+        if (!response.success || duration > RESPONSE_MAX_DELAY_MS) {
             Map<String, Object> props = new HashMap<>();
-            props.put("respondingTime", respondingTime);
-            props.put("requestCommand", requestCommand);
+            props.put("duration", duration);
+            props.put("command", command);
             props.put("success", response.success);
             // directly report abnormal response.
             usageDataLogger.log(Level.WARNING, "abnormal response", props);
@@ -112,8 +108,8 @@ public class UsageDataSession {
 
         props.put("sessionStartAt", String.valueOf(startAt));
         props.put("sessionStopAt", String.valueOf(stopAt));
-        props.put("commandCount", new Gson().toJson(commandCountMap));
-        props.put("breakpointCount", new Gson().toJson(breakpointCountMap));
+        props.put("commandCount", JsonUtils.toJson(commandCountMap));
+        props.put("breakpointCount", JsonUtils.toJson(breakpointCountMap));
         usageDataLogger.log(Level.INFO, "session usage data summary", props);
     }
 
