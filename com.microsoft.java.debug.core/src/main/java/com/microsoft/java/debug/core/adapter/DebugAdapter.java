@@ -77,7 +77,7 @@ public class DebugAdapter implements IDebugAdapter {
                         String.format("Unrecognized request: { _request: %s }", request.command));
             }
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "DebugSession dispatch exception", e);
+            logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
             AdapterUtils.setErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
                     e.getMessage() != null ? e.getMessage() : e.toString());
         }
