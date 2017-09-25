@@ -41,10 +41,6 @@ class JdtLogHandler extends Handler {
             severity = IStatus.ERROR;
         } else if (record.getLevel() == Level.WARNING) {
             severity = IStatus.WARNING;
-        } else if (record.getLevel() == Level.INFO) {
-            severity = IStatus.INFO;
-        } else {
-            severity = IStatus.OK;
         }
 
         IStatus status = new Status(severity, record.getLoggerName(), record.getMessage(), record.getThrown());
