@@ -93,7 +93,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         try {
             logger.info(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
-                    launchArguments.vmArgs, launchArguments.classPaths, launchArguments.mainClass, launchArguments.args));
+                    launchArguments.vmArgs, StringUtils.join(launchArguments.classPaths, ";"), launchArguments.mainClass, launchArguments.args));
             IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
                     launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths));
             context.setDebugSession(debugSession);

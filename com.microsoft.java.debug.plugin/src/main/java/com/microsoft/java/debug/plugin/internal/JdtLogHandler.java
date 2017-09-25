@@ -21,14 +21,17 @@ import org.eclipse.core.runtime.Status;
 
 class JdtLogHandler extends Handler {
 
+    @Override
     public void close() {
         // do nothing
     }
 
+    @Override
     public void flush() {
         // do nothing
     }
 
+    @Override
     public void publish(LogRecord record) {
         int severity = IStatus.INFO;
         if (record.getLevel() == Level.SEVERE) {
