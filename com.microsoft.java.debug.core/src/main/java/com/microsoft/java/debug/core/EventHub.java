@@ -34,6 +34,7 @@ public class EventHub implements IEventHub {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private PublishSubject<DebugEvent> subject = PublishSubject.<DebugEvent>create();
 
+    @Override
     public Observable<DebugEvent> events() {
         return subject;
     }
@@ -47,6 +48,7 @@ public class EventHub implements IEventHub {
      * @param vm
      *            the target virtual machine.
      */
+    @Override
     public void start(VirtualMachine vm) {
         if (isClosed) {
             throw new IllegalStateException("This event hub is already closed.");
@@ -66,7 +68,7 @@ public class EventHub implements IEventHub {
                     boolean shouldResume = true;
                     for (Event event : set) {
                         try {
-                            logger.info("\nJDI Event: " + event + "\n");
+                            logger.fine("\nJDI Event: " + event + "\n");
                         } catch (VMDisconnectedException e) {
                             // do nothing
                         }
@@ -109,6 +111,7 @@ public class EventHub implements IEventHub {
      * Gets the observable object for breakpoint events.
      * @return      the observable object for breakpoint events
      */
+    @Override
     public Observable<DebugEvent> breakpointEvents() {
         return this.events().filter(debugEvent -> debugEvent.event instanceof BreakpointEvent);
     }
@@ -117,6 +120,7 @@ public class EventHub implements IEventHub {
      * Gets the observable object for thread events.
      * @return      the observable object for thread events
      */
+    @Override
     public Observable<DebugEvent> threadEvents() {
         return this.events().filter(debugEvent -> debugEvent.event instanceof ThreadStartEvent
                 || debugEvent.event instanceof ThreadDeathEvent);
@@ -126,6 +130,7 @@ public class EventHub implements IEventHub {
      * Gets the observable object for exception events.
      * @return      the observable object for exception events
      */
+    @Override
     public  Observable<DebugEvent> exceptionEvents() {
         return this.events().filter(debugEvent -> debugEvent.event instanceof ExceptionEvent);
     }
@@ -134,6 +139,7 @@ public class EventHub implements IEventHub {
      * Gets the observable object for step events.
      * @return      the observable object for step events
      */
+    @Override
     public Observable<DebugEvent> stepEvents() {
         return this.events().filter(debugEvent -> debugEvent.event instanceof StepEvent);
     }
@@ -142,6 +148,7 @@ public class EventHub implements IEventHub {
      * Gets the observable object for vm events.
      * @return      the observable object for vm events
      */
+    @Override
     public Observable<DebugEvent> vmEvents() {
         return this.events().filter(debugEvent -> debugEvent.event instanceof VMStartEvent
                 || debugEvent.event instanceof VMDisconnectEvent

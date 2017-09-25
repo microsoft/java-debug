@@ -28,6 +28,9 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
 
     public static String BUILD_WORKSPACE = "vscode.java.buildWorkspace";
 
+    public static String CONFIG_LOG_LEVEL = "vscode.java.configLogLevel";
+
+
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
         if (DEBUG_STARTSESSION.equals(commandId)) {
@@ -41,6 +44,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             // TODO
         } else if (FETCH_USER_DATA.equals(commandId)) {
             return UsageDataStore.getInstance().fetchAll();
+        } else if (CONFIG_LOG_LEVEL.equals(commandId)) {
+            return LogUtils.configLogLevel(arguments);
         }
 
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));

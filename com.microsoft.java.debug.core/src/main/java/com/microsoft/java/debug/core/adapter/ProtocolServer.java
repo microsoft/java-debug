@@ -157,7 +157,7 @@ public class ProtocolServer {
         String utf8Data = new String(data, PROTOCOL_ENCODING);
 
         try {
-            logger.info("\n[[RESPONSE]]\n" + new String(data));
+            logger.fine("\n[[RESPONSE]]\n" + new String(data));
             this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
@@ -196,7 +196,7 @@ public class ProtocolServer {
 
     private void dispatchRequest(String request) {
         try {
-            logger.info("\n[REQUEST]\n" + request);
+            logger.fine("\n[REQUEST]\n" + request);
             Messages.Request message = JsonUtils.fromJson(request, Messages.Request.class);
             usageDataSession.recordRequest(message);
             if (message.type.equals("request")) {
