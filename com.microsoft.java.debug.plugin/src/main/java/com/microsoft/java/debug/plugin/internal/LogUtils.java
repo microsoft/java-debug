@@ -43,14 +43,14 @@ public final class LogUtils {
         if (arguments != null && arguments.size() == 1 && arguments.get(0) instanceof String) {
             try {
                 logger.setLevel(Level.parse((String) arguments.get(0)));
-                logger.warning(String.format("Set log level to : %s", arguments.get(0)));
+                logger.info(String.format("Set log level to : %s", arguments.get(0)));
                 return logger.getLevel().toString();
             } catch (IllegalArgumentException e) {
-                logger.warning(String.format("Invalid log level: %s", arguments.get(0)));
+                logger.severe(String.format("Invalid log level: %s", arguments.get(0)));
             }
 
         } else {
-            logger.warning(String.format("Invalid parameters for configLogLevel: %s", StringUtils.join(arguments)));
+            logger.severe(String.format("Invalid parameters for configLogLevel: %s", StringUtils.join(arguments)));
         }
         return null;
     }
