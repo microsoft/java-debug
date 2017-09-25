@@ -33,11 +33,18 @@ class JdtLogHandler extends Handler {
 
     @Override
     public void publish(LogRecord record) {
+        if (!isLoggable(record)) {
+            return;
+        }
         int severity = IStatus.INFO;
         if (record.getLevel() == Level.SEVERE) {
             severity = IStatus.ERROR;
         } else if (record.getLevel() == Level.WARNING) {
             severity = IStatus.WARNING;
+        } else if (record.getLevel() == Level.INFO) {
+            severity = IStatus.INFO;
+        } else {
+            severity = IStatus.OK;
         }
 
         IStatus status = new Status(severity, record.getLoggerName(), record.getMessage(), record.getThrown());
