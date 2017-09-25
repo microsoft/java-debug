@@ -25,11 +25,21 @@ import com.microsoft.java.debug.core.adapter.Messages.Response;
 public class UsageDataSession {
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
+    private static final ThreadLocal<String> sessionGuid = new InheritableThreadLocal<>();
+
     private long startAt = -1;
     private long stopAt = -1;
     private Map<String, Integer> commandCountMap = new HashMap<>();
     private Map<String, Integer> breakpointCountMap = new HashMap<>();
     private Map<Integer, RequestEvent> requestEventMap = new HashMap<>();
+
+    public static void setSessionGuid(String guid) {
+        sessionGuid.set(guid);
+    }
+
+    public static String getSessionGuid() {
+        return sessionGuid.get();
+    }
 
     class RequestEvent {
         Request request;

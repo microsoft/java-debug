@@ -35,7 +35,6 @@ import com.microsoft.java.debug.core.UsageDataSession;
 
 public class ProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
     private static final Pattern CONTENT_LENGTH_MATCHER = Pattern.compile("Content-Length: (\\d+)");

@@ -15,22 +15,17 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class UsageDataStore {
     private ConcurrentLinkedQueue<Object> queue;
-    private AtomicReference<String> sessionGuid;
     private static final int QUEUE_MAX_SIZE = 10000;
 
     /**
      * Constructor.
      */
-    public UsageDataStore() {
+    private UsageDataStore() {
         queue = new ConcurrentLinkedQueue<>();
-        sessionGuid = new AtomicReference<>();
-        sessionGuid.set(null);
     }
 
     private static final class SingletonHolder {
@@ -60,7 +55,7 @@ public class UsageDataStore {
         }
         Map<String, String> sessionEntry = new HashMap<>();
         sessionEntry.put("scope", "session");
-        sessionEntry.put("sessionId", sessionGuid.get());
+        sessionEntry.put("debugSessionId", UsageDataSession.getSessionGuid());
         if (desc != null) {
             sessionEntry.put("description", desc);
         }
@@ -79,7 +74,7 @@ public class UsageDataStore {
         }
         Map<String, String> errorEntry = new HashMap<>();
         errorEntry.put("scope", "exception");
-        errorEntry.put("deubgSessionId", sessionGuid.get());
+        errorEntry.put("deubgSessionId", UsageDataSession.getSessionGuid());
         if (desc != null) {
             errorEntry.put("description", desc);
         }
@@ -90,22 +85,6 @@ public class UsageDataStore {
             errorEntry.put("stackTrace", sw.toString());
         }
         enqueue(errorEntry);
-    }
-
-    /**
-     * Assign a GUID for debug session.
-     */
-    public String createSessionGUID() {
-        if (sessionGuid.get() != null) {
-            // TODO: last session not disconnected.
-        } else {
-            sessionGuid.set(UUID.randomUUID().toString());
-        }
-        return sessionGuid.get();
-    }
-
-    public void resetSessionGUID() {
-        sessionGuid.set(null);
     }
 
     private synchronized void enqueue(Object object) {

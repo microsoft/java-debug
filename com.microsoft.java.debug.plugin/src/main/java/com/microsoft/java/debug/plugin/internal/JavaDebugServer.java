@@ -14,6 +14,7 @@ package com.microsoft.java.debug.plugin.internal;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -22,7 +23,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.UsageDataStore;
+import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.ProtocolServer;
 
 public class JavaDebugServer implements IDebugServer {
@@ -131,7 +132,7 @@ public class JavaDebugServer implements IDebugServer {
             @Override
             public void run() {
                 try {
-                    UsageDataStore.getInstance().createSessionGUID();
+                    UsageDataSession.setSessionGuid(UUID.randomUUID().toString());
                     ProtocolServer protocolServer = new ProtocolServer(connection.getInputStream(), connection.getOutputStream(),
                             JdtProviderContextFactory.createProviderContext());
                     // protocol server will dispatch request and send response in a while-loop.
@@ -140,7 +141,6 @@ public class JavaDebugServer implements IDebugServer {
                     logger.log(Level.SEVERE, String.format("Socket connection exception: %s", e.toString()), e);
                 } finally {
                     logger.info("Debug connection closed");
-                    UsageDataStore.getInstance().resetSessionGUID();
                 }
             }
         };
