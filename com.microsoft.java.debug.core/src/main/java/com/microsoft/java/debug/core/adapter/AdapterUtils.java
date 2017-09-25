@@ -198,8 +198,10 @@ public class AdapterUtils {
             // ignore it.
         }
         StringBuffer buf = new StringBuffer();
-        for (byte b : hashBytes) {
-            buf.append(Integer.toHexString((b & 0xFF) + 0x100).substring(1));
+        if (hashBytes != null) {
+            for (byte b : hashBytes) {
+                buf.append(Integer.toHexString((b & 0xFF) + 0x100).substring(1));
+            }
         }
         return buf.toString();
     }
