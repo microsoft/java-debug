@@ -121,6 +121,25 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             }
             String source = readFile(filePath, cs);
             parser.setSource(source.toCharArray());
+            /**
+             * See the java doc for { @link ASTParser#setResolveBindings(boolean) }.
+             * Binding information is obtained from the Java model. This means that the compilation unit must be located relative to the Java model.
+             * This happens automatically when the source code comes from either setSource(ICompilationUnit) or setSource(IClassFile).
+             * When source is supplied by setSource(char[]), the location must be established explicitly
+             * by setting an environment using setProject(IJavaProject) or setEnvironment(String [], String [], String [], boolean)
+             * and a unit name setUnitName(String).
+             */
+            parser.setEnvironment(new String[0], new String[0], null, true);
+            parser.setUnitName(Paths.get(filePath).getFileName().toString());
+            /**
+             * See the java doc for { @link ASTParser#setSource(char[]) },
+             * the user need specify the compiler options explicitly.
+             */
+            Map<String, String> options = JavaCore.getOptions();
+            options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
+            options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_1_8);
+            options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_1_8);
+            parser.setCompilerOptions(options);
             astUnit = (CompilationUnit) parser.createAST(null);
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
