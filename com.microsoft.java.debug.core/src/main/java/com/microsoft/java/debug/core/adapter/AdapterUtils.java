@@ -13,11 +13,14 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -178,5 +181,28 @@ public class AdapterUtils {
         response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
         response.message = errorMessage;
         response.success = false;
+    }
+
+    /**
+     * Calculate SHA-256 Digest of given string.
+     * @param content
+     *
+     *              string to digest
+     * @return      string of Hex digest
+     */
+    public static String getSHA256HexDigest(String content) {
+        byte[] hashBytes = null;
+        try {
+            hashBytes = MessageDigest.getInstance("SHA-256").digest(content.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            // ignore it.
+        }
+        StringBuffer buf = new StringBuffer();
+        if (hashBytes != null) {
+            for (byte b : hashBytes) {
+                buf.append(Integer.toHexString((b & 0xFF) + 0x100).substring(1));
+            }
+        }
+        return buf.toString();
     }
 }

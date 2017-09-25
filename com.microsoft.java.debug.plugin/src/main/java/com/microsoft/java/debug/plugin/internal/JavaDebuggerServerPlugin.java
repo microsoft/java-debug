@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.osgi.framework.BundleActivator;
@@ -20,6 +21,7 @@ import com.microsoft.java.debug.core.Configuration;
 
 public class JavaDebuggerServerPlugin implements BundleActivator {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
 
     public static final String PLUGIN_ID = "com.microsoft.java.debug";
     public static BundleContext context = null;
@@ -28,6 +30,8 @@ public class JavaDebuggerServerPlugin implements BundleActivator {
     public void start(BundleContext context) throws Exception {
         JavaDebuggerServerPlugin.context = context;
         logger.addHandler(new JdtLogHandler());
+        logger.addHandler(new UsageDataLogHandler(Level.SEVERE));
+        usageDataLogger.addHandler(new UsageDataLogHandler(Level.ALL));
         logger.info("Starting " + PLUGIN_ID);
     }
 

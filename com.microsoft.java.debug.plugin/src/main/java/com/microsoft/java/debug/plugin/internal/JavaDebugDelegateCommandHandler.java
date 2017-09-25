@@ -16,7 +16,11 @@ import java.util.List;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
 
+import com.microsoft.java.debug.core.UsageDataStore;
+
 public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler {
+
+    public static String FETCH_USER_DATA = "vscode.java.fetchUsageData";
 
     public static String DEBUG_STARTSESSION = "vscode.java.startDebugSession";
 
@@ -35,7 +39,10 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             return handler.resolveClasspaths(arguments);
         } else if (BUILD_WORKSPACE.equals(commandId)) {
             // TODO
+        } else if (FETCH_USER_DATA.equals(commandId)) {
+            return UsageDataStore.getInstance().fetchAll();
         }
+
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));
     }
 

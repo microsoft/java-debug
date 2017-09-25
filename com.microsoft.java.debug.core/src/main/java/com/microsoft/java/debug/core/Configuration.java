@@ -13,5 +13,6 @@ package com.microsoft.java.debug.core;
 
 public class Configuration {
     public static final String LOGGER_NAME = "java-debug";
+    public static final String USAGE_DATA_LOGGER_NAME = "java-debug-usage-data";
 
 }
