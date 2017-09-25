@@ -63,24 +63,28 @@ public class UsageDataSession {
      * Record usage data from request.
      */
     public void recordRequest(Request request) {
-        requestEventMap.put(request.seq, new RequestEvent(request, System.currentTimeMillis()));
+        try {
+            requestEventMap.put(request.seq, new RequestEvent(request, System.currentTimeMillis()));
 
-        // cmd count
-        commandCountMap.put(request.command, commandCountMap.getOrDefault(request.command, 0) + 1);
+            // cmd count
+            commandCountMap.put(request.command, commandCountMap.getOrDefault(request.command, 0) + 1);
 
-        // bp count
-        if ("setBreakpoints".equals(request.command)) {
-            String fileIdentifier = "unknown file";
-            JsonElement pathElement = request.arguments.get("source").getAsJsonObject().get("path");
-            JsonElement nameElement = request.arguments.get("source").getAsJsonObject().get("name");
-            if (pathElement != null) {
-                fileIdentifier = pathElement.getAsString();
-            } else if (nameElement != null) {
-                fileIdentifier = nameElement.getAsString();
+            // bp count
+            if ("setBreakpoints".equals(request.command)) {
+                String fileIdentifier = "unknown file";
+                JsonElement pathElement = request.arguments.get("source").getAsJsonObject().get("path");
+                JsonElement nameElement = request.arguments.get("source").getAsJsonObject().get("name");
+                if (pathElement != null) {
+                    fileIdentifier = pathElement.getAsString();
+                } else if (nameElement != null) {
+                    fileIdentifier = nameElement.getAsString();
+                }
+                String filenameHash = AdapterUtils.getSHA256HexDigest(fileIdentifier);
+                int bpCount = request.arguments.get("breakpoints").getAsJsonArray().size();
+                breakpointCountMap.put(filenameHash, breakpointCountMap.getOrDefault(filenameHash, 0) + bpCount);
             }
-            String filenameHash = AdapterUtils.getSHA256HexDigest(fileIdentifier);
-            int bpCount = request.arguments.get("breakpoints").getAsJsonArray().size();
-            breakpointCountMap.put(filenameHash, breakpointCountMap.getOrDefault(filenameHash, 0) + bpCount);
+        } catch (Throwable e) {
+            // ignore it
         }
     }
 
@@ -88,25 +92,29 @@ public class UsageDataSession {
      * Record usage data from response.
      */
     public void recordResponse(Response response) {
-        long responseMillis = System.currentTimeMillis();
-        long requestMillis = responseMillis;
-        String command = null;
+        try {
+            long responseMillis = System.currentTimeMillis();
+            long requestMillis = responseMillis;
+            String command = null;
 
-        RequestEvent requestEvent = requestEventMap.getOrDefault(response.request_seq, null);
-        if (requestEvent != null) {
-            command = requestEvent.request.command;
-            requestMillis = requestEvent.timestamp;
-            requestEventMap.remove(response.request_seq);
-        }
-        long duration = responseMillis - requestMillis;
+            RequestEvent requestEvent = requestEventMap.getOrDefault(response.request_seq, null);
+            if (requestEvent != null) {
+                command = requestEvent.request.command;
+                requestMillis = requestEvent.timestamp;
+                requestEventMap.remove(response.request_seq);
+            }
+            long duration = responseMillis - requestMillis;
 
-        if (!response.success || duration > RESPONSE_MAX_DELAY_MS) {
-            Map<String, Object> props = new HashMap<>();
-            props.put("duration", duration);
-            props.put("command", command);
-            props.put("success", response.success);
-            // directly report abnormal response.
-            usageDataLogger.log(Level.WARNING, "abnormal response", props);
+            if (!response.success || duration > RESPONSE_MAX_DELAY_MS) {
+                Map<String, Object> props = new HashMap<>();
+                props.put("duration", duration);
+                props.put("command", command);
+                props.put("success", response.success);
+                // directly report abnormal response.
+                usageDataLogger.log(Level.WARNING, "abnormal response", props);
+            }
+        } catch (Throwable e) {
+            // ignore it
         }
     }
 
