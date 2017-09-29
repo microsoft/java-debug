@@ -44,6 +44,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     @Override
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+        if (context.getDebugSession() == null) {
+            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
+            return;
+        }
+
         SetBreakpointArguments bpArguments = (SetBreakpointArguments) arguments;
         String clientPath = bpArguments.source.path;
         if (AdapterUtils.isWindows()) {
