@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -87,10 +88,13 @@ public class UsageDataStore {
         enqueue(errorEntry);
     }
 
-    private synchronized void enqueue(Object object) {
+    private synchronized void enqueue(Map<String, String> entry) {
         if (queue.size() > QUEUE_MAX_SIZE) {
             queue.poll();
         }
-        queue.add(object);
+        if (entry != null) {
+            entry.put("timestamp", Instant.now().toString());
+            queue.add(entry);
+        }
     }
 }
