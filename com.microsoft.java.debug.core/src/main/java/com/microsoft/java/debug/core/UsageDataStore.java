@@ -75,7 +75,7 @@ public class UsageDataStore {
         }
         Map<String, String> errorEntry = new HashMap<>();
         errorEntry.put("scope", "exception");
-        errorEntry.put("deubgSessionId", UsageDataSession.getSessionGuid());
+        errorEntry.put("debugSessionId", UsageDataSession.getSessionGuid());
         if (desc != null) {
             errorEntry.put("description", desc);
         }
