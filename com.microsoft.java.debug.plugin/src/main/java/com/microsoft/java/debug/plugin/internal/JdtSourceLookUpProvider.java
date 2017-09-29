@@ -41,7 +41,6 @@ import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -52,7 +51,6 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
-import org.eclipse.jdt.core.util.ClassFileBytesDisassembler;
 import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -65,9 +63,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final String JDT_SCHEME = "jdt";
     private static final String PATH_SEPARATOR = "/";
-    private static final String MISSING_SOURCES_HEADER = " // Failed to get sources. Instead, stub sources have been generated.\n"
-            + " // Implementation of methods is unavailable.\n";
-    private static final String LF = "\n";
 
     private HashMap<String, Object> context = new HashMap<String, Object>();
 
@@ -204,9 +199,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 if (buffer != null) {
                     source = buffer.getContents();
                 }
-                if (source == null) {
-                    source = disassemble(cf);
-                }
             } catch (JavaModelException e) {
                 logger.log(Level.SEVERE, String.format("Failed to parse the source contents of the class file: %s", e.toString()), e);
             }
@@ -282,7 +274,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null)
                             .toASCIIString();
         } catch (URISyntaxException e) {
-            e.printStackTrace();
             return null;
         }
     }
@@ -313,19 +304,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             // ignore
         }
         return null;
-    }
-
-    private static String disassemble(IClassFile classFile) {
-        ClassFileBytesDisassembler disassembler = ToolFactory.createDefaultClassFileBytesDisassembler();
-        String disassembledByteCode = null;
-        try {
-            disassembledByteCode = disassembler.disassemble(classFile.getBytes(), LF,
-                    ClassFileBytesDisassembler.WORKING_COPY);
-            disassembledByteCode = MISSING_SOURCES_HEADER + LF + disassembledByteCode;
-        } catch (Exception e) {
-            // ignore
-        }
-        return disassembledByteCode;
     }
 
     private static IJavaSearchScope createSearchScope(IJavaProject project) {

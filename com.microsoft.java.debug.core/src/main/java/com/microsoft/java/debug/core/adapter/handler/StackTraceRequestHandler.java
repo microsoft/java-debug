@@ -118,11 +118,12 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         });
 
         if (!StringUtils.isBlank(uri)) {
-            String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
+            // The Source.path could be a file system path or uri string.
             if (uri.startsWith("file:")) {
+                String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
                 return new Types.Source(sourceName, clientPath, 0);
             } else {
-                return new Types.Source(sourceName, clientPath, context.createSourceReference(uri));
+                return new Types.Source(sourceName, uri, 0);
             }
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
