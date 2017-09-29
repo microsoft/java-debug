@@ -21,6 +21,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class UsageDataStore {
     private ConcurrentLinkedQueue<Object> queue;
     private static final int QUEUE_MAX_SIZE = 10000;
+    private static final String DEBUG_SESSION_ID_NAME = "debugSessionId";
+    private static final String DESCRIPTION_NAME = "description";
+    private static final String ERROR_MESSAGE_NAME = "message";
+    private static final String STACKTRACE_NAME = "stackTrace";
+    private static final String SCOPE_NAME = "scope";
+    private static final String TIMESTAMP_NAME = "timestamp";
 
     /**
      * Constructor.
@@ -55,10 +61,10 @@ public class UsageDataStore {
             return;
         }
         Map<String, String> sessionEntry = new HashMap<>();
-        sessionEntry.put("scope", "session");
-        sessionEntry.put("debugSessionId", UsageDataSession.getSessionGuid());
+        sessionEntry.put(SCOPE_NAME, "session");
+        sessionEntry.put(DEBUG_SESSION_ID_NAME, UsageDataSession.getSessionGuid());
         if (desc != null) {
-            sessionEntry.put("description", desc);
+            sessionEntry.put(DESCRIPTION_NAME, desc);
         }
         if (props != null) {
             sessionEntry.putAll(props);
@@ -74,16 +80,16 @@ public class UsageDataStore {
             return;
         }
         Map<String, String> errorEntry = new HashMap<>();
-        errorEntry.put("scope", "exception");
-        errorEntry.put("deubgSessionId", UsageDataSession.getSessionGuid());
+        errorEntry.put(SCOPE_NAME, "exception");
+        errorEntry.put(DEBUG_SESSION_ID_NAME, UsageDataSession.getSessionGuid());
         if (desc != null) {
-            errorEntry.put("description", desc);
+            errorEntry.put(DESCRIPTION_NAME, desc);
         }
         if (th != null) {
-            errorEntry.put("message", th.getMessage());
+            errorEntry.put(ERROR_MESSAGE_NAME, th.getMessage());
             StringWriter sw = new StringWriter();
             th.printStackTrace(new PrintWriter(sw));
-            errorEntry.put("stackTrace", sw.toString());
+            errorEntry.put(STACKTRACE_NAME, sw.toString());
         }
         enqueue(errorEntry);
     }
@@ -93,7 +99,7 @@ public class UsageDataStore {
             queue.poll();
         }
         if (entry != null) {
-            entry.put("timestamp", Instant.now().toString());
+            entry.put(TIMESTAMP_NAME, Instant.now().toString());
             queue.add(entry);
         }
     }
