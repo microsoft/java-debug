@@ -11,12 +11,12 @@
 
 package com.microsoft.java.debug.core;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import com.microsoft.java.debug.core.adapter.JsonUtils;
 
 public class UsageDataStore {
     private ConcurrentLinkedQueue<Object> queue;
@@ -87,9 +87,7 @@ public class UsageDataStore {
         }
         if (th != null) {
             errorEntry.put(ERROR_MESSAGE_NAME, th.getMessage());
-            StringWriter sw = new StringWriter();
-            th.printStackTrace(new PrintWriter(sw));
-            errorEntry.put(STACKTRACE_NAME, sw.toString());
+            errorEntry.put(STACKTRACE_NAME, JsonUtils.toJson(th.getStackTrace()));
         }
         enqueue(errorEntry);
     }
