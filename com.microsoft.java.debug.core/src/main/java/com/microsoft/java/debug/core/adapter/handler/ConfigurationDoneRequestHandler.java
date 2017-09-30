@@ -61,7 +61,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
 
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
         Event event = debugEvent.event;
-        boolean recognized = true;
+        boolean isImportantEvent = true;
         if (event instanceof VMStartEvent) {
             // do nothing.
         } else if (event instanceof VMDeathEvent) {
@@ -95,10 +95,11 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             context.sendEventAsync(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {
-            recognized = false;
+            isImportantEvent = false;
         }
 
-        if (recognized) {
+        // record events of important types only, to get rid of noises.
+        if (isImportantEvent) {
             UsageDataSession.recordEvent(event);
         }
     }
