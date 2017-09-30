@@ -36,6 +36,7 @@ import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
+import com.sun.jdi.VMDisconnectedException;
 
 public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -76,6 +77,9 @@ public class DebugAdapter implements IDebugAdapter {
                 AdapterUtils.setErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
                         String.format("Unrecognized request: { _request: %s }", request.command));
             }
+        } catch (VMDisconnectedException e) {
+            // refer to Microsoft/java-debug/issues/53
+            logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
             AdapterUtils.setErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
