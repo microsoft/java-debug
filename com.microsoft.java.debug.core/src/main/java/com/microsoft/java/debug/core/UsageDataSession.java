@@ -11,8 +11,11 @@
 
 package com.microsoft.java.debug.core;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,24 +24,28 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.JsonUtils;
 import com.microsoft.java.debug.core.adapter.Messages.Request;
 import com.microsoft.java.debug.core.adapter.Messages.Response;
+import com.sun.jdi.event.Event;
 
 public class UsageDataSession {
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
-    private static final ThreadLocal<String> sessionGuid = new InheritableThreadLocal<>();
+    private static final ThreadLocal<UsageDataSession> threadLocal = new InheritableThreadLocal<>();
 
+    private final String sessionGuid = UUID.randomUUID().toString();
+    private boolean jdiEventSequenceEnabled = false;
     private long startAt = -1;
     private long stopAt = -1;
     private Map<String, Integer> commandCountMap = new HashMap<>();
     private Map<String, Integer> breakpointCountMap = new HashMap<>();
     private Map<Integer, RequestEvent> requestEventMap = new HashMap<>();
-
-    public static void setSessionGuid(String guid) {
-        sessionGuid.set(guid);
-    }
+    private List<String> eventList = new ArrayList<>();
 
     public static String getSessionGuid() {
-        return sessionGuid.get();
+        return threadLocal.get().sessionGuid;
+    }
+
+    public UsageDataSession() {
+        threadLocal.set(this);
     }
 
     class RequestEvent {
@@ -112,6 +119,7 @@ public class UsageDataSession {
                 props.put("success", response.success);
                 // directly report abnormal response.
                 usageDataLogger.log(Level.WARNING, "abnormal response", props);
+                jdiEventSequenceEnabled = true;
             }
         } catch (Throwable e) {
             // ignore it
@@ -123,12 +131,44 @@ public class UsageDataSession {
      */
     public void submitUsageData() {
         Map<String, String> props = new HashMap<>();
-
         props.put("sessionStartAt", String.valueOf(startAt));
         props.put("sessionStopAt", String.valueOf(stopAt));
         props.put("commandCount", JsonUtils.toJson(commandCountMap));
         props.put("breakpointCount", JsonUtils.toJson(breakpointCountMap));
+        if (jdiEventSequenceEnabled) {
+            props.put("jdiEventSequence", JsonUtils.toJson(eventList));
+        }
         usageDataLogger.log(Level.INFO, "session usage data summary", props);
     }
 
+    /**
+     * Record JDI event.
+     */
+    public static void recordEvent(Event event) {
+        try {
+            UsageDataSession currentSession = threadLocal.get();
+            if (currentSession != null) {
+                Map<String, String> eventEntry = new HashMap<>();
+                eventEntry.put("timestamp", String.valueOf(System.currentTimeMillis()));
+                eventEntry.put("event", event.toString());
+                currentSession.eventList.add(JsonUtils.toJson(eventEntry));
+            }
+        } catch (Exception e) {
+            // ignore it
+        }
+    }
+
+    /**
+     * Enable JDI event sequence track in current session.
+     */
+    public static void enableJdiEventSequence() {
+        try {
+            UsageDataSession currentSession = threadLocal.get();
+            if (currentSession != null) {
+                currentSession.jdiEventSequenceEnabled = true;
+            }
+        } catch (Exception e) {
+            // ignore it
+        }
+    }
 }
