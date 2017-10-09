@@ -19,8 +19,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -46,6 +48,7 @@ import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 
 public class VariablesRequestHandler implements IDebugRequestHandler {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {
@@ -80,6 +83,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         }
 
         if (!(container instanceof VariableProxy)) {
+            logger.severe(String.format("VariablesRequest: Invalid variablesReference: %d", varArgs.variablesReference));
             AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                     String.format("VariablesRequest: Invalid variablesReference %d.", varArgs.variablesReference));
             return;

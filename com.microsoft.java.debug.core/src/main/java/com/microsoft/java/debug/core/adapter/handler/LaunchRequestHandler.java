@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
@@ -111,6 +112,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             });
             debuggeeConsole.start();
         } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+            logger.log(Level.SEVERE, String.format("Failed to launch debuggee VM: %s", e.toString()), e);
             AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
                     String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }

@@ -169,7 +169,7 @@ public class UsageDataSession {
                 currentSession.jdiEventSequenceEnabled = true;
             }
         } catch (Exception e) {
-            // ignore it
+            logger.log(Level.SEVERE, String.format("Exception on enableJdiEventSequence: %s.", e.toString()), e);
         }
     }
 }

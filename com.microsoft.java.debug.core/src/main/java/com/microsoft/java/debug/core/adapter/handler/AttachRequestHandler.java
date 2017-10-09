@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -66,6 +67,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
             context.setDebugSession(debugSession);
             logger.info("Attaching to debuggee VM succeeded.");
         } catch (IOException | IllegalConnectorArgumentsException e) {
+            logger.log(Level.SEVERE, String.format("Failed to attach debuggee VM: %s", e.toString()), e);
             AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE,
                     String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
         }
