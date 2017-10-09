@@ -35,6 +35,11 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
 
     @Override
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+        if (context.getDebugSession() == null) {
+            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
+            return;
+        }
+
         String[] filters = ((SetExceptionBreakpointsArguments) arguments).filters;
         try {
             boolean notifyCaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER_NAME);
