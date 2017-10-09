@@ -26,38 +26,33 @@ public class UserSettingsUtils {
      * Configure user setting for java debugger.
      *
      * @param arguments
-     *            the sample arguments will be: userSettings --hex --static
-     *            --qualify max-string-length=100 --max-string-length
+     *            the arguments for the settings, eg: show_hex=true show_static_variables=true show_qualified_names=true
+     *            max-string-length=100 --max-string-length=200
      */
     public static Object configUserSettings(List<Object> arguments) {
         if (arguments != null && arguments.size() > 0) {
             arguments.forEach(arg -> {
                 if (arg instanceof String) {
                     String keyStr = (String) arg;
-                    String valueStr = null;
-                    if (keyStr.startsWith("--")) {
-                        keyStr = keyStr.substring(2);
-                    } else {
-                        String[] keyValue = keyStr.split("=");
-                        if (keyValue.length != 2) {
-                            logger.warning(String.format("Invalid parameter for userSettings: %s", keyStr));
-                            return;
-                        }
-
-                        keyStr = keyValue[0];
-                        valueStr = keyValue[1];
+                    String[] keyValue = StringUtils.split(keyStr, "=", 2);
+                    if (keyValue.length != 2) {
+                        logger.warning(String.format("Invalid parameter for userSettings: %s", keyStr));
+                        return;
                     }
+
+                    keyStr = StringUtils.trim(keyValue[0]);
+                    String valueStr = StringUtils.trim(keyValue[1]);
 
                     try {
                         switch (keyStr) {
                             case "show_hex":
-                                UserSettings.showHex = true;
+                                UserSettings.showHex = Boolean.parseBoolean(valueStr);
                                 break;
                             case "show_static_variables":
-                                UserSettings.showStaticVariables = true;
+                                UserSettings.showStaticVariables = Boolean.parseBoolean(valueStr);
                                 break;
                             case "show_qualified_names":
-                                UserSettings.showQualifiedNames = true;
+                                UserSettings.showQualifiedNames = Boolean.parseBoolean(valueStr);
                                 break;
                             case "max_string_length":
                                 UserSettings.maxStringLength = Integer.parseInt(valueStr);
