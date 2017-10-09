@@ -16,6 +16,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
+import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.UsageDataStore;
 
 public class UsageDataLogHandler extends Handler {
@@ -31,6 +32,7 @@ public class UsageDataLogHandler extends Handler {
             if (record.getThrown() != null) {
                 // error message
                 UsageDataStore.getInstance().logErrorData(record.getMessage(), record.getThrown());
+                UsageDataSession.enableJdiEventSequence();
             } else if (record.getParameters() != null) {
                 // debug session details
                 Object[] params = record.getParameters();
