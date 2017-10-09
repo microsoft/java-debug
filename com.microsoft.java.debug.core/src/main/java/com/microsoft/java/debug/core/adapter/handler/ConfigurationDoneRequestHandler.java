@@ -16,6 +16,7 @@ import java.util.List;
 
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.Events;
@@ -60,6 +61,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
 
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
         Event event = debugEvent.event;
+        boolean isImportantEvent = true;
         if (event instanceof VMStartEvent) {
             // do nothing.
         } else if (event instanceof VMDeathEvent) {
@@ -92,6 +94,13 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             ThreadReference thread = ((ExceptionEvent) event).thread();
             context.sendEventAsync(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
+        } else {
+            isImportantEvent = false;
+        }
+
+        // record events of important types only, to get rid of noises.
+        if (isImportantEvent) {
+            UsageDataSession.recordEvent(event);
         }
     }
 }
