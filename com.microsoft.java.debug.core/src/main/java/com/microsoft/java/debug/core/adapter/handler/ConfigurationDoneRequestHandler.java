@@ -63,8 +63,10 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         if (event instanceof VMStartEvent) {
             // do nothing.
         } else if (event instanceof VMDeathEvent) {
+            context.setVmTerminated();
             context.sendEventAsync(new Events.ExitedEvent(0));
         } else if (event instanceof VMDisconnectEvent) {
+            context.setVmTerminated();
             context.sendEventAsync(new Events.TerminatedEvent());
             // Terminate eventHub thread.
             try {

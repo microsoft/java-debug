@@ -33,6 +33,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean isAttached = false;
     private String[] sourcePaths;
     private Charset debuggeeEncoding;
+    private transient boolean vmTerminated;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -44,32 +45,32 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public void sendEvent(DebugEvent event) {
-        this.debugAdapter.sendEvent(event);
+        debugAdapter.sendEvent(event);
     }
 
     @Override
     public void sendEventAsync(DebugEvent event) {
-        this.debugAdapter.sendEventLater(event);
+        debugAdapter.sendEventLater(event);
     }
 
     @Override
     public <T extends IProvider> T getProvider(Class<T> clazz) {
-        return this.debugAdapter.getProvider(clazz);
+        return debugAdapter.getProvider(clazz);
     }
 
     @Override
     public void setDebugSession(IDebugSession session) {
-        this.debugSession = session;
+        debugSession = session;
     }
 
     @Override
     public IDebugSession getDebugSession() {
-        return this.debugSession;
+        return debugSession;
     }
 
     @Override
     public boolean isDebuggerLinesStartAt1() {
-        return this.debuggerLinesStartAt1;
+        return debuggerLinesStartAt1;
     }
 
     @Override
@@ -79,7 +80,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public boolean isDebuggerPathsAreUri() {
-        return this.debuggerPathsAreUri;
+        return debuggerPathsAreUri;
     }
 
     @Override
@@ -89,7 +90,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public boolean isClientLinesStartAt1() {
-        return this.clientLinesStartAt1;
+        return clientLinesStartAt1;
     }
 
     @Override
@@ -99,7 +100,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public boolean isClientPathsAreUri() {
-        return this.clientPathsAreUri;
+        return clientPathsAreUri;
     }
 
     @Override
@@ -109,45 +110,47 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public boolean isAttached() {
-        return this.isAttached;
+        return isAttached;
     }
 
     @Override
     public void setAttached(boolean attached) {
-        this.isAttached = attached;
+        isAttached = attached;
     }
 
+    @Override
     public String[] getSourcePaths() {
-        return this.sourcePaths;
+        return sourcePaths;
     }
 
+    @Override
     public void setSourcePaths(String[] sourcePaths) {
         this.sourcePaths = sourcePaths;
     }
 
     @Override
     public String getSourceUri(int sourceReference) {
-        return this.sourceReferences.get(sourceReference);
+        return sourceReferences.get(sourceReference);
     }
 
     @Override
     public int createSourceReference(String uri) {
-        return this.sourceReferences.create(uri);
+        return sourceReferences.create(uri);
     }
 
     @Override
     public RecyclableObjectPool<Long, Object> getRecyclableIdPool() {
-        return this.recyclableIdPool;
+        return recyclableIdPool;
     }
 
     @Override
     public void setRecyclableIdPool(RecyclableObjectPool<Long, Object> idPool) {
-        this.recyclableIdPool = idPool;
+        recyclableIdPool = idPool;
     }
 
     @Override
     public IVariableFormatter getVariableFormatter() {
-        return this.variableFormatter;
+        return variableFormatter;
     }
 
     @Override
@@ -157,16 +160,26 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public Map<String, String> getSourceLookupCache() {
-        return this.sourceMappingCache;
+        return sourceMappingCache;
     }
 
     @Override
     public void setDebuggeeEncoding(Charset encoding) {
-        this.debuggeeEncoding = encoding;
+        debuggeeEncoding = encoding;
     }
 
     @Override
     public Charset getDebuggeeEncoding() {
-        return this.debuggeeEncoding;
+        return debuggeeEncoding;
+    }
+
+    @Override
+    public void setVmTerminated() {
+        vmTerminated = true;
+    }
+
+    @Override
+    public boolean isVmTerminated() {
+        return vmTerminated;
     }
 }

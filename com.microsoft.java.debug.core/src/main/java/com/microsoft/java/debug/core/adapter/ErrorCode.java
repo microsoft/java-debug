@@ -24,7 +24,8 @@ public enum ErrorCode {
     SET_VARIABLE_FAILURE(1009),
     EVALUATE_FAILURE(1010),
     EMPTY_DEBUG_SESSION(1011),
-    INVALID_ENCODING(1012);
+    INVALID_ENCODING(1012),
+    VM_TERMINATED(1013);
 
     private int id;
 
@@ -33,6 +34,6 @@ public enum ErrorCode {
     }
 
     public int getId() {
-        return this.id;
+        return id;
     }
 }

@@ -75,9 +75,13 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
 
     private void threads(Requests.ThreadsArguments arguments, Response response, IDebugAdapterContext context) {
         ArrayList<Types.Thread> threads = new ArrayList<>();
-        for (ThreadReference thread : DebugUtility.getAllThreadsSafely(context.getDebugSession())) {
-            Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
-            threads.add(clientThread);
+        try {
+            for (ThreadReference thread : context.getDebugSession().allThreads()) {
+                Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
+                threads.add(clientThread);
+            }
+        } catch (VMDisconnectedException ex) {
+            // do nothing.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
     }
@@ -109,8 +113,12 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private void pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            thread.suspend();
-            context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId));
+            try {
+                thread.suspend();
+                context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId));
+            } catch (VMDisconnectedException ex) {
+                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
+            }
         } else {
             context.getDebugSession().suspend();
             context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId, true));
@@ -138,8 +146,8 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
 
     private void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {
         try {
-            boolean allThreadsRunning = !DebugUtility.getAllThreadsSafely(context.getDebugSession())
-                    .stream().anyMatch(ThreadReference::isSuspended);
+            boolean allThreadsRunning = !DebugUtility.getAllThreadsSafely(context.getDebugSession()).stream()
+                    .anyMatch(ThreadReference::isSuspended);
             if (allThreadsRunning) {
                 context.getRecyclableIdPool().removeAllObjects();
             } else {
