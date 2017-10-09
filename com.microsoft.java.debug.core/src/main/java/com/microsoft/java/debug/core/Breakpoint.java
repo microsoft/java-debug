@@ -175,7 +175,9 @@ public class Breakpoint implements IBreakpoint {
                 locations.addAll(collectLocations(refType.nestedTypes(), lineNumber));
             });
         } catch (VMDisconnectedException ex) {
-            // do nothing.
+            // collect locations operation may be executing while JVM is running, thus the VMDisconnectedException may be
+            // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
+            // response in vscode, causing no error log in trace.
         }
 
         return locations;
@@ -215,7 +217,9 @@ public class Breakpoint implements IBreakpoint {
                 request.enable();
                 newRequests.add(request);
             } catch (VMDisconnectedException ex) {
-                // ignore
+                // enable breakpoint operation may be executing while JVM is running, thus the VMDisconnectedException may be
+                // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
+                // response in vscode, causing no error log in trace.
             }
         });
 

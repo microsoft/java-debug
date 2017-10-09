@@ -33,6 +33,7 @@ import com.microsoft.java.debug.core.adapter.Requests.StepOutArguments;
 import com.microsoft.java.debug.core.adapter.Requests.ThreadsArguments;
 import com.microsoft.java.debug.core.adapter.Responses;
 import com.microsoft.java.debug.core.adapter.Types;
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 
@@ -77,11 +78,15 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ArrayList<Types.Thread> threads = new ArrayList<>();
         try {
             for (ThreadReference thread : context.getDebugSession().allThreads()) {
+                if (thread.isCollected()) {
+                    continue;
+                }
                 Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
                 threads.add(clientThread);
             }
-        } catch (VMDisconnectedException ex) {
-            // do nothing.
+        } catch (VMDisconnectedException | ObjectCollectedException ex) {
+            // allThreads may throw VMDisconnectedException when VM terminates and thread.name() may throw ObjectCollectedException
+            // when the thread is exiting.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
     }
@@ -154,7 +159,11 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
                 context.getRecyclableIdPool().removeObjectsByOwner(thread.uniqueID());
             }
         } catch (VMDisconnectedException ex) {
+            // isSuspended may throw VMDisconnectedException when the VM terminates
             context.getRecyclableIdPool().removeAllObjects();
+        } catch (ObjectCollectedException collectedEx) {
+            // isSuspended may throw ObjectCollectedException when the thread terminates
+            context.getRecyclableIdPool().removeObjectsByOwner(thread.uniqueID());
         }
     }
 
