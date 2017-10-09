@@ -30,6 +30,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
 
     public static String CONFIG_LOG_LEVEL = "vscode.java.configLogLevel";
 
+    public static String UPDATE_USER_SETTINGS = "vscode.java.updateUserSettings";
+
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -46,6 +48,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             return UsageDataStore.getInstance().fetchAll();
         } else if (CONFIG_LOG_LEVEL.equals(commandId)) {
             return LogUtils.configLogLevel(arguments);
+        } else if (UPDATE_USER_SETTINGS.equals(commandId)) {
+            return UserSettingsUtils.configUserSettings(arguments);
         }
 
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));

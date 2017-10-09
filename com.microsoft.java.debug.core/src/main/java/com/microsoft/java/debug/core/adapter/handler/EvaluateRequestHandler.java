@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.UserSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -28,9 +29,6 @@ import com.microsoft.java.debug.core.adapter.Requests.Arguments;
 import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.microsoft.java.debug.core.adapter.Requests.EvaluateArguments;
 import com.microsoft.java.debug.core.adapter.Responses;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatter;
-import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -61,18 +59,11 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             return;
         }
 
-        // This should be false by default(currently true for test).
-        // User will need to explicitly turn it on by configuring launch.json
-        final boolean showStaticVariables = true;
-        // TODO: when vscode protocol support customize settings of value format, showFullyQualifiedNames should be one of the options.
-        boolean showFullyQualifiedNames = true;
+        final boolean showStaticVariables = UserSettings.showStaticVariables;
+
         Map<String, Object> options = context.getVariableFormatter().getDefaultOptions();
-        if (evalArguments.format != null && evalArguments.format.hex) {
-            options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
-        }
-        if (showFullyQualifiedNames) {
-            options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, showFullyQualifiedNames);
-        }
+        VariableUtils.applyFormatterOptions(options, evalArguments.format != null && evalArguments.format.hex,
+                StringUtils.equals(evalArguments.context, "repl"));
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
@@ -174,7 +165,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         if (currentValue instanceof ObjectReference && VariableUtils.hasChildren(currentValue, showStaticVariables)) {
             // save the evaluated value in object pool, because like java.lang.String, the evaluated object will have sub structures
             // we need to set up the id map.
-            VariableProxy varProxy = new VariableProxy(thread.uniqueID(), "Local", (ObjectReference) currentValue);
+            VariableProxy varProxy = new VariableProxy(thread.uniqueID(), "Local", currentValue);
             referenceId = context.getRecyclableIdPool().addObject(thread.uniqueID(), varProxy);
         }
         int indexedVariables = 0;
