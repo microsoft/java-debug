@@ -51,7 +51,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
 
             context.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
         } catch (Exception ex) {
-            logger.log(Level.SEVERE, String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()), e);
+            logger.log(Level.SEVERE, String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()), ex);
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
                     String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()));
         }
