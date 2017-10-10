@@ -16,12 +16,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -36,8 +34,6 @@ import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.ATTACH);
@@ -60,14 +56,14 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         sourceProvider.initialize(options);
 
         try {
-            logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .",
-                    attachArguments.hostName, attachArguments.port));
+            Log.info("Trying to attach to remote debuggee VM %s:%d .",
+                    attachArguments.hostName, attachArguments.port);
             IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(),
                     attachArguments.hostName, attachArguments.port, attachArguments.timeout);
             context.setDebugSession(debugSession);
-            logger.info("Attaching to debuggee VM succeeded.");
+            Log.info("Attaching to debuggee VM succeeded.");
         } catch (IOException | IllegalConnectorArgumentsException e) {
-            logger.log(Level.SEVERE, String.format("Failed to attach debuggee VM: %s", e.toString()), e);
+            Log.error(e, "Failed to attach debuggee VM: %s", e.toString());
             AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE,
                     String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
         }

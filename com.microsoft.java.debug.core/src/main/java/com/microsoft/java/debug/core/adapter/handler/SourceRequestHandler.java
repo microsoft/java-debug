@@ -13,9 +13,8 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -28,8 +27,6 @@ import com.microsoft.java.debug.core.adapter.Requests.SourceArguments;
 import com.microsoft.java.debug.core.adapter.Responses;
 
 public class SourceRequestHandler implements IDebugRequestHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.SOURCE);
@@ -39,7 +36,7 @@ public class SourceRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         int sourceReference = ((SourceArguments) arguments).sourceReference;
         if (sourceReference <= 0) {
-            logger.severe("SourceRequest: property 'sourceReference' is missing, null, or empty");
+            Log.error("SourceRequest: property 'sourceReference' is missing, null, or empty");
             AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SourceRequest: property 'sourceReference' is missing, null, or empty");
         } else {

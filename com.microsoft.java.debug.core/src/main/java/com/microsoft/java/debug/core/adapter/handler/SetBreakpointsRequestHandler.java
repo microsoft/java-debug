@@ -14,15 +14,13 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -38,7 +36,6 @@ import com.microsoft.java.debug.core.adapter.Responses;
 import com.microsoft.java.debug.core.adapter.Types;
 
 public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private BreakpointManager manager = new BreakpointManager();
 
     @Override
@@ -76,7 +73,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (sourcePath == null) {
-            logger.severe(String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
+            Log.error("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path);
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
                     String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
             return;
@@ -100,7 +97,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             }
             response.body = new Responses.SetBreakpointsResponseBody(res);
         } catch (DebugException e) {
-            logger.log(Level.SEVERE, String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()), e);
+            Log.error(e, "Failed to setBreakpoint. Reason: '%s'", e.toString());
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE, String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()));
         }
     }

@@ -25,16 +25,13 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.UsageDataSession;
 
 public class ProtocolServer {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
     private static final Pattern CONTENT_LENGTH_MATCHER = Pattern.compile("Content-Length: (\\d+)");
@@ -65,12 +62,12 @@ public class ProtocolServer {
      *              provider context for a series of provider implementation
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
-        this.reader = new BufferedReader(new InputStreamReader(input, PROTOCOL_ENCODING));
-        this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
-        this.contentLength = -1;
-        this.rawData = new ByteBuffer();
-        this.eventQueue = new ConcurrentLinkedQueue<>();
-        this.debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
+        reader = new BufferedReader(new InputStreamReader(input, PROTOCOL_ENCODING));
+        writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
+        contentLength = -1;
+        rawData = new ByteBuffer();
+        eventQueue = new ConcurrentLinkedQueue<>();
+        debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
             // If the protocolServer has been stopped, it'll no longer receive any event.
             if (!terminateSession) {
                 if (willSendLater) {
@@ -89,17 +86,17 @@ public class ProtocolServer {
         usageDataSession.reportStart();
         char[] buffer = new char[BUFFER_SIZE];
         try {
-            while (!this.terminateSession) {
-                int read = this.reader.read(buffer, 0, BUFFER_SIZE);
+            while (!terminateSession) {
+                int read = reader.read(buffer, 0, BUFFER_SIZE);
                 if (read == -1) {
                     break;
                 }
 
-                this.rawData.append(new String(buffer, 0, read).getBytes(PROTOCOL_ENCODING));
+                rawData.append(new String(buffer, 0, read).getBytes(PROTOCOL_ENCODING));
                 this.processData();
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, String.format("Read data from io exception: %s", e.toString()), e);
+            Log.error("Read data from io exception: %s", e.toString());
         }
     }
 
@@ -108,7 +105,7 @@ public class ProtocolServer {
      */
     public void stop() {
         usageDataSession.reportStop();
-        this.terminateSession = true;
+        terminateSession = true;
         usageDataSession.submitUsageData();
     }
 
@@ -133,8 +130,8 @@ public class ProtocolServer {
      */
     private void sendEventLater(String eventType, Object body) {
         synchronized (this) {
-            if (this.isDispatchingData) {
-                this.eventQueue.offer(new Messages.Event(eventType, body));
+            if (isDispatchingData) {
+                eventQueue.offer(new Messages.Event(eventType, body));
             } else {
                 sendMessage(new Messages.Event(eventType, body));
             }
@@ -142,7 +139,7 @@ public class ProtocolServer {
     }
 
     private void sendMessage(Messages.ProtocolMessage message) {
-        message.seq = this.sequenceNumber.getAndIncrement();
+        message.seq = sequenceNumber.getAndIncrement();
 
         String jsonMessage = JsonUtils.toJson(message);
         byte[] jsonBytes = jsonMessage.getBytes(PROTOCOL_ENCODING);
@@ -157,11 +154,11 @@ public class ProtocolServer {
         String utf8Data = new String(data, PROTOCOL_ENCODING);
 
         try {
-            logger.fine("\n[[RESPONSE]]\n" + new String(data));
-            this.writer.write(utf8Data);
-            this.writer.flush();
+            Log.debug("\n[[RESPONSE]]\n%s", new String(data));
+            writer.write(utf8Data);
+            writer.flush();
         } catch (IOException e) {
-            logger.log(Level.SEVERE, String.format("Write data to io exception: %s", e.toString()), e);
+            Log.error("Write data to io exception: %s", e.toString());
         }
     }
 
@@ -170,22 +167,22 @@ public class ProtocolServer {
             /**
              * In vscode debug protocol, the content length represents the message's byte length with utf8 format.
              */
-            if (this.contentLength >= 0) {
-                if (this.rawData.length() >= this.contentLength) {
-                    byte[] buf = this.rawData.removeFirst(this.contentLength);
-                    this.contentLength = -1;
+            if (contentLength >= 0) {
+                if (rawData.length() >= contentLength) {
+                    byte[] buf = rawData.removeFirst(contentLength);
+                    contentLength = -1;
                     dispatchRequest(new String(buf, PROTOCOL_ENCODING));
                     continue;
                 }
             } else {
-                String rawMessage = this.rawData.getString(PROTOCOL_ENCODING);
+                String rawMessage = rawData.getString(PROTOCOL_ENCODING);
                 int idx = rawMessage.indexOf(TWO_CRLF);
                 if (idx != -1) {
                     Matcher matcher = CONTENT_LENGTH_MATCHER.matcher(rawMessage);
                     if (matcher.find()) {
-                        this.contentLength = Integer.parseInt(matcher.group(1));
+                        contentLength = Integer.parseInt(matcher.group(1));
                         int headerByteLength = rawMessage.substring(0, idx + TWO_CRLF.length()).getBytes(PROTOCOL_ENCODING).length;
-                        this.rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
+                        rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
                         continue;
                     }
                 }
@@ -196,32 +193,32 @@ public class ProtocolServer {
 
     private void dispatchRequest(String request) {
         try {
-            logger.fine("\n[REQUEST]\n" + request);
+            Log.debug("\n[REQUEST]\n%s", request);
             Messages.Request message = JsonUtils.fromJson(request, Messages.Request.class);
             usageDataSession.recordRequest(message);
             if (message.type.equals("request")) {
                 synchronized (this) {
-                    this.isDispatchingData = true;
+                    isDispatchingData = true;
                 }
 
                 try {
-                    Messages.Response response = this.debugAdapter.dispatchRequest(message);
+                    Messages.Response response = debugAdapter.dispatchRequest(message);
                     if (message.command.equals("disconnect")) {
                         this.stop();
                     }
                     sendMessage(response);
                     usageDataSession.recordResponse(response);
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
+                    Log.error(e, "Dispatch debug protocol error: %s", e.toString());
                 }
             }
         } finally {
             synchronized (this) {
-                this.isDispatchingData = false;
+                isDispatchingData = false;
             }
 
-            while (this.eventQueue.peek() != null) {
-                sendMessage(this.eventQueue.poll());
+            while (eventQueue.peek() != null) {
+                sendMessage(eventQueue.poll());
             }
         }
     }
@@ -230,15 +227,15 @@ public class ProtocolServer {
         private byte[] buffer;
 
         public ByteBuffer() {
-            this.buffer = new byte[0];
+            buffer = new byte[0];
         }
 
         public int length() {
-            return this.buffer.length;
+            return buffer.length;
         }
 
         public String getString(Charset cs) {
-            return new String(this.buffer, cs);
+            return new String(buffer, cs);
         }
 
         public void append(byte[] b) {
@@ -246,18 +243,18 @@ public class ProtocolServer {
         }
 
         public void append(byte[] b, int length) {
-            byte[] newBuffer = new byte[this.buffer.length + length];
-            System.arraycopy(buffer, 0, newBuffer, 0, this.buffer.length);
-            System.arraycopy(b, 0, newBuffer, this.buffer.length, length);
-            this.buffer = newBuffer;
+            byte[] newBuffer = new byte[buffer.length + length];
+            System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
+            System.arraycopy(b, 0, newBuffer, buffer.length, length);
+            buffer = newBuffer;
         }
 
         public byte[] removeFirst(int n) {
             byte[] b = new byte[n];
-            System.arraycopy(this.buffer, 0, b, 0, n);
-            byte[] newBuffer = new byte[this.buffer.length - n];
-            System.arraycopy(this.buffer, n, newBuffer, 0, this.buffer.length - n);
-            this.buffer = newBuffer;
+            System.arraycopy(buffer, 0, b, 0, n);
+            byte[] newBuffer = new byte[buffer.length - n];
+            System.arraycopy(buffer, n, newBuffer, 0, buffer.length - n);
+            buffer = newBuffer;
             return b;
         }
     }
