@@ -18,7 +18,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.ProtocolServer;
@@ -34,7 +33,7 @@ public class JavaDebugServer implements IDebugServer {
         try {
             serverSocket = new ServerSocket(0, 1);
         } catch (IOException e) {
-            logger.log(Level.SEVERE, String.format("Failed to create Java Debug Server: %s", e.toString()), e);
+            Log.error(e, "Failed to create Java Debug Server: %s", e.toString());
         }
     }
 

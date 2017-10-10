@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
 
 import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.Log;
@@ -143,7 +142,7 @@ public class BreakpointManager {
                     this.breakpoints.remove(breakpoint);
                     breakpointMap.remove(String.valueOf(breakpoint.lineNumber()));
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
+                    Log.error(e, "Remove breakpoint exception: %s", e.toString());
                 }
             }
         }
