@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
 
 import com.sun.jdi.Location;
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
@@ -161,7 +162,7 @@ public class DebugUtility {
 
     private static CompletableFuture<Location> step(ThreadReference thread, IEventHub eventHub, int stepSize,
             int stepDepth) {
-        CompletableFuture<Location> future = new CompletableFuture<Location>();
+        CompletableFuture<Location> future = new CompletableFuture<>();
 
         StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize,
                 stepDepth);
@@ -191,7 +192,7 @@ public class DebugUtility {
      */
     public static ThreadReference getThread(IDebugSession debugSession, long threadId) {
         for (ThreadReference thread : getAllThreadsSafely(debugSession)) {
-            if (thread.uniqueID() == threadId) {
+            if (thread.uniqueID() == threadId && !thread.isCollected()) {
                 return thread;
             }
         }
@@ -223,16 +224,22 @@ public class DebugUtility {
      *              the thread reference
      */
     public static void resumeThread(ThreadReference thread) {
-        if (thread == null) {
+        // if thread is not found or is garbage collected, do nothing
+        if (thread == null || thread.isCollected()) {
             return;
         }
-        int suspends = thread.suspendCount();
-        for (int i = 0; i < suspends; i++) {
-            /**
-             * Invoking this method will decrement the count of pending suspends on this thread.
-             * If it is decremented to 0, the thread will continue to execute.
-             */
-            thread.resume();
+        try {
+            int suspends = thread.suspendCount();
+            for (int i = 0; i < suspends; i++) {
+                /**
+                 * Invoking this method will decrement the count of pending suspends on this thread.
+                 * If it is decremented to 0, the thread will continue to execute.
+                 */
+                thread.resume();
+            }
+        } catch (ObjectCollectedException ex) {
+            // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM when calling suspendCount,
+            // the resume operation to this thread is meanness.
         }
     }
 }

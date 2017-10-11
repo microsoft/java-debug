@@ -63,6 +63,11 @@ public class DebugAdapter implements IDebugAdapter {
         Arguments cmdArgs = JsonUtils.fromJson(request.arguments, command.getArgumentType());
 
         try {
+            if (debugContext.isVmTerminated()) {
+                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED,
+                        String.format("Target VM is already terminated.", request.command));
+                return response;
+            }
             List<IDebugRequestHandler> handlers = requestHandlers.get(command);
             if (handlers != null && !handlers.isEmpty()) {
                 for (IDebugRequestHandler handler : handlers) {

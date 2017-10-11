@@ -91,4 +91,8 @@ public interface IDebugAdapterContext {
     void setDebuggeeEncoding(Charset encoding);
 
     Charset getDebuggeeEncoding();
+
+    void setVmTerminated();
+
+    boolean isVmTerminated();
 }

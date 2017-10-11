@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.sun.jdi.Location;
 import com.sun.jdi.ReferenceType;
+import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.request.BreakpointRequest;
@@ -49,8 +50,8 @@ public class Breakpoint implements IBreakpoint {
     }
 
     // IDebugResource
-    private List<EventRequest> requests = new ArrayList<EventRequest>();
-    private List<Disposable> subscriptions = new ArrayList<Disposable>();
+    private List<EventRequest> requests = new ArrayList<>();
+    private List<Disposable> subscriptions = new ArrayList<>();
 
     @Override
     public List<EventRequest> requests() {
@@ -124,7 +125,7 @@ public class Breakpoint implements IBreakpoint {
         localClassPrepareRequest.enable();
         requests.add(localClassPrepareRequest);
 
-        CompletableFuture<IBreakpoint> future = new CompletableFuture<IBreakpoint>();
+        CompletableFuture<IBreakpoint> future = new CompletableFuture<>();
 
         Disposable subscription = eventHub.events()
                 .filter(debugEvent -> debugEvent.event instanceof ClassPrepareEvent
@@ -154,7 +155,7 @@ public class Breakpoint implements IBreakpoint {
     }
 
     private static List<Location> collectLocations(ReferenceType refType, int lineNumber) {
-        List<Location> locations = new ArrayList<Location>();
+        List<Location> locations = new ArrayList<>();
 
         try {
             locations.addAll(refType.locationsOfLine(lineNumber));
@@ -167,50 +168,59 @@ public class Breakpoint implements IBreakpoint {
     }
 
     private static List<Location> collectLocations(List<ReferenceType> refTypes, int lineNumber) {
-        List<Location> locations = new ArrayList<Location>();
-        refTypes.forEach(refType -> {
-            locations.addAll(collectLocations(refType, lineNumber));
-            locations.addAll(collectLocations(refType.nestedTypes(), lineNumber));
-        });
+        List<Location> locations = new ArrayList<>();
+        try {
+            refTypes.forEach(refType -> {
+                locations.addAll(collectLocations(refType, lineNumber));
+                locations.addAll(collectLocations(refType.nestedTypes(), lineNumber));
+            });
+        } catch (VMDisconnectedException ex) {
+            // collect locations operation may be executing while JVM is running, thus the VMDisconnectedException may be
+            // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
+            // response in vscode, causing no error log in trace.
+        }
 
         return locations;
     }
 
-    private List<BreakpointRequest> createBreakpointRequests(ReferenceType refType,
-            int lineNumber, int hitCount) {
-        List<ReferenceType> refTypes = new ArrayList<ReferenceType>();
+    private List<BreakpointRequest> createBreakpointRequests(ReferenceType refType, int lineNumber, int hitCount) {
+        List<ReferenceType> refTypes = new ArrayList<>();
         refTypes.add(refType);
         return createBreakpointRequests(refTypes, lineNumber, hitCount);
     }
 
-    private List<BreakpointRequest> createBreakpointRequests(List<ReferenceType> refTypes,
-            int lineNumber, int hitCount) {
+    private List<BreakpointRequest> createBreakpointRequests(List<ReferenceType> refTypes, int lineNumber, int hitCount) {
         List<Location> locations = collectLocations(refTypes, lineNumber);
 
         // find out the existing breakpoint locations
-        List<Location> existingLocations = new ArrayList<Location>(requests.size());
+        List<Location> existingLocations = new ArrayList<>(requests.size());
         Observable.fromIterable(requests).filter(request -> request instanceof BreakpointRequest)
                 .map(request -> ((BreakpointRequest) request).location()).toList().subscribe(list -> {
                     existingLocations.addAll(list);
                 });
 
         // remove duplicated locations
-        List<Location> newLocations = new ArrayList<Location>(locations.size());
-        Observable.fromIterable(locations).filter(location -> !existingLocations.contains(location)).toList()
-                .subscribe(list -> {
-                    newLocations.addAll(list);
-                });
+        List<Location> newLocations = new ArrayList<>(locations.size());
+        Observable.fromIterable(locations).filter(location -> !existingLocations.contains(location)).toList().subscribe(list -> {
+            newLocations.addAll(list);
+        });
 
-        List<BreakpointRequest> newRequests = new ArrayList<BreakpointRequest>(newLocations.size());
+        List<BreakpointRequest> newRequests = new ArrayList<>(newLocations.size());
 
         newLocations.forEach(location -> {
-            BreakpointRequest request = vm.eventRequestManager().createBreakpointRequest(location);
-            request.setSuspendPolicy(BreakpointRequest.SUSPEND_EVENT_THREAD);
-            if (hitCount > 0) {
-                request.addCountFilter(hitCount);
+            try {
+                BreakpointRequest request = vm.eventRequestManager().createBreakpointRequest(location);
+                request.setSuspendPolicy(BreakpointRequest.SUSPEND_EVENT_THREAD);
+                if (hitCount > 0) {
+                    request.addCountFilter(hitCount);
+                }
+                request.enable();
+                newRequests.add(request);
+            } catch (VMDisconnectedException ex) {
+                // enable breakpoint operation may be executing while JVM is running, thus the VMDisconnectedException may be
+                // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
+                // response in vscode, causing no error log in trace.
             }
-            request.enable();
-            newRequests.add(request);
         });
 
         return newRequests;
@@ -218,11 +228,11 @@ public class Breakpoint implements IBreakpoint {
 
     @Override
     public void putProperty(Object key, Object value) {
-        this.propertyMap.put(key, value);
+        propertyMap.put(key, value);
     }
 
     @Override
     public Object getProperty(Object key) {
-        return this.propertyMap.get(key);
+        return propertyMap.get(key);
     }
 }
