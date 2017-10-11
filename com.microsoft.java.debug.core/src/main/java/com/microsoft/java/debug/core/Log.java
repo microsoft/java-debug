@@ -16,8 +16,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * This helper class provide static methods for a default instance of <code>java.util.logging.Logger</code>,providing the normal log
- * methods of <code>debug</code>, <code>info</code>, <code>warning</code>, <code>error</code>, very simple code like
+ * This helper class provides static methods for a default instance of <code>java.util.logging.Logger</code>,a simple code like
  * <code>Log.info("Sample trace: %d", 10)</code> is able to replace <code>logger.info(String.format("Sample trace: %d", 10))</code>.
  * Using a very short name to better code fitness.
  */
@@ -27,9 +26,9 @@ public final class Log {
     /**
      * Log an ERROR message.
      *
-     * @param ex The error object
+     * @param ex The exception object
      * @param message The string message
-     * @param arguments The arguments for replacing placeholder in message.
+     * @param arguments Arguments referenced by the format specifiers in the message
      */
     public static void error(Exception ex, String message, Object... arguments) {
         logger.log(Level.SEVERE, String.format(message, arguments), ex);
@@ -40,37 +39,38 @@ public final class Log {
      * Log an ERROR message.
      *
      * @param message The string message
-     * @param arguments The arguments for replacing placeholder in message.
+     * @param arguments Arguments referenced by the format specifiers in the message
      */
     public static void error(String message, Object... arguments) {
         logger.severe(String.format(message, arguments));
     }
 
     /**
-     * Log an INFO message.
+     * Log a INFO message.
      *
      * @param message The string message
-     * @param arguments The arguments for replacing placeholder in message.
+     * @param arguments Arguments referenced by the format specifiers in the message
+     *         string.
      */
     public static void info(String message, Object... arguments) {
         logger.info(String.format(message, arguments));
     }
 
     /**
-     * Log an WARN message.
+     * Log a WARN message.
      *
      * @param message The string message
-     * @param arguments The arguments for replacing placeholder in message.
+     * @param arguments Arguments referenced by the format specifiers in the message
      */
     public static void warn(String message, Object... arguments) {
         logger.warning(String.format(message, arguments));
     }
 
     /**
-     * Log an DEBUG message.
+     * Log a DEBUG message.
      *
      * @param message The string message
-     * @param arguments The arguments for replacing placeholder in message.
+     * @param arguments Arguments referenced by the format specifiers in the message
      */
     public static void debug(String message, Object... arguments) {
         logger.fine(String.format(message, arguments));
@@ -96,6 +96,17 @@ public final class Log {
     public static void addHandler(Handler handler) {
         logger.addHandler(handler);
     }
+
+    /**
+     * Remove a log Handler.
+     * Returns silently if the given Handler is not found or is null
+     *
+     * @param   handler a logging Handler
+     */
+    public void removeHandler(Handler handler) throws SecurityException {
+        logger.removeHandler(handler);
+    }
+
 
     private Log() {
 
