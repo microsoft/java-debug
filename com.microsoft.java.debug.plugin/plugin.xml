@@ -5,6 +5,7 @@
       <delegateCommandHandler class="com.microsoft.java.debug.plugin.internal.JavaDebugDelegateCommandHandler">
             <command id="vscode.java.startDebugSession"/>
             <command id="vscode.java.resolveClasspath"/>
+            <command id="vscode.java.resolveMainClass"/>
             <command id="vscode.java.buildWorkspace"/>
             <command id="vscode.java.fetchUsageData"/>
             <command id="vscode.java.configLogLevel"/>

@@ -20,5 +20,6 @@ Bundle-ClassPath: lib/gson-2.7.jar,
  lib/reactive-streams-1.0.0.jar,
  lib/com.microsoft.java.debug.core-0.1.0.jar,
  lib/commons-io-2.5.jar,
- lib/commons-lang3-3.6.jar
+ lib/commons-lang3-3.6.jar,
+ lib/dom4j-1.6.1.jar
 
