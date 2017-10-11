@@ -26,4 +26,4 @@ The Java Debug Server is the bridge between VSCode and JVM. The implementation i
 
 License
 -------
-EPL 1.0, See [LICENSE](LICENSE) file.
+EPL 1.0, See [LICENSE](LICENSE.txt) file.
