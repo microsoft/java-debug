@@ -33,6 +33,7 @@ import com.microsoft.java.debug.core.adapter.Requests.StepOutArguments;
 import com.microsoft.java.debug.core.adapter.Requests.ThreadsArguments;
 import com.microsoft.java.debug.core.adapter.Responses;
 import com.microsoft.java.debug.core.adapter.Types;
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 
@@ -75,9 +76,17 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
 
     private void threads(Requests.ThreadsArguments arguments, Response response, IDebugAdapterContext context) {
         ArrayList<Types.Thread> threads = new ArrayList<>();
-        for (ThreadReference thread : DebugUtility.getAllThreadsSafely(context.getDebugSession())) {
-            Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
-            threads.add(clientThread);
+        try {
+            for (ThreadReference thread : context.getDebugSession().allThreads()) {
+                if (thread.isCollected()) {
+                    continue;
+                }
+                Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
+                threads.add(clientThread);
+            }
+        } catch (VMDisconnectedException | ObjectCollectedException ex) {
+            // allThreads may throw VMDisconnectedException when VM terminates and thread.name() may throw ObjectCollectedException
+            // when the thread is exiting.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
     }
@@ -109,8 +118,12 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private void pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            thread.suspend();
-            context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId));
+            try {
+                thread.suspend();
+                context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId));
+            } catch (VMDisconnectedException ex) {
+                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
+            }
         } else {
             context.getDebugSession().suspend();
             context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId, true));
@@ -138,15 +151,19 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
 
     private void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {
         try {
-            boolean allThreadsRunning = !DebugUtility.getAllThreadsSafely(context.getDebugSession())
-                    .stream().anyMatch(ThreadReference::isSuspended);
+            boolean allThreadsRunning = !DebugUtility.getAllThreadsSafely(context.getDebugSession()).stream()
+                    .anyMatch(ThreadReference::isSuspended);
             if (allThreadsRunning) {
                 context.getRecyclableIdPool().removeAllObjects();
             } else {
                 context.getRecyclableIdPool().removeObjectsByOwner(thread.uniqueID());
             }
         } catch (VMDisconnectedException ex) {
+            // isSuspended may throw VMDisconnectedException when the VM terminates
             context.getRecyclableIdPool().removeAllObjects();
+        } catch (ObjectCollectedException collectedEx) {
+            // isSuspended may throw ObjectCollectedException when the thread terminates
+            context.getRecyclableIdPool().removeObjectsByOwner(thread.uniqueID());
         }
     }
 

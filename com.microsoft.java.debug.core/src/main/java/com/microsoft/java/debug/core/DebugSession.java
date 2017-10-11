@@ -57,7 +57,7 @@ public class DebugSession implements IDebugSession {
          * all threads fully.
          */
         for (ThreadReference tr : DebugUtility.getAllThreadsSafely(this)) {
-            while (tr.suspendCount() > 1) {
+            while (!tr.isCollected() && tr.suspendCount() > 1) {
                 tr.resume();
             }
         }
@@ -78,18 +78,18 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public IBreakpoint createBreakpoint(String className, int lineNumber) {
-        return new Breakpoint(this.vm, this.eventHub(), className, lineNumber);
+        return new Breakpoint(vm, this.eventHub(), className, lineNumber);
     }
 
     @Override
     public IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount) {
-        return new Breakpoint(this.vm, this.eventHub(), className, lineNumber, hitCount);
+        return new Breakpoint(vm, this.eventHub(), className, lineNumber, hitCount);
     }
 
     @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught) {
         EventRequestManager manager = vm.eventRequestManager();
-        ArrayList<ExceptionRequest> legacy = new ArrayList<ExceptionRequest>(manager.exceptionRequests());
+        ArrayList<ExceptionRequest> legacy = new ArrayList<>(manager.exceptionRequests());
         manager.deleteEventRequests(legacy);
         ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
         request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);

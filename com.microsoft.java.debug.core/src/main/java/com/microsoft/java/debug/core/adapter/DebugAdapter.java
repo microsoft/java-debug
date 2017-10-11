@@ -49,10 +49,10 @@ public class DebugAdapter implements IDebugAdapter {
      * Constructor.
      */
     public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext providerContext) {
-        this.eventConsumer = consumer;
+        eventConsumer = consumer;
         this.providerContext = providerContext;
-        this.debugContext = new DebugAdapterContext(this);
-        this.requestHandlers = new HashMap<>();
+        debugContext = new DebugAdapterContext(this);
+        requestHandlers = new HashMap<>();
         initialize();
     }
 
@@ -67,10 +67,15 @@ public class DebugAdapter implements IDebugAdapter {
         Arguments cmdArgs = JsonUtils.fromJson(request.arguments, command.getArgumentType());
 
         try {
+            if (debugContext.isVmTerminated()) {
+                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED,
+                        String.format("Target VM is already terminated.", request.command));
+                return response;
+            }
             List<IDebugRequestHandler> handlers = requestHandlers.get(command);
             if (handlers != null && !handlers.isEmpty()) {
                 for (IDebugRequestHandler handler : handlers) {
-                    handler.handle(command, cmdArgs, response, this.debugContext);
+                    handler.handle(command, cmdArgs, response, debugContext);
                 }
             } else {
                 AdapterUtils.setErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
@@ -91,7 +96,7 @@ public class DebugAdapter implements IDebugAdapter {
      * @see ProtocolServer#sendEvent(String, Object)
      */
     public void sendEvent(Events.DebugEvent event) {
-        this.eventConsumer.accept(event, false);
+        eventConsumer.accept(event, false);
     }
 
     /**
@@ -100,7 +105,7 @@ public class DebugAdapter implements IDebugAdapter {
      * @see ProtocolServer#sendEventLater(String, Object)
      */
     public void sendEventLater(Events.DebugEvent event) {
-        this.eventConsumer.accept(event, true);
+        eventConsumer.accept(event, true);
     }
 
     public <T extends IProvider> T getProvider(Class<T> clazz) {

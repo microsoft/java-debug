@@ -34,6 +34,7 @@ import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
@@ -72,8 +73,13 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
                     result.add(clientStackFrame);
                 }
-            } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException | AbsentInformationException e) {
-                // do nothing.
+            } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
+                    | AbsentInformationException | ObjectCollectedException e) {
+                // when error happens, the possible reason is:
+                // 1. the vscode has wrong parameter/wrong uri
+                // 2. the thread actually terminates
+
+                // TODO: should record a error log here.
             }
         }
         response.body = new Responses.StackTraceResponseBody(result, totalFrames);
