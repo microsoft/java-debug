@@ -14,6 +14,8 @@ package com.microsoft.java.debug.plugin.internal;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -35,7 +37,11 @@ import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 
+import com.microsoft.java.debug.core.Configuration;
+
 public class ResolveMainClassHandler {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
     /**
      * resolve main class and project name if not specified.
      * @param arguments a list of arguments including project files and project name
@@ -46,7 +52,7 @@ public class ResolveMainClassHandler {
         List<String> projectNames;
         if (arguments.size() > 1 && arguments.get(1) != null) {
             // project name specified
-            projectNames = new ArrayList<String>();
+            projectNames = new ArrayList<>();
             projectNames.add((String) arguments.get(1));
         } else {
             List<String> projectFiles = (List<String>) arguments.get(0);
@@ -74,8 +80,7 @@ public class ResolveMainClassHandler {
                 Element rootElm = document.getRootElement();
                 projects.add(rootElm.elementText("name"));
             } catch (DocumentException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                logger.log(Level.WARNING, String.format("Exception on reading project file: %s.", f), e);
             }
         }
         projects.add(null);
@@ -86,7 +91,7 @@ public class ResolveMainClassHandler {
         IJavaSearchScope searchScope = createSearchScope(projectName);
         SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
                 IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
-        ArrayList<String> uris = new ArrayList<String>();
+        ArrayList<String> uris = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
             @Override
             public void acceptSearchMatch(SearchMatch match) {
