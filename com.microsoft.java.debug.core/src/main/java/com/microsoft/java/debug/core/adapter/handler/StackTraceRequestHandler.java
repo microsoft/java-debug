@@ -124,11 +124,17 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         });
 
         if (!StringUtils.isBlank(uri)) {
-            String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
+            // The Source.path could be a file system path or uri string.
             if (uri.startsWith("file:")) {
+                String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
                 return new Types.Source(sourceName, clientPath, 0);
             } else {
-                return new Types.Source(sourceName, clientPath, context.createSourceReference(uri));
+                // If the debugger returns uri in the Source.path for the StackTrace response, VSCode client will try to find a TextDocumentContentProvider
+                // to render the contents.
+                // Language Support for Java by Red Hat extension has already registered a jdt TextDocumentContentProvider to parse the jdt-based uri.
+                // The jdt uri looks like 'jdt://contents/rt.jar/java.io/PrintStream.class?=1.helloworld/%5C/usr%5C/lib%5C/jvm%5C/java-8-oracle%5C/jre%5C/
+                // lib%5C/rt.jar%3Cjava.io(PrintStream.class'.
+                return new Types.Source(sourceName, uri, 0);
             }
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.

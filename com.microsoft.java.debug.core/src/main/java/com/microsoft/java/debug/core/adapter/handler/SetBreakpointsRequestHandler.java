@@ -67,12 +67,14 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         String sourcePath = clientPath;
         if (bpArguments.source.sourceReference != 0 && context.getSourceUri(bpArguments.source.sourceReference) != null) {
             sourcePath = context.getSourceUri(bpArguments.source.sourceReference);
-        } else {
-            sourcePath = AdapterUtils.convertPath(clientPath, context.isClientPathsAreUri(), context.isDebuggerPathsAreUri());
+        } else if (StringUtils.isNotBlank(clientPath)) {
+            // See the bug https://github.com/Microsoft/vscode/issues/30996
+            // Source.path in the SetBreakpointArguments could be a file system path or uri.
+            sourcePath = AdapterUtils.convertPath(clientPath, AdapterUtils.isUri(clientPath), context.isDebuggerPathsAreUri());
         }
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
-        if (sourcePath == null) {
+        if (StringUtils.isBlank(sourcePath)) {
             Log.error("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path);
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
                     String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
