@@ -92,10 +92,16 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         Types.Source clientSource = this.convertDebuggerSourceToClient(location, context);
         String methodName = method.name();
         int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
-        if (lineNumber < 0 && method.isNative()) {
-            // When the current stack frame stops at a native method, the line number is -1.
-            // Display a tip text "native method" in the Call Stack View.
-            methodName += "[native method]";
+        // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
+        if (lineNumber < 0) {
+            if (method.isNative()) {
+                // For native method, display a tip text "native method" in the Call Stack View.
+                methodName += "[native method]";
+            } else {
+                // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
+                // display "Unknown Source" in the Call Stack View.
+                clientSource = null;
+            }
         }
         return new Types.StackFrame(frameId, methodName, clientSource, lineNumber, 0);
     }
