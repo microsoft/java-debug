@@ -30,6 +30,7 @@ import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.microsoft.java.debug.core.adapter.Requests.StackTraceArguments;
 import com.microsoft.java.debug.core.adapter.Responses;
 import com.microsoft.java.debug.core.adapter.Types;
+import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
@@ -156,19 +157,20 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
     }
 
     private String formatMethodName(Method method, boolean showContextClass, boolean showParameter) {
-        String formattedName = method.name();
+        StringBuilder formattedName = new StringBuilder();
         if (showContextClass) {
             String fullyQualifiedClassName = method.declaringType().name();
-            formattedName = getBaseName(fullyQualifiedClassName) + "." + formattedName;
+            formattedName.append(SimpleTypeFormatter.trimTypeName(fullyQualifiedClassName));
+            formattedName.append(".");
         }
+        formattedName.append(method.name());
         if (showParameter) {
-            List<String> argumentTypeNames = method.argumentTypeNames().stream().map((typeName) -> getBaseName(typeName)).collect(Collectors.toList());
-            formattedName = formattedName + "(" + String.join(",", argumentTypeNames) + ")";
+            List<String> argumentTypeNames = method.argumentTypeNames().stream().map((typeName) -> SimpleTypeFormatter.trimTypeName(typeName))
+                    .collect(Collectors.toList());
+            formattedName.append("(");
+            formattedName.append(String.join(",", argumentTypeNames));
+            formattedName.append(")");
         }
-        return formattedName;
-    }
-
-    private String getBaseName(String fullyQualifiedName) {
-        return fullyQualifiedName.substring(fullyQualifiedName.lastIndexOf(".") + 1);
+        return formattedName.toString();
     }
 }
