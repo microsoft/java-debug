@@ -165,8 +165,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         }
         formattedName.append(method.name());
         if (showParameter) {
-            List<String> argumentTypeNames = method.argumentTypeNames().stream().map((typeName) -> SimpleTypeFormatter.trimTypeName(typeName))
-                    .collect(Collectors.toList());
+            List<String> argumentTypeNames = method.argumentTypeNames().stream().map(SimpleTypeFormatter::trimTypeName).collect(Collectors.toList());
             formattedName.append("(");
             formattedName.append(String.join(",", argumentTypeNames));
             formattedName.append(")");
