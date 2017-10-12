@@ -27,7 +27,6 @@ import com.microsoft.java.debug.core.adapter.Messages.Response;
 import com.sun.jdi.event.Event;
 
 public class UsageDataSession {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
     private static final ThreadLocal<UsageDataSession> threadLocal = new InheritableThreadLocal<>();
@@ -42,7 +41,7 @@ public class UsageDataSession {
     private List<String> eventList = new ArrayList<>();
 
     public static String getSessionGuid() {
-        return threadLocal.get().sessionGuid;
+        return threadLocal.get() == null ? "" : threadLocal.get().sessionGuid;
     }
 
     public UsageDataSession() {
@@ -155,7 +154,7 @@ public class UsageDataSession {
                 currentSession.eventList.add(JsonUtils.toJson(eventEntry));
             }
         } catch (Exception e) {
-            logger.log(Level.SEVERE, String.format("Exception on recording event: %s.", e.toString()), e);
+            Log.error(e, "Exception on recording event: %s.", e.toString());
         }
     }
 
@@ -169,7 +168,7 @@ public class UsageDataSession {
                 currentSession.jdiEventSequenceEnabled = true;
             }
         } catch (Exception e) {
-            // ignore it
+            Log.error(e, "Exception on enableJdiEventSequence: %s.", e.toString());
         }
     }
 }
