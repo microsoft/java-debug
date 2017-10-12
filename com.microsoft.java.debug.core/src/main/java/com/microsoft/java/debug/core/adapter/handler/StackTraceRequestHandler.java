@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -90,7 +91,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         Location location = stackFrame.location();
         Method method = location.method();
         Types.Source clientSource = this.convertDebuggerSourceToClient(location, context);
-        String methodName = method.name();
+        String methodName = formatMethodName(method, true, true);
         int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
         if (lineNumber < 0) {
@@ -103,6 +104,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 clientSource = null;
             }
         }
+
         return new Types.StackFrame(frameId, methodName, clientSource, lineNumber, 0);
     }
 
@@ -151,5 +153,22 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 return null;
             }
         }
+    }
+
+    private String formatMethodName(Method method, boolean showContextClass, boolean showParameter) {
+        String formattedName = method.name();
+        if (showContextClass) {
+            String fullyQualifiedClassName = method.declaringType().name();
+            formattedName = getBaseName(fullyQualifiedClassName) + "." + formattedName;
+        }
+        if (showParameter) {
+            List<String> argumentTypeNames = method.argumentTypeNames().stream().map((typeName) -> getBaseName(typeName)).collect(Collectors.toList());
+            formattedName = formattedName + "(" + String.join(",", argumentTypeNames) + ")";
+        }
+        return formattedName;
+    }
+
+    private String getBaseName(String fullyQualifiedName) {
+        return fullyQualifiedName.substring(fullyQualifiedName.lastIndexOf(".") + 1);
     }
 }
