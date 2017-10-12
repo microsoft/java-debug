@@ -24,6 +24,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.microsoft.java.debug.core.adapter.Messages.Response;
 
 public class AdapterUtils {
@@ -147,6 +149,19 @@ public class AdapterUtils {
             return Paths.get(path).toUri().toString();
         } catch (InvalidPathException e) {
             return null;
+        }
+    }
+
+    /**
+     * Check a string variable is an uri or not.
+     */
+    public static boolean isUri(String uriString) {
+        try {
+            URI uri = new URI(uriString);
+            return StringUtils.isNotBlank(uri.getScheme());
+        } catch (URISyntaxException | IllegalArgumentException | FileSystemNotFoundException
+            | SecurityException e) {
+            return false;
         }
     }
 
