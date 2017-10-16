@@ -35,11 +35,11 @@ public class ProtocolServer extends AbstractProtocolServer {
         super(input, output);
         this.debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
             // If the protocolServer has been stopped, it'll no longer receive any event.
-            if (!super.isTerminating()) {
+            if (!isTerminating()) {
                 if (willSendLater) {
-                    super.sendEventLater(debugEvent.type, debugEvent);
+                    sendEventLater(debugEvent.type, debugEvent);
                 } else {
-                    super.sendEvent(debugEvent.type, debugEvent);
+                    sendEvent(debugEvent.type, debugEvent);
                 }
             }
         }, context);
@@ -65,7 +65,7 @@ public class ProtocolServer extends AbstractProtocolServer {
     protected void dispatchRequest(Messages.Request request) {
         Messages.Response response = this.debugAdapter.dispatchRequest(request);
         if (request.command.equals("disconnect")) {
-            this.stop();
+            stop();
         }
         sendMessage(response);
         usageDataSession.recordResponse(response);
