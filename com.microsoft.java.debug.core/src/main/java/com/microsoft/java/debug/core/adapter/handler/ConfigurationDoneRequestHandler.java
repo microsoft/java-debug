@@ -16,7 +16,7 @@ import java.util.List;
 
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.UsageDataSession;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.Events;
@@ -102,7 +102,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
 
         // record events of important types only, to get rid of noises.
         if (isImportantEvent) {
-            UsageDataSession.recordEvent(event);
+            Log.traceEvent(event);
         }
     }
 }

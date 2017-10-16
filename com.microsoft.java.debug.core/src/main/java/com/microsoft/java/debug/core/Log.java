@@ -15,6 +15,9 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.adapter.Messages;
+import com.sun.jdi.event.Event;
+
 /**
  * This helper class provides static methods for a default instance of <code>java.util.logging.Logger</code>,a simple code like
  * <code>Log.info("Sample trace: %d", 10)</code> is able to replace <code>logger.info(String.format("Sample trace: %d", 10))</code>.
@@ -103,8 +106,64 @@ public final class Log {
      *
      * @param   handler a logging Handler
      */
-    public void removeHandler(Handler handler) throws SecurityException {
+    public static void removeHandler(Handler handler) throws SecurityException {
         logger.removeHandler(handler);
+    }
+
+    /**
+     * Record a JDI event.
+     * @param event the JDI event.
+     */
+    public static void traceEvent(Event event) {
+        UsageDataSession.recordEvent(event);
+    }
+
+
+    /**
+     * Begin an user data collection session to record events, requests and errors.
+     *
+     * @return a new user data collection session
+     */
+    public static UsageDataSession beginSession() {
+        UsageDataSession session = new UsageDataSession();
+        session.reportStart();
+        return session;
+    }
+
+    /**
+     * Record the request from VSCode side.
+     *
+     * @param session user data collection session
+     * @param request from VSCode.
+     */
+    public static void traceRequest(UsageDataSession session, Messages.Request request) {
+        if (session != null && request != null) {
+            session.recordRequest(request);
+        }
+    }
+
+    /**
+     * Record the response sends to VSCode.
+     *
+     * @param session user data collection session
+     * @param response to VSCode.
+     */
+    public static void traceResponse(UsageDataSession session, Messages.Response response) {
+        if (session != null && response != null) {
+            session.recordResponse(response);
+        }
+    }
+
+    /**
+     * End an user data collection session, and report the usage datas.
+     *
+     * @param session user data collection session
+     */
+    public static void endSession(UsageDataSession session) {
+        if (session != null) {
+            session.reportStop();
+            session.submitUsageData();
+        }
     }
 
 

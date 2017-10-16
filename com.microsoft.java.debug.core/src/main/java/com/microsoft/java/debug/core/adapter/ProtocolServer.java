@@ -50,7 +50,7 @@ public class ProtocolServer {
 
     private IDebugAdapter debugAdapter;
 
-    private UsageDataSession usageDataSession = new UsageDataSession();
+    private UsageDataSession usageDataSession;
 
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
@@ -83,7 +83,7 @@ public class ProtocolServer {
      * A while-loop to parse input data and send output data constantly.
      */
     public void start() {
-        usageDataSession.reportStart();
+        usageDataSession = Log.beginSession();
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!terminateSession) {
@@ -104,9 +104,8 @@ public class ProtocolServer {
      * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
      */
     public void stop() {
-        usageDataSession.reportStop();
+        Log.endSession(usageDataSession);
         terminateSession = true;
-        usageDataSession.submitUsageData();
     }
 
     /**
@@ -195,7 +194,7 @@ public class ProtocolServer {
         try {
             Log.debug("\n[REQUEST]\n%s", request);
             Messages.Request message = JsonUtils.fromJson(request, Messages.Request.class);
-            usageDataSession.recordRequest(message);
+            Log.traceRequest(usageDataSession, message);
             if (message.type.equals("request")) {
                 synchronized (this) {
                     isDispatchingData = true;
@@ -207,7 +206,7 @@ public class ProtocolServer {
                         this.stop();
                     }
                     sendMessage(response);
-                    usageDataSession.recordResponse(response);
+                    Log.traceResponse(usageDataSession, response);
                 } catch (Exception e) {
                     Log.error(e, "Dispatch debug protocol error: %s", e.toString());
                 }
