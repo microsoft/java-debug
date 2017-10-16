@@ -54,8 +54,8 @@ public class Requests {
         public String type;
         public String name;
         public String request;
-        public String hostName;
-        public int port;
+        public String remoteHost;
+        public int remotePort;
         public int timeout = 30000; // Default to 30s.
         public String[] sourcePaths = new String[0];
         public String projectName;
