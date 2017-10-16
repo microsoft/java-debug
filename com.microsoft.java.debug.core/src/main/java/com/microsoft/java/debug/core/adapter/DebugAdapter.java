@@ -64,8 +64,7 @@ public class DebugAdapter implements IDebugAdapter {
 
         try {
             if (debugContext.isVmTerminated()) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED,
-                        String.format("Target VM is already terminated.", request.command));
+                // the operation is meaningless
                 return response;
             }
             List<IDebugRequestHandler> handlers = requestHandlers.get(command);

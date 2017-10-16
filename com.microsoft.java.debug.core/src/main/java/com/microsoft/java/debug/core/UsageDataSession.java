@@ -41,7 +41,7 @@ public class UsageDataSession {
     private List<String> eventList = new ArrayList<>();
 
     public static String getSessionGuid() {
-        return threadLocal.get().sessionGuid;
+        return threadLocal.get() == null ? "" : threadLocal.get().sessionGuid;
     }
 
     public UsageDataSession() {

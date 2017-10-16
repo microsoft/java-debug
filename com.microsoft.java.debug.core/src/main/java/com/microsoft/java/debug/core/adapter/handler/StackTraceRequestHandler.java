@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -29,6 +30,7 @@ import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.microsoft.java.debug.core.adapter.Requests.StackTraceArguments;
 import com.microsoft.java.debug.core.adapter.Responses;
 import com.microsoft.java.debug.core.adapter.Types;
+import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
@@ -90,13 +92,20 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         Location location = stackFrame.location();
         Method method = location.method();
         Types.Source clientSource = this.convertDebuggerSourceToClient(location, context);
-        String methodName = method.name();
+        String methodName = formatMethodName(method, true, true);
         int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
-        if (lineNumber < 0 && method.isNative()) {
-            // When the current stack frame stops at a native method, the line number is -1.
-            // Display a tip text "native method" in the Call Stack View.
-            methodName += "[native method]";
+        // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
+        if (lineNumber < 0) {
+            if (method.isNative()) {
+                // For native method, display a tip text "native method" in the Call Stack View.
+                methodName += "[native method]";
+            } else {
+                // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
+                // display "Unknown Source" in the Call Stack View.
+                clientSource = null;
+            }
         }
+
         return new Types.StackFrame(frameId, methodName, clientSource, lineNumber, 0);
     }
 
@@ -145,5 +154,22 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 return null;
             }
         }
+    }
+
+    private String formatMethodName(Method method, boolean showContextClass, boolean showParameter) {
+        StringBuilder formattedName = new StringBuilder();
+        if (showContextClass) {
+            String fullyQualifiedClassName = method.declaringType().name();
+            formattedName.append(SimpleTypeFormatter.trimTypeName(fullyQualifiedClassName));
+            formattedName.append(".");
+        }
+        formattedName.append(method.name());
+        if (showParameter) {
+            List<String> argumentTypeNames = method.argumentTypeNames().stream().map(SimpleTypeFormatter::trimTypeName).collect(Collectors.toList());
+            formattedName.append("(");
+            formattedName.append(String.join(",", argumentTypeNames));
+            formattedName.append(")");
+        }
+        return formattedName.toString();
     }
 }
