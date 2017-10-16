@@ -16,9 +16,9 @@ import java.util.Collections;
 import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.adapter.Events.DebugEvent;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
+import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;

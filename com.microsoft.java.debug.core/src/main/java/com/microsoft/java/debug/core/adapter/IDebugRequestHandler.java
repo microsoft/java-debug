@@ -13,6 +13,9 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.util.List;
 
+import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Requests;
+
 public interface IDebugRequestHandler {
     List<Requests.Command> getTargetCommands();
 

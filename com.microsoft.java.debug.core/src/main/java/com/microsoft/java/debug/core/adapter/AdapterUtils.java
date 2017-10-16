@@ -26,7 +26,9 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.adapter.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Responses;
+import com.microsoft.java.debug.core.protocol.Types;
 
 public class AdapterUtils {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();

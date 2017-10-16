@@ -20,11 +20,11 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
-import com.microsoft.java.debug.core.adapter.Requests.SetExceptionBreakpointsArguments;
-import com.microsoft.java.debug.core.adapter.Types;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.SetExceptionBreakpointsArguments;
+import com.microsoft.java.debug.core.protocol.Types;
 
 public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandler {
 

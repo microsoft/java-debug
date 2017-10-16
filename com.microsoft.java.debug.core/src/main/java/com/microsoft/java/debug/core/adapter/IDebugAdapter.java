@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import com.microsoft.java.debug.core.protocol.Messages;
+
 public interface IDebugAdapter {
     Messages.Response dispatchRequest(Messages.Request request);
 }
