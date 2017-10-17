@@ -44,7 +44,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             return handler.resolveClasspaths(arguments);
         } else if (RESOLVE_MAINCLASS.equals(commandId)) {
             ResolveMainClassHandler handler = new ResolveMainClassHandler();
-            return handler.resolveMainClass(arguments);
+            return handler.resolveMainClass();
         } else if (BUILD_WORKSPACE.equals(commandId)) {
             // TODO
         } else if (FETCH_USER_DATA.equals(commandId)) {
