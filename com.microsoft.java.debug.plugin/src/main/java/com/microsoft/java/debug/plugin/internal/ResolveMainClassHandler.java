@@ -38,7 +38,7 @@ public class ResolveMainClassHandler {
     /**
      * resolve main class and project name.
      * @return an array of main class and project name
-     * @throws CoreException when there are error when resolving main class.
+     * @throws CoreException when there are errors when resolving main class.
      */
     public Object resolveMainClass() throws CoreException {
         return resolveMainClassCore();
@@ -48,7 +48,7 @@ public class ResolveMainClassHandler {
         IJavaSearchScope searchScope = SearchEngine.createWorkspaceScope();
         SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
                 IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
-        ArrayList<ResolutionItem> uris = new ArrayList<>();
+        ArrayList<ResolutionItem> res = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
             @Override
             public void acceptSearchMatch(SearchMatch match) {
@@ -63,7 +63,7 @@ public class ResolveMainClassHandler {
                                 if (project != null) {
                                     String mainClass = method.getDeclaringType().getFullyQualifiedName();
                                     String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
-                                    uris.add(new ResolutionItem(mainClass, projectName));
+                                    res.add(new ResolutionItem(mainClass, projectName));
                                 }
                             }
                         }
@@ -76,7 +76,7 @@ public class ResolveMainClassHandler {
         SearchEngine searchEngine = new SearchEngine();
         searchEngine.search(pattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
                 searchScope, requestor, null /* progress monitor */);
-        return uris.stream().distinct().collect(Collectors.toList());
+        return res.stream().distinct().collect(Collectors.toList());
     }
 
     private class ResolutionItem {
@@ -95,14 +95,20 @@ public class ResolveMainClassHandler {
             }
             if (o instanceof ResolutionItem) {
                 ResolutionItem item = (ResolutionItem) o;
-                return item.mainClass == this.mainClass && item.projectName == this.projectName;
+                if (mainClass != null ? !mainClass.equals(item.mainClass) : item.mainClass != null) {
+                    return false;
+                }
+                if (projectName != null ? !projectName.equals(item.projectName) : item.projectName != null) {
+                    return false;
+                }
+                return true;
             }
             return false;
         }
 
         @Override
         public int hashCode() {
-            return mainClass.hashCode() * 13 + (projectName == null ? 0 : projectName.hashCode());
+            return (mainClass == null ? 0 : mainClass.hashCode()) * 13 + (projectName == null ? 0 : projectName.hashCode());
         }
     }
 }
