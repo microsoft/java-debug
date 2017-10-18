@@ -224,14 +224,14 @@ public class AdapterUtils {
     }
 
     /**
-     * decode the uri string.
+     * Decode the uri string.
      * @param uri
      *          the uri string
      * @return the decoded uri
      */
     public static String decodeURIComponent(String uri) {
         try {
-            return URLDecoder.decode(uri, "UTF-8");
+            return URLDecoder.decode(uri, StandardCharsets.UTF_8.name());
         } catch (UnsupportedEncodingException e) {
             return uri;
         }
