@@ -12,8 +12,10 @@
 package com.microsoft.java.debug.core;
 
 import com.sun.jdi.event.Event;
+import com.sun.jdi.event.EventSet;
 
 public class DebugEvent {
     public Event event = null;
+    public EventSet eventSet = null;
     public boolean shouldResume = true;
 }
