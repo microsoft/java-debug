@@ -81,7 +81,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         try {
             List<Types.Breakpoint> res = new ArrayList<>();
             IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, bpArguments.breakpoints, context);
-            IBreakpoint[] added = manager.setBreakpoints(sourcePath, toAdds, bpArguments.sourceModified);
+            // The source uri sometimes is encoded by VSCode, the debugger will decode it to keep the uri consistent.
+            IBreakpoint[] added = manager.setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
                 // For newly added breakpoint, should install it to debuggee first.
                 if (toAdds[i] == added[i] && added[i].className() != null) {
