@@ -81,6 +81,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         try {
             List<Types.Breakpoint> res = new ArrayList<>();
             IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, bpArguments.breakpoints, context);
+            // See the VSCode bug https://github.com/Microsoft/vscode/issues/36471.
             // The source uri sometimes is encoded by VSCode, the debugger will decode it to keep the uri consistent.
             IBreakpoint[] added = manager.setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
