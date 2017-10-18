@@ -57,11 +57,6 @@
                             <artifactId>com.microsoft.java.debug.core</artifactId>
                             <version>0.1.0</version>
                         </artifactItem>
-                        <artifactItem>
-                            <groupId>dom4j</groupId>
-                            <artifactId>dom4j</artifactId>
-                            <version>1.6.1</version>
-                        </artifactItem>
                     </artifactItems>
                 </configuration>
             </plugin>
