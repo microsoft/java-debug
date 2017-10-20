@@ -13,7 +13,6 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IProject;
@@ -30,11 +29,7 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 
-import com.microsoft.java.debug.core.Configuration;
-
 public class ResolveMainClassHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     /**
      * resolve main class and project name.
      * @return an array of main class and project name

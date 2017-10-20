@@ -13,8 +13,6 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IProject;
@@ -35,11 +33,9 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.launching.JavaRuntime;
 
-import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.Log;
 
 public class ResolveClasspathsHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     /**
      * Resolves class path for a java project.
      * @param arguments a list contains the main class name and  project name
@@ -50,7 +46,7 @@ public class ResolveClasspathsHandler {
         try {
             return computeClassPath((String) arguments.get(0), (String) arguments.get(1));
         } catch (CoreException e) {
-            logger.log(Level.SEVERE, "Failed to resolve classpath: " + e.getMessage(), e);
+            Log.error(e, "Failed to resolve classpath: %s", e.getMessage());
             throw new Exception("Failed to resolve classpath: " + e.getMessage(), e);
         }
     }
