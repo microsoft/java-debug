@@ -98,13 +98,13 @@ public class ProtocolServer {
         } catch (IOException e) {
             Log.error("Read data from io exception: %s", e.toString());
         }
+        Log.endSession(usageDataSession);
     }
 
     /**
      * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
      */
     public void stop() {
-        Log.endSession(usageDataSession);
         terminateSession = true;
     }
 
