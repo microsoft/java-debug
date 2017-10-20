@@ -11,8 +11,10 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
@@ -219,5 +221,19 @@ public class AdapterUtils {
             }
         }
         return buf.toString();
+    }
+
+    /**
+     * Decode the uri string.
+     * @param uri
+     *          the uri string
+     * @return the decoded uri
+     */
+    public static String decodeURIComponent(String uri) {
+        try {
+            return URLDecoder.decode(uri, StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException e) {
+            return uri;
+        }
     }
 }

@@ -85,9 +85,14 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             Events.ThreadEvent threadDeathEvent = new Events.ThreadEvent("exited", deathThread.uniqueID());
             context.sendEventAsync(threadDeathEvent);
         } else if (event instanceof BreakpointEvent) {
-            ThreadReference bpThread = ((BreakpointEvent) event).thread();
-            context.sendEventAsync(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
-            debugEvent.shouldResume = false;
+            if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
+                // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
+                // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
+            } else {
+                ThreadReference bpThread = ((BreakpointEvent) event).thread();
+                context.sendEventAsync(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                debugEvent.shouldResume = false;
+            }
         } else if (event instanceof StepEvent) {
             ThreadReference stepThread = ((StepEvent) event).thread();
             context.sendEventAsync(new Events.StoppedEvent("step", stepThread.uniqueID()));

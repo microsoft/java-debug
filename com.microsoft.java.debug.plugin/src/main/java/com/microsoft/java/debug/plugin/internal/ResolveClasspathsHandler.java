@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
@@ -106,7 +107,7 @@ public class ResolveClasspathsHandler {
             SearchEngine.getDefaultSearchParticipant() }, scope,
             requestor, null /* progress monitor */);
 
-        return projects;
+        return projects.stream().distinct().collect(Collectors.toList());
     }
 
     /**
