@@ -133,8 +133,8 @@ public class Breakpoint implements IBreakpoint {
                             || localClassPrepareRequest.equals(debugEvent.event.request())))
                 .subscribe(debugEvent -> {
                     ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
-                    List<BreakpointRequest> newRequests = createBreakpointRequests(event.referenceType(),
-                            lineNumber, hitCount);
+                    List<BreakpointRequest> newRequests = createBreakpointRequests(event.referenceType(), lineNumber,
+                            hitCount, false);
                     requests.addAll(newRequests);
                     if (!newRequests.isEmpty() && !future.isDone()) {
                         this.putProperty("verified", true);
@@ -144,8 +144,9 @@ public class Breakpoint implements IBreakpoint {
         subscriptions.add(subscription);
 
         List<ReferenceType> refTypes = vm.classesByName(className);
-        List<BreakpointRequest> newRequests = createBreakpointRequests(refTypes, lineNumber, hitCount);
+        List<BreakpointRequest> newRequests = createBreakpointRequests(refTypes, lineNumber, hitCount, true);
         requests.addAll(newRequests);
+
         if (!newRequests.isEmpty() && !future.isDone()) {
             this.putProperty("verified", true);
             future.complete(this);
@@ -167,15 +168,27 @@ public class Breakpoint implements IBreakpoint {
         return locations;
     }
 
-    private static List<Location> collectLocations(List<ReferenceType> refTypes, int lineNumber) {
+    private static List<Location> collectLocations(List<ReferenceType> refTypes, int lineNumber, boolean includeNestedTypes) {
         List<Location> locations = new ArrayList<>();
         try {
             refTypes.forEach(refType -> {
-                locations.addAll(collectLocations(refType, lineNumber));
-                locations.addAll(collectLocations(refType.nestedTypes(), lineNumber));
+                List<Location> newLocations = collectLocations(refType, lineNumber);
+                if (!newLocations.isEmpty()) {
+                    locations.addAll(newLocations);
+                } else if (includeNestedTypes) {
+                    // ReferenceType.nestedTypes() will invoke vm.allClasses() to list all loaded classes,
+                    // should avoid using nestedTypes for performance.
+                    for (ReferenceType nestedType : refType.nestedTypes()) {
+                        List<Location> nestedLocations = collectLocations(nestedType, lineNumber);
+                        if (!nestedLocations.isEmpty()) {
+                            locations.addAll(nestedLocations);
+                            break;
+                        }
+                    }
+                }
             });
         } catch (VMDisconnectedException ex) {
-            // collect locations operation may be executing while JVM is running, thus the VMDisconnectedException may be
+            // collect locations operation may be executing while JVM is terminating, thus the VMDisconnectedException may be
             // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
             // response in vscode, causing no error log in trace.
         }
@@ -183,14 +196,16 @@ public class Breakpoint implements IBreakpoint {
         return locations;
     }
 
-    private List<BreakpointRequest> createBreakpointRequests(ReferenceType refType, int lineNumber, int hitCount) {
+    private List<BreakpointRequest> createBreakpointRequests(ReferenceType refType, int lineNumber, int hitCount,
+            boolean includeNestedTypes) {
         List<ReferenceType> refTypes = new ArrayList<>();
         refTypes.add(refType);
-        return createBreakpointRequests(refTypes, lineNumber, hitCount);
+        return createBreakpointRequests(refTypes, lineNumber, hitCount, includeNestedTypes);
     }
 
-    private List<BreakpointRequest> createBreakpointRequests(List<ReferenceType> refTypes, int lineNumber, int hitCount) {
-        List<Location> locations = collectLocations(refTypes, lineNumber);
+    private List<BreakpointRequest> createBreakpointRequests(List<ReferenceType> refTypes, int lineNumber,
+            int hitCount, boolean includeNestedTypes) {
+        List<Location> locations = collectLocations(refTypes, lineNumber, includeNestedTypes);
 
         // find out the existing breakpoint locations
         List<Location> existingLocations = new ArrayList<>(requests.size());
@@ -217,7 +232,7 @@ public class Breakpoint implements IBreakpoint {
                 request.enable();
                 newRequests.add(request);
             } catch (VMDisconnectedException ex) {
-                // enable breakpoint operation may be executing while JVM is running, thus the VMDisconnectedException may be
+                // enable breakpoint operation may be executing while JVM is terminating, thus the VMDisconnectedException may be
                 // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
                 // response in vscode, causing no error log in trace.
             }
