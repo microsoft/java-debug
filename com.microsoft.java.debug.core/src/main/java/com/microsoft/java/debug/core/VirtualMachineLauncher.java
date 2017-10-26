@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -79,7 +78,7 @@ public class VirtualMachineLauncher {
     /**
      * Launch a virtual machine with specific configurations.
      */
-    public VirtualMachine launch(Map<String, String> launchingOptions, String cwd, Map<String, String> env)
+    public VirtualMachine launch(Map<String, String> launchingOptions, String cwd, String[] envp)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         if (listenConnector == null) {
             return null;
@@ -88,15 +87,6 @@ public class VirtualMachineLauncher {
         File workingDir = null;
         if (cwd != null && Files.isDirectory(Paths.get(cwd))) {
             workingDir = new File(cwd);
-        }
-
-        String[] envp = null;
-        if (env != null && !env.isEmpty()) {
-            envp = new String[env.size()];
-            int i = 0;
-            for (Entry<String, String> entry : env.entrySet()) {
-                envp[i++] = entry.getKey() + "=" + entry.getValue();
-            }
         }
 
         Map<String, Connector.Argument> args = listenConnector.defaultArguments();

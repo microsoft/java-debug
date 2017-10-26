@@ -14,7 +14,6 @@ package com.microsoft.java.debug.core;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -93,8 +92,8 @@ public class DebugUtility {
     }
 
     public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths,
-            String cwd, Map<String, String> env) throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths), cwd, env);
+            String cwd, String[] envp) throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths), cwd, envp);
     }
 
     /**
@@ -112,8 +111,9 @@ public class DebugUtility {
      *            the class paths.
      * @param cwd
      *            the working directory of the program.
-     * @param env
-     *            the additional environment variables for the program.
+     * @param envp
+     *            array of strings, each element of which has environment variable settings in the format name=value.
+     *            or null if the subprocess should inherit the environment of the current process.
      * @return an instance of IDebugSession.
      * @throws IOException
      *             when unable to launch.
@@ -124,7 +124,7 @@ public class DebugUtility {
      *             with an error before a connection could be established.
      */
     public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths,
-            String cwd, Map<String, String> env) throws IOException, IllegalConnectorArgumentsException, VMStartException {
+            String cwd, String[] envp) throws IOException, IllegalConnectorArgumentsException, VMStartException {
         VirtualMachineLauncher launcher = new VirtualMachineLauncher(vmManager);
 
         Map<String, String> arguments = launcher.defaultArguments();
@@ -142,15 +142,7 @@ public class DebugUtility {
             arguments.put(VirtualMachineLauncher.MAIN, mainClass);
         }
 
-        // Append environment to native environment.
-        if (env != null && !env.isEmpty()) {
-            Map<String, String> newEnv = new HashMap<>();
-            newEnv.putAll(System.getenv());
-            newEnv.putAll(env);
-            env = newEnv;
-        }
-
-        VirtualMachine vm = launcher.launch(arguments, cwd, env);
+        VirtualMachine vm = launcher.launch(arguments, cwd, envp);
         // workaround for JDT bug.
         // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
         // It calls vm.getIDSizes() to read related sizes including ReferenceTypeIdSize,
