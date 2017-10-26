@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -93,9 +94,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         try {
             logger.info(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
-                    launchArguments.vmArgs, StringUtils.join(launchArguments.classPaths, ";"), launchArguments.mainClass, launchArguments.args));
-            IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
-                    launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths));
+                    launchArguments.vmArgs, StringUtils.join(launchArguments.classPaths, File.pathSeparator), launchArguments.mainClass, launchArguments.args));
+            IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(), launchArguments.mainClass, launchArguments.args,
+                    launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths), launchArguments.cwd, launchArguments.env);
             context.setDebugSession(debugSession);
             logger.info("Launching debuggee VM succeeded.");
 
