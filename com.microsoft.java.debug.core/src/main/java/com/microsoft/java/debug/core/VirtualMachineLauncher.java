@@ -147,6 +147,9 @@ public class VirtualMachineLauncher {
         return list;
     }
 
+    /**
+     * Return a free port.
+     */
     private static int findFreePort() {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
