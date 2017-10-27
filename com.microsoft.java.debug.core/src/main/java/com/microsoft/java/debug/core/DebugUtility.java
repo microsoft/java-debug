@@ -29,68 +29,12 @@ import com.sun.jdi.VirtualMachineManager;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector.Argument;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
-import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
 import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths)
-            throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths));
-    }
-
-    /**
-     * Launches a debuggee in suspend mode.
-     *
-     * @param vmManager
-     *            the virtual machine manager.
-     * @param mainClass
-     *            the main class.
-     * @param programArguments
-     *            the program arguments.
-     * @param vmArguments
-     *            the vm arguments.
-     * @param classPaths
-     *            the class paths.
-     * @return an instance of IDebugSession.
-     * @throws IOException
-     *             when unable to launch.
-     * @throws IllegalConnectorArgumentsException
-     *             when one of the arguments is invalid.
-     * @throws VMStartException
-     *             when the debuggee was successfully launched, but terminated
-     *             with an error before a connection could be established.
-     */
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths)
-            throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        List<LaunchingConnector> connectors = vmManager.launchingConnectors();
-        LaunchingConnector connector = connectors.get(0);
-
-        Map<String, Argument> arguments = connector.defaultArguments();
-        arguments.get("suspend").setValue("true");
-        if (StringUtils.isNotBlank(vmArguments)) {
-            arguments.get("options").setValue(vmArguments + " -cp \"" + classPaths + "\"");
-        } else {
-            arguments.get("options").setValue("-cp \"" + classPaths + "\"");
-        }
-        if (StringUtils.isNotBlank(programArguments)) {
-            arguments.get("main").setValue(mainClass + " " + programArguments);
-        } else {
-            arguments.get("main").setValue(mainClass);
-        }
-        VirtualMachine vm = connector.launch(arguments);
-        // workaround for JDT bug.
-        // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
-        // It calls vm.getIDSizes() to read related sizes including ReferenceTypeIdSize,
-        // which is required to construct requests with null ReferenceType (such as ExceptionRequest)
-        // Without this line, it throws ObjectCollectedException in ExceptionRequest.enable().
-        // See https://github.com/Microsoft/java-debug/issues/23
-        vm.version();
-        return new DebugSession(vm);
-    }
-
     public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths,
             String cwd, String[] envp) throws IOException, IllegalConnectorArgumentsException, VMStartException {
         return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths), cwd, envp);
@@ -111,7 +55,7 @@ public class DebugUtility {
      *            the class paths.
      * @param cwd
      *            the working directory of the program.
-     * @param envp
+     * @param envVars
      *            array of strings, each element of which has environment variable settings in the format name=value.
      *            or null if the subprocess should inherit the environment of the current process.
      * @return an instance of IDebugSession.
@@ -124,7 +68,7 @@ public class DebugUtility {
      *             with an error before a connection could be established.
      */
     public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths,
-            String cwd, String[] envp) throws IOException, IllegalConnectorArgumentsException, VMStartException {
+            String cwd, String[] envVars) throws IOException, IllegalConnectorArgumentsException, VMStartException {
         VirtualMachineLauncher launcher = new VirtualMachineLauncher(vmManager);
 
         Map<String, String> arguments = launcher.defaultArguments();
@@ -142,7 +86,7 @@ public class DebugUtility {
             arguments.put(VirtualMachineLauncher.MAIN, mainClass);
         }
 
-        VirtualMachine vm = launcher.launch(arguments, cwd, envp);
+        VirtualMachine vm = launcher.launch(arguments, cwd, envVars);
         // workaround for JDT bug.
         // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
         // It calls vm.getIDSizes() to read related sizes including ReferenceTypeIdSize,

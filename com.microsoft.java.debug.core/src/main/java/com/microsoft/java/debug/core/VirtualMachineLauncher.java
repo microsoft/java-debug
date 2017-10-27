@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -78,7 +79,7 @@ public class VirtualMachineLauncher {
     /**
      * Launch a virtual machine with specific configurations.
      */
-    public VirtualMachine launch(Map<String, String> launchingOptions, String cwd, String[] envp)
+    public VirtualMachine launch(Map<String, String> launchingOptions, String cwd, String[] envVars)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         if (listenConnector == null) {
             return null;
@@ -91,10 +92,11 @@ public class VirtualMachineLauncher {
 
         Map<String, Connector.Argument> args = listenConnector.defaultArguments();
         ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
+        args.get("port").setValue(String.valueOf(findFreePort()));
         String address = listenConnector.startListening(args);
 
         String[] cmds = constructLaunchCommand(launchingOptions, address);
-        Process process = Runtime.getRuntime().exec(cmds, envp, workingDir);
+        Process process = Runtime.getRuntime().exec(cmds, envVars, workingDir);
 
         VirtualMachine vm;
         try {
@@ -143,6 +145,15 @@ public class VirtualMachineLauncher {
             list.add(arg);
         }
         return list;
+    }
+
+    private static int findFreePort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            // do nothing.
+        }
+        return 0;
     }
 
     class VirtualMachineAdapter implements VirtualMachine {
