@@ -29,15 +29,17 @@ import com.sun.jdi.VirtualMachineManager;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector.Argument;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
 import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
+
     public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths,
-            String cwd, String[] envp) throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths), cwd, envp);
+            String cwd, String[] envVars) throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths), cwd, envVars);
     }
 
     /**
@@ -69,24 +71,31 @@ public class DebugUtility {
      */
     public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths,
             String cwd, String[] envVars) throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        VirtualMachineLauncher launcher = new VirtualMachineLauncher(vmManager);
+        List<LaunchingConnector> connectors = vmManager.launchingConnectors();
+        LaunchingConnector connector = connectors.get(0);
 
-        Map<String, String> arguments = launcher.defaultArguments();
-        arguments.put(VirtualMachineLauncher.SUSPEND, "true");
-
+        Map<String, Argument> arguments = connector.defaultArguments();
+        arguments.get("suspend").setValue("true");
         if (StringUtils.isNotBlank(vmArguments)) {
-            arguments.put(VirtualMachineLauncher.OPTIONS, vmArguments + " -cp \"" + classPaths + "\"");
+            arguments.get("options").setValue(vmArguments + " -cp \"" + classPaths + "\"");
         } else {
-            arguments.put(VirtualMachineLauncher.OPTIONS, "-cp \"" + classPaths + "\"");
+            arguments.get("options").setValue("-cp \"" + classPaths + "\"");
         }
-
         if (StringUtils.isNotBlank(programArguments)) {
-            arguments.put(VirtualMachineLauncher.MAIN, mainClass + " " + programArguments);
+            arguments.get("main").setValue(mainClass + " " + programArguments);
         } else {
-            arguments.put(VirtualMachineLauncher.MAIN, mainClass);
+            arguments.get("main").setValue(mainClass);
         }
 
-        VirtualMachine vm = launcher.launch(arguments, cwd, envVars);
+        if (arguments.get("cwd") != null) {
+            arguments.get("cwd").setValue(cwd);
+        }
+
+        if (arguments.get("env") != null) {
+            arguments.get("env").setValue(encodeArrayArgument(envVars));
+        }
+
+        VirtualMachine vm = connector.launch(arguments);
         // workaround for JDT bug.
         // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
         // It calls vm.getIDSizes() to read related sizes including ReferenceTypeIdSize,
@@ -247,5 +256,58 @@ public class DebugUtility {
             // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM when calling suspendCount,
             // the resume operation to this thread is meanness.
         }
+    }
+
+    /**
+     * Encode an string array to a string as the follows.
+     *
+     * <p>source argument:
+     * <pre>["path=C:\\ProgramFiles\\java\\bin", "JAVA_HOME=C:\\ProgramFiles\\java"]</pre>
+     *
+     * <p>after encoded:
+     * <pre>"29\npath=C:\\ProgramFiles\\java\\bin30\nJAVA_HOME=C:\\ProgramFiles\\java"</pre>
+     *
+     * @param argument the string array arguments
+     * @return the encoded string
+     */
+    public static String encodeArrayArgument(String[] argument) {
+        if (argument == null) {
+            return null;
+        }
+
+        StringBuilder result = new StringBuilder();
+        for (String arg : argument) {
+            result.append(arg.length());
+            result.append("\n");
+            result.append(arg);
+        }
+        return result.toString();
+    }
+
+    /**
+     * Decode the encoded string to the original string array.
+     *
+     * @param argument the decoded string
+     * @return the original string array argument
+     * @throws IllegalArgumentException
+     *          when the argument is not encoded by the rules defined in the encodeArrayArgument.
+     */
+    public static String[] decodeArrayArgument(String argument) throws IllegalArgumentException {
+        if (argument == null) {
+            return new String[0];
+        }
+        List<String> result = new ArrayList<>();
+        int fromIndex = 0;
+        while (fromIndex < argument.length()) {
+            int separator = argument.indexOf("\n", fromIndex);
+            if (separator > 0) {
+                int length = Integer.valueOf(argument.substring(fromIndex, separator));
+                fromIndex = separator + length + 1;
+                result.add(argument.substring(separator + 1, fromIndex));
+            } else {
+                throw new IllegalArgumentException("Illegal argument: " + argument.substring(fromIndex));
+            }
+        }
+        return result.toArray(new String[0]);
     }
 }
