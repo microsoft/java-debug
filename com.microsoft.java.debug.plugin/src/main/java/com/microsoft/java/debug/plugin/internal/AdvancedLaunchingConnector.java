@@ -15,12 +15,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.jdi.internal.VirtualMachineImpl;
 import org.eclipse.jdi.internal.VirtualMachineManagerImpl;
 import org.eclipse.jdi.internal.connect.SocketLaunchingConnectorImpl;
@@ -110,41 +107,23 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
     }
 
     private static String[] constructLaunchCommand(Map<String, ? extends Argument> launchingOptions, String address) {
-        String javaHome = launchingOptions.get(HOME).value();
-        String javaOptions = launchingOptions.get(OPTIONS).value();
-        String main = launchingOptions.get(MAIN).value();
+        final String javaHome = launchingOptions.get(HOME).value();
+        final String javaExec = launchingOptions.get(EXEC).value();
+        final String slash = System.getProperty("file.separator");
         boolean suspend = Boolean.valueOf(launchingOptions.get(SUSPEND).value());
-        String javaExec = launchingOptions.get(EXEC).value();
-        String slash = System.getProperty("file.separator");
+        final String javaOptions = launchingOptions.get(OPTIONS).value();
+        final String main = launchingOptions.get(MAIN).value();
 
-        List<String> cmds = new ArrayList<>();
-        cmds.add(javaHome + slash + "bin" + slash + javaExec);
-        cmds.addAll(parseArguments("-Xdebug -Xnoagent -Djava.compiler=NONE"));
-        cmds.add("-Xrunjdwp:transport=dt_socket,address=" + address + ",server=n,suspend=" + (suspend ? "y" : "n"));
-        cmds.addAll(parseArguments(javaOptions));
-        cmds.addAll(parseArguments(main));
-
-        return cmds.toArray(new String[0]);
-    }
-
-    /**
-     * Parses the given command line into separate arguments that can be passed
-     * to <code>Runtime.getRuntime().exec(cmdArray)</code>.
-     *
-     * @param args command line as a single string.
-     * @return the arguments array.
-     */
-    private static List<String> parseArguments(String cmdStr) {
-        List<String> list = new ArrayList<String>();
-        // The legal arguments are
-        // 1. token starting with something other than quote " and followed by zero or more non-space characters
-        // 2. a quote " followed by whatever, until another quote "
-        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(cmdStr);
-        while (m.find()) {
-            String arg = m.group(1).replaceAll("^\"|\"$", ""); // Remove surrounding quotes.
-            list.add(arg);
+        StringBuilder execString = new StringBuilder();
+        execString.append("\"" + javaHome + slash + "bin" + slash + javaExec + "\"");
+        execString.append(" -Xdebug -Xnoagent -Djava.compiler=NONE");
+        execString.append(" -Xrunjdwp:transport=dt_socket,address=" + address + ",server=n,suspend=" + (suspend ? "y" : "n"));
+        if (javaOptions != null) {
+            execString.append(" " + javaOptions);
         }
-        return list;
+        execString.append(" " + main);
+
+        return DebugPlugin.parseArguments(execString.toString());
     }
 
     class AdvancedStringArgumentImpl extends StringArgumentImpl implements StringArgument {
