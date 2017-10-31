@@ -13,6 +13,10 @@ package com.microsoft.java.debug.core;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -265,7 +269,7 @@ public class DebugUtility {
      * <pre>["path=C:\\ProgramFiles\\java\\bin", "JAVA_HOME=C:\\ProgramFiles\\java"]</pre>
      *
      * <p>after encoded:
-     * <pre>"29\npath=C:\\ProgramFiles\\java\\bin30\nJAVA_HOME=C:\\ProgramFiles\\java"</pre>
+     * <pre>"path%3DC%3A%5CProgramFiles%5Cjava%5Cbin\nJAVA_HOME%3DC%3A%5CProgramFiles%5Cjava"</pre>
      *
      * @param argument the string array arguments
      * @return the encoded string
@@ -275,39 +279,38 @@ public class DebugUtility {
             return null;
         }
 
-        StringBuilder result = new StringBuilder();
+        List<String> encodedArgs = new ArrayList<>();
         for (String arg : argument) {
-            result.append(arg.length());
-            result.append("\n");
-            result.append(arg);
+            try {
+                encodedArgs.add(URLEncoder.encode(arg, StandardCharsets.UTF_8.name()));
+            } catch (UnsupportedEncodingException e) {
+                // do nothing.
+            }
         }
-        return result.toString();
+        return String.join("\n", encodedArgs);
     }
 
     /**
-     * Decode the encoded string to the original string array.
+     * Decode the encoded string to the original string array by the rules defined in encodeArrayArgument.
      *
-     * @param argument the decoded string
+     * @param argument the encoded string
      * @return the original string array argument
-     * @throws IllegalArgumentException
-     *          when the argument is not encoded by the rules defined in the encodeArrayArgument.
      */
-    public static String[] decodeArrayArgument(String argument) throws IllegalArgumentException {
+    public static String[] decodeArrayArgument(String argument) {
         if (argument == null) {
             return new String[0];
         }
+
         List<String> result = new ArrayList<>();
-        int fromIndex = 0;
-        while (fromIndex < argument.length()) {
-            int separator = argument.indexOf("\n", fromIndex);
-            if (separator > 0) {
-                int length = Integer.valueOf(argument.substring(fromIndex, separator));
-                fromIndex = separator + length + 1;
-                result.add(argument.substring(separator + 1, fromIndex));
-            } else {
-                throw new IllegalArgumentException("Illegal argument: " + argument.substring(fromIndex));
+        String[] splits = argument.split("\n");
+        for (String split : splits) {
+            try {
+                result.add(URLDecoder.decode(split, StandardCharsets.UTF_8.name()));
+            } catch (UnsupportedEncodingException e) {
+                // do nothing.
             }
         }
+
         return result.toArray(new String[0]);
     }
 }
