@@ -36,9 +36,23 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths)
+    /**
+     * Launch a debuggee in suspend mode.
+     * @see {@link #launch(VirtualMachineManager, String, String, String, String, String)}
+     */
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            List<String> modulePaths,
+            List<String> classPaths)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths));
+        return DebugUtility.launch(vmManager,
+                mainClass,
+                programArguments,
+                vmArguments,
+                String.join(File.pathSeparator, modulePaths),
+                String.join(File.pathSeparator, classPaths));
     }
 
     /**
@@ -52,6 +66,8 @@ public class DebugUtility {
      *            the program arguments.
      * @param vmArguments
      *            the vm arguments.
+     * @param modulePaths
+     *            the module paths.
      * @param classPaths
      *            the class paths.
      * @return an instance of IDebugSession.
@@ -63,23 +79,40 @@ public class DebugUtility {
      *             when the debuggee was successfully launched, but terminated
      *             with an error before a connection could be established.
      */
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths)
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            String modulePaths,
+            String classPaths)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
 
         Map<String, Argument> arguments = connector.defaultArguments();
         arguments.get("suspend").setValue("true");
+
+        String options = "";
         if (StringUtils.isNotBlank(vmArguments)) {
-            arguments.get("options").setValue(vmArguments + " -cp \"" + classPaths + "\"");
-        } else {
-            arguments.get("options").setValue("-cp \"" + classPaths + "\"");
+            options = vmArguments;
+        }
+        if (StringUtils.isNotBlank(modulePaths)) {
+            options += " --module-path \"" + modulePaths + "\"";
+        }
+        if (StringUtils.isNotBlank(classPaths)) {
+            options += " -cp \"" + classPaths + "\"";
+        }
+        arguments.get("options").setValue(options);
+
+        String[] mainClasses = mainClass.split("/");
+        if (mainClasses.length == 2) { // It means the mainClass contains module name.
+            mainClass = "-m " + mainClass;
         }
         if (StringUtils.isNotBlank(programArguments)) {
-            arguments.get("main").setValue(mainClass + " " + programArguments);
-        } else {
-            arguments.get("main").setValue(mainClass);
+            mainClass += " " + programArguments;
         }
+        arguments.get("main").setValue(mainClass);
+
         VirtualMachine vm = connector.launch(arguments);
         // workaround for JDT bug.
         // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM

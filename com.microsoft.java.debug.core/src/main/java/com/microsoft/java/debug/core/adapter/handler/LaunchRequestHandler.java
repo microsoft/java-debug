@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -51,10 +52,10 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     @Override
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
-        if (StringUtils.isBlank(launchArguments.mainClass) || launchArguments.classPaths == null
-                || launchArguments.classPaths.length == 0) {
+        if (StringUtils.isBlank(launchArguments.mainClass)
+                || (isEmptyArray(launchArguments.modulePaths) && isEmptyArray(launchArguments.classPaths))) {
             AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                    String.format("Failed to launch debuggee VM. Missing mainClass or classPath options in launch configuration"));
+                    String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
             return;
         }
 
@@ -92,10 +93,15 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         sourceProvider.initialize(options);
 
         try {
-            logger.info(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
-                    launchArguments.vmArgs, StringUtils.join(launchArguments.classPaths, ";"), launchArguments.mainClass, launchArguments.args));
+            logger.info("Trying to launch Java Program with options:");
+            logger.info(String.format("vmArgs: %s", launchArguments.vmArgs));
+            logger.info(String.format("module-path: %s", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
+            logger.info(String.format("class-path: %s", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
+            logger.info(String.format("main-class: %s %s", launchArguments.mainClass, launchArguments.args));
+
             IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
-                    launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths));
+                    launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs,
+                    Arrays.asList(launchArguments.modulePaths), Arrays.asList(launchArguments.classPaths));
             context.setDebugSession(debugSession);
             logger.info("Launching debuggee VM succeeded.");
 
@@ -114,5 +120,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
                     String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }
+    }
+
+    private boolean isEmptyArray(String[] items) {
+        return items == null || items.length == 0;
     }
 }

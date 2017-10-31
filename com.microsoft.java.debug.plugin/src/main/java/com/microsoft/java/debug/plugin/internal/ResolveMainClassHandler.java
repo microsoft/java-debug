@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
@@ -62,6 +63,13 @@ public class ResolveMainClassHandler {
                                 IProject project = resource.getProject();
                                 if (project != null) {
                                     String mainClass = method.getDeclaringType().getFullyQualifiedName();
+                                    IJavaProject javaProject = JdtUtils.getJavaProject(project);
+                                    if (javaProject != null) {
+                                        String moduleName = JdtUtils.getModuleName(javaProject);
+                                        if (moduleName != null) {
+                                            mainClass = moduleName + "/" + mainClass;
+                                        }
+                                    }
                                     String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
                                     res.add(new ResolutionItem(mainClass, projectName));
                                 }

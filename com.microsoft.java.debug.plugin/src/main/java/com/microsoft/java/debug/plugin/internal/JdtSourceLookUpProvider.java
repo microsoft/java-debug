@@ -101,8 +101,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new String[0];
         }
 
-        // Currently the highest version the debugger supports is Java SE 8 Edition (JLS8).
-        final ASTParser parser = ASTParser.newParser(AST.JLS8);
+        // Currently the highest version the debugger supports is Java SE 9 Edition (JLS9).
+        final ASTParser parser = ASTParser.newParser(AST.JLS9);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
@@ -131,9 +131,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * the user need specify the compiler options explicitly.
              */
             Map<String, String> options = JavaCore.getOptions();
-            options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
-            options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_1_8);
-            options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_1_8);
+            options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_9);
+            options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_9);
+            options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_9);
             parser.setCompilerOptions(options);
             astUnit = (CompilationUnit) parser.createAST(null);
         } else {
