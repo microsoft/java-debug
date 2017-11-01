@@ -26,7 +26,7 @@ import com.sun.jdi.Value;
 
 public class StringObjectFormatter extends ObjectFormatter implements IValueFormatter {
     public static final String MAX_STRING_LENGTH_OPTION = "max_string_length";
-    private static final int DEFAULT_MAX_STRING_LENGTH = 100;
+    private static final int DEFAULT_MAX_STRING_LENGTH = 200;
     private static final String QUOTE_STRING = "\"";
 
     public StringObjectFormatter() {

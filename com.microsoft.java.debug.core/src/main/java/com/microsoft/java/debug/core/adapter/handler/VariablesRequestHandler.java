@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.microsoft.java.debug.core.UserSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -31,9 +32,6 @@ import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.microsoft.java.debug.core.adapter.Requests.VariablesArguments;
 import com.microsoft.java.debug.core.adapter.Responses;
 import com.microsoft.java.debug.core.adapter.Types;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatter;
-import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -57,18 +55,11 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         IVariableFormatter variableFormatter = context.getVariableFormatter();
         VariablesArguments varArgs = (VariablesArguments) arguments;
 
+
+        boolean showStaticVariables = UserSettings.showStaticVariables;
+
         Map<String, Object> options = variableFormatter.getDefaultOptions();
-        // This should be false by default(currently true for test).
-        // User will need to explicitly turn it on by configuring launch.json
-        boolean showStaticVariables = true;
-        // TODO: When vscode protocol support customize settings of value format, showFullyQualifiedNames should be one of the options.
-        boolean showFullyQualifiedNames = true;
-        if (varArgs.format != null && varArgs.format.hex) {
-            options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
-        }
-        if (showFullyQualifiedNames) {
-            options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, showFullyQualifiedNames);
-        }
+        VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex, false);
 
         List<Types.Variable> list = new ArrayList<>();
         Object container = context.getRecyclableIdPool().getObjectById(varArgs.variablesReference);
