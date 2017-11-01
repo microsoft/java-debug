@@ -105,7 +105,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             }
             // For duplicated variables, show a warning message.
             if (!duplicated.isEmpty()) {
-                Log.warning("There are duplicated environment variables. The values specified in launch.json will be used. "
+                Log.warn("There are duplicated environment variables. The values specified in launch.json will be used. "
                         + "Here are the duplicated entries: %s.", String.join(",", duplicated));
             }
 
