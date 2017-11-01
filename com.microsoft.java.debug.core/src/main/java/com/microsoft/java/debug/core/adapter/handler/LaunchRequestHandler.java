@@ -11,12 +11,17 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -88,11 +93,36 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
         sourceProvider.initialize(options);
 
+        // Append environment to native environment.
+        String[] envVars = null;
+        if (launchArguments.env != null && !launchArguments.env.isEmpty()) {
+            Map<String, String> environment = new HashMap<>(System.getenv());
+            List<String> duplicated = new ArrayList<>();
+            for (Entry<String, String> entry : launchArguments.env.entrySet()) {
+                if (environment.containsKey(entry.getKey())) {
+                    duplicated.add(entry.getKey());
+                }
+                environment.put(entry.getKey(), entry.getValue());
+            }
+            // For duplicated variables, show a warning message.
+            if (!duplicated.isEmpty()) {
+                logger.warning(String.format("There are duplicated environment variables. The values specified in launch.json will be used. "
+                        + "Here are the duplicated entries: %s.", String.join(",", duplicated)));
+            }
+
+            envVars = new String[environment.size()];
+            int i = 0;
+            for (Entry<String, String> entry : environment.entrySet()) {
+                envVars[i++] = entry.getKey() + "=" + entry.getValue();
+            }
+        }
+
         try {
             Log.info("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
-                    launchArguments.vmArgs, StringUtils.join(launchArguments.classPaths, ";"), launchArguments.mainClass, launchArguments.args);
-            IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
-                    launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths));
+                    launchArguments.vmArgs, StringUtils.join(launchArguments.classPaths, File.pathSeparator), launchArguments.mainClass, launchArguments.args);
+            IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(), launchArguments.mainClass, launchArguments.args,
+                    launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths), launchArguments.cwd, envVars);
+
             context.setDebugSession(debugSession);
             Log.info("Launching debuggee VM succeeded.");
 
