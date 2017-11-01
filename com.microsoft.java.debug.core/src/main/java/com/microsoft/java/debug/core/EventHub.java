@@ -11,8 +11,6 @@
 
 package com.microsoft.java.debug.core;
 
-import java.util.logging.Logger;
-
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.BreakpointEvent;
@@ -31,7 +29,6 @@ import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 
 public class EventHub implements IEventHub {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private PublishSubject<DebugEvent> subject = PublishSubject.<DebugEvent>create();
 
     @Override
@@ -68,7 +65,7 @@ public class EventHub implements IEventHub {
                     boolean shouldResume = true;
                     for (Event event : set) {
                         try {
-                            logger.fine("\nJDI Event: " + event + "\n");
+                            Log.debug("\nJDI Event: %s\n", event.toString());
                         } catch (VMDisconnectedException e) {
                             // do nothing
                         }

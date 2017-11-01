@@ -16,10 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.Requests.Arguments;
 import com.microsoft.java.debug.core.adapter.Requests.Command;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
@@ -38,8 +36,6 @@ import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
 
 public class DebugAdapter implements IDebugAdapter {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
     private IProviderContext providerContext;
     private IDebugAdapterContext debugContext = null;
@@ -81,7 +77,7 @@ public class DebugAdapter implements IDebugAdapter {
                         String.format("Unrecognized request: { _request: %s }", request.command));
             }
         } catch (Exception e) {
-            logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
+            Log.error(e, "DebugSession dispatch exception: %s", e.toString());
             AdapterUtils.setErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
                     e.getMessage() != null ? e.getMessage() : e.toString());
         }

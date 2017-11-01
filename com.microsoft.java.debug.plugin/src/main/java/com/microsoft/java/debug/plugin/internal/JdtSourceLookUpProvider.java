@@ -23,8 +23,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -53,18 +51,17 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final String JDT_SCHEME = "jdt";
     private static final String PATH_SEPARATOR = "/";
 
-    private HashMap<String, Object> context = new HashMap<String, Object>();
+    private HashMap<String, Object> context = new HashMap<>();
 
     @Override
     public void initialize(Map<String, Object> props) {
@@ -110,7 +107,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            Charset cs = (Charset) this.context.get(Constants.DEBUGGEE_ENCODING);
+            Charset cs = (Charset) context.get(Constants.DEBUGGEE_ENCODING);
             if (cs == null) {
                 cs = Charset.defaultCharset();
             }
@@ -200,7 +197,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     source = buffer.getContents();
                 }
             } catch (JavaModelException e) {
-                logger.log(Level.SEVERE, String.format("Failed to parse the source contents of the class file: %s", e.toString()), e);
+                Log.error(e, "Failed to parse the source contents of the class file: %s", e.toString());
             }
             if (source == null) {
                 source = "";
@@ -233,7 +230,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 IJavaSearchConstants.TYPE,
                 IJavaSearchConstants.DECLARATIONS,
                 SearchPattern.R_EXACT_MATCH);
-            ArrayList<String> uris = new ArrayList<String>();
+            ArrayList<String> uris = new ArrayList<>();
             SearchRequestor requestor = new SearchRequestor() {
                 @Override
                 public void acceptSearchMatch(SearchMatch match) {
@@ -261,7 +258,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 }, searchScope, requestor, null /* progress monitor */);
             return uris.size() == 0 ? null : uris.get(0);
         } catch (CoreException e) {
-            logger.log(Level.SEVERE, String.format("Failed to parse java project: %s", e.toString()), e);
+            Log.error(e, "Failed to parse java project: %s", e.toString());
         }
         return null;
     }

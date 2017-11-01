@@ -20,6 +20,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -74,6 +75,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (StringUtils.isBlank(sourcePath)) {
+            Log.error("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path);
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
                     String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
             return;
@@ -99,6 +101,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             }
             response.body = new Responses.SetBreakpointsResponseBody(res);
         } catch (DebugException e) {
+            Log.error(e, "Failed to setBreakpoint. Reason: '%s'", e.toString());
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE, String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()));
         }
     }

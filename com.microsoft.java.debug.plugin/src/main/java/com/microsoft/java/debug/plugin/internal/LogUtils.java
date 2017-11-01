@@ -18,9 +18,9 @@ import java.util.logging.Logger;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.Log;
 
 public final class LogUtils {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
 
 
@@ -29,10 +29,10 @@ public final class LogUtils {
      * @param level the logger level for java debugger.
      */
     public static void initialize(Level level) {
-        logger.addHandler(new JdtLogHandler());
-        logger.addHandler(new UsageDataLogHandler(Level.SEVERE));
+        Log.addHandler(new JdtLogHandler());
+        Log.addHandler(new UsageDataLogHandler(Level.SEVERE));
         usageDataLogger.addHandler(new UsageDataLogHandler(Level.ALL));
-        logger.setLevel(level);
+        Log.setLevel(level);
     }
 
     /**
@@ -42,15 +42,16 @@ public final class LogUtils {
     public static Object configLogLevel(List<Object> arguments) {
         if (arguments != null && arguments.size() == 1 && arguments.get(0) instanceof String) {
             try {
-                logger.setLevel(Level.parse((String) arguments.get(0)));
-                logger.info(String.format("Set log level to : %s", arguments.get(0)));
-                return logger.getLevel().toString();
+                Level newLevel = Level.parse((String) arguments.get(0));
+                Log.setLevel(newLevel);
+                Log.info("Set log level to : %s", arguments.get(0));
+                return newLevel.toString();
             } catch (IllegalArgumentException e) {
-                logger.severe(String.format("Invalid log level: %s", arguments.get(0)));
+                Log.error("Invalid log level: %s", arguments.get(0));
             }
 
         } else {
-            logger.severe(String.format("Invalid parameters for configLogLevel: %s", StringUtils.join(arguments)));
+            Log.error("Invalid parameters for configLogLevel: %s", StringUtils.join(arguments));
         }
         return null;
     }

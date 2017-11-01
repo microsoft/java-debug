@@ -16,6 +16,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import com.microsoft.java.debug.core.Log;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -27,7 +28,6 @@ import com.microsoft.java.debug.core.adapter.Requests.SetExceptionBreakpointsArg
 import com.microsoft.java.debug.core.adapter.Types;
 
 public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandler {
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.SETEXCEPTIONBREAKPOINTS);
@@ -47,6 +47,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
 
             context.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
         } catch (Exception ex) {
+            Log.error(ex, "Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString());
             AdapterUtils.setErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
                     String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()));
         }

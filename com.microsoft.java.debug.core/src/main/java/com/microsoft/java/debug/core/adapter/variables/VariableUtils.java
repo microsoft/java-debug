@@ -13,11 +13,9 @@ package com.microsoft.java.debug.core.adapter.variables;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.Log;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ArrayType;
@@ -33,8 +31,6 @@ import com.sun.jdi.TypeComponent;
 import com.sun.jdi.Value;
 
 public abstract class VariableUtils {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     /**
      * Test whether the value has referenced objects.
      *
@@ -89,7 +85,7 @@ public abstract class VariableUtils {
                         }
                         return a.name().compareToIgnoreCase(b.name());
                     } catch (Exception e) {
-                        logger.log(Level.SEVERE, String.format("Cannot sort fields: %s", e), e);
+                        Log.error(e, "Cannot sort fields: %s", e.toString());
                         return -1;
                     }
                 }).collect(Collectors.toList());
