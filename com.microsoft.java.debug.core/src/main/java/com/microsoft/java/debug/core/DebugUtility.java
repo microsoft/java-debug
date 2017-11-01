@@ -13,6 +13,10 @@ package com.microsoft.java.debug.core;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +40,10 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths)
-            throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths));
+
+    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths,
+            String cwd, String[] envVars) throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths), cwd, envVars);
     }
 
     /**
@@ -54,6 +59,11 @@ public class DebugUtility {
      *            the vm arguments.
      * @param classPaths
      *            the class paths.
+     * @param cwd
+     *            the working directory of the program.
+     * @param envVars
+     *            array of strings, each element of which has environment variable settings in the format name=value.
+     *            or null if the subprocess should inherit the environment of the current process.
      * @return an instance of IDebugSession.
      * @throws IOException
      *             when unable to launch.
@@ -63,8 +73,8 @@ public class DebugUtility {
      *             when the debuggee was successfully launched, but terminated
      *             with an error before a connection could be established.
      */
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths)
-            throws IOException, IllegalConnectorArgumentsException, VMStartException {
+    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths,
+            String cwd, String[] envVars) throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
 
@@ -80,6 +90,15 @@ public class DebugUtility {
         } else {
             arguments.get("main").setValue(mainClass);
         }
+
+        if (arguments.get("cwd") != null) {
+            arguments.get("cwd").setValue(cwd);
+        }
+
+        if (arguments.get("env") != null) {
+            arguments.get("env").setValue(encodeArrayArgument(envVars));
+        }
+
         VirtualMachine vm = connector.launch(arguments);
         // workaround for JDT bug.
         // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
@@ -241,5 +260,57 @@ public class DebugUtility {
             // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM when calling suspendCount,
             // the resume operation to this thread is meanness.
         }
+    }
+
+    /**
+     * Encode an string array to a string as the follows.
+     *
+     * <p>source argument:
+     * <pre>["path=C:\\ProgramFiles\\java\\bin", "JAVA_HOME=C:\\ProgramFiles\\java"]</pre>
+     *
+     * <p>after encoded:
+     * <pre>"path%3DC%3A%5CProgramFiles%5Cjava%5Cbin\nJAVA_HOME%3DC%3A%5CProgramFiles%5Cjava"</pre>
+     *
+     * @param argument the string array arguments
+     * @return the encoded string
+     */
+    public static String encodeArrayArgument(String[] argument) {
+        if (argument == null) {
+            return null;
+        }
+
+        List<String> encodedArgs = new ArrayList<>();
+        for (String arg : argument) {
+            try {
+                encodedArgs.add(URLEncoder.encode(arg, StandardCharsets.UTF_8.name()));
+            } catch (UnsupportedEncodingException e) {
+                // do nothing.
+            }
+        }
+        return String.join("\n", encodedArgs);
+    }
+
+    /**
+     * Decode the encoded string to the original string array by the rules defined in encodeArrayArgument.
+     *
+     * @param argument the encoded string
+     * @return the original string array argument
+     */
+    public static String[] decodeArrayArgument(String argument) {
+        if (argument == null) {
+            return new String[0];
+        }
+
+        List<String> result = new ArrayList<>();
+        String[] splits = argument.split("\n");
+        for (String split : splits) {
+            try {
+                result.add(URLDecoder.decode(split, StandardCharsets.UTF_8.name()));
+            } catch (UnsupportedEncodingException e) {
+                // do nothing.
+            }
+        }
+
+        return result.toArray(new String[0]);
     }
 }
