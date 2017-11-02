@@ -127,11 +127,17 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             logger.info(String.format("class-path: %s", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
             logger.info(String.format("vmArgs: %s", launchArguments.vmArgs));
 
-            IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
-                    launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs,
-                    Arrays.asList(launchArguments.modulePaths), Arrays.asList(launchArguments.classPaths),
-                    launchArguments.cwd, envVars);
+            IDebugSession debugSession = DebugUtility.launch(
+                    vmProvider.getVirtualMachineManager(),
+                    launchArguments.mainClass,
+                    launchArguments.args,
+                    launchArguments.vmArgs,
+                    Arrays.asList(launchArguments.modulePaths),
+                    Arrays.asList(launchArguments.classPaths),
+                    launchArguments.cwd,
+                    envVars);
             context.setDebugSession(debugSession);
+
             logger.info("Launching debuggee VM succeeded.");
 
             ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
