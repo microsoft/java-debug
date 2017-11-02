@@ -129,14 +129,14 @@ public abstract class AbstractProtocolServer {
         String header = String.format("Content-Length: %d%s", jsonBytes.length, TWO_CRLF);
         byte[] headerBytes = header.getBytes(PROTOCOL_ENCODING);
 
-        byte[] data = new byte[headerBytes.length + jsonBytes.length];
-        System.arraycopy(headerBytes, 0, data, 0, headerBytes.length);
-        System.arraycopy(jsonBytes, 0, data, headerBytes.length, jsonBytes.length);
+        ByteBuffer data = new ByteBuffer();
+        data.append(headerBytes);
+        data.append(jsonBytes);
 
-        String utf8Data = new String(data, PROTOCOL_ENCODING);
+        String utf8Data = data.getString(PROTOCOL_ENCODING);
 
         try {
-            logger.fine("\n[[RESPONSE]]\n" + new String(data));
+            logger.fine("\n[[RESPONSE]]\n" + utf8Data);
             this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
