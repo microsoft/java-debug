@@ -82,8 +82,12 @@ public class ResolveMainClassHandler {
             }
         };
         SearchEngine searchEngine = new SearchEngine();
-        searchEngine.search(pattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
-                searchScope, requestor, null /* progress monitor */);
+        try {
+            searchEngine.search(pattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+                    searchScope, requestor, null /* progress monitor */);
+        } catch (Exception e) {
+            // ignore
+        }
         return res.stream().distinct().collect(Collectors.toList());
     }
 
