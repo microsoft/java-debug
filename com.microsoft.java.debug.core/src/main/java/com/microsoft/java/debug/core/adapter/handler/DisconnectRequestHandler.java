@@ -17,10 +17,10 @@ import java.util.List;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
-import com.microsoft.java.debug.core.adapter.Requests.DisconnectArguments;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.DisconnectArguments;
 
 public class DisconnectRequestHandler implements IDebugRequestHandler {
 

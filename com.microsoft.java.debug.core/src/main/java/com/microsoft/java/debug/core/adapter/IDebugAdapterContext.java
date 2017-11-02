@@ -16,6 +16,7 @@ import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.protocol.Events;
 
 public interface IDebugAdapterContext {
     /**

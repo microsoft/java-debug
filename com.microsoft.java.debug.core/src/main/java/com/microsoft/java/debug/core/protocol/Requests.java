@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.core.adapter;
+package com.microsoft.java.debug.core.protocol;
 
 import java.util.Arrays;
 import java.util.Map;
