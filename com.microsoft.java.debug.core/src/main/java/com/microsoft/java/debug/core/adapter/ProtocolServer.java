@@ -35,7 +35,7 @@ public class ProtocolServer extends AbstractProtocolServer {
         super(input, output);
         this.debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
             // If the protocolServer has been stopped, it'll no longer receive any event.
-            if (!isTerminating()) {
+            if (!terminateSession) {
                 if (willSendLater) {
                     sendEventLater(debugEvent.type, debugEvent);
                 } else {

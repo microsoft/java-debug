@@ -37,11 +37,12 @@ public abstract class AbstractProtocolServer {
     private static final Pattern CONTENT_LENGTH_MATCHER = Pattern.compile("Content-Length: (\\d+)");
     private static final Charset PROTOCOL_ENCODING = StandardCharsets.UTF_8; // vscode protocol uses UTF-8 as encoding format.
 
+    protected boolean terminateSession = false;
+
     private Reader reader;
     private Writer writer;
 
     private ByteBuffer rawData;
-    private boolean terminateSession = false;
     private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
 
@@ -88,10 +89,6 @@ public abstract class AbstractProtocolServer {
      */
     public void stop() {
         this.terminateSession = true;
-    }
-
-    public boolean isTerminating() {
-        return this.terminateSession;
     }
 
     /**
