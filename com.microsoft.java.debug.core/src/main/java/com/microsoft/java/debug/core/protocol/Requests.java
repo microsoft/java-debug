@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core.protocol;
 
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * The request arguments types defined by VSCode Debug Protocol.
@@ -48,6 +49,8 @@ public class Requests {
         public String encoding = "";
         public String[] classPaths = new String[0];
         public String[] sourcePaths = new String[0];
+        public String cwd;
+        public Map<String, String> env;
     }
 
     public static class AttachArguments extends Arguments {
