@@ -17,9 +17,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IWorkspaceRoot;
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -64,9 +61,7 @@ public class ResolveClasspathsHandler {
      *             CoreException
      */
     private static IJavaProject getJavaProjectFromName(String projectName) throws CoreException {
-        IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-        IProject project = root.getProject(projectName);
-        IJavaProject javaProject = JdtUtils.getJavaProject(project);
+        IJavaProject javaProject = JdtUtils.getJavaProject(projectName);
         if (javaProject == null) {
             throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID,
                     String.format("The project '%s' is not a valid java project.", projectName)));
@@ -84,15 +79,18 @@ public class ResolveClasspathsHandler {
      *             CoreException
      */
     private static List<IJavaProject> getJavaProjectFromType(String typeFullyQualifiedName) throws CoreException {
-        String moduleName = null;
         String[] splitItems = typeFullyQualifiedName.split("/");
         // If the main class name contains the module name, should trim the module info.
         if (splitItems.length == 2) {
-            moduleName = splitItems[0];
             typeFullyQualifiedName = splitItems[1];
         }
-        SearchPattern pattern = SearchPattern.createPattern(typeFullyQualifiedName, IJavaSearchConstants.TYPE,
-                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_EXACT_MATCH);
+        final String moduleName = splitItems.length == 2 ? splitItems[0] : null;
+
+        SearchPattern pattern = SearchPattern.createPattern(
+                typeFullyQualifiedName,
+                IJavaSearchConstants.TYPE,
+                IJavaSearchConstants.DECLARATIONS,
+                SearchPattern.R_EXACT_MATCH);
         IJavaSearchScope scope = SearchEngine.createWorkspaceScope();
         ArrayList<IJavaProject> projects = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
@@ -101,7 +99,9 @@ public class ResolveClasspathsHandler {
                 Object element = match.getElement();
                 if (element instanceof IJavaElement) {
                     IJavaProject project = ((IJavaElement) element).getJavaProject();
-                    projects.add(project);
+                    if (moduleName == null || moduleName.equals(JdtUtils.getModuleName(project))) {
+                        projects.add(project);
+                    }
                 }
             }
         };

@@ -12,6 +12,8 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IModuleDescription;
@@ -45,7 +47,7 @@ public class JdtUtils {
             return false;
         }
         try {
-            if (!project.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
+            if (!project.isNatureEnabled(JavaCore.NATURE_ID)) {
                 return false;
             }
         } catch (CoreException e) {
@@ -63,5 +65,18 @@ public class JdtUtils {
             return JavaCore.create(project);
         }
         return null;
+    }
+
+    /**
+     * Given the project name, return the corresponding java project model.
+     * If the project doesn't exist or not a java project, return null.
+     */
+    public static IJavaProject getJavaProject(String projectName) {
+        if (projectName == null) {
+            return null;
+        }
+        IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
+        IProject project = root.getProject(projectName);
+        return getJavaProject(project);
     }
 }

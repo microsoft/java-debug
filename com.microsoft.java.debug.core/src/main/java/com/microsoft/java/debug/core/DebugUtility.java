@@ -119,8 +119,9 @@ public class DebugUtility {
         }
         arguments.get("options").setValue(options);
 
+        // For java 9 project, should specify "-m $MainClass".
         String[] mainClasses = mainClass.split("/");
-        if (mainClasses.length == 2) { // It means the mainClass contains module name.
+        if (StringUtils.isNotBlank(modulePaths) || mainClasses.length == 2) {
             mainClass = "-m " + mainClass;
         }
         if (StringUtils.isNotBlank(programArguments)) {

@@ -121,10 +121,11 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         try {
             logger.info("Trying to launch Java Program with options:");
-            logger.info(String.format("vmArgs: %s", launchArguments.vmArgs));
+            logger.info(String.format("main-class: %s", launchArguments.mainClass));
+            logger.info(String.format("args: %s", launchArguments.args));
             logger.info(String.format("module-path: %s", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
             logger.info(String.format("class-path: %s", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
-            logger.info(String.format("main-class: %s %s", launchArguments.mainClass, launchArguments.args));
+            logger.info(String.format("vmArgs: %s", launchArguments.vmArgs));
 
             IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(),
                     launchArguments.mainClass, launchArguments.args, launchArguments.vmArgs,
