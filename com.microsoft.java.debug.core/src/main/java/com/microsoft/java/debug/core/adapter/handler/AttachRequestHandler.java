@@ -28,10 +28,10 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.AttachArguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.AttachArguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {

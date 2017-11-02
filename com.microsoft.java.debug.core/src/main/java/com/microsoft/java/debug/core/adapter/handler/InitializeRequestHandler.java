@@ -14,12 +14,12 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 
-import com.microsoft.java.debug.core.adapter.Events;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages;
-import com.microsoft.java.debug.core.adapter.Requests;
-import com.microsoft.java.debug.core.adapter.Types;
+import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Requests;
+import com.microsoft.java.debug.core.protocol.Types;
 
 public class InitializeRequestHandler implements IDebugRequestHandler {
     @Override

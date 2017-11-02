@@ -17,14 +17,14 @@ import java.util.List;
 
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
-import com.microsoft.java.debug.core.adapter.Requests.ScopesArguments;
-import com.microsoft.java.debug.core.adapter.Responses;
-import com.microsoft.java.debug.core.adapter.Types;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.ScopesArguments;
+import com.microsoft.java.debug.core.protocol.Responses;
+import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.StackFrame;
 
 public class ScopesRequestHandler implements IDebugRequestHandler {
