@@ -77,7 +77,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private void threads(Requests.ThreadsArguments arguments, Response response, IDebugAdapterContext context) {
         ArrayList<Types.Thread> threads = new ArrayList<>();
         try {
-            for (ThreadReference thread : context.getDebugSession().allThreads()) {
+            for (ThreadReference thread : context.getDebugSession().getAllThreads()) {
                 if (thread.isCollected()) {
                     continue;
                 }
@@ -94,7 +94,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private void stepIn(Requests.StepInArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepInto(thread, context.getDebugSession().eventHub());
+            DebugUtility.stepInto(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -102,7 +102,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private void stepOut(Requests.StepOutArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepOut(thread, context.getDebugSession().eventHub());
+            DebugUtility.stepOut(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -110,7 +110,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private void next(Requests.NextArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepOver(thread, context.getDebugSession().eventHub());
+            DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }

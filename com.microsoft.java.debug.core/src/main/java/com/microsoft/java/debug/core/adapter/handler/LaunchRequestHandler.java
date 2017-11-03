@@ -87,13 +87,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
-        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        Map<String, Object> options = sourceProvider.getDefaultOptions();
-        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
-        if (launchArguments.projectName != null) {
-            options.put(Constants.PROJECTNAME, launchArguments.projectName);
-        }
-        sourceProvider.initialize(options);
+
 
         // Append environment to native environment.
         String[] envVars = null;
@@ -142,5 +136,13 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
                     String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }
+
+        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        Map<String, Object> options = new HashMap<>();
+        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
+        if (launchArguments.projectName != null) {
+            options.put(Constants.PROJECTNAME, launchArguments.projectName);
+        }
+        sourceProvider.initialize(context.getDebugSession(), options);
     }
 }

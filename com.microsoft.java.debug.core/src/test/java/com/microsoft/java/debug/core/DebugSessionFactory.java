@@ -53,10 +53,10 @@ public class DebugSessionFactory {
             try {
                 final IDebugSession debugSession = DebugUtility.launch(Bootstrap.virtualMachineManager(), mainClass, "", "",
                         new File(projectRoot, "bin").getAbsolutePath(), null, null);
-                debugSession.eventHub().events().subscribe(debugEvent -> {
+                debugSession.getEventHub().events().subscribe(debugEvent -> {
                     if (debugEvent.event instanceof VMDisconnectEvent) {
                         try {
-                            debugSession.eventHub().close();
+                            debugSession.getEventHub().close();
                         } catch (Exception e) {
                             // do nothing.
                         }

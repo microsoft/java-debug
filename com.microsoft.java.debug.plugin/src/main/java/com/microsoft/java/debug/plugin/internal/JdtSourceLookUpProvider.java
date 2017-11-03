@@ -55,6 +55,7 @@ import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLo
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
@@ -64,14 +65,14 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final String JDT_SCHEME = "jdt";
     private static final String PATH_SEPARATOR = "/";
 
-    private HashMap<String, Object> context = new HashMap<String, Object>();
+    private HashMap<String, Object> options = new HashMap<String, Object>();
 
     @Override
-    public void initialize(Map<String, Object> props) {
+    public void initialize(IDebugSession debugSession, Map<String, Object> props) {
         if (props == null) {
             throw new IllegalArgumentException("argument is null");
         }
-        context.putAll(props);
+        options.putAll(props);
     }
 
     @Override
@@ -110,7 +111,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            Charset cs = (Charset) this.context.get(Constants.DEBUGGEE_ENCODING);
+            Charset cs = (Charset) this.options.get(Constants.DEBUGGEE_ENCODING);
             if (cs == null) {
                 cs = Charset.defaultCharset();
             }
@@ -130,11 +131,11 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * See the java doc for { @link ASTParser#setSource(char[]) },
              * the user need specify the compiler options explicitly.
              */
-            Map<String, String> options = JavaCore.getOptions();
-            options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
-            options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_1_8);
-            options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_1_8);
-            parser.setCompilerOptions(options);
+            Map<String, String> javaOptions = JavaCore.getOptions();
+            javaOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
+            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_1_8);
+            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_1_8);
+            parser.setCompilerOptions(javaOptions);
             astUnit = (CompilationUnit) parser.createAST(null);
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
@@ -223,7 +224,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     private String searchDeclarationFileByFqn(String fullyQualifiedName) {
-        String projectName = (String) context.get(Constants.PROJECTNAME);
+        String projectName = (String) options.get(Constants.PROJECTNAME);
         try {
             IJavaSearchScope searchScope = projectName != null
                 ? createSearchScope(getJavaProjectFromName(projectName))
