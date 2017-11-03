@@ -48,7 +48,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
             // This is a global event handler to handle the JDI Event from Virtual Machine.
-            debugSession.eventHub().events().subscribe(debugEvent -> {
+            debugSession.getEventHub().events().subscribe(debugEvent -> {
                 handleDebugEvent(debugEvent, debugSession, context);
             });
             // configuration is done, and start debug session.
@@ -72,7 +72,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             context.sendEventAsync(new Events.TerminatedEvent());
             // Terminate eventHub thread.
             try {
-                debugSession.eventHub().close();
+                debugSession.getEventHub().close();
             } catch (Exception e) {
                 // do nothing.
             }

@@ -11,24 +11,18 @@
 
 package com.microsoft.java.debug.core.adapter;
 
-import java.util.HashMap;
 import java.util.Map;
+
+import com.microsoft.java.debug.core.IDebugSession;
 
 public interface IProvider {
     /**
      * Initialize this provider.
-     * @param options the options
+     * @param debugSession
+     *            The associated debug session
+     * @param options
+     *            the options
      */
-    default void initialize(Map<String, Object> options) {
-
-    }
-
-    /**
-     * Get the default options for this provider.
-     *
-     * @return The default options.
-     */
-    default Map<String, Object> getDefaultOptions() {
-        return new HashMap<>();
+    default void initialize(IDebugSession debugSession, Map<String, Object> options) {
     }
 }

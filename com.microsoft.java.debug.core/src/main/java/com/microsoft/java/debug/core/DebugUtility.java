@@ -228,7 +228,7 @@ public class DebugUtility {
     public static List<ThreadReference> getAllThreadsSafely(IDebugSession debugSession) {
         if (debugSession != null) {
             try {
-                return debugSession.allThreads();
+                return debugSession.getAllThreads();
             } catch (VMDisconnectedException ex) {
                 // do nothing.
             }
