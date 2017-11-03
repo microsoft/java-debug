@@ -29,6 +29,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
+import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.AttachArguments;
@@ -58,6 +59,18 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                     attachArguments.timeout);
             context.setDebugSession(debugSession);
             logger.info("Attaching to debuggee VM succeeded.");
+
+            // If the debugger and debuggee run at the different JVM platforms, show a warning message.
+            if (debugSession != null) {
+                String debuggeeVersion = debugSession.getVM().version();
+                String debuggerVersion = System.getProperty("java.version");
+                if (!debuggerVersion.equals(debuggeeVersion)) {
+                    String warnMessage = String.format("[Warn] Remote debuggee JVM: %s, but debugger JVM: %s. The source mapping for jre system libraries "
+                        + "could go wrong. Please make sure debugger and debuggee run at the same JVM platform.", debuggeeVersion, debuggerVersion);
+                    logger.warning(warnMessage);
+                    context.sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
+                }
+            }
         } catch (IOException | IllegalConnectorArgumentsException e) {
             AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE,
                     String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
