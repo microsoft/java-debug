@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -50,25 +51,25 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
-        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        Map<String, Object> options = sourceProvider.getDefaultOptions();
-        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
-        if (attachArguments.projectName != null) {
-            options.put(Constants.PROJECTNAME, attachArguments.projectName);
-        }
-        sourceProvider.initialize(options);
 
         try {
-            logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .",
-                    attachArguments.hostName, attachArguments.port));
-            IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(),
-                    attachArguments.hostName, attachArguments.port, attachArguments.timeout);
+            logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .", attachArguments.hostName, attachArguments.port));
+            IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), attachArguments.hostName, attachArguments.port,
+                    attachArguments.timeout);
             context.setDebugSession(debugSession);
             logger.info("Attaching to debuggee VM succeeded.");
         } catch (IOException | IllegalConnectorArgumentsException e) {
             AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE,
                     String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
         }
+
+        Map<String, Object> options = new HashMap<>();
+        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
+        if (attachArguments.projectName != null) {
+            options.put(Constants.PROJECTNAME, attachArguments.projectName);
+        }
+        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        sourceProvider.initialize(context.getDebugSession(), options);
     }
 
 }

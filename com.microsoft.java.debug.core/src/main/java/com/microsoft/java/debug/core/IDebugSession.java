@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core;
 import java.util.List;
 
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.VirtualMachine;
 
 public interface IDebugSession {
     void start();
@@ -37,8 +38,9 @@ public interface IDebugSession {
 
     Process process();
 
-    List<ThreadReference> allThreads();
+    List<ThreadReference> getAllThreads();
 
-    IEventHub eventHub();
+    IEventHub getEventHub();
+
+    VirtualMachine getVM();
 }
-
