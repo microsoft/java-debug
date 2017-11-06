@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -55,10 +56,10 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     @Override
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
-        if (StringUtils.isBlank(launchArguments.mainClass) || launchArguments.classPaths == null
-                || launchArguments.classPaths.length == 0) {
+        if (StringUtils.isBlank(launchArguments.mainClass)
+                || (ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths))) {
             AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                    String.format("Failed to launch debuggee VM. Missing mainClass or classPath options in launch configuration"));
+                    String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
             return;
         }
 
@@ -70,7 +71,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         } else {
             if (!Charset.isSupported(launchArguments.encoding)) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.INVALID_ENCODING,
-                        String.format("Failed to launch debuggee VM. 'encoding' options in launch configuration is not recognized."));
+                        String.format("Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized."));
                 return;
             }
 
@@ -114,11 +115,26 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         try {
-            logger.info(String.format("Trying to launch Java Program with options \"%s -cp %s %s %s\" .",
-                    launchArguments.vmArgs, StringUtils.join(launchArguments.classPaths, File.pathSeparator), launchArguments.mainClass, launchArguments.args));
-            IDebugSession debugSession = DebugUtility.launch(vmProvider.getVirtualMachineManager(), launchArguments.mainClass, launchArguments.args,
-                    launchArguments.vmArgs, Arrays.asList(launchArguments.classPaths), launchArguments.cwd, envVars);
+            StringBuilder launchLogs = new StringBuilder();
+            launchLogs.append("Trying to launch Java Program with options:\n");
+            launchLogs.append(String.format("main-class: %s\n", launchArguments.mainClass));
+            launchLogs.append(String.format("args: %s\n", launchArguments.args));
+            launchLogs.append(String.format("module-path: %s\n", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
+            launchLogs.append(String.format("class-path: %s\n", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
+            launchLogs.append(String.format("vmArgs: %s", launchArguments.vmArgs));
+            logger.info(launchLogs.toString());
+
+            IDebugSession debugSession = DebugUtility.launch(
+                    vmProvider.getVirtualMachineManager(),
+                    launchArguments.mainClass,
+                    launchArguments.args,
+                    launchArguments.vmArgs,
+                    Arrays.asList(launchArguments.modulePaths),
+                    Arrays.asList(launchArguments.classPaths),
+                    launchArguments.cwd,
+                    envVars);
             context.setDebugSession(debugSession);
+
             logger.info("Launching debuggee VM succeeded.");
 
             ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
@@ -145,4 +161,5 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
         sourceProvider.initialize(context.getDebugSession(), options);
     }
+
 }
