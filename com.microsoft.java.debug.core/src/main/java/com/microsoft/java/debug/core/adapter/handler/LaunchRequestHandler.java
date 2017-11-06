@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -56,7 +57,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
-                || (isEmptyArray(launchArguments.modulePaths) && isEmptyArray(launchArguments.classPaths))) {
+                || (ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths))) {
             AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
             return;
@@ -70,7 +71,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         } else {
             if (!Charset.isSupported(launchArguments.encoding)) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.INVALID_ENCODING,
-                        String.format("Failed to launch debuggee VM. 'encoding' options in launch configuration is not recognized."));
+                        String.format("Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized."));
                 return;
             }
 
@@ -114,12 +115,14 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         try {
-            logger.info("Trying to launch Java Program with options:");
-            logger.info(String.format("main-class: %s", launchArguments.mainClass));
-            logger.info(String.format("args: %s", launchArguments.args));
-            logger.info(String.format("module-path: %s", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
-            logger.info(String.format("class-path: %s", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
-            logger.info(String.format("vmArgs: %s", launchArguments.vmArgs));
+            StringBuilder launchLogs = new StringBuilder();
+            launchLogs.append("Trying to launch Java Program with options:\n");
+            launchLogs.append(String.format("main-class: %s\n", launchArguments.mainClass));
+            launchLogs.append(String.format("args: %s\n", launchArguments.args));
+            launchLogs.append(String.format("module-path: %s\n", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
+            launchLogs.append(String.format("class-path: %s\n", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
+            launchLogs.append(String.format("vmArgs: %s", launchArguments.vmArgs));
+            logger.info(launchLogs.toString());
 
             IDebugSession debugSession = DebugUtility.launch(
                     vmProvider.getVirtualMachineManager(),
@@ -159,7 +162,4 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         sourceProvider.initialize(context.getDebugSession(), options);
     }
 
-    private boolean isEmptyArray(String[] items) {
-        return items == null || items.length == 0;
-    }
 }

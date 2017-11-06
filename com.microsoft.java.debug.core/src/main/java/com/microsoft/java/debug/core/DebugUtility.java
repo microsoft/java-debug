@@ -40,6 +40,18 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
+    public static final String HOME = "home";
+    public static final String OPTIONS = "options";
+    public static final String MAIN = "main";
+    public static final String SUSPEND = "suspend";
+    public static final String QUOTE = "quote";
+    public static final String EXEC = "vmexec";
+    public static final String CWD = "cwd";
+    public static final String ENV = "env";
+    public static final String HOSTNAME = "hostname";
+    public static final String PORT = "port";
+    public static final String TIMEOUT = "timeout";
+
     /**
      * Launch a debuggee in suspend mode.
      * @see {@link #launch(VirtualMachineManager, String, String, String, String, String)}
@@ -105,7 +117,7 @@ public class DebugUtility {
         LaunchingConnector connector = connectors.get(0);
 
         Map<String, Argument> arguments = connector.defaultArguments();
-        arguments.get("suspend").setValue("true");
+        arguments.get(SUSPEND).setValue("true");
 
         String options = "";
         if (StringUtils.isNotBlank(vmArguments)) {
@@ -117,7 +129,7 @@ public class DebugUtility {
         if (StringUtils.isNotBlank(classPaths)) {
             options += " -cp \"" + classPaths + "\"";
         }
-        arguments.get("options").setValue(options);
+        arguments.get(OPTIONS).setValue(options);
 
         // For java 9 project, should specify "-m $MainClass".
         String[] mainClasses = mainClass.split("/");
@@ -127,14 +139,14 @@ public class DebugUtility {
         if (StringUtils.isNotBlank(programArguments)) {
             mainClass += " " + programArguments;
         }
-        arguments.get("main").setValue(mainClass);
+        arguments.get(MAIN).setValue(mainClass);
 
-        if (arguments.get("cwd") != null) {
-            arguments.get("cwd").setValue(cwd);
+        if (arguments.get(CWD) != null) {
+            arguments.get(CWD).setValue(cwd);
         }
 
-        if (arguments.get("env") != null) {
-            arguments.get("env").setValue(encodeArrayArgument(envVars));
+        if (arguments.get(ENV) != null) {
+            arguments.get(ENV).setValue(encodeArrayArgument(envVars));
         }
 
         VirtualMachine vm = connector.launch(arguments);
@@ -169,9 +181,9 @@ public class DebugUtility {
         List<AttachingConnector> connectors = vmManager.attachingConnectors();
         AttachingConnector connector = connectors.get(0);
         Map<String, Argument> arguments = connector.defaultArguments();
-        arguments.get("hostname").setValue(hostName);
-        arguments.get("port").setValue(String.valueOf(port));
-        arguments.get("timeout").setValue(String.valueOf(attachTimeout));
+        arguments.get(HOSTNAME).setValue(hostName);
+        arguments.get(PORT).setValue(String.valueOf(port));
+        arguments.get(TIMEOUT).setValue(String.valueOf(attachTimeout));
         return new DebugSession(connector.attach(arguments));
     }
 

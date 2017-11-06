@@ -72,22 +72,22 @@ public class ResolveClasspathsHandler {
     /**
      * Get java project from type.
      *
-     * @param typeFullyQualifiedName
+     * @param fullyQualifiedTypeName
      *            fully qualified name of type
      * @return java project
      * @throws CoreException
      *             CoreException
      */
-    private static List<IJavaProject> getJavaProjectFromType(String typeFullyQualifiedName) throws CoreException {
-        String[] splitItems = typeFullyQualifiedName.split("/");
+    private static List<IJavaProject> getJavaProjectFromType(String fullyQualifiedTypeName) throws CoreException {
+        String[] splitItems = fullyQualifiedTypeName.split("/");
         // If the main class name contains the module name, should trim the module info.
         if (splitItems.length == 2) {
-            typeFullyQualifiedName = splitItems[1];
+            fullyQualifiedTypeName = splitItems[1];
         }
         final String moduleName = splitItems.length == 2 ? splitItems[0] : null;
 
         SearchPattern pattern = SearchPattern.createPattern(
-                typeFullyQualifiedName,
+                fullyQualifiedTypeName,
                 IJavaSearchConstants.TYPE,
                 IJavaSearchConstants.DECLARATIONS,
                 SearchPattern.R_EXACT_MATCH);

@@ -18,7 +18,6 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IModuleDescription;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.launching.JavaRuntime;
 
 public class JdtUtils {
@@ -33,7 +32,7 @@ public class JdtUtils {
         IModuleDescription module;
         try {
             module = project.getModuleDescription();
-        } catch (JavaModelException e) {
+        } catch (CoreException e) {
             return null;
         }
         return module == null ? null : module.getElementName();
