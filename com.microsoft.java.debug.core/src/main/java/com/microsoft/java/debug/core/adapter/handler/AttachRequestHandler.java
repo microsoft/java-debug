@@ -65,8 +65,10 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                 String debuggeeVersion = debugSession.getVM().version();
                 String debuggerVersion = System.getProperty("java.version");
                 if (!debuggerVersion.equals(debuggeeVersion)) {
-                    String warnMessage = String.format("[Warn] Remote debuggee JVM: %s, but debugger JVM: %s. The source mapping for jre system libraries "
-                        + "could go wrong. Please make sure debugger and debuggee run at the same JVM platform.", debuggeeVersion, debuggerVersion);
+                    String warnMessage = String.format("[Warn] The debugger and the debuggee are running in different versions of JVMs. "
+                        + "You could see wrong source mapping results.\n"
+                        + "Debugger JVM version: %s\n"
+                        + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
                     logger.warning(warnMessage);
                     context.sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
                 }
