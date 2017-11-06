@@ -35,14 +35,6 @@ import com.sun.jdi.connect.VMStartException;
  *
  */
 public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl implements LaunchingConnector {
-    public static final String HOME = "home";
-    public static final String OPTIONS = "options";
-    public static final String MAIN = "main";
-    public static final String SUSPEND = "suspend";
-    public static final String QUOTE = "quote";
-    public static final String EXEC = "vmexec";
-    private static final String CWD = "cwd";
-    private static final String ENV = "env";
     private static final int ACCEPT_TIMEOUT = 10 * 1000;
 
     public AdvancedLaunchingConnector(VirtualMachineManagerImpl virtualMachineManager) {
@@ -53,13 +45,13 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
     public Map<String, Argument> defaultArguments() {
         Map<String, Argument> defaultArgs = super.defaultArguments();
 
-        Argument cwdArg = new AdvancedStringArgumentImpl(CWD, "Current working directory", CWD, false);
+        Argument cwdArg = new AdvancedStringArgumentImpl(DebugUtility.CWD, "Current working directory", DebugUtility.CWD, false);
         cwdArg.setValue(null);
-        defaultArgs.put(CWD, cwdArg);
+        defaultArgs.put(DebugUtility.CWD, cwdArg);
 
-        Argument envArg = new AdvancedStringArgumentImpl(ENV, "Environment variables", ENV, false);
+        Argument envArg = new AdvancedStringArgumentImpl(DebugUtility.ENV, "Environment variables", DebugUtility.ENV, false);
         envArg.setValue(null);
-        defaultArgs.put(ENV, envArg);
+        defaultArgs.put(DebugUtility.ENV, envArg);
 
         return defaultArgs;
     }
@@ -72,7 +64,7 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
     @Override
     public VirtualMachine launch(Map<String, ? extends Argument> connectionArgs)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        String cwd = connectionArgs.get(CWD).value();
+        String cwd = connectionArgs.get(DebugUtility.CWD).value();
         File workingDir = null;
         if (cwd != null && Files.isDirectory(Paths.get(cwd))) {
             workingDir = new File(cwd);
@@ -80,7 +72,7 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
 
         String[] envVars = null;
         try {
-            envVars = DebugUtility.decodeArrayArgument(connectionArgs.get(ENV).value());
+            envVars = DebugUtility.decodeArrayArgument(connectionArgs.get(DebugUtility.ENV).value());
         } catch (IllegalArgumentException e) {
             // do nothing.
         }
@@ -107,12 +99,12 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
     }
 
     private static String[] constructLaunchCommand(Map<String, ? extends Argument> launchingOptions, String address) {
-        final String javaHome = launchingOptions.get(HOME).value();
-        final String javaExec = launchingOptions.get(EXEC).value();
+        final String javaHome = launchingOptions.get(DebugUtility.HOME).value();
+        final String javaExec = launchingOptions.get(DebugUtility.EXEC).value();
         final String slash = System.getProperty("file.separator");
-        boolean suspend = Boolean.valueOf(launchingOptions.get(SUSPEND).value());
-        final String javaOptions = launchingOptions.get(OPTIONS).value();
-        final String main = launchingOptions.get(MAIN).value();
+        boolean suspend = Boolean.valueOf(launchingOptions.get(DebugUtility.SUSPEND).value());
+        final String javaOptions = launchingOptions.get(DebugUtility.OPTIONS).value();
+        final String main = launchingOptions.get(DebugUtility.MAIN).value();
 
         StringBuilder execString = new StringBuilder();
         execString.append("\"" + javaHome + slash + "bin" + slash + javaExec + "\"");
