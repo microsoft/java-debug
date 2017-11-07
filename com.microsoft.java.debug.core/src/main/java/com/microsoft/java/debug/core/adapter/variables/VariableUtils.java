@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.UserSettings;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
 import com.microsoft.java.debug.core.adapter.formatter.NumericFormatter;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
@@ -233,25 +233,20 @@ public abstract class VariableUtils {
      * variable view/debug console.
      *
      * @param defaultOptions the initial options for adding options from user settings
-     * @param hexInArgument when request sent by vscode declare hex format explicitly, settings this parameter true to override value in UserSettings class.
-     * @param evaluateInConsole whether the evaluation in executed in console, this parameter have impact against the max string length settings.
+     * @param hexInArgument when request sent by vscode declare hex format explicitly, settings this parameter true to override value in DebugSettings class.
      */
-    public static void applyFormatterOptions(Map<String, Object> defaultOptions, boolean hexInArgument, boolean evaluateInConsole) {
+    public static void applyFormatterOptions(Map<String, Object> defaultOptions, boolean hexInArgument) {
         Map<String, Object> options = defaultOptions;
-        boolean showFullyQualifiedNames = UserSettings.showQualifiedNames;
-        if (hexInArgument || UserSettings.showHex) {
+        boolean showFullyQualifiedNames = DebugSettings.showQualifiedNames;
+        if (hexInArgument || DebugSettings.showHex) {
             options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
         }
         if (showFullyQualifiedNames) {
             options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, true);
         }
 
-        if (evaluateInConsole) {
-            if (UserSettings.maxStringLengthConsole > 0) {
-                options.put(StringObjectFormatter.MAX_STRING_LENGTH_OPTION, UserSettings.maxStringLengthConsole);
-            }
-        } else if (UserSettings.maxStringLength > 0) {
-            options.put(StringObjectFormatter.MAX_STRING_LENGTH_OPTION, UserSettings.maxStringLength);
+        if (DebugSettings.maxStringLength > 0) {
+            options.put(StringObjectFormatter.MAX_STRING_LENGTH_OPTION, DebugSettings.maxStringLength);
         }
     }
 

@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.microsoft.java.debug.core.UserSettings;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -56,10 +56,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         VariablesArguments varArgs = (VariablesArguments) arguments;
 
 
-        boolean showStaticVariables = UserSettings.showStaticVariables;
+        boolean showStaticVariables = DebugSettings.showStaticVariables;
 
         Map<String, Object> options = variableFormatter.getDefaultOptions();
-        VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex, false);
+        VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex);
 
         List<Types.Variable> list = new ArrayList<>();
         Object container = context.getRecyclableIdPool().getObjectById(varArgs.variablesReference);

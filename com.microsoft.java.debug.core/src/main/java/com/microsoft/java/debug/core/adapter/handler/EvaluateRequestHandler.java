@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.UserSettings;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -59,11 +59,10 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             return;
         }
 
-        final boolean showStaticVariables = UserSettings.showStaticVariables;
+        final boolean showStaticVariables = DebugSettings.showStaticVariables;
 
         Map<String, Object> options = context.getVariableFormatter().getDefaultOptions();
-        VariableUtils.applyFormatterOptions(options, evalArguments.format != null && evalArguments.format.hex,
-                StringUtils.equals(evalArguments.context, "repl"));
+        VariableUtils.applyFormatterOptions(options, evalArguments.format != null && evalArguments.format.hex);
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
