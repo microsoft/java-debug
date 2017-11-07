@@ -134,6 +134,8 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     launchArguments.cwd,
                     envVars);
             context.setDebugSession(debugSession);
+            context.setVmStopOnEntry(launchArguments.stopOnEntry);
+            context.setMainClass(launchArguments.mainClass);
 
             logger.info("Launching debuggee VM succeeded.");
 
