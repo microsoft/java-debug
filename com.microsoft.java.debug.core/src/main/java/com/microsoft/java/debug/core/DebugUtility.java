@@ -348,7 +348,7 @@ public class DebugUtility {
      */
     public static String[] decodeArrayArgument(String argument) {
         if (argument == null) {
-            return new String[0];
+            return null;
         }
 
         List<String> result = new ArrayList<>();

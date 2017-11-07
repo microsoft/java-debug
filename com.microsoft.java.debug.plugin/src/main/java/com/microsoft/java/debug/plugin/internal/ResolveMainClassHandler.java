@@ -13,6 +13,7 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -86,7 +87,7 @@ public class ResolveMainClassHandler {
             searchEngine.search(pattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
                     searchScope, requestor, null /* progress monitor */);
         } catch (Exception e) {
-            // ignore
+            logger.log(Level.SEVERE, String.format("Searching the main class failure: %s", e.toString()), e);
         }
         return res.stream().distinct().collect(Collectors.toList());
     }
