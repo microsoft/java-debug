@@ -52,6 +52,7 @@ public class Requests {
         public String[] sourcePaths = new String[0];
         public String cwd;
         public Map<String, String> env;
+        public boolean stopOnEntry;
     }
 
     public static class AttachArguments extends Arguments {
