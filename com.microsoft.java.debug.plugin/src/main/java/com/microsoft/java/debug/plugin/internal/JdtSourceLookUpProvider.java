@@ -26,13 +26,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IWorkspaceRoot;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
@@ -102,8 +96,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new String[0];
         }
 
-        // Currently the highest version the debugger supports is Java SE 8 Edition (JLS8).
-        final ASTParser parser = ASTParser.newParser(AST.JLS8);
+        // Currently the highest version the debugger supports is Java SE 9 Edition (JLS9).
+        final ASTParser parser = ASTParser.newParser(AST.JLS9);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
@@ -132,9 +126,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * the user need specify the compiler options explicitly.
              */
             Map<String, String> javaOptions = JavaCore.getOptions();
-            javaOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
-            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_1_8);
-            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_1_8);
+            javaOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_9);
+            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_9);
+            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_9);
             parser.setCompilerOptions(javaOptions);
             astUnit = (CompilationUnit) parser.createAST(null);
         } else {
@@ -210,61 +204,48 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return source;
     }
 
-    private IJavaProject getJavaProjectFromName(String projectName) throws CoreException {
-        IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-        IProject project = root.getProject(projectName);
-        if (!project.exists()) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not an existing project."));
-        }
-        if (!project.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not a project with java nature."));
-        }
-        IJavaProject javaProject = JavaCore.create(project);
-        return javaProject;
-    }
-
     private String searchDeclarationFileByFqn(String fullyQualifiedName) {
         String projectName = (String) options.get(Constants.PROJECTNAME);
-        try {
-            IJavaSearchScope searchScope = projectName != null
-                ? createSearchScope(getJavaProjectFromName(projectName))
-                : SearchEngine.createWorkspaceScope();
-            SearchPattern pattern = SearchPattern.createPattern(
+        IJavaProject project = JdtUtils.getJavaProject(projectName);
+        IJavaSearchScope searchScope = createSearchScope(project);
+        SearchPattern pattern = SearchPattern.createPattern(
                 fullyQualifiedName,
                 IJavaSearchConstants.TYPE,
                 IJavaSearchConstants.DECLARATIONS,
                 SearchPattern.R_EXACT_MATCH);
-            ArrayList<String> uris = new ArrayList<String>();
-            SearchRequestor requestor = new SearchRequestor() {
-                @Override
-                public void acceptSearchMatch(SearchMatch match) {
-                    Object element = match.getElement();
-                    if (element instanceof IType) {
-                        IType type = (IType) element;
-                        if (type.isBinary()) {
-                            try {
-                                // let the search engine to ignore those class files without attached source.
-                                if (type.getSource() != null) {
-                                    uris.add(getFileURI(type.getClassFile()));
-                                }
-                            } catch (JavaModelException e) {
-                                // ignore
+
+        ArrayList<String> uris = new ArrayList<String>();
+
+        SearchRequestor requestor = new SearchRequestor() {
+            @Override
+            public void acceptSearchMatch(SearchMatch match) {
+                Object element = match.getElement();
+                if (element instanceof IType) {
+                    IType type = (IType) element;
+                    if (type.isBinary()) {
+                        try {
+                            // let the search engine to ignore those class files without attached source.
+                            if (type.getSource() != null) {
+                                uris.add(getFileURI(type.getClassFile()));
                             }
-                        } else {
-                            uris.add(getFileURI(type.getResource()));
+                        } catch (JavaModelException e) {
+                            // ignore
                         }
+                    } else {
+                        uris.add(getFileURI(type.getResource()));
                     }
                 }
-            };
-            SearchEngine searchEngine = new SearchEngine();
+            }
+        };
+        SearchEngine searchEngine = new SearchEngine();
+        try {
             searchEngine.search(pattern, new SearchParticipant[] {
                     SearchEngine.getDefaultSearchParticipant()
                 }, searchScope, requestor, null /* progress monitor */);
-            return uris.size() == 0 ? null : uris.get(0);
-        } catch (CoreException e) {
-            logger.log(Level.SEVERE, String.format("Failed to parse java project: %s", e.toString()), e);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, String.format("Search engine failed: %s", e.toString()), e);
         }
-        return null;
+        return uris.size() == 0 ? null : uris.get(0);
     }
 
     private static String getFileURI(IClassFile classFile) {
