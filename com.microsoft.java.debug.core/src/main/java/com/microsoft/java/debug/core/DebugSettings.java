@@ -31,9 +31,7 @@ public final class DebugSettings {
      * Configure setting for java debugger.
      *
      * @param arguments
-     *            the arguments for the settings, eg: show_hex=true
-     *            show_static_variables=true show_qualified_names=true
-     *            max-string-length=100 --max-string-length=200
+     *            the arguments for the settings, the format is json, eg:{"show_hex":true,"show_static_variables":true,"max_string_length":100}
      */
     public static Object configDebugSettings(List<Object> arguments) {
         if (arguments != null && arguments.size() > 0) {
