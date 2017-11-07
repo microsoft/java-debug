@@ -100,4 +100,8 @@ public interface IDebugAdapterContext {
     void setVmStopOnEntry(boolean stopOnEntry);
 
     boolean isVmStopOnEntry();
+
+    void setMainClass(String mainClass);
+
+    String getMainClass();
 }

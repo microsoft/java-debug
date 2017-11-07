@@ -35,6 +35,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private Charset debuggeeEncoding;
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
+    private String mainClass;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -192,5 +193,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public boolean isVmStopOnEntry() {
         return isVmStopOnEntry;
+    }
+
+    @Override
+    public void setMainClass(String mainClass) {
+        this.mainClass = mainClass;
+    }
+
+    @Override
+    public String getMainClass() {
+        return this.mainClass;
     }
 }

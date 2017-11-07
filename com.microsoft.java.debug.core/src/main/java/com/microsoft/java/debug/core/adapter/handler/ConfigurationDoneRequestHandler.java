@@ -11,7 +11,6 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -26,6 +25,7 @@ import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.sun.jdi.Method;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
@@ -67,20 +67,24 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
         Event event = debugEvent.event;
         boolean isImportantEvent = true;
+        MethodEntryRequest request = null;
         if (event instanceof VMStartEvent) {
             if (context.isVmStopOnEntry()) {
                 EventRequestManager manager = debugSession.getVM().eventRequestManager();
-                ArrayList<MethodEntryRequest> legacy = new ArrayList<>(manager.methodEntryRequests());
-                manager.deleteEventRequests(legacy);
-                MethodEntryRequest request = manager.createMethodEntryRequest();
+                request = manager.createMethodEntryRequest();
+                request.addClassFilter(context.getMainClass());
                 request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
                 request.enable();
             }
         } else if (event instanceof MethodEntryEvent) {
-            if (((MethodEntryEvent) event).method().name().equals("main")) {
+            Method method = ((MethodEntryEvent) event).method();
+            if (method.name().equals("main") && method.isStatic() && method.isPublic()) {
                 ThreadReference bpThread = ((MethodEntryEvent) event).thread();
                 context.sendEventAsync(new Events.StoppedEvent("entry", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
+                if (request != null) {
+                    request.disable();
+                }
             }
         } else if (event instanceof VMDeathEvent) {
             context.setVmTerminated();
