@@ -48,6 +48,7 @@ public class Requests {
         public String vmArgs = "";
         public String encoding = "";
         public String[] classPaths = new String[0];
+        public String[] modulePaths = new String[0];
         public String[] sourcePaths = new String[0];
         public String cwd;
         public Map<String, String> env;

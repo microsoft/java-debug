@@ -40,10 +40,39 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
+    public static final String HOME = "home";
+    public static final String OPTIONS = "options";
+    public static final String MAIN = "main";
+    public static final String SUSPEND = "suspend";
+    public static final String QUOTE = "quote";
+    public static final String EXEC = "vmexec";
+    public static final String CWD = "cwd";
+    public static final String ENV = "env";
+    public static final String HOSTNAME = "hostname";
+    public static final String PORT = "port";
+    public static final String TIMEOUT = "timeout";
 
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, List<String> classPaths,
-            String cwd, String[] envVars) throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return DebugUtility.launch(vmManager, mainClass, programArguments, vmArguments, String.join(File.pathSeparator, classPaths), cwd, envVars);
+    /**
+     * Launch a debuggee in suspend mode.
+     * @see {@link #launch(VirtualMachineManager, String, String, String, String, String)}
+     */
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            List<String> modulePaths,
+            List<String> classPaths,
+            String cwd,
+            String[] envVars)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return DebugUtility.launch(vmManager,
+                mainClass,
+                programArguments,
+                vmArguments,
+                String.join(File.pathSeparator, modulePaths),
+                String.join(File.pathSeparator, classPaths),
+                cwd,
+                envVars);
     }
 
     /**
@@ -57,6 +86,8 @@ public class DebugUtility {
      *            the program arguments.
      * @param vmArguments
      *            the vm arguments.
+     * @param modulePaths
+     *            the module paths.
      * @param classPaths
      *            the class paths.
      * @param cwd
@@ -73,30 +104,49 @@ public class DebugUtility {
      *             when the debuggee was successfully launched, but terminated
      *             with an error before a connection could be established.
      */
-    public static IDebugSession launch(VirtualMachineManager vmManager, String mainClass, String programArguments, String vmArguments, String classPaths,
-            String cwd, String[] envVars) throws IOException, IllegalConnectorArgumentsException, VMStartException {
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            String modulePaths,
+            String classPaths,
+            String cwd,
+            String[] envVars)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
 
         Map<String, Argument> arguments = connector.defaultArguments();
-        arguments.get("suspend").setValue("true");
+        arguments.get(SUSPEND).setValue("true");
+
+        String options = "";
         if (StringUtils.isNotBlank(vmArguments)) {
-            arguments.get("options").setValue(vmArguments + " -cp \"" + classPaths + "\"");
-        } else {
-            arguments.get("options").setValue("-cp \"" + classPaths + "\"");
+            options = vmArguments;
+        }
+        if (StringUtils.isNotBlank(modulePaths)) {
+            options += " --module-path \"" + modulePaths + "\"";
+        }
+        if (StringUtils.isNotBlank(classPaths)) {
+            options += " -cp \"" + classPaths + "\"";
+        }
+        arguments.get(OPTIONS).setValue(options);
+
+        // For java 9 project, should specify "-m $MainClass".
+        String[] mainClasses = mainClass.split("/");
+        if (StringUtils.isNotBlank(modulePaths) || mainClasses.length == 2) {
+            mainClass = "-m " + mainClass;
         }
         if (StringUtils.isNotBlank(programArguments)) {
-            arguments.get("main").setValue(mainClass + " " + programArguments);
-        } else {
-            arguments.get("main").setValue(mainClass);
+            mainClass += " " + programArguments;
+        }
+        arguments.get(MAIN).setValue(mainClass);
+
+        if (arguments.get(CWD) != null) {
+            arguments.get(CWD).setValue(cwd);
         }
 
-        if (arguments.get("cwd") != null) {
-            arguments.get("cwd").setValue(cwd);
-        }
-
-        if (arguments.get("env") != null) {
-            arguments.get("env").setValue(encodeArrayArgument(envVars));
+        if (arguments.get(ENV) != null) {
+            arguments.get(ENV).setValue(encodeArrayArgument(envVars));
         }
 
         VirtualMachine vm = connector.launch(arguments);
@@ -131,9 +181,9 @@ public class DebugUtility {
         List<AttachingConnector> connectors = vmManager.attachingConnectors();
         AttachingConnector connector = connectors.get(0);
         Map<String, Argument> arguments = connector.defaultArguments();
-        arguments.get("hostname").setValue(hostName);
-        arguments.get("port").setValue(String.valueOf(port));
-        arguments.get("timeout").setValue(String.valueOf(attachTimeout));
+        arguments.get(HOSTNAME).setValue(hostName);
+        arguments.get(PORT).setValue(String.valueOf(port));
+        arguments.get(TIMEOUT).setValue(String.valueOf(attachTimeout));
         return new DebugSession(connector.attach(arguments));
     }
 

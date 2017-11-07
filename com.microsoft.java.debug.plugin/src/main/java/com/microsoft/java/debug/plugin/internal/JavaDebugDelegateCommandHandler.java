@@ -34,8 +34,6 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static String CONFIG_LOG_LEVEL = "vscode.java.configLogLevel";
 
     public static String UPDATE_USER_SETTINGS = "vscode.java.updateUserSettings";
-
-
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
         if (DEBUG_STARTSESSION.equals(commandId)) {
