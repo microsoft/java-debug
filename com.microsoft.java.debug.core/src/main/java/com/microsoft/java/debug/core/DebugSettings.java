@@ -31,7 +31,7 @@ public final class DebugSettings {
      * Configure setting for java debugger.
      *
      * @param arguments
-     *            the arguments for the settings, the format is json, eg:{"show_hex":true,"show_static_variables":true,"max_string_length":100}
+     *            the arguments for the settings, the format is json, eg:{"showHex":true,"showStaticVariables":true,"maxStringLength":100}
      */
     public static Object configDebugSettings(List<Object> arguments) {
         if (arguments != null && arguments.size() > 0) {
@@ -46,16 +46,16 @@ public final class DebugSettings {
                             Object valueObj = map.get(keyStr);
                             try {
                                 switch (keyStr) {
-                                    case "show_hex":
+                                    case "showHex":
                                         DebugSettings.showHex = (Boolean) valueObj;
                                         break;
-                                    case "show_static_variables":
+                                    case "showStaticVariables":
                                         DebugSettings.showStaticVariables = (Boolean) valueObj;
                                         break;
-                                    case "show_qualified_names":
+                                    case "showQualifiedNames":
                                         DebugSettings.showQualifiedNames = (Boolean) valueObj;
                                         break;
-                                    case "max_string_length":
+                                    case "maxStringLength":
                                         DebugSettings.maxStringLength = ((Number) valueObj).intValue();
                                         break;
                                     default:
@@ -81,19 +81,19 @@ public final class DebugSettings {
         sb.append("{\n");
 
         if (DebugSettings.showHex) {
-            sb.append("show_hex ON\n");
+            sb.append("showHex ON\n");
         }
 
         if (DebugSettings.showQualifiedNames) {
-            sb.append("show_qualified_names ON\n");
+            sb.append("showQualifiedNames ON\n");
         }
 
         if (DebugSettings.showStaticVariables) {
-            sb.append("show_static_variables ON\n");
+            sb.append("showStaticVariables ON\n");
         }
 
         if (DebugSettings.maxStringLength > 0) {
-            sb.append(String.format("max_string_length %d\n", DebugSettings.maxStringLength));
+            sb.append(String.format("maxStringLength %d\n", DebugSettings.maxStringLength));
         }
 
         sb.append("}\n");
