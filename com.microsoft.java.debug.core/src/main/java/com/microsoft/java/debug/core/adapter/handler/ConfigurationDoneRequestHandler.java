@@ -78,7 +78,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             }
         } else if (event instanceof MethodEntryEvent) {
             Method method = ((MethodEntryEvent) event).method();
-            if (method.name().equals("main") && method.isStatic() && method.isPublic()) {
+            if (method.name().equals("main") && method.isStatic() && method.isPublic() && method.signature().equals("([Ljava/lang/String;)V")) {
                 ThreadReference bpThread = ((MethodEntryEvent) event).thread();
                 context.sendEventAsync(new Events.StoppedEvent("entry", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
