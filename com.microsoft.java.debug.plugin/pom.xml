@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.microsoft.java</groupId>
         <artifactId>parent</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.0</version>
     </parent>
     <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
@@ -55,7 +55,7 @@
                         <artifactItem>
                             <groupId>com.microsoft.java</groupId>
                             <artifactId>com.microsoft.java.debug.core</artifactId>
-                            <version>0.2.0</version>
+                            <version>0.3.0</version>
                         </artifactItem>
                     </artifactItems>
                 </configuration>
