@@ -96,4 +96,12 @@ public interface IDebugAdapterContext {
     void setVmTerminated();
 
     boolean isVmTerminated();
+
+    void setVmStopOnEntry(boolean stopOnEntry);
+
+    boolean isVmStopOnEntry();
+
+    void setMainClass(String mainClass);
+
+    String getMainClass();
 }
