@@ -237,16 +237,16 @@ public abstract class VariableUtils {
      */
     public static void applyFormatterOptions(Map<String, Object> defaultOptions, boolean hexInArgument) {
         Map<String, Object> options = defaultOptions;
-        boolean showFullyQualifiedNames = DebugSettings.showQualifiedNames;
-        if (hexInArgument || DebugSettings.showHex) {
+        boolean showFullyQualifiedNames = DebugSettings.getCurrent().showQualifiedNames;
+        if (hexInArgument || DebugSettings.getCurrent().showHex) {
             options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
         }
         if (showFullyQualifiedNames) {
             options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, true);
         }
 
-        if (DebugSettings.maxStringLength > 0) {
-            options.put(StringObjectFormatter.MAX_STRING_LENGTH_OPTION, DebugSettings.maxStringLength);
+        if (DebugSettings.getCurrent().maxStringLength > 0) {
+            options.put(StringObjectFormatter.MAX_STRING_LENGTH_OPTION, DebugSettings.getCurrent().maxStringLength);
         }
     }
 

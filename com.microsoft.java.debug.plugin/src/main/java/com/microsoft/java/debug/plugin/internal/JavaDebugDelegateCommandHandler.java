@@ -16,7 +16,6 @@ import java.util.List;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
 
-import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.UsageDataStore;
 
 public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler {
@@ -30,8 +29,6 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static String RESOLVE_MAINCLASS = "vscode.java.resolveMainClass";
 
     public static String BUILD_WORKSPACE = "vscode.java.buildWorkspace";
-
-    public static String CONFIG_LOG_LEVEL = "vscode.java.configLogLevel";
 
     public static String UPDATE_DEBUG_SETTINGS = "vscode.java.updateDebugSettings";
 
@@ -51,10 +48,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             // TODO
         } else if (FETCH_USER_DATA.equals(commandId)) {
             return UsageDataStore.getInstance().fetchAll();
-        } else if (CONFIG_LOG_LEVEL.equals(commandId)) {
-            return LogUtils.configLogLevel(arguments);
         } else if (UPDATE_DEBUG_SETTINGS.equals(commandId)) {
-            return DebugSettings.configDebugSettings(arguments);
+            return DebugSettingUtils.configDebugSettings(arguments);
         }
 
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));

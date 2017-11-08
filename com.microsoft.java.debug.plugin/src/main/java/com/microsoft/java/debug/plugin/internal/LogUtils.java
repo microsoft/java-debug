@@ -11,11 +11,8 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
 
@@ -23,10 +20,11 @@ public final class LogUtils {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
 
-
     /**
      * Initialize logger for logger level and logger handler.
-     * @param level the logger level for java debugger.
+     *
+     * @param level
+     *            the logger level for java debugger.
      */
     public static void initialize(Level level) {
         logger.addHandler(new JdtLogHandler());
@@ -37,22 +35,22 @@ public final class LogUtils {
 
     /**
      * Configure log level setting for java debugger.
-     * @param arguments the first element of the arguments should be the String representation of level(info, fine, warning..).
+     *
+     * @param logLevel
+     *            the String representation of level(info, fine, warning..).
+     * @return the updated log level
      */
-    public static Object configLogLevel(List<Object> arguments) {
-        if (arguments != null && arguments.size() == 1 && arguments.get(0) instanceof String) {
-            try {
-                logger.setLevel(Level.parse((String) arguments.get(0)));
-                logger.info(String.format("Set log level to : %s", arguments.get(0)));
-                return logger.getLevel().toString();
-            } catch (IllegalArgumentException e) {
-                logger.severe(String.format("Invalid log level: %s", arguments.get(0)));
-            }
-
-        } else {
-            logger.severe(String.format("Invalid parameters for configLogLevel: %s", StringUtils.join(arguments)));
+    public static String configLogLevel(Object logLevel) {
+        try {
+            logger.setLevel(Level.parse((String) logLevel));
+            logger.info(String.format("Set log level to : %s", logLevel));
+        } catch (IllegalArgumentException e) {
+            logger.severe(String.format("Invalid log level: %s", logLevel));
+        }  catch (ClassCastException e) {
+            logger.severe("logLevel should be a string.");
         }
-        return null;
+
+        return logger.getLevel().toString();
     }
 
 }

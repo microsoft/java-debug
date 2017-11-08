@@ -59,7 +59,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             return;
         }
 
-        final boolean showStaticVariables = DebugSettings.showStaticVariables;
+        final boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
 
         Map<String, Object> options = context.getVariableFormatter().getDefaultOptions();
         VariableUtils.applyFormatterOptions(options, evalArguments.format != null && evalArguments.format.hex);

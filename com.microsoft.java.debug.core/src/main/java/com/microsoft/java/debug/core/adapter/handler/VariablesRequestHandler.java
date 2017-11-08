@@ -56,7 +56,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         VariablesArguments varArgs = (VariablesArguments) arguments;
 
 
-        boolean showStaticVariables = DebugSettings.showStaticVariables;
+        boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
 
         Map<String, Object> options = variableFormatter.getDefaultOptions();
         VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex);
