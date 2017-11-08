@@ -11,10 +11,10 @@
 
 package com.microsoft.java.debug.core;
 
-import java.util.Map;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang3.reflect.FieldUtils;
+import com.google.gson.JsonSyntaxException;
+import com.microsoft.java.debug.core.protocol.JsonUtils;
 
 public final class DebugSettings {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -32,21 +32,15 @@ public final class DebugSettings {
 
     /**
      * Update current settings with the values in the parameter.
-     * @param newSettings the new settings.
+     *
+     * @param jsonSettings
+     *            the new settings represents in json format.
      */
-    public void updateSettings(Map<String, Object> newSettings) {
-        for (String keyStr : newSettings.keySet()) {
-            Object valueObj = newSettings.get(keyStr);
-            if (valueObj instanceof Number) {
-                valueObj = ((Number) valueObj).intValue();
-            }
-            try {
-                FieldUtils.writeDeclaredField(current, keyStr, valueObj);
-            } catch (IllegalArgumentException ex) {
-                logger.severe(String.format("Invalid parameters for debugSettings: %s - %s, %s", keyStr, valueObj, ex.getMessage()));
-            } catch (IllegalAccessException e) {
-                logger.severe(String.format("Cannot write to debugSettings: %s - %s, %s", keyStr, valueObj, e.getMessage()));
-            }
+    public void updateSettings(String jsonSettings) {
+        try {
+            current = JsonUtils.fromJson(jsonSettings, DebugSettings.class);
+        } catch (JsonSyntaxException ex) {
+            logger.severe(String.format("Invalid json for debugSettings: %s, %s", jsonSettings, ex.getMessage()));
         }
     }
 

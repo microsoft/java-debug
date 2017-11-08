@@ -11,9 +11,7 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
@@ -40,9 +38,8 @@ public final class DebugSettingUtils {
                     String jsonStr = (String) arg;
 
                     try {
-                        Map<String, Object> newSettings = JsonUtils.fromJson(jsonStr, new HashMap<String, Object>().getClass());
-                        newSettings.computeIfPresent("logLevel", (key, logLevel) -> LogUtils.configLogLevel(logLevel));
-                        DebugSettings.getCurrent().updateSettings(newSettings);
+                        DebugSettings.getCurrent().updateSettings(jsonStr);
+                        DebugSettings.getCurrent().logLevel = LogUtils.configLogLevel(DebugSettings.getCurrent().logLevel);
                     } catch (JsonSyntaxException ex) {
                         logger.severe(String.format("Parameters for userSettings must be a valid json: %s", String.valueOf(arg)));
                     }
