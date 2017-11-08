@@ -135,7 +135,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     envVars);
             context.setDebugSession(debugSession);
             context.setVmStopOnEntry(launchArguments.stopOnEntry);
-            context.setMainClass(launchArguments.mainClass);
+            context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
 
             logger.info("Launching debuggee VM succeeded.");
 
@@ -162,6 +162,11 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             options.put(Constants.PROJECTNAME, launchArguments.projectName);
         }
         sourceProvider.initialize(context.getDebugSession(), options);
+    }
+
+    private static String parseMainClassWithoutModuleName(String mainClass) {
+        int index = mainClass.indexOf('/');
+        return mainClass.substring(index + 1);
     }
 
 }
