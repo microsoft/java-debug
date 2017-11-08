@@ -49,4 +49,8 @@ public final class DebugSettings {
             }
         }
     }
+
+    private DebugSettings() {
+
+    }
 }
