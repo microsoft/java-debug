@@ -50,7 +50,8 @@ public class StringObjectFormatter extends ObjectFormatter implements IValueForm
 
     @Override
     public boolean acceptType(Type type, Map<String, Object> options) {
-        return type != null && (type.signature().charAt(0) == STRING || type.signature().equals(STRING_SIGNATURE));
+        return type != null && (type.signature().charAt(0) == STRING
+                || type.signature().equals(STRING_SIGNATURE));
     }
 
     @Override
@@ -58,13 +59,16 @@ public class StringObjectFormatter extends ObjectFormatter implements IValueForm
         if (value == null || NullObjectFormatter.NULL_STRING.equals(value)) {
             return null;
         }
-        if (value.length() >= 2 && value.startsWith(QUOTE_STRING) && value.endsWith(QUOTE_STRING)) {
+        if (value.length() >= 2
+                && value.startsWith(QUOTE_STRING)
+                && value.endsWith(QUOTE_STRING)) {
             return type.virtualMachine().mirrorOf(StringUtils.substring(value, 1, -1));
         }
         return type.virtualMachine().mirrorOf(value);
     }
 
     private static int getMaxStringLength(Map<String, Object> options) {
-        return options.containsKey(MAX_STRING_LENGTH_OPTION) ? (int) options.get(MAX_STRING_LENGTH_OPTION) : DEFAULT_MAX_STRING_LENGTH;
+        return options.containsKey(MAX_STRING_LENGTH_OPTION)
+                ? (int) options.get(MAX_STRING_LENGTH_OPTION) : DEFAULT_MAX_STRING_LENGTH;
     }
 }
