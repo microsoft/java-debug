@@ -20,11 +20,10 @@ public final class LogUtils {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
 
+
     /**
      * Initialize logger for logger level and logger handler.
-     *
-     * @param level
-     *            the logger level for java debugger.
+     * @param level the logger level for java debugger.
      */
     public static void initialize(Level level) {
         logger.addHandler(new JdtLogHandler());
