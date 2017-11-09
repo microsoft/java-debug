@@ -26,7 +26,7 @@ import com.sun.jdi.Value;
 
 public class StringObjectFormatter extends ObjectFormatter implements IValueFormatter {
     public static final String MAX_STRING_LENGTH_OPTION = "max_string_length";
-    private static final int DEFAULT_MAX_STRING_LENGTH = 100;
+    private static final int DEFAULT_MAX_STRING_LENGTH = 0;
     private static final String QUOTE_STRING = "\"";
 
     public StringObjectFormatter() {
@@ -42,9 +42,9 @@ public class StringObjectFormatter extends ObjectFormatter implements IValueForm
 
     @Override
     public String toString(Object value, Map<String, Object> options) {
+        int maxLength = getMaxStringLength(options);
         return String.format("\"%s\" %s",
-                StringUtils.abbreviate(((StringReference) value).value(),
-                        getMaxStringLength(options)),
+                maxLength > 0 ? StringUtils.abbreviate(((StringReference) value).value(), maxLength) : ((StringReference) value).value(),
                 getIdPostfix((ObjectReference) value, options));
     }
 
