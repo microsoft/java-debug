@@ -36,6 +36,10 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
     private String mainClass;
+    private String[] stepFilters;
+    private boolean stepThroughFilters;
+    private boolean justMyCode;
+    private boolean skipSimpleGetters;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -203,5 +207,48 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public String getMainClass() {
         return this.mainClass;
+    }
+
+    @Override
+    public void setStepFilters(String[] stepFilters) {
+        this.stepFilters = stepFilters;
+    }
+
+    @Override
+    public String[] getStepFilters() {
+        if (justMyCode) {
+            return stepFilters;
+        }
+        return null;
+    }
+
+    @Override
+    public void setStepThroughFilters(boolean stepThroughFilters) {
+        this.stepThroughFilters = stepThroughFilters;
+    }
+
+    @Override
+    public boolean getStepThroughFilters() {
+        return stepThroughFilters;
+    }
+
+    @Override
+    public void setJustMyCode(boolean justMyCode) {
+        this.justMyCode = justMyCode;
+    }
+
+    @Override
+    public boolean isJustMyCode() {
+        return justMyCode;
+    }
+
+    @Override
+    public void setSkipSimpleGetters(boolean skipSimpleGetters) {
+        this.skipSimpleGetters = skipSimpleGetters;
+    }
+
+    @Override
+    public boolean isSkipSimpleGetters() {
+        return skipSimpleGetters;
     }
 }

@@ -104,4 +104,20 @@ public interface IDebugAdapterContext {
     void setMainClass(String mainClass);
 
     String getMainClass();
+
+    void setStepFilters(String[] stepFilters);
+
+    String[] getStepFilters();
+
+    void setStepThroughFilters(boolean stepThroughFilters);
+
+    boolean getStepThroughFilters();
+
+    void setJustMyCode(boolean justMyCode);
+
+    boolean isJustMyCode();
+
+    void setSkipSimpleGetters(boolean skipSimpleGetters);
+
+    boolean isSkipSimpleGetters();
 }

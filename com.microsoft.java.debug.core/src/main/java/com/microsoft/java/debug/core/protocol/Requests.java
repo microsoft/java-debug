@@ -53,6 +53,10 @@ public class Requests {
         public String cwd;
         public Map<String, String> env;
         public boolean stopOnEntry;
+        public String[] stepFilters = new String[0];
+        public boolean stepThroughFilters = false;
+        public boolean skipSimpleGetters = false;
+        public boolean justMyCode = false;
     }
 
     public static class AttachArguments extends Arguments {
@@ -64,6 +68,7 @@ public class Requests {
         public int timeout = 30000; // Default to 30s.
         public String[] sourcePaths = new String[0];
         public String projectName;
+        public boolean justMyCode = false;
     }
 
     public static class RestartArguments extends Arguments {

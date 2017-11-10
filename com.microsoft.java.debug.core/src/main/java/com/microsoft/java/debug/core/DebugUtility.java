@@ -20,12 +20,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
 import com.sun.jdi.ObjectCollectedException;
+import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
@@ -35,7 +36,7 @@ import com.sun.jdi.connect.Connector.Argument;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
-import com.sun.jdi.event.StepEvent;
+import com.sun.jdi.event.Event;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
@@ -194,11 +195,11 @@ public class DebugUtility {
      *            the target thread.
      * @param eventHub
      *            the {@link IEventHub} instance.
-     * @return the new {@link Location} of the execution flow of the specified
+     * @return the new {@link Event} of the execution flow of the specified
      *         thread.
      */
-    public static CompletableFuture<Location> stepOver(ThreadReference thread, IEventHub eventHub) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OVER);
+    public static StepRequest stepOver(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
+        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OVER, stepFilters);
     }
 
     /**
@@ -211,8 +212,8 @@ public class DebugUtility {
      * @return the new {@link Location} of the execution flow of the specified
      *         thread.
      */
-    public static CompletableFuture<Location> stepInto(ThreadReference thread, IEventHub eventHub) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_INTO);
+    public static StepRequest stepInto(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
+        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
     }
 
     /**
@@ -225,30 +226,32 @@ public class DebugUtility {
      * @return the new {@link Location} of the execution flow of the specified
      *         thread.
      */
-    public static CompletableFuture<Location> stepOut(ThreadReference thread, IEventHub eventHub) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OUT);
+    public static StepRequest stepOut(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
+        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OUT, stepFilters);
     }
 
-    private static CompletableFuture<Location> step(ThreadReference thread, IEventHub eventHub, int stepSize,
-            int stepDepth) {
-        CompletableFuture<Location> future = new CompletableFuture<>();
-
+    private static StepRequest step(ThreadReference thread, IEventHub eventHub, int stepSize,
+            int stepDepth, String[] stepFilters) {
         StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize,
                 stepDepth);
 
         eventHub.stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1)
                 .subscribe(debugEvent -> {
-                    StepEvent event = (StepEvent) debugEvent.event;
-                    future.complete(event.location());
                     thread.virtualMachine().eventRequestManager().deleteEventRequest(request);
                 });
+
+        if (stepFilters != null) {
+            for (String stepFilter : stepFilters) {
+                request.addClassExclusionFilter(stepFilter);
+            }
+        }
         request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         request.addCountFilter(1);
         request.enable();
 
         thread.resume();
 
-        return future;
+        return request;
     }
 
     /**
@@ -309,6 +312,34 @@ public class DebugUtility {
         } catch (ObjectCollectedException ex) {
             // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM when calling suspendCount,
             // the resume operation to this thread is meanness.
+        }
+    }
+
+    /**
+     * Return the frame count of the specified thread safely.
+     * @param thread
+     *              the thread reference
+     * @return the frame count or -1
+     */
+    public static int getFrameCount(ThreadReference thread) {
+        try {
+            return thread.frameCount();
+        } catch (IncompatibleThreadStateException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Return the top stack frame of the specified thread safely.
+     * @param thread
+     *              the thread reference
+     * @return the top stack frame
+     */
+    public static StackFrame getTopFrame(ThreadReference thread) {
+        try {
+            return thread.frame(0);
+        } catch (IncompatibleThreadStateException e) {
+            return null;
         }
     }
 
