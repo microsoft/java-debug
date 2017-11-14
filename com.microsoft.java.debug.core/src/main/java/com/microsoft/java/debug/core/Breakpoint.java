@@ -66,7 +66,11 @@ public class Breakpoint implements IBreakpoint {
     // AutoCloseable
     @Override
     public void close() throws Exception {
-        vm.eventRequestManager().deleteEventRequests(requests());
+        try {
+            vm.eventRequestManager().deleteEventRequests(requests());
+        } catch (VMDisconnectedException ex) {
+            // ignore since removing breakpoints is meanness when JVM is terminated.
+        }
         subscriptions().forEach(subscription -> {
             subscription.dispose();
         });
