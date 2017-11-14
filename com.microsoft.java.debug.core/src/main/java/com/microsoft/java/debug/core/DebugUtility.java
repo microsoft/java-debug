@@ -24,7 +24,6 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 
 import com.sun.jdi.IncompatibleThreadStateException;
-import com.sun.jdi.Location;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
@@ -36,7 +35,6 @@ import com.sun.jdi.connect.Connector.Argument;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
-import com.sun.jdi.event.Event;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
@@ -195,8 +193,9 @@ public class DebugUtility {
      *            the target thread.
      * @param eventHub
      *            the {@link IEventHub} instance.
-     * @return the new {@link Event} of the execution flow of the specified
-     *         thread.
+     * @param stepFilters
+     *            the step filters when stepping.
+     * @return the created {@link StepRequest}.
      */
     public static StepRequest stepOver(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
         return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OVER, stepFilters);
@@ -209,8 +208,9 @@ public class DebugUtility {
      *            the target thread.
      * @param eventHub
      *            the {@link IEventHub} instance.
-     * @return the new {@link Location} of the execution flow of the specified
-     *         thread.
+     * @param stepFilters
+     *            the step filters when stepping.
+     * @return the created {@link StepRequest}.
      */
     public static StepRequest stepInto(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
         return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
@@ -223,8 +223,9 @@ public class DebugUtility {
      *            the target thread.
      * @param eventHub
      *            the {@link IEventHub} instance.
-     * @return the new {@link Location} of the execution flow of the specified
-     *         thread.
+     * @param stepFilters
+     *            the step filters when stepping.
+     * @return the created {@link StepRequest}.
      */
     public static StepRequest stepOut(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
         return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OUT, stepFilters);
