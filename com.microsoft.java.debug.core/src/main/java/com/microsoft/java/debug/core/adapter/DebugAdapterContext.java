@@ -19,6 +19,7 @@ import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+import com.microsoft.java.debug.core.protocol.Requests.DebugFilters;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
@@ -36,10 +37,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
     private String mainClass;
-    private String[] stepFilters;
-    private boolean stepThroughFilters;
-    private boolean justMyCode;
-    private boolean skipSimpleGetters;
+    private DebugFilters debugFilters;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -210,45 +208,12 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
-    public void setStepFilters(String[] stepFilters) {
-        this.stepFilters = stepFilters;
+    public void setDebugFilters(DebugFilters debugFilters) {
+        this.debugFilters = debugFilters;
     }
 
     @Override
-    public String[] getStepFilters() {
-        if (justMyCode) {
-            return stepFilters;
-        }
-        return null;
-    }
-
-    @Override
-    public void setStepThroughFilters(boolean stepThroughFilters) {
-        this.stepThroughFilters = stepThroughFilters;
-    }
-
-    @Override
-    public boolean getStepThroughFilters() {
-        return stepThroughFilters;
-    }
-
-    @Override
-    public void setJustMyCode(boolean justMyCode) {
-        this.justMyCode = justMyCode;
-    }
-
-    @Override
-    public boolean isJustMyCode() {
-        return justMyCode;
-    }
-
-    @Override
-    public void setSkipSimpleGetters(boolean skipSimpleGetters) {
-        this.skipSimpleGetters = skipSimpleGetters;
-    }
-
-    @Override
-    public boolean isSkipSimpleGetters() {
-        return skipSimpleGetters;
+    public DebugFilters getDebugFilters() {
+        return debugFilters;
     }
 }

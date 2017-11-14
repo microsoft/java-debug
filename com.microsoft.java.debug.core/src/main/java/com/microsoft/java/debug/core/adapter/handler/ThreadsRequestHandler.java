@@ -20,7 +20,6 @@ import java.util.Map;
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.JDIMethod;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -116,9 +115,9 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             setPendingStepKind(thread, StepRequest.STEP_INTO);
-            setStackDepth(thread);
-            setStepLocation(thread);
-            DebugUtility.stepInto(thread, context.getDebugSession().getEventHub(), context.getStepFilters());
+            setOriginalStackDepth(thread);
+            setOriginalStepLocation(thread);
+            DebugUtility.stepInto(thread, context.getDebugSession().getEventHub(), context.getDebugFilters().stepFilters);
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -127,7 +126,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             setPendingStepKind(thread, StepRequest.STEP_OUT);
-            DebugUtility.stepOut(thread, context.getDebugSession().getEventHub(), context.getStepFilters());
+            DebugUtility.stepOut(thread, context.getDebugSession().getEventHub(), context.getDebugFilters().stepFilters);
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -136,7 +135,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             setPendingStepKind(thread, StepRequest.STEP_OVER);
-            DebugUtility.stepOver(thread, context.getDebugSession().getEventHub(), context.getStepFilters());
+            DebugUtility.stepOver(thread, context.getDebugSession().getEventHub(), context.getDebugFilters().stepFilters);
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -197,20 +196,18 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         StepEvent event = (StepEvent) debugEvent.event;
         ThreadReference thread = event.thread();
         debugEvent.shouldResume = false;
-        if (context.isJustMyCode()) {
+        if (context.getDebugFilters() != null) {
             if (getPendingStepKind(thread) == StepRequest.STEP_INTO) {
-                if (!context.getStepThroughFilters()) {
-                    // Check if the step into operation stepped through the filtered code and stopped at an un-filtered location.
-                    if (getStackDepth(thread) + 1 < DebugUtility.getFrameCount(thread)) {
-                        // Create another stepOut request to return back where we started the step into.
-                        DebugUtility.stepOut(thread, debugSession.getEventHub(), context.getStepFilters());
-                        return;
-                    }
+                // Check if the step into operation stepped through the filtered code and stopped at an un-filtered location.
+                if (getOriginalStackDepth(thread) + 1 < DebugUtility.getFrameCount(thread)) {
+                    // Create another stepOut request to return back where we started the step into.
+                    DebugUtility.stepOut(thread, debugSession.getEventHub(), context.getDebugFilters().stepFilters);
+                    return;
                 }
                 // If the ending step location is filtered, or same as the original location where the step into operation is originated,
                 // do another step of the same kind.
-                if (methodShouldBeFiltered(thread, context) || shouldDoExtraStepInto(thread)) {
-                    DebugUtility.stepInto(thread, debugSession.getEventHub(), context.getStepFilters());
+                if (locationShouldBeFiltered(thread, context) || shouldDoExtraStepInto(thread)) {
+                    DebugUtility.stepInto(thread, debugSession.getEventHub(), context.getDebugFilters().stepFilters);
                     return;
                 }
             }
@@ -219,11 +216,10 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     /**
-     * Return true if the StepEvent's location is a Method that the user has indicated (via the user preferences)
-     * should be filtered.
+     * Return true if the StepEvent's location is a Method that the user has indicated to filter.
      */
-    private boolean methodShouldBeFiltered(ThreadReference thread, IDebugAdapterContext context) {
-        Location originalLocation = getStepLocation(thread);
+    private boolean locationShouldBeFiltered(ThreadReference thread, IDebugAdapterContext context) {
+        Location originalLocation = getOriginalStepLocation(thread);
         Location currentLocation = null;
         StackFrame topFrame = DebugUtility.getTopFrame(thread);
         if (topFrame != null) {
@@ -232,15 +228,13 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (originalLocation == null || currentLocation == null) {
             return false;
         }
-        return !methodIsFiltered(originalLocation.method(), context) && methodIsFiltered(currentLocation.method(), context);
+        return !methodShouldBeFiltered(originalLocation.method(), context) && methodShouldBeFiltered(currentLocation.method(), context);
     }
 
-    private boolean methodIsFiltered(Method method, IDebugAdapterContext context) {
-        if (method.isStaticInitializer()
-                || method.isSynthetic()
-                || method.isConstructor()
-                || (context.isSkipSimpleGetters() && JDIMethod.isGetterMethod(method))
-                || JDIMethod.isSetterMethod(method)) {
+    private boolean methodShouldBeFiltered(Method method, IDebugAdapterContext context) {
+        if ((context.getDebugFilters().skipStaticInitializer && method.isStaticInitializer())
+                || (context.getDebugFilters().skipSynthetic && method.isSynthetic())
+                || (context.getDebugFilters().skipConstructors && method.isConstructor())) {
             return true;
         }
         return false;
@@ -250,10 +244,10 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
      * Check if the current top stack is same as the original top stack.
      */
     private boolean shouldDoExtraStepInto(ThreadReference thread) {
-        if (getStackDepth(thread) != DebugUtility.getFrameCount(thread)) {
+        if (getOriginalStackDepth(thread) != DebugUtility.getFrameCount(thread)) {
             return false;
         }
-        Location originalLocation = getStepLocation(thread);
+        Location originalLocation = getOriginalStepLocation(thread);
         if (originalLocation == null) {
             return false;
         }
@@ -295,14 +289,14 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         return state.pendingStepKind;
     }
 
-    private void setStackDepth(ThreadReference thread) {
+    private void setOriginalStackDepth(ThreadReference thread) {
         ThreadState state = getThreadState(thread);
         if (state != null) {
             state.stackDepth = DebugUtility.getFrameCount(thread);
         }
     }
 
-    private int getStackDepth(ThreadReference thread) {
+    private int getOriginalStackDepth(ThreadReference thread) {
         ThreadState state = getThreadState(thread);
         if (state == null) {
             return -1;
@@ -310,7 +304,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         return state.stackDepth;
     }
 
-    private void setStepLocation(ThreadReference thread) {
+    private void setOriginalStepLocation(ThreadReference thread) {
         ThreadState state = getThreadState(thread);
         if (state != null) {
             StackFrame topFrame = DebugUtility.getTopFrame(thread);
@@ -320,7 +314,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private Location getStepLocation(ThreadReference thread) {
+    private Location getOriginalStepLocation(ThreadReference thread) {
         ThreadState state = getThreadState(thread);
         if (state != null) {
             return state.stepLocation;

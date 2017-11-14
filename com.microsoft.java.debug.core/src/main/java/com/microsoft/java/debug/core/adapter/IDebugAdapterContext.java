@@ -17,6 +17,7 @@ import java.util.Map;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Requests.DebugFilters;
 
 public interface IDebugAdapterContext {
     /**
@@ -105,19 +106,7 @@ public interface IDebugAdapterContext {
 
     String getMainClass();
 
-    void setStepFilters(String[] stepFilters);
+    void setDebugFilters(DebugFilters filters);
 
-    String[] getStepFilters();
-
-    void setStepThroughFilters(boolean stepThroughFilters);
-
-    boolean getStepThroughFilters();
-
-    void setJustMyCode(boolean justMyCode);
-
-    boolean isJustMyCode();
-
-    void setSkipSimpleGetters(boolean skipSimpleGetters);
-
-    boolean isSkipSimpleGetters();
+    DebugFilters getDebugFilters();
 }
