@@ -232,8 +232,8 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private boolean methodShouldBeFiltered(Method method, IDebugAdapterContext context) {
-        if ((context.getDebugFilters().skipStaticInitializer && method.isStaticInitializer())
-                || (context.getDebugFilters().skipSynthetic && method.isSynthetic())
+        if ((context.getDebugFilters().skipStaticInitializers && method.isStaticInitializer())
+                || (context.getDebugFilters().skipSynthetics && method.isSynthetic())
                 || (context.getDebugFilters().skipConstructors && method.isConstructor())) {
             return true;
         }

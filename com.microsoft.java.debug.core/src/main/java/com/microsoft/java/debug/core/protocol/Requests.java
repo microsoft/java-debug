@@ -40,8 +40,8 @@ public class Requests {
 
     public static class DebugFilters {
         public String[] stepFilters = new String[0];
-        public boolean skipSynthetic;
-        public boolean skipStaticInitializer;
+        public boolean skipSynthetics;
+        public boolean skipStaticInitializers;
         public boolean skipConstructors;
     }
 
