@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,6 +45,7 @@ public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
+    private BiConsumer<Messages.Request, Consumer<Messages.Response>> requestConsumer;
     private IProviderContext providerContext;
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
@@ -51,8 +53,11 @@ public class DebugAdapter implements IDebugAdapter {
     /**
      * Constructor.
      */
-    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext providerContext) {
-        eventConsumer = consumer;
+    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> sendEvent,
+            BiConsumer<Messages.Request, Consumer<Messages.Response>> sendRequest,
+            IProviderContext providerContext) {
+        eventConsumer = sendEvent;
+        requestConsumer = sendRequest;
         this.providerContext = providerContext;
         debugContext = new DebugAdapterContext(this);
         requestHandlers = new HashMap<>();
@@ -108,6 +113,17 @@ public class DebugAdapter implements IDebugAdapter {
      */
     public void sendEventLater(Events.DebugEvent event) {
         eventConsumer.accept(event, true);
+    }
+
+    /**
+     * Send a request to DA.
+     * @param request
+     *              the target request.
+     * @param cb
+     *              the call back function to handle the response.
+     */
+    public void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
+        requestConsumer.accept(request, cb);
     }
 
     public <T extends IProvider> T getProvider(Class<T> clazz) {

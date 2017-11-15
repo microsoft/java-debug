@@ -42,6 +42,10 @@ public class ProtocolServer extends AbstractProtocolServer {
                     sendEvent(debugEvent.type, debugEvent);
                 }
             }
+        }, (request, cb) -> {
+            if (!terminateSession) {
+                sendRequest(request, cb);
+            }
         }, context);
     }
 

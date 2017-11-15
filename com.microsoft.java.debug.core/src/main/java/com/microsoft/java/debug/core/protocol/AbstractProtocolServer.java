@@ -23,8 +23,11 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -45,6 +48,7 @@ public abstract class AbstractProtocolServer {
     private ByteBuffer rawData;
     private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
+    private Map<Integer, Consumer<Messages.Response>> pendingRequests = new HashMap<>();
 
     private boolean isDispatchingData;
     private ConcurrentLinkedQueue<Messages.Event> eventQueue;
@@ -136,11 +140,22 @@ public abstract class AbstractProtocolServer {
         String utf8Data = data.getString(PROTOCOL_ENCODING);
 
         try {
-            logger.fine("\n[[RESPONSE]]\n" + utf8Data);
+            if (message instanceof Messages.Request) {
+                logger.fine("\n[[REQUEST]]\n" + utf8Data);
+            } else {
+                logger.fine("\n[[RESPONSE]]\n" + utf8Data);
+            }
             this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
             logger.log(Level.SEVERE, String.format("Write data to io exception: %s", e.toString()), e);
+        }
+    }
+
+    protected void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
+        sendMessage(request);
+        if (cb != null) {
+            pendingRequests.put(request.seq, cb);
         }
     }
 
@@ -176,7 +191,12 @@ public abstract class AbstractProtocolServer {
                             }
                         }
                     } else if (message.type.equals("response")) {
-                        // handle response.
+                        Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
+                        Consumer<Messages.Response> cb = pendingRequests.get(response.request_seq);
+                        if (cb != null) {
+                            pendingRequests.remove(response.request_seq);
+                            cb.accept(response);
+                        }
                     }
                     continue;
                 }

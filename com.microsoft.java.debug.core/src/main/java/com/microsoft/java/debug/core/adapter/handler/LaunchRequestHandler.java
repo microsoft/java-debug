@@ -22,11 +22,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -38,11 +42,18 @@ import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.JsonUtils;
+import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
+import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
+import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import com.sun.jdi.connect.ListeningConnector;
 import com.sun.jdi.connect.VMStartException;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
@@ -124,36 +135,86 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             launchLogs.append(String.format("vmArgs: %s", launchArguments.vmArgs));
             logger.info(launchLogs.toString());
 
-            IDebugSession debugSession = DebugUtility.launch(
-                    vmProvider.getVirtualMachineManager(),
-                    launchArguments.mainClass,
-                    launchArguments.args,
-                    launchArguments.vmArgs,
-                    Arrays.asList(launchArguments.modulePaths),
-                    Arrays.asList(launchArguments.classPaths),
-                    launchArguments.cwd,
-                    envVars);
-            context.setDebugSession(debugSession);
-            context.setVmStopOnEntry(launchArguments.stopOnEntry);
-            context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
+            if (context.isSupportsRunInTerminalRequest()
+                    && (launchArguments.console.equals("integratedTerminal") || launchArguments.console.equals("externalTerminal"))) {
+                final int ACCEPT_TIMEOUT = 10 * 1000;
+                List<ListeningConnector> connectors = vmProvider.getVirtualMachineManager().listeningConnectors();
+                final ListeningConnector listenConnector = connectors.get(0);
+                Map<String, Connector.Argument> args = listenConnector.defaultArguments();
+                ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
+                String address = listenConnector.startListening(args);
 
-            logger.info("Launching debuggee VM succeeded.");
+                String[] cmds = constructLaunchCommands(launchArguments, address);
+                RunInTerminalRequestArguments requestArgs = null;
+                if (launchArguments.console.equals("integratedTerminal")) {
+                    requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
+                            cmds,
+                            launchArguments.cwd,
+                            launchArguments.env,
+                            Constants.JAVA_DEBUG_CONSOLE);
+                } else {
+                    requestArgs = RunInTerminalRequestArguments.createExternalTerminal(
+                            cmds,
+                            launchArguments.cwd,
+                            launchArguments.env,
+                            Constants.JAVA_DEBUG_CONSOLE);
+                }
+                Messages.Request request = new Messages.Request(
+                        Requests.Command.RUNINTERMINAL.getName(),
+                        (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));
 
-            ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
-            debuggeeConsole.onStdout((output) -> {
-                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
-                // That means the debugger can send OutputEvent to DA at any time.
-                context.sendEvent(Events.OutputEvent.createStdoutOutput(output));
-            });
+                // The DA will delegate the execution to the shell, but it doesn't promise to return the process id and exit code to debugger.
+                // This is because the DA cannot really know whether the launching of the target was successful and whether the target is ready
+                // for debugging. For this reason the debugger cannot depend on the runInTerminal response to determine if the debuggee is ready or not.
+                // The debugger will create a listening connector in server mode, and let the debuggee that was started on the shell to
+                // connect to the connector server. And it times out after 10 seconds.
+                context.sendRequest(request, (runResponse) -> {
+                    logger.info("runInTerminalRequest response.");
+                });
 
-            debuggeeConsole.onStderr((err) -> {
-                context.sendEvent(Events.OutputEvent.createStderrOutput(err));
-            });
-            debuggeeConsole.start();
+                try {
+                    VirtualMachine virtualMachine = listenConnector.accept(args);
+                    DebugSession debugSession = new DebugSession(virtualMachine);
+                    context.setDebugSession(debugSession);
+
+                    logger.info("Launching debuggee VM in external console succeeded.");
+                } catch (IOException | IllegalConnectorArgumentsException e) {
+                    AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
+                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
+                }
+            } else {
+                IDebugSession debugSession = DebugUtility.launch(
+                        vmProvider.getVirtualMachineManager(),
+                        launchArguments.mainClass,
+                        launchArguments.args,
+                        launchArguments.vmArgs,
+                        Arrays.asList(launchArguments.modulePaths),
+                        Arrays.asList(launchArguments.classPaths),
+                        launchArguments.cwd,
+                        envVars);
+                context.setDebugSession(debugSession);
+
+                logger.info("Launching debuggee VM succeeded.");
+
+                ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
+                debuggeeConsole.onStdout((output) -> {
+                    // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
+                    // That means the debugger can send OutputEvent to DA at any time.
+                    context.sendEvent(Events.OutputEvent.createStdoutOutput(output));
+                });
+
+                debuggeeConsole.onStderr((err) -> {
+                    context.sendEvent(Events.OutputEvent.createStderrOutput(err));
+                });
+                debuggeeConsole.start();
+            }
         } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
             AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
                     String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }
+
+        context.setVmStopOnEntry(launchArguments.stopOnEntry);
+        context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
 
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
         Map<String, Object> options = new HashMap<>();
@@ -169,4 +230,52 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         return mainClass.substring(index + 1);
     }
 
+    private String[] constructLaunchCommands(LaunchArguments launchArguments, String address) {
+        String slash = System.getProperty("file.separator");
+
+        List<String> launchCmds = new ArrayList<>();
+        launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
+        launchCmds.add("-agentlib:jdwp=transport=dt_socket,server=n,suspend=y,address=" + address);
+        if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
+            launchCmds.addAll(parseArguments(launchArguments.vmArgs));
+        }
+        if (ArrayUtils.isNotEmpty(launchArguments.modulePaths)) {
+            launchCmds.add("--module-path");
+            launchCmds.add(String.join(File.pathSeparator, launchArguments.modulePaths));
+        }
+        if (ArrayUtils.isNotEmpty(launchArguments.classPaths)) {
+            launchCmds.add("-cp");
+            launchCmds.add(String.join(File.pathSeparator, launchArguments.classPaths));
+        }
+        // For java 9 project, should specify "-m $MainClass".
+        String[] mainClasses = launchArguments.mainClass.split("/");
+        if (ArrayUtils.isNotEmpty(launchArguments.modulePaths) || mainClasses.length == 2) {
+            launchCmds.add("-m");
+        }
+        launchCmds.add(launchArguments.mainClass);
+        if (StringUtils.isNotBlank(launchArguments.args)) {
+            launchCmds.addAll(parseArguments(launchArguments.args));
+        }
+        return launchCmds.toArray(new String[0]);
+    }
+
+    /**
+     * Parses the given command line into separate arguments that can be passed
+     * to <code>Runtime.getRuntime().exec(cmdArray)</code>.
+     *
+     * @param args command line as a single string.
+     * @return the arguments array.
+     */
+    private static List<String> parseArguments(String cmdStr) {
+        List<String> list = new ArrayList<String>();
+        // The legal arguments are
+        // 1. token starting with something other than quote " and followed by zero or more non-space characters
+        // 2. a quote " followed by whatever, until another quote "
+        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(cmdStr);
+        while (m.find()) {
+            String arg = m.group(1).replaceAll("^\"|\"$", ""); // Remove surrounding quotes.
+            list.add(arg);
+        }
+        return list;
+    }
 }

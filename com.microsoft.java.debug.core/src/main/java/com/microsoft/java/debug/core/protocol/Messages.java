@@ -40,6 +40,15 @@ public class Messages {
             this.command = cmd;
             this.arguments = arg;
         }
+
+        /**
+         * Constructor.
+         */
+        public Request(String cmd, JsonObject arg) {
+            super("request");
+            this.command = cmd;
+            this.arguments = arg;
+        }
     }
 
     public static class Response extends ProtocolMessage {

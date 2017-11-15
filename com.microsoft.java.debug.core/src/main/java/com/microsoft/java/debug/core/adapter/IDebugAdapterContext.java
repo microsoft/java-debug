@@ -13,10 +13,12 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Messages;
 
 public interface IDebugAdapterContext {
     /**
@@ -34,6 +36,8 @@ public interface IDebugAdapterContext {
      *            the debug event
      */
     void sendEventAsync(Events.DebugEvent event);
+
+    void sendRequest(Messages.Request request, Consumer<Messages.Response> cb);
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 
@@ -66,6 +70,10 @@ public interface IDebugAdapterContext {
     boolean isClientPathsAreUri();
 
     void setClientPathsAreUri(boolean clientPathsAreUri);
+
+    void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest);
+
+    boolean isSupportsRunInTerminalRequest();
 
     boolean isAttached();
 

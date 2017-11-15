@@ -42,6 +42,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
                     context.setClientPathsAreUri(false);
             }
         }
+        context.setSupportsRunInTerminalRequest(initializeArguments.supportsRunInTerminalRequest);
 
         // Send an InitializedEvent
         context.sendEventAsync(new Events.InitializedEvent());

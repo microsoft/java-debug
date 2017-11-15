@@ -14,11 +14,13 @@ package com.microsoft.java.debug.core.adapter;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+import com.microsoft.java.debug.core.protocol.Messages;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
@@ -30,6 +32,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean debuggerPathsAreUri = true;
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
+    private boolean supportsRunInTerminalRequest = false;
     private boolean isAttached = false;
     private String[] sourcePaths;
     private Charset debuggeeEncoding;
@@ -53,6 +56,11 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void sendEventAsync(DebugEvent event) {
         debugAdapter.sendEventLater(event);
+    }
+
+    @Override
+    public void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
+        debugAdapter.sendRequest(request, cb);
     }
 
     @Override
@@ -108,6 +116,16 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setClientPathsAreUri(boolean clientPathsAreUri) {
         this.clientPathsAreUri = clientPathsAreUri;
+    }
+
+    @Override
+    public void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest) {
+        this.supportsRunInTerminalRequest = supportsRunInTerminalRequest;
+    }
+
+    @Override
+    public boolean isSupportsRunInTerminalRequest() {
+        return supportsRunInTerminalRequest;
     }
 
     @Override
