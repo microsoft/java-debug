@@ -24,6 +24,7 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -70,18 +71,29 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             return;
         }
 
-        if (!simpleExprPattern.matcher(expression).matches()) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
-                    "Failed to evaluate. Reason: Complex expression is not supported currently.");
-            return;
-        }
-
         JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameProxy == null) {
             // stackFrameProxy is null means the stackframe is continued by user manually,
             AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
             return;
         }
+        IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
+        final IDebugAdapterContext finalContext = context;
+        finalContext.setResponseAsync(true);
+        engine.eval(context.getProjectName(), expression, stackFrameProxy.getProxiedObject(), result -> {
+            System.out.println(result);
+            response.body = new Responses.EvaluateResponseBody(result,
+                    0, "String",
+                    0);
+            finalContext.sendResponseAsync(response);
+        });
+        if (true) return;
+        if (!simpleExprPattern.matcher(expression).matches()) {
+            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                    "Failed to evaluate. Reason: Complex expression is not supported currently.");
+            return;
+        }
+
 
         // split a.b.c => ["a", "b", "c"]
         List<String> referenceExpressions = Arrays.stream(StringUtils.split(expression, '.'))

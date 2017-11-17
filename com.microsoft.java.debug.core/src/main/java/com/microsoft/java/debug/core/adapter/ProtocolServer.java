@@ -33,7 +33,7 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
+        debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
             // If the protocolServer has been stopped, it'll no longer receive any event.
             if (!terminateSession) {
                 if (willSendLater) {
@@ -42,12 +42,15 @@ public class ProtocolServer extends AbstractProtocolServer {
                     sendEvent(debugEvent.type, debugEvent);
                 }
             }
+        }, response -> {
+            sendMessage(response);
         }, context);
     }
 
     /**
      * A while-loop to parse input data and send output data constantly.
      */
+    @Override
     public void start() {
         usageDataSession.reportStart();
         super.start();
@@ -56,14 +59,16 @@ public class ProtocolServer extends AbstractProtocolServer {
     /**
      * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
      */
+    @Override
     public void stop() {
         usageDataSession.reportStop();
         super.stop();
         usageDataSession.submitUsageData();
     }
 
+    @Override
     protected void dispatchRequest(Messages.Request request) {
-        Messages.Response response = this.debugAdapter.dispatchRequest(request);
+        Messages.Response response = debugAdapter.dispatchRequest(request);
         if (request.command.equals("disconnect")) {
             stop();
         }
