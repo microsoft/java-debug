@@ -22,7 +22,7 @@ import com.microsoft.java.debug.core.Configuration;
 public class JavaDebuggerServerPlugin implements BundleActivator {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
-    public static final String PLUGIN_ID = "com.microsoft.java.debug";
+    public static final String PLUGIN_ID = "com.microsoft.java.debug.plugin";
     public static BundleContext context = null;
 
     @Override
