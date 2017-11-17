@@ -39,7 +39,6 @@ import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
-import com.sun.jdi.VMDisconnectedException;
 
 public class StackTraceRequestHandler implements IDebugRequestHandler {
 
@@ -73,15 +72,8 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     StackFrame stackFrame = stackFrames.get(i);
                     int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(),
                             new JdiObjectProxy<>(stackFrame));
-                    try {
-                        Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
-                        result.add(clientStackFrame);
-                    } catch (VMDisconnectedException ex) {
-                        // we just return the empty stackframe since ALL stack frames will be invalid if JVM is terminated
-                        response.body = new Responses.StackTraceResponseBody(new ArrayList<>(), 0);
-                        return;
-                    }
-
+                    Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
+                    result.add(clientStackFrame);
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {

@@ -27,7 +27,6 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.sun.jdi.Method;
 import com.sun.jdi.ThreadReference;
-import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.ExceptionEvent;
@@ -58,12 +57,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 handleDebugEvent(debugEvent, debugSession, context);
             });
             // configuration is done, and start debug session.
-            try {
-                debugSession.start();
-            } catch (VMDisconnectedException ex) {
-                context.sendEventAsync(new Events.TerminatedEvent());
-                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED, "Failed to launch debug session, the debugger will exit.");
-            }
+            debugSession.start();
         } else {
             context.sendEventAsync(new Events.TerminatedEvent());
             AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");

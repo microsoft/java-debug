@@ -33,7 +33,6 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.SetBreakpointArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
-import com.sun.jdi.VMDisconnectedException;
 
 public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private BreakpointManager manager = new BreakpointManager();
@@ -88,16 +87,10 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
                 // For newly added breakpoint, should install it to debuggee first.
                 if (toAdds[i] == added[i] && added[i].className() != null) {
-                    try {
-                        added[i].install().thenAccept(bp -> {
-                            Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
-                            context.sendEventAsync(bpEvent);
-                        });
-                    } catch (VMDisconnectedException e) {
-                        // install breakpoint may report VMDisconnectedException when the VM is terminated
-                        AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED, "VM is terminated.");
-                        return;
-                    }
+                    added[i].install().thenAccept(bp -> {
+                        Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
+                        context.sendEventAsync(bpEvent);
+                    });
                 } else if (toAdds[i].hitCount() != added[i].hitCount() && added[i].className() != null) {
                     // Update hitCount condition.
                     added[i].setHitCount(toAdds[i].hitCount());

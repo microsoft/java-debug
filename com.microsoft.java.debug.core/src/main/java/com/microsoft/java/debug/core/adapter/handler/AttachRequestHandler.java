@@ -17,7 +17,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -35,7 +34,6 @@ import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.AttachArguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
-import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {
@@ -75,12 +73,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                     context.sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
                 }
             }
-        } catch (VMDisconnectedException e) {
-            // user error: to attach a terminated JVM
-            logger.log(Level.FINE, String.format("Cannot attach to a terminated JVM: %s", e.toString()));
-            AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE, "The remote JVM is terminated.");
         } catch (IOException | IllegalConnectorArgumentsException e) {
-            logger.log(Level.SEVERE, String.format("Failed to attach debuggee VM: %s", e.toString()), e);
             AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE,
                     String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
         }
