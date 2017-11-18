@@ -89,15 +89,6 @@ public class DebugAdapter implements IDebugAdapter {
         }
     }
 
-    /**
-     * Send event to DA after the current dispatching request is resolved.
-     *
-     * @see ProtocolServer#sendEventLater(String, Object)
-     */
-    //public void sendEventLater(Events.DebugEvent event) {
-    //    eventConsumer.accept(event, true);
-    //}
-
     public <T extends IProvider> T getProvider(Class<T> clazz) {
         return providerContext.getProvider(clazz);
     }
