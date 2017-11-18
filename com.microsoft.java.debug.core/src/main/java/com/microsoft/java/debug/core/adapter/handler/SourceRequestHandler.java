@@ -14,7 +14,6 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -36,12 +35,13 @@ public class SourceRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         int sourceReference = ((SourceArguments) arguments).sourceReference;
         if (sourceReference <= 0) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+            context.sendErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SourceRequest: property 'sourceReference' is missing, null, or empty");
         } else {
             String uri = context.getSourceUri(sourceReference);
             ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
             response.body = new Responses.SourceResponseBody(sourceProvider.getSourceContents(uri));
+            context.sendResponse(response);
         }
     }
 

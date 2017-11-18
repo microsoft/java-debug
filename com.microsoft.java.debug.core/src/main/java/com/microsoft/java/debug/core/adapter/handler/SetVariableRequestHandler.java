@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -61,13 +60,14 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         SetVariableArguments setVarArguments = (SetVariableArguments) arguments;
         if (setVarArguments.value == null) {
             // Just exit out of editing if we're given an empty expression.
+            context.sendResponse(response);
             return;
         } else if (setVarArguments.variablesReference == -1) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+            context.sendErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SetVariablesRequest: property 'variablesReference' is missing, null, or empty");
             return;
         } else if (StringUtils.isBlank(setVarArguments.name)) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+            context.sendErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SetVariablesRequest: property 'name' is missing, null, or empty");
             return;
         }
@@ -89,7 +89,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         Object container = context.getRecyclableIdPool().getObjectById(setVarArguments.variablesReference);
         // container is null means the stack frame is continued by user manually.
         if (container == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+            context.sendErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
                     "Failed to set variable. Reason: Cannot set value because the thread is resumed.");
             return;
         }
@@ -112,13 +112,13 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value,
                         (ObjectReference) containerObj, options);
             } else {
-                AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+                context.sendErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
                         String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference));
                 return;
             }
         } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
                 | UnsupportedOperationException | ClassNotLoadedException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+            context.sendErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
                     String.format("Failed to set variable. Reason: %s", e.toString()));
             return;
         }
@@ -138,6 +138,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
                 context.getVariableFormatter().typeToString(newValue == null ? null : newValue.type(), options), // type
                 context.getVariableFormatter().valueToString(newValue, options), // value,
                 referenceId, indexedVariables);
+        context.sendResponse(response);
     }
 
     private Value handleSetValueForObject(String name, String belongToClass, String valueString,

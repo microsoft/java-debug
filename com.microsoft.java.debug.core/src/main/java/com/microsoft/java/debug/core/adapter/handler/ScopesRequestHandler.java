@@ -41,6 +41,7 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
         JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
         if (stackFrameProxy == null) {
             response.body = new Responses.ScopesResponseBody(scopes);
+            context.sendResponse(response);
             return;
         }
         StackFrame stackFrame = stackFrameProxy.getProxiedObject();
@@ -49,6 +50,7 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 
         response.body = new Responses.ScopesResponseBody(scopes);
+        context.sendResponse(response);
     }
 
 }

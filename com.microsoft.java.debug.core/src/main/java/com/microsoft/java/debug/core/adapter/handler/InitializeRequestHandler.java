@@ -43,9 +43,6 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
             }
         }
 
-        // Send an InitializedEvent
-        context.sendEventAsync(new Events.InitializedEvent());
-
         Types.Capabilities caps = new Types.Capabilities();
         caps.supportsConfigurationDoneRequest = true;
         caps.supportsHitConditionalBreakpoints = true;
@@ -57,5 +54,8 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         };
         caps.exceptionBreakpointFilters = exceptionFilters;
         response.body = caps;
+
+        context.sendResponse(response);
+        context.sendEvent(new Events.InitializedEvent());
     }
 }

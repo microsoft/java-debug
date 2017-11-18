@@ -40,6 +40,7 @@ public class DisconnectRequestHandler implements IDebugRequestHandler {
                 debugSession.detach();
             }
         }
+        context.sendResponse(response);
     }
 
 }

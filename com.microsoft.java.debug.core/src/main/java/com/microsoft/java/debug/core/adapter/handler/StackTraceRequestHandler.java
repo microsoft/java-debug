@@ -53,6 +53,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         List<Types.StackFrame> result = new ArrayList<>();
         if (stacktraceArgs.startFrame < 0 || stacktraceArgs.levels < 0) {
             response.body = new Responses.StackTraceResponseBody(result, 0);
+            context.sendResponse(response);
             return;
         }
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
@@ -62,6 +63,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
+                    context.sendResponse(response);
                     return;
                 }
                 List<StackFrame> stackFrames = stacktraceArgs.levels == 0
@@ -85,6 +87,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             }
         }
         response.body = new Responses.StackTraceResponseBody(result, totalFrames);
+        context.sendResponse(response);
     }
 
     private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId, IDebugAdapterContext context)

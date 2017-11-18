@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,7 +33,6 @@ import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
-import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -43,7 +41,6 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
-    private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
     private IProviderContext providerContext;
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
@@ -51,16 +48,17 @@ public class DebugAdapter implements IDebugAdapter {
     /**
      * Constructor.
      */
-    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext providerContext) {
-        eventConsumer = consumer;
+    public DebugAdapter(ProtocolServer protocolServer, IProviderContext providerContext) {
         this.providerContext = providerContext;
-        debugContext = new DebugAdapterContext(this);
+        debugContext = new DebugAdapterContext(this, (message) -> {
+            protocolServer.sendMessage(message);
+        });
         requestHandlers = new HashMap<>();
         initialize();
     }
 
     @Override
-    public Messages.Response dispatchRequest(Messages.Request request) {
+    public void dispatchRequest(Messages.Request request) {
         Messages.Response response = new Messages.Response();
         response.request_seq = request.seq;
         response.command = request.command;
@@ -72,7 +70,8 @@ public class DebugAdapter implements IDebugAdapter {
         try {
             if (debugContext.isVmTerminated()) {
                 // the operation is meaningless
-                return response;
+                debugContext.sendResponse(response);
+                return;
             }
             List<IDebugRequestHandler> handlers = requestHandlers.get(command);
             if (handlers != null && !handlers.isEmpty()) {
@@ -80,25 +79,14 @@ public class DebugAdapter implements IDebugAdapter {
                     handler.handle(command, cmdArgs, response, debugContext);
                 }
             } else {
-                AdapterUtils.setErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
+                debugContext.sendErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
                         String.format("Unrecognized request: { _request: %s }", request.command));
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
-            AdapterUtils.setErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
+            debugContext.sendErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
                     e.getMessage() != null ? e.getMessage() : e.toString());
         }
-
-        return response;
-    }
-
-    /**
-     * Send event to DA immediately.
-     *
-     * @see ProtocolServer#sendEvent(String, Object)
-     */
-    public void sendEvent(Events.DebugEvent event) {
-        eventConsumer.accept(event, false);
     }
 
     /**
@@ -106,9 +94,9 @@ public class DebugAdapter implements IDebugAdapter {
      *
      * @see ProtocolServer#sendEventLater(String, Object)
      */
-    public void sendEventLater(Events.DebugEvent event) {
-        eventConsumer.accept(event, true);
-    }
+    //public void sendEventLater(Events.DebugEvent event) {
+    //    eventConsumer.accept(event, true);
+    //}
 
     public <T extends IProvider> T getProvider(Class<T> clazz) {
         return providerContext.getProvider(clazz);

@@ -17,23 +17,33 @@ import java.util.Map;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Messages;
 
 public interface IDebugAdapterContext {
     /**
-     * Send debug event synchronously.
+     * Send debug event to the DA.
      *
      * @param event
-     *            the debug event
+     *            the debug event.
      */
     void sendEvent(Events.DebugEvent event);
 
     /**
-     * Send debug event asynchronously.
-     *
-     * @param event
-     *            the debug event
+     * Send response to the DA.
+     * @param response
+     *            the response.
      */
-    void sendEventAsync(Events.DebugEvent event);
+    void sendResponse(Messages.Response response);
+
+    /**
+     * Send error response with error message to the DA.
+     */
+    void sendErrorResponse(Messages.Response response, ErrorCode errorCode, String errorMessage);
+
+    /**
+     * Send error response with exception to the DA.
+     */
+    void sendErrorResponse(Messages.Response response, ErrorCode errorCode, Exception e);
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 
