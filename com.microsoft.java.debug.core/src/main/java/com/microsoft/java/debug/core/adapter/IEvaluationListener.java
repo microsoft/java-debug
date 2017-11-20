@@ -29,6 +29,8 @@ public interface IEvaluationListener {
      *
      * @param result
      *            The result from the evaluation
+     * @param exception
+     *            The exception raised during evaluation
      * @see IEvaluationResult
      */
     public void evaluationComplete(String result, Exception exception);
