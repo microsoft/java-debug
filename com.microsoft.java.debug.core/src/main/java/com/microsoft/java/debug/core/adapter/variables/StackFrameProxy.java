@@ -19,8 +19,8 @@ public class StackFrameProxy implements StackFrame {
     private final int depth;
     private final int hash;
     private StackFrame proxy;
-    private final StopState stopState;
-    public StackFrameProxy(StopState state, StackFrame stackFrame, int depth) {
+    private final StoppedState stopState;
+    public StackFrameProxy(StoppedState state, StackFrame stackFrame, int depth) {
         stopState = state;
         proxy = stackFrame;
         this.depth = depth;
@@ -48,11 +48,7 @@ public class StackFrameProxy implements StackFrame {
 
     }
 
-    public StackFrame getStackFrame() {
-        return this;
-    }
-
-    public StopState getStoppedContext() {
+    public StoppedState getStoppedState() {
         return stopState;
     }
     public int getDepth() {

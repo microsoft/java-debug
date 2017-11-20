@@ -71,7 +71,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             return;
         }
 
-        if (context.isStaledState(stackFrameProxy.getStoppedContext())) {
+        if (context.isStaledState(stackFrameProxy.getStoppedState())) {
             AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                     "Failed to evaluate. Reason: The stack frame is changed.");
             return;
@@ -83,7 +83,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
         final IDebugAdapterContext finalContext = context;
         finalContext.setResponseAsync(true);
-        engine.eval(context.getProjectName(), expression, stackFrameProxy.getStackFrame().thread(), stackFrameProxy.getDepth(), (result, error) -> {
+        engine.eval(context.getProjectName(), expression, stackFrameProxy.thread(), stackFrameProxy.getDepth(), (result, error) -> {
             if (error != null) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason:  " + error.getMessage());
                 finalContext.sendResponseAsync(response);
@@ -95,7 +95,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         0, "<void>",
                         0);
             } else {
-                long threadId = stackFrameProxy.getStackFrame().thread().uniqueID();
+                long threadId = stackFrameProxy.thread().uniqueID();
                 if (value instanceof ObjectReference) {
                     VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
                     int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy):0;

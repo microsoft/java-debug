@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
-import com.microsoft.java.debug.core.adapter.variables.StopState;
+import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.sun.jdi.ThreadReference;
@@ -122,7 +122,7 @@ public interface IDebugAdapterContext {
 
     void clearStopState(ThreadReference thread);
 
-    boolean isStaledState(StopState ctx);
+    boolean isStaledState(StoppedState state);
 
-    StopState getStopState(ThreadReference thread);
+    StoppedState getStoppedState(ThreadReference thread);
 }

@@ -25,7 +25,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
-import com.microsoft.java.debug.core.adapter.variables.StopState;
+import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -60,7 +60,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         int totalFrames = 0;
         if (thread != null) {
 
-            StopState stop = context.getStopState(thread);
+            StoppedState stop = context.getStoppedState(thread);
 
             try {
                 totalFrames = stop.getStackFrames().size();

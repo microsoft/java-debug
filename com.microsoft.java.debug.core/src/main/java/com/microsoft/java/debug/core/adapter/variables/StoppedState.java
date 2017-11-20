@@ -10,7 +10,7 @@ import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
-public class StopState {
+public class StoppedState {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private final long version;
@@ -18,7 +18,7 @@ public class StopState {
     private List<StackFrame> stackFrames;
     private static AtomicInteger nextId = new AtomicInteger(1);
 
-    public StopState(ThreadReference thread) {
+    public StoppedState(ThreadReference thread) {
         this.thread = thread;
         version = nextId.getAndIncrement();
         if (thread.isSuspended()) {
