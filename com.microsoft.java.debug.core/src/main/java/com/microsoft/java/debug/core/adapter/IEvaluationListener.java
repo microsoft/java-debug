@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import com.sun.jdi.Value;
+
 /**
  * Evaluation results are reported to evaluation listeners on the completion of
  * an evaluation. The evaluation may fail but an exception will be supplied
@@ -33,5 +35,5 @@ public interface IEvaluationListener {
      *            The exception raised during evaluation
      * @see IEvaluationResult
      */
-    public void evaluationComplete(String result, Exception exception);
+    public void evaluationComplete(Value result, Exception exception);
 }
