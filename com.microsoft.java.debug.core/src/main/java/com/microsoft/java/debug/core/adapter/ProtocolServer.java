@@ -51,10 +51,13 @@ public class ProtocolServer extends AbstractProtocolServer {
         super.sendMessage(message);
         if (message instanceof Messages.Response) {
             usageDataSession.recordResponse((Messages.Response) message);
+        } else if (message instanceof Messages.Request) {
+            usageDataSession.recordRequest((Messages.Request) message);
         }
     }
 
     protected void dispatchRequest(Messages.Request request) {
+        usageDataSession.recordRequest(request);
         this.debugAdapter.dispatchRequest(request);
     }
 
