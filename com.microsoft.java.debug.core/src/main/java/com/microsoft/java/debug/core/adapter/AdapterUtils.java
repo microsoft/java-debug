@@ -28,10 +28,6 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.protocol.Messages.Response;
-import com.microsoft.java.debug.core.protocol.Responses;
-import com.microsoft.java.debug.core.protocol.Types;
-
 public class AdapterUtils {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
     private static final Pattern ENCLOSING_CLASS_REGEX = Pattern.compile("^([^\\$]*)");
@@ -167,39 +163,6 @@ public class AdapterUtils {
             | SecurityException e) {
             return false;
         }
-    }
-
-    /**
-     * Generate an error response with the given error message.
-     *
-     * @param response
-     *              the response object
-     * @param errorCode
-     *              the error code
-     * @param errorMessage
-     *              the error message
-     */
-    public static void setErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
-        response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
-        response.message = errorMessage;
-        response.success = false;
-    }
-
-    /**
-     * Generate an error response with the given exception.
-     *
-     * @param response
-     *              the response object
-     * @param errorCode
-     *              the error code
-     * @param e
-     *              the exception
-     */
-    public static void setErrorResponse(Response response, ErrorCode errorCode, Exception e) {
-        String errorMessage = e.toString();
-        response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
-        response.message = errorMessage;
-        response.success = false;
     }
 
     /**

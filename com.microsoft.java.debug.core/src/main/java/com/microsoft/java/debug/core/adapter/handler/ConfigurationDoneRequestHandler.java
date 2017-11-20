@@ -17,7 +17,6 @@ import java.util.List;
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.UsageDataSession;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -58,9 +57,10 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             });
             // configuration is done, and start debug session.
             debugSession.start();
+            context.sendResponse(response);
         } else {
-            context.sendEventAsync(new Events.TerminatedEvent());
-            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");
+            context.sendErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");
+            context.sendEvent(new Events.TerminatedEvent());
         }
     }
 
@@ -80,7 +80,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             Method method = ((MethodEntryEvent) event).method();
             if (method.name().equals("main") && method.isStatic() && method.isPublic() && method.signature().equals("([Ljava/lang/String;)V")) {
                 ThreadReference bpThread = ((MethodEntryEvent) event).thread();
-                context.sendEventAsync(new Events.StoppedEvent("entry", bpThread.uniqueID()));
+                context.sendEvent(new Events.StoppedEvent("entry", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
                 if (request != null) {
                     request.disable();
@@ -88,10 +88,10 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             }
         } else if (event instanceof VMDeathEvent) {
             context.setVmTerminated();
-            context.sendEventAsync(new Events.ExitedEvent(0));
+            context.sendEvent(new Events.ExitedEvent(0));
         } else if (event instanceof VMDisconnectEvent) {
             context.setVmTerminated();
-            context.sendEventAsync(new Events.TerminatedEvent());
+            context.sendEvent(new Events.TerminatedEvent());
             // Terminate eventHub thread.
             try {
                 debugSession.getEventHub().close();
@@ -101,27 +101,27 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         } else if (event instanceof ThreadStartEvent) {
             ThreadReference startThread = ((ThreadStartEvent) event).thread();
             Events.ThreadEvent threadEvent = new Events.ThreadEvent("started", startThread.uniqueID());
-            context.sendEventAsync(threadEvent);
+            context.sendEvent(threadEvent);
         } else if (event instanceof ThreadDeathEvent) {
             ThreadReference deathThread = ((ThreadDeathEvent) event).thread();
             Events.ThreadEvent threadDeathEvent = new Events.ThreadEvent("exited", deathThread.uniqueID());
-            context.sendEventAsync(threadDeathEvent);
+            context.sendEvent(threadDeathEvent);
         } else if (event instanceof BreakpointEvent) {
             if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
                 // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
                 // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
             } else {
                 ThreadReference bpThread = ((BreakpointEvent) event).thread();
-                context.sendEventAsync(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                context.sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
             }
         } else if (event instanceof StepEvent) {
             ThreadReference stepThread = ((StepEvent) event).thread();
-            context.sendEventAsync(new Events.StoppedEvent("step", stepThread.uniqueID()));
+            context.sendEvent(new Events.StoppedEvent("step", stepThread.uniqueID()));
             debugEvent.shouldResume = false;
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
-            context.sendEventAsync(new Events.StoppedEvent("exception", thread.uniqueID()));
+            context.sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {
             isImportantEvent = false;

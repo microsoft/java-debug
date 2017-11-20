@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.microsoft.java.debug.core.DebugUtility;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -47,7 +46,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     @Override
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
+            context.sendErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
             return;
         }
         switch (command) {
@@ -89,6 +88,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             // when the thread is exiting.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
+        context.sendResponse(response);
     }
 
     private void stepIn(Requests.StepInArguments arguments, Response response, IDebugAdapterContext context) {
@@ -97,6 +97,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             DebugUtility.stepInto(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
+        context.sendResponse(response);
     }
 
     private void stepOut(Requests.StepOutArguments arguments, Response response, IDebugAdapterContext context) {
@@ -105,6 +106,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             DebugUtility.stepOut(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
+        context.sendResponse(response);
     }
 
     private void next(Requests.NextArguments arguments, Response response, IDebugAdapterContext context) {
@@ -113,6 +115,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
+        context.sendResponse(response);
     }
 
     private void pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
@@ -120,13 +123,15 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (thread != null) {
             try {
                 thread.suspend();
-                context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId));
+                context.sendResponse(response);
+                context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
             } catch (VMDisconnectedException ex) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
+                context.sendErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
             }
         } else {
             context.getDebugSession().suspend();
-            context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId, true));
+            context.sendResponse(response);
+            context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
     }
 
@@ -147,6 +152,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getRecyclableIdPool().removeAllObjects();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
+        context.sendResponse(response);
     }
 
     private void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {

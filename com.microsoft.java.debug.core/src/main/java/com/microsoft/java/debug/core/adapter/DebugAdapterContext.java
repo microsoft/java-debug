@@ -14,16 +14,21 @@ package com.microsoft.java.debug.core.adapter;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Responses;
+import com.microsoft.java.debug.core.protocol.Types;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
     private DebugAdapter debugAdapter;
+    private Consumer<Messages.ProtocolMessage> sendMessage;
 
     private IDebugSession debugSession;
     private boolean debuggerLinesStartAt1 = true;
@@ -41,18 +46,42 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
-    public DebugAdapterContext(DebugAdapter debugAdapter) {
+    public DebugAdapterContext(DebugAdapter debugAdapter, Consumer<Messages.ProtocolMessage> sendMessage) {
         this.debugAdapter = debugAdapter;
+        this.sendMessage = sendMessage;
     }
 
     @Override
     public void sendEvent(DebugEvent event) {
-        debugAdapter.sendEvent(event);
+        sendMessage.accept(new Messages.Event(event.type, event));
     }
 
     @Override
-    public void sendEventAsync(DebugEvent event) {
-        debugAdapter.sendEventLater(event);
+    public void sendResponse(Messages.Response response) {
+        sendMessage.accept(response);
+    }
+
+    /**
+     * Send an error response with the given error message.
+     */
+    @Override
+    public void sendErrorResponse(Messages.Response response, ErrorCode errorCode, String errorMessage) {
+        response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
+        response.message = errorMessage;
+        response.success = false;
+        sendMessage.accept(response);
+    }
+
+    /**
+     * Send an error response with the given exception.
+     */
+    @Override
+    public void sendErrorResponse(Messages.Response response, ErrorCode errorCode, Exception e) {
+        String errorMessage = e.toString();
+        response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
+        response.message = errorMessage;
+        response.success = false;
+        sendMessage.accept(response);
     }
 
     @Override

@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugSettings;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -54,7 +53,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         EvaluateArguments evalArguments = (EvaluateArguments) arguments;
         if (StringUtils.isBlank(evalArguments.expression)) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+            context.sendErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "EvaluateRequest: property 'expression' is missing, null, or empty");
             return;
         }
@@ -66,12 +65,12 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Empty expression cannot be evaluated.");
+            context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Empty expression cannot be evaluated.");
             return;
         }
 
         if (!simpleExprPattern.matcher(expression).matches()) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+            context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                     "Failed to evaluate. Reason: Complex expression is not supported currently.");
             return;
         }
@@ -79,7 +78,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameProxy == null) {
             // stackFrameProxy is null means the stackframe is continued by user manually,
-            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
+            context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
             return;
         }
 
@@ -109,7 +108,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     List<Variable> matchedStatic = staticVariables.stream()
                             .filter(staticVariable -> staticVariable.name.equals(firstExpression)).collect(Collectors.toList());
                     if (matchedStatic.isEmpty()) {
-                        AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                        context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                                 String.format("Failed to evaluate. Reason: Cannot find the variable: %s.", referenceExpressions.get(0)));
                         return;
                     }
@@ -122,7 +121,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         }
 
         if (firstLevelValue == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+            context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                     String.format("Failed to evaluate. Reason: Cannot find variable with name '%s'.", referenceExpressions.get(0)));
             return;
         }
@@ -132,28 +131,28 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         for (int i = 1; i < referenceExpressions.size(); i++) {
             String fieldName = referenceExpressions.get(i);
             if (currentValue == null) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Evaluation encounters NPE error.");
+                context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Evaluation encounters NPE error.");
                 return;
             }
             if (currentValue instanceof PrimitiveValue) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                         String.format("Failed to evaluate. Reason: Cannot find the field: %s.", fieldName));
                 return;
             }
             if (currentValue instanceof ArrayReference) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                         String.format("Failed to evaluate. Reason: Evaluating array elements is not supported currently.", fieldName));
                 return;
             }
             ObjectReference obj = (ObjectReference) currentValue;
             Field field = obj.referenceType().fieldByName(fieldName);
             if (field == null) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                         String.format("Failed to evaluate. Reason: Cannot find the field: %s.", fieldName));
                 return;
             }
             if (field.isStatic()) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                context.sendErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
                         String.format("Failed to evaluate. Reason: Cannot find the field: %s.", fieldName));
                 return;
             }
@@ -174,5 +173,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         response.body = new Responses.EvaluateResponseBody(context.getVariableFormatter().valueToString(currentValue, options),
                 referenceId, context.getVariableFormatter().typeToString(currentValue == null ? null : currentValue.type(), options),
                 indexedVariables);
+
+        context.sendResponse(response);
     }
 }

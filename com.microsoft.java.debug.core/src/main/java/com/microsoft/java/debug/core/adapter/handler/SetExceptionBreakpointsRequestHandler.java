@@ -16,7 +16,6 @@ import java.util.List;
 
 import org.apache.commons.lang3.ArrayUtils;
 
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -36,7 +35,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
     @Override
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
+            context.sendErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
             return;
         }
 
@@ -46,8 +45,9 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
             boolean notifyUncaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME);
 
             context.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
+            context.sendResponse(response);
         } catch (Exception ex) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
+            context.sendErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
                     String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()));
         }
     }
