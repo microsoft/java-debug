@@ -144,6 +144,7 @@ public class StackFrameObject implements StackFrame {
                     throw ex;
                 }
                 proxy.setValue(arg0, arg1);
+                return;
             }
             throw ex;
         }

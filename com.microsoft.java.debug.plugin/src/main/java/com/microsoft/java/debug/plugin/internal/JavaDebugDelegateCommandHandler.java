@@ -26,6 +26,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
 
     public static String RESOLVE_CLASSPATH = "vscode.java.resolveClasspath";
 
+    public static String RESOLVE_PROJECT = "vscode.java.resolveProject";
+
     public static String RESOLVE_MAINCLASS = "vscode.java.resolveMainClass";
 
     public static String BUILD_WORKSPACE = "vscode.java.buildWorkspace";
@@ -41,6 +43,9 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
         } else if (RESOLVE_CLASSPATH.equals(commandId)) {
             ResolveClasspathsHandler handler = new ResolveClasspathsHandler();
             return handler.resolveClasspaths(arguments);
+        } else if (RESOLVE_PROJECT.equals(commandId)) {
+            ResolveClasspathsHandler handler = new ResolveClasspathsHandler();
+            return handler.resolveProject(arguments);
         } else if (RESOLVE_MAINCLASS.equals(commandId)) {
             ResolveMainClassHandler handler = new ResolveMainClassHandler();
             return handler.resolveMainClass();
