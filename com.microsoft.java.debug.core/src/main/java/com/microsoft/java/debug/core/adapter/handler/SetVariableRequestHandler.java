@@ -24,6 +24,7 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -96,9 +97,18 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
 
         Object containerObj = ((VariableProxy) container).getProxiedVariable();
         try {
-            if (containerObj instanceof StackFrame) {
+            if (containerObj instanceof StackFrameProxy) {
+
+
+                StackFrameProxy stopped = (StackFrameProxy) containerObj;
+                if (context.isStaledState(stopped.getStoppedContext())) {
+                    AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+                            "Failed to set variable. Reason: Cannot set value because the stackframe is invalid.");
+                    return;
+                }
                 newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value,
-                        showStaticVariables, (StackFrame) containerObj, options);
+                     showStaticVariables,  stopped.getStackFrame(), options);
+
             } else if (containerObj instanceof ObjectReference) {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value,
                         (ObjectReference) containerObj, options);

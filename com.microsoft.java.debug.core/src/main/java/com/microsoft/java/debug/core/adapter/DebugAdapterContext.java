@@ -13,14 +13,17 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StopState;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.sun.jdi.ThreadReference;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
@@ -40,6 +43,8 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private String mainClass;
     private String projectName;
     private transient boolean sendResponseLater;
+
+    private Map<Long, StopState> stoppedContexts = new HashMap<>();
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -242,5 +247,38 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setProjectName(String projectName) {
         this.projectName = projectName;
+    }
+
+
+    @Override
+    public void saveStopState(ThreadReference thread) {
+        synchronized(stoppedContexts) {
+            stoppedContexts.compute(thread.uniqueID(), (k, v) -> {
+                return new StopState(thread);
+            });
+        }
+    }
+
+    @Override
+    public StopState getStopState(ThreadReference thread) {
+        synchronized(stoppedContexts) {
+            return stoppedContexts.get(thread.uniqueID());
+        }
+    }
+
+    @Override
+    public boolean isStaledState(StopState ctx) {
+        synchronized(stoppedContexts) {
+            return ctx != stoppedContexts.get(ctx.getThread().uniqueID());
+        }
+    }
+
+    @Override
+    public void clearStopState(ThreadReference thread) {
+        synchronized(stoppedContexts) {
+            stoppedContexts.compute(thread.uniqueID(), (k, v) -> {
+                return null;
+            });
+        }
     }
 }

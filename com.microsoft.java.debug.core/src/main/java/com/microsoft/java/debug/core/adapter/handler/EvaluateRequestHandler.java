@@ -24,8 +24,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
-import com.microsoft.java.debug.core.adapter.variables.StackFrameObject;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -65,19 +64,26 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             return;
         }
 
-        JdiObjectProxy<StackFrameObject> stackFrameProxy = (JdiObjectProxy<StackFrameObject>) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
+        StackFrameProxy stackFrameProxy = (StackFrameProxy) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameProxy == null) {
             // stackFrameProxy is null means the stackframe is continued by user manually,
             AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
             return;
         }
 
+        if (context.isStaledState(stackFrameProxy.getStoppedContext())) {
+            AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                    "Failed to evaluate. Reason: The stack frame is changed.");
+            return;
+        }
+
+
         IVariableFormatter variableFormatter = context.getVariableFormatter();
 
         IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
         final IDebugAdapterContext finalContext = context;
         finalContext.setResponseAsync(true);
-        engine.eval(context.getProjectName(), expression, stackFrameProxy.getProxiedObject().thread, stackFrameProxy.getProxiedObject().depth, (result, error) -> {
+        engine.eval(context.getProjectName(), expression, stackFrameProxy.getStackFrame().thread(), stackFrameProxy.getDepth(), (result, error) -> {
             if (error != null) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason:  " + error.getMessage());
                 finalContext.sendResponseAsync(response);
@@ -89,7 +95,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         0, "<void>",
                         0);
             } else {
-                long threadId = stackFrameProxy.getProxiedObject().thread.uniqueID();
+                long threadId = stackFrameProxy.getStackFrame().thread().uniqueID();
                 if (value instanceof ObjectReference) {
                     VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
                     int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy):0;

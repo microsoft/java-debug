@@ -17,8 +17,7 @@ import java.util.List;
 
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
-import com.microsoft.java.debug.core.adapter.variables.StackFrameObject;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -40,13 +39,13 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
         ScopesArguments scopesArgs = (ScopesArguments) arguments;
         List<Types.Scope> scopes = new ArrayList<>();
         //ThreadProxy
-        JdiObjectProxy<StackFrameObject> stackFrameProxy = (JdiObjectProxy<StackFrameObject>) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
+        StackFrameProxy stackFrameProxy = (StackFrameProxy) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
         if (stackFrameProxy == null) {
             response.body = new Responses.ScopesResponseBody(scopes);
             return;
         }
-        StackFrame stackFrame = stackFrameProxy.getProxiedObject();
-        VariableProxy localScope = new VariableProxy(stackFrame.thread().uniqueID(), "Local", stackFrame);
+        StackFrame stackFrame = stackFrameProxy.getStackFrame();
+        VariableProxy localScope = new VariableProxy(stackFrame.thread().uniqueID(), "Local", stackFrameProxy);
         int localScopeId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(), localScope);
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 

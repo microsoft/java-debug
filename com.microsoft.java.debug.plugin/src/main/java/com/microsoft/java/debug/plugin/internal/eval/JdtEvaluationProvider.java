@@ -2,6 +2,7 @@ package com.microsoft.java.debug.plugin.internal.eval;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -26,6 +27,7 @@ import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.IEvaluationListener;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.sun.jdi.ThreadReference;
@@ -36,7 +38,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private ILaunch launch;
     private JDIDebugTarget debugTarget;
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
-
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     @Override
     public void clearAll() {
         threadMap.clear();
@@ -75,36 +77,50 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             };
         }
         try {
-
             JDIThread JDIthread =  getJDIThread(thread);
-            if (JDIthread.getStackFrames().length <= depth ) {
-                listener.evaluationComplete(null, new UnsupportedOperationException("Invalid depth for evaulation."));
-                return;
-            }
-            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            JDIStackFrame stackframe = (JDIStackFrame) JDIthread.getStackFrames()[depth];
 
-            ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
-            engine.evaluateExpression(ie, stackframe, evaluateResult -> {
-                if (evaluateResult == null || evaluateResult.hasErrors()) {
-                    listener.evaluationComplete(null, new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages())));
-                } else {
-                    //((JDIValue)evaluateResult.getValue()).getUnderlyingValue();
-
-                    try {
-                        Value value = (Value)FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
-                        listener.evaluationComplete(value, null);
-                    } catch (IllegalArgumentException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    } catch (IllegalAccessException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-
-                    //listener.evaluationComplete((Value)evaluateResult.getValue(), null);
+            synchronized (JDIthread) {
+                if (JDIthread.isPerformingEvaluation()) {
+                    JDIthread.wait();
                 }
-            }, 0, false);
+
+                int i = JDIthread.getStackFrames().length;
+                logger.severe("start to eval " + code + " " + i);
+                if (JDIthread.getStackFrames().length <= depth ) {
+                    logger.severe("Invalid depth for evaulation " + i);
+                    listener.evaluationComplete(null, new UnsupportedOperationException("Invalid depth for evaulation."));
+                    return;
+                }
+                ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+                JDIStackFrame stackframe = (JDIStackFrame) JDIthread.getStackFrames()[depth];
+
+                ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
+                engine.evaluateExpression(ie, stackframe, evaluateResult -> {
+                    synchronized (JDIthread) {
+                        JDIthread.notify();
+                    }
+                    logger.severe("end to eval " + code + " ");
+                    if (evaluateResult == null || evaluateResult.hasErrors()) {
+                        listener.evaluationComplete(null, new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages())));
+                    } else {
+                        //((JDIValue)evaluateResult.getValue()).getUnderlyingValue();
+
+                        try {
+                            Value value = (Value)FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
+                            listener.evaluationComplete(value, null);
+                        } catch (IllegalArgumentException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        } catch (IllegalAccessException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+
+                        //listener.evaluationComplete((Value)evaluateResult.getValue(), null);
+                    }
+                }, 0, false);
+            }
+
         } catch (CoreException e) {
             e.printStackTrace();
         } catch (Exception e) {
@@ -113,16 +129,18 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     private JDIThread getJDIThread(ThreadReference thread) {
-        return threadMap.computeIfAbsent(thread, threadKey -> {
-            try {
-                JDIThread newThread = new JDIThread(debugTarget, thread);
-                newThread.computeStackFrames();
-                threadMap.put(thread, newThread);
-                return newThread;
-            } catch(Exception ex) {
-                return null;
-            }
-        });
+        synchronized (threadMap) {
+            return threadMap.computeIfAbsent(thread, threadKey -> {
+                try {
+                    JDIThread newThread = new JDIThread(debugTarget, thread);
+                    newThread.computeStackFrames();
+                    threadMap.put(thread, newThread);
+                    return newThread;
+                } catch(Exception ex) {
+                    return null;
+                }
+            });
+        }
 
     }
 

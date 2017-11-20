@@ -17,8 +17,10 @@ import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StopState;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.sun.jdi.ThreadReference;
 
 public interface IDebugAdapterContext {
     /**
@@ -115,4 +117,12 @@ public interface IDebugAdapterContext {
 
     String getProjectName();
     void setProjectName(String projectName);
+
+    void saveStopState(ThreadReference thread);
+
+    void clearStopState(ThreadReference thread);
+
+    boolean isStaledState(StopState ctx);
+
+    StopState getStopState(ThreadReference thread);
 }

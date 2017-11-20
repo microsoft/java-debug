@@ -14,9 +14,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -27,8 +25,8 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
-import com.microsoft.java.debug.core.adapter.variables.ThreadProxy;
+import com.microsoft.java.debug.core.adapter.variables.StopState;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -43,7 +41,7 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
 public class StackTraceRequestHandler implements IDebugRequestHandler {
-    private Map<Long, ThreadProxy> threads = new HashMap<>();
+//    private Map<Long, ThreadProxy> threads = new HashMap<>();
 
     @Override
     public List<Command> getTargetCommands() {
@@ -61,28 +59,25 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
         int totalFrames = 0;
         if (thread != null) {
-            ThreadProxy t = threads.computeIfAbsent(thread.uniqueID(), (id) -> {
-                ThreadProxy proxy = new ThreadProxy(thread);
-                return proxy;
-            });
 
-            t.computeStackFrame();
+            StopState stop = context.getStopState(thread);
 
             try {
-                totalFrames = t.getTotalFrames();
+                totalFrames = stop.getStackFrames().size();
                 if (totalFrames <= stacktraceArgs.startFrame) {
-                  response.body = new Responses.StackTraceResponseBody(result, totalFrames);
-                  return;
+                    response.body = new Responses.StackTraceResponseBody(result, totalFrames);
+                    return;
                 }
-                for (StackFrame stackFrame : t.getFrames(stacktraceArgs.startFrame, stacktraceArgs.levels == 0 ? totalFrames  : Math.min(totalFrames,
-                        stacktraceArgs.startFrame + stacktraceArgs.levels))) {
-                  int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(),
-                          new JdiObjectProxy<>(stackFrame));
-                  Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
-                  result.add(clientStackFrame);
-              }
-            } catch (IndexOutOfBoundsException | URISyntaxException
-                    | AbsentInformationException | ObjectCollectedException e) {
+                int i = 0;
+                for (StackFrame stackFrame : stop.getStackFrames().subList(stacktraceArgs.startFrame,
+                        stacktraceArgs.levels == 0 ? totalFrames
+                                : Math.min(totalFrames, stacktraceArgs.startFrame + stacktraceArgs.levels))) {
+                    StackFrameProxy sf = new StackFrameProxy(stop, stackFrame, stacktraceArgs.startFrame + i++);
+                    int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(), sf);
+                    Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
+                    result.add(clientStackFrame);
+                }
+            } catch (IndexOutOfBoundsException | URISyntaxException | AbsentInformationException | ObjectCollectedException e) {
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates
@@ -99,14 +94,17 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         Method method = location.method();
         Types.Source clientSource = this.convertDebuggerSourceToClient(location, context);
         String methodName = formatMethodName(method, true, true);
-        int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
-        // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
+        int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(),
+                context.isClientLinesStartAt1());
+        // Line number returns -1 if the information is not available; specifically,
+        // always returns -1 for native methods.
         if (lineNumber < 0) {
             if (method.isNative()) {
                 // For native method, display a tip text "native method" in the Call Stack View.
                 methodName += "[native method]";
             } else {
-                // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
+                // For other unavailable method, such as lambda expression's built-in methods
+                // run/accept/apply,
                 // display "Unknown Source" in the Call Stack View.
                 clientSource = null;
             }
@@ -144,15 +142,19 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
                 return new Types.Source(sourceName, clientPath, 0);
             } else {
-                // If the debugger returns uri in the Source.path for the StackTrace response, VSCode client will try to find a TextDocumentContentProvider
+                // If the debugger returns uri in the Source.path for the StackTrace response,
+                // VSCode client will try to find a TextDocumentContentProvider
                 // to render the contents.
-                // Language Support for Java by Red Hat extension has already registered a jdt TextDocumentContentProvider to parse the jdt-based uri.
-                // The jdt uri looks like 'jdt://contents/rt.jar/java.io/PrintStream.class?=1.helloworld/%5C/usr%5C/lib%5C/jvm%5C/java-8-oracle%5C/jre%5C/
+                // Language Support for Java by Red Hat extension has already registered a jdt
+                // TextDocumentContentProvider to parse the jdt-based uri.
+                // The jdt uri looks like
+                // 'jdt://contents/rt.jar/java.io/PrintStream.class?=1.helloworld/%5C/usr%5C/lib%5C/jvm%5C/java-8-oracle%5C/jre%5C/
                 // lib%5C/rt.jar%3Cjava.io(PrintStream.class'.
                 return new Types.Source(sourceName, uri, 0);
             }
         } else {
-            // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
+            // If the source lookup engine cannot find the source file, then lookup it in
+            // the source directories specified by user.
             String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), relativeSourcePath);
             if (absoluteSourcepath != null) {
                 return new Types.Source(sourceName, absoluteSourcepath, 0);
@@ -171,7 +173,8 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         }
         formattedName.append(method.name());
         if (showParameter) {
-            List<String> argumentTypeNames = method.argumentTypeNames().stream().map(SimpleTypeFormatter::trimTypeName).collect(Collectors.toList());
+            List<String> argumentTypeNames = method.argumentTypeNames().stream().map(SimpleTypeFormatter::trimTypeName)
+                    .collect(Collectors.toList());
             formattedName.append("(");
             formattedName.append(String.join(",", argumentTypeNames));
             formattedName.append(")");

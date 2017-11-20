@@ -104,6 +104,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             DebugUtility.stepInto(thread, context.getDebugSession().getEventHub());
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -112,6 +113,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             DebugUtility.stepOut(thread, context.getDebugSession().getEventHub());
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -121,6 +123,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         }
     }
@@ -130,18 +133,18 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (thread != null) {
             try {
                 thread.suspend();
+                context.clearStopState(thread);
                 context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId));
             } catch (VMDisconnectedException ex) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
             }
         } else {
-            context.getDebugSession().suspend();
-            context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId, true));
+//            context.getDebugSession().suspend();
+//            context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
     }
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private void resume(Requests.ContinueArguments arguments, Response response, IDebugAdapterContext context) {
-        logger.severe("Next managullay" + arguments.threadId);
         boolean allThreadsContinued = true;
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         /**
@@ -152,10 +155,11 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (thread != null) {
             allThreadsContinued = false;
             DebugUtility.resumeThread(thread);
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         } else {
-            context.getDebugSession().resume();
-            context.getRecyclableIdPool().removeAllObjects();
+//            context.getDebugSession().resume();
+//            context.getRecyclableIdPool().removeAllObjects();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
     }
