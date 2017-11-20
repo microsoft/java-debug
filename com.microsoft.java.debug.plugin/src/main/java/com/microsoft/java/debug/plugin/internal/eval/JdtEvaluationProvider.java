@@ -3,6 +3,7 @@ package com.microsoft.java.debug.plugin.internal.eval;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
@@ -36,6 +37,11 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private JDIDebugTarget debugTarget;
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
 
+    @Override
+    public void clearAll() {
+        threadMap.clear();
+
+    }
     @Override
     public void eval(String projectName, String code, ThreadReference thread, int depth, IEvaluationListener listener) {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
@@ -77,10 +83,11 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
             JDIStackFrame stackframe = (JDIStackFrame) JDIthread.getStackFrames()[depth];
+
             ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
             engine.evaluateExpression(ie, stackframe, evaluateResult -> {
-                if (evaluateResult == null || evaluateResult.getValue() == null) {
-                    listener.evaluationComplete(null, evaluateResult.getException());
+                if (evaluateResult == null || evaluateResult.hasErrors()) {
+                    listener.evaluationComplete(null, new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages())));
                 } else {
                     //((JDIValue)evaluateResult.getValue()).getUnderlyingValue();
 
@@ -248,5 +255,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
         };
     }
+
+
 
 }

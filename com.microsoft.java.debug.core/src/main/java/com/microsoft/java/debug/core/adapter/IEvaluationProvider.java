@@ -40,4 +40,6 @@ public interface IEvaluationProvider extends IProvider {
      * @param listener the listener is to be notified when the evaluation finishes.
      */
     void eval(String projectName, String expression, ThreadReference thread, int depth, IEvaluationListener listener);
+
+    void clearAll();
 }
