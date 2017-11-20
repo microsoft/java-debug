@@ -38,6 +38,8 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
+import com.sun.jdi.InternalException;
+import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
@@ -89,7 +91,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 if (showStaticVariables && frame.location().method().isStatic()) {
                     childrenList.addAll(VariableUtils.listStaticVariables(frame));
                 }
-            } catch (AbsentInformationException e) {
+            } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                         String.format("Failed to get variables. Reason: %s", e.toString()));
                 return;

@@ -3,6 +3,7 @@ package com.microsoft.java.debug.plugin.internal.eval;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -17,17 +18,17 @@ import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
 import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
 import org.eclipse.jdt.internal.debug.core.model.JDIDebugTarget;
 import org.eclipse.jdt.internal.debug.core.model.JDIStackFrame;
 import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
+import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.adapter.IEvaluationListener;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.Value;
 
 public class JdtEvaluationProvider implements IEvaluationProvider {
     private IJavaProject project;
@@ -36,7 +37,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
 
     @Override
-    public void eval(String projectName, String code, StackFrame sf, IEvaluationListener listener) {
+    public void eval(String projectName, String code, ThreadReference thread, int depth, IEvaluationListener listener) {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
         if (project == null) {
             for (IProject proj : root.getProjects()) {
@@ -60,7 +61,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
 
         if (debugTarget == null) {
-            debugTarget = new JDIDebugTarget(launch, sf.virtualMachine(), "", false, false, null, false) {
+            debugTarget = new JDIDebugTarget(launch, thread.virtualMachine(), "", false, false, null, false) {
                 @Override
                 protected synchronized void initialize() {
 
@@ -68,13 +69,34 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             };
         }
         try {
+
+            JDIThread JDIthread =  getJDIThread(thread);
+            if (JDIthread.getStackFrames().length <= depth ) {
+                listener.evaluationComplete(null, new UnsupportedOperationException("Invalid depth for evaulation."));
+                return;
+            }
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = engine.getCompiledExpression(code, createJDIStackFrame(sf));
-            engine.evaluateExpression(ie, createJDIStackFrame(sf), evaluateResult -> {
+            JDIStackFrame stackframe = (JDIStackFrame) JDIthread.getStackFrames()[depth];
+            ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
+            engine.evaluateExpression(ie, stackframe, evaluateResult -> {
                 if (evaluateResult == null || evaluateResult.getValue() == null) {
-                    listener.evaluationComplete("error");
-                } else
-                    listener.evaluationComplete(evaluateResult.getValue().toString());
+                    listener.evaluationComplete(null, evaluateResult.getException());
+                } else {
+                    //((JDIValue)evaluateResult.getValue()).getUnderlyingValue();
+
+                    try {
+                        Value value = (Value)FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
+                        listener.evaluationComplete(value, null);
+                    } catch (IllegalArgumentException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    } catch (IllegalAccessException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+
+                    //listener.evaluationComplete((Value)evaluateResult.getValue(), null);
+                }
             }, 0, false);
         } catch (CoreException e) {
             e.printStackTrace();
@@ -83,27 +105,29 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
-    private IJavaStackFrame createJDIStackFrame(StackFrame sf) {
-        return new JDIStackFrame(getJDIThread(sf.thread()), sf, 0);
-    }
-
     private JDIThread getJDIThread(ThreadReference thread) {
-        if (threadMap.containsKey(thread)) {
-            return threadMap.get(thread);
-        }
-        JDIThread newThread = new JDIThread(debugTarget, thread);
-        threadMap.put(thread, newThread);
-        return newThread;
+        return threadMap.computeIfAbsent(thread, threadKey -> {
+            try {
+                JDIThread newThread = new JDIThread(debugTarget, thread);
+                newThread.computeStackFrames();
+                threadMap.put(thread, newThread);
+                return newThread;
+            } catch(Exception ex) {
+                return null;
+            }
+        });
+
     }
 
     @Override
     public boolean isInEvaluation(ThreadReference thread) {
-        return getJDIThread(thread).isPerformingEvaluation();
+        return debugTarget != null && getJDIThread(thread).isPerformingEvaluation();
     }
 
     private static ILaunch createLaunch(IJavaProject project) {
         return new ILaunch() {
 
+            private AbstractSourceLookupDirector locator;
             @Override
             public boolean canTerminate() {
 
@@ -181,20 +205,19 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
             @Override
             public ISourceLocator getSourceLocator() {
+                if (locator != null) {
+                    return locator;
+                }
+                locator = new JavaSourceLookupDirector();
 
-                return new AbstractSourceLookupDirector() {
-
-                    @Override
-                    public void initializeParticipants() {
-
-                        try {
-                            this.setSourceContainers(new ProjectSourceContainer((IProject) project, true).getSourceContainers());
-                        } catch (CoreException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                };
+                try {
+                    locator.setSourceContainers(new ProjectSourceContainer(project.getProject(), true).getSourceContainers());
+                } catch (CoreException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                locator.initializeParticipants();
+                return locator;
             }
 
             @Override

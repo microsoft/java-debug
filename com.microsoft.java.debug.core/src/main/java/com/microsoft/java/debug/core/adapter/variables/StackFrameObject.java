@@ -21,15 +21,40 @@ public class StackFrameObject implements StackFrame {
     public ThreadReference thread;
     private StackFrame proxy;
     private VirtualMachine vm;
+    private ThreadProxy parent;
 
 
-    public StackFrameObject(StackFrame sf, int depth) {
+    public StackFrameObject(ThreadProxy parent, StackFrame sf, int depth) {
         proxy = sf;
         location = sf.location();
         thread = sf.thread();
         vm = sf.virtualMachine();
         this.depth = depth;
+        this.parent = parent;
     }
+
+
+    @Override
+    public int hashCode() {
+        return thread.hashCode() + depth;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj == null) {
+            return false;
+        }
+        if(obj.getClass() != this.getClass()){
+            return false;
+        }
+        if(this == obj){
+            return true;
+        }
+        StackFrameObject sf = (StackFrameObject) obj;
+        return sf.thread.uniqueID() == thread.uniqueID() && depth == sf.depth;
+
+    }
+
 
     @Override
     public VirtualMachine virtualMachine() {
@@ -50,48 +75,148 @@ public class StackFrameObject implements StackFrame {
 
     @Override
     public List<Value> getArgumentValues() {
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
         try {
             return proxy.getArgumentValues();
         } catch (InvalidStackFrameException ex) {
-            return null;
+            if (parent != null) {
+                parent.computeStackFrame();
+                if (proxy == null) {
+                    throw ex;
+                }
+                return proxy.getArgumentValues();
+            }
+            throw ex;
         }
     }
 
     @Override
     public Value getValue(LocalVariable arg0) {
-        // TODO Auto-generated method stub
-        return null;
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
+        try {
+            return proxy.getValue(arg0);
+        } catch (InvalidStackFrameException ex) {
+            if (parent != null) {
+                parent.computeStackFrame();
+                if (proxy == null) {
+                    throw ex;
+                }
+                return proxy.getValue(arg0);
+            }
+            throw ex;
+        }
     }
 
     @Override
     public Map<LocalVariable, Value> getValues(List<? extends LocalVariable> arg0) {
-        return null;
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
+        try {
+            return proxy.getValues(arg0);
+        } catch (InvalidStackFrameException ex) {
+            if (parent != null) {
+                parent.computeStackFrame();
+                if (proxy == null) {
+                    throw ex;
+                }
+                return proxy.getValues(arg0);
+            }
+            throw ex;
+        }
     }
 
     @Override
     public void setValue(LocalVariable arg0, Value arg1) throws InvalidTypeException, ClassNotLoadedException {
-
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
+        try {
+            proxy.setValue(arg0, arg1);
+        } catch (InvalidStackFrameException ex) {
+            if (parent != null) {
+                parent.computeStackFrame();
+                if (proxy == null) {
+                    throw ex;
+                }
+                proxy.setValue(arg0, arg1);
+            }
+            throw ex;
+        }
     }
 
     @Override
     public ObjectReference thisObject() {
-        return null;
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
+        try {
+            return proxy.thisObject();
+        } catch (InvalidStackFrameException ex) {
+            if (parent != null) {
+                parent.computeStackFrame();
+                if (proxy == null) {
+                    throw ex;
+                }
+                return proxy.thisObject();
+            }
+            throw ex;
+        }
     }
 
 
     @Override
     public LocalVariable visibleVariableByName(String arg0) throws AbsentInformationException {
-        // TODO Auto-generated method stub
-        return null;
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
+        try {
+            return proxy.visibleVariableByName(arg0);
+        } catch (InvalidStackFrameException ex) {
+            if (parent != null) {
+                parent.computeStackFrame();
+                if (proxy == null) {
+                    throw ex;
+                }
+                return proxy.visibleVariableByName(arg0);
+            }
+            throw ex;
+        }
     }
 
     @Override
     public List<LocalVariable> visibleVariables() throws AbsentInformationException {
-        // TODO Auto-generated method stub
-        return null;
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
+        try {
+            return proxy.visibleVariables();
+        } catch (InvalidStackFrameException ex) {
+            if (parent != null) {
+                parent.computeStackFrame();
+                if (proxy == null) {
+                    throw ex;
+                }
+                return proxy.visibleVariables();
+            }
+            throw ex;
+        }
     }
 
-//    private T retryWithValidStackFrame<T>(Action<T> act) {
-//
-//    }
+    public void updateStackFrame(StackFrame stackFrame) {
+        proxy = stackFrame;
+        location = proxy.location();
+    }
+
+    public void setDetached() {
+        proxy = null;
+    }
+
+    public boolean isDetached() {
+        return proxy == null;
+    }
 }

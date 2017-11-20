@@ -25,7 +25,9 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameObject;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
@@ -39,9 +41,9 @@ import com.sun.jdi.ArrayReference;
 import com.sun.jdi.Field;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.PrimitiveValue;
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
+import com.sun.jdi.VoidValue;
 
 public class EvaluateRequestHandler implements IDebugRequestHandler {
     private final Pattern simpleExprPattern = Pattern.compile("[A-Za-z0-9_.\\s]+");
@@ -71,20 +73,39 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             return;
         }
 
-        JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
+        JdiObjectProxy<StackFrameObject> stackFrameProxy = (JdiObjectProxy<StackFrameObject>) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameProxy == null) {
             // stackFrameProxy is null means the stackframe is continued by user manually,
             AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
             return;
         }
+
+        IVariableFormatter variableFormatter = context.getVariableFormatter();
+
         IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
         final IDebugAdapterContext finalContext = context;
         finalContext.setResponseAsync(true);
-        engine.eval(context.getProjectName(), expression, stackFrameProxy.getProxiedObject(), result -> {
-            System.out.println(result);
-            response.body = new Responses.EvaluateResponseBody(result,
-                    0, "String",
-                    0);
+        engine.eval(context.getProjectName(), expression, stackFrameProxy.getProxiedObject().thread, stackFrameProxy.getProxiedObject().depth, (result, error) -> {
+            Value value = result;
+            if (value instanceof VoidValue) {
+                response.body = new Responses.EvaluateResponseBody(result.toString(),
+                        0, "<void>",
+                        0);
+            } else {
+                long threadId = stackFrameProxy.getProxiedObject().thread.uniqueID();
+                if (value instanceof ObjectReference) {
+                    VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
+                    int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy):0;
+                    int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
+                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options),
+                            referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options), indexedVariableId);
+                } else {
+                    // for primitive value
+                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options),
+                            0, variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
+                }
+            }
+
             finalContext.sendResponseAsync(response);
         });
         if (true) return;

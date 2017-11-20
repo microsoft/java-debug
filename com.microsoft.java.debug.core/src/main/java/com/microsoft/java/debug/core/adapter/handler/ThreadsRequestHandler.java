@@ -14,7 +14,9 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -50,23 +52,29 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
             return;
         }
+
         switch (command) {
             case THREADS:
                 this.threads((ThreadsArguments) arguments, response, context);
                 break;
             case STEPIN:
+                logger.severe("stepIn!");
                 this.stepIn((StepInArguments) arguments, response, context);
                 break;
             case STEPOUT:
+                logger.severe("stepOut!");
                 this.stepOut((StepOutArguments) arguments, response, context);
                 break;
             case NEXT:
+                logger.severe("next!");
                 this.next((NextArguments) arguments, response, context);
                 break;
             case PAUSE:
+                logger.severe("pause!");
                 this.pause((PauseArguments) arguments, response, context);
                 break;
             case CONTINUE:
+                logger.severe("resume!");
                 this.resume((ContinueArguments) arguments, response, context);
                 break;
             default:
@@ -108,6 +116,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private void next(Requests.NextArguments arguments, Response response, IDebugAdapterContext context) {
+
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
@@ -129,8 +138,9 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
     }
-
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private void resume(Requests.ContinueArguments arguments, Response response, IDebugAdapterContext context) {
+        logger.severe("Next managullay" + arguments.threadId);
         boolean allThreadsContinued = true;
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         /**

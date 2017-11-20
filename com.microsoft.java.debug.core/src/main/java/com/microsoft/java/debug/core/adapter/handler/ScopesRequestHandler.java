@@ -18,6 +18,7 @@ import java.util.List;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameObject;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -38,7 +39,8 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         ScopesArguments scopesArgs = (ScopesArguments) arguments;
         List<Types.Scope> scopes = new ArrayList<>();
-        JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
+        //ThreadProxy
+        JdiObjectProxy<StackFrameObject> stackFrameProxy = (JdiObjectProxy<StackFrameObject>) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
         if (stackFrameProxy == null) {
             response.body = new Responses.ScopesResponseBody(scopes);
             return;

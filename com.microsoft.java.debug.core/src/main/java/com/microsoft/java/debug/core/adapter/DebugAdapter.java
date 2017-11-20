@@ -36,6 +36,8 @@ import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Events.ExitedEvent;
+import com.microsoft.java.debug.core.protocol.Events.TerminatedEvent;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -105,7 +107,7 @@ public class DebugAdapter implements IDebugAdapter {
      * @see ProtocolServer#sendEvent(String, Object)
      */
     public void sendEvent(Events.DebugEvent event) {
-        if (debugContext.isVmTerminated()) {
+        if (debugContext.isVmTerminated() && !(event instanceof TerminatedEvent || event instanceof ExitedEvent)) {
             // the operation is meaningless
             return;
         }
@@ -118,7 +120,7 @@ public class DebugAdapter implements IDebugAdapter {
      * @see ProtocolServer#sendEventLater(String, Object)
      */
     public void sendEventLater(Events.DebugEvent event) {
-        if (debugContext.isVmTerminated()) {
+        if (debugContext.isVmTerminated() && !(event instanceof TerminatedEvent || event instanceof ExitedEvent)) {
             // the operation is meaningless
             return;
         }

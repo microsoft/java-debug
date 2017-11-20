@@ -14,7 +14,9 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -26,6 +28,7 @@ import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.ThreadProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -33,7 +36,6 @@ import com.microsoft.java.debug.core.protocol.Requests.StackTraceArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
@@ -41,6 +43,7 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
 public class StackTraceRequestHandler implements IDebugRequestHandler {
+    private Map<Long, ThreadProxy> threads = new HashMap<>();
 
     @Override
     public List<Command> getTargetCommands() {
@@ -58,24 +61,27 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
         int totalFrames = 0;
         if (thread != null) {
+            ThreadProxy t = threads.computeIfAbsent(thread.uniqueID(), (id) -> {
+                ThreadProxy proxy = new ThreadProxy(thread);
+                return proxy;
+            });
+
+            t.computeStackFrame();
+
             try {
-                totalFrames = thread.frameCount();
+                totalFrames = t.getTotalFrames();
                 if (totalFrames <= stacktraceArgs.startFrame) {
-                    response.body = new Responses.StackTraceResponseBody(result, totalFrames);
-                    return;
+                  response.body = new Responses.StackTraceResponseBody(result, totalFrames);
+                  return;
                 }
-                List<StackFrame> stackFrames = stacktraceArgs.levels == 0
-                        ? thread.frames(stacktraceArgs.startFrame, totalFrames - stacktraceArgs.startFrame)
-                        : thread.frames(stacktraceArgs.startFrame,
-                        Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels));
-                for (int i = 0; i < stackFrames.size(); i++) {
-                    StackFrame stackFrame = stackFrames.get(i);
-                    int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(),
-                            new JdiObjectProxy<>(stackFrame));
-                    Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
-                    result.add(clientStackFrame);
-                }
-            } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
+                for (StackFrame stackFrame : t.getFrames(stacktraceArgs.startFrame, stacktraceArgs.levels == 0 ? totalFrames  : Math.min(totalFrames,
+                        stacktraceArgs.startFrame + stacktraceArgs.levels))) {
+                  int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(),
+                          new JdiObjectProxy<>(stackFrame));
+                  Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
+                  result.add(clientStackFrame);
+              }
+            } catch (IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri

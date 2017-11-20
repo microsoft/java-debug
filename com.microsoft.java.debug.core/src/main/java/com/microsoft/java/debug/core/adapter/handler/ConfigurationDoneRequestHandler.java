@@ -21,6 +21,7 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -112,8 +113,11 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
             } else {
                 ThreadReference bpThread = ((BreakpointEvent) event).thread();
-                context.sendEventAsync(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
-                debugEvent.shouldResume = false;
+                IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
+                if (!engine.isInEvaluation(bpThread)) {
+                    context.sendEventAsync(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                    debugEvent.shouldResume = false;
+                }
             }
         } else if (event instanceof StepEvent) {
             ThreadReference stepThread = ((StepEvent) event).thread();
