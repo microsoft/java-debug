@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.DebugSettings;
@@ -51,7 +52,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         IVariableFormatter variableFormatter = context.getVariableFormatter();
         VariablesArguments varArgs = (VariablesArguments) arguments;
 
@@ -67,13 +68,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         // variable request will contain the right variablesReference.
         if (container == null) {
             response.body = new Responses.VariablesResponseBody(list);
-            return;
+            return AdapterUtils.createAsyncResponse(response);
         }
 
         if (!(container instanceof VariableProxy)) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                     String.format("VariablesRequest: Invalid variablesReference %d.", varArgs.variablesReference));
-            return;
         }
 
         VariableProxy containerNode = (VariableProxy) container;
@@ -90,9 +90,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     childrenList.addAll(VariableUtils.listStaticVariables(frame));
                 }
             } catch (AbsentInformationException e) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                         String.format("Failed to get variables. Reason: %s", e.toString()));
-                return;
             }
         } else {
             try {
@@ -104,9 +103,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
                 }
             } catch (AbsentInformationException e) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                         String.format("Failed to get variables. Reason: %s", e.toString()));
-                return;
             }
         }
 
@@ -166,6 +164,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);
+        return AdapterUtils.createAsyncResponse(response);
     }
 
     private Set<String> getDuplicateNames(Collection<String> list) {

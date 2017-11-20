@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -54,13 +55,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
                 || (ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths))) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                    String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
-            return;
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                       String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
         }
 
         context.setAttached(false);
@@ -70,9 +70,8 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);
         } else {
             if (!Charset.isSupported(launchArguments.encoding)) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.INVALID_ENCODING,
-                        String.format("Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized."));
-                return;
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.INVALID_ENCODING,
+                            String.format("Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized."));
             }
 
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
@@ -151,8 +150,8 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             });
             debuggeeConsole.start();
         } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
-                    String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
+                        String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }
 
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
@@ -162,6 +161,11 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             options.put(Constants.PROJECTNAME, launchArguments.projectName);
         }
         sourceProvider.initialize(context.getDebugSession(), options);
+
+        // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
+        // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
+        context.sendEvent(new Events.InitializedEvent());
+        return AdapterUtils.createAsyncResponse(response);
     }
 
     private static String parseMainClassWithoutModuleName(String mainClass) {

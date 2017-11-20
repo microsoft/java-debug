@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -178,11 +179,13 @@ public class AdapterUtils {
      *              the error code
      * @param errorMessage
      *              the error message
+     * @return the error response.
      */
-    public static void setErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
+    public static Response createErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
         response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
         response.message = errorMessage;
         response.success = false;
+        return response;
     }
 
     /**
@@ -194,12 +197,40 @@ public class AdapterUtils {
      *              the error code
      * @param e
      *              the exception
+     * @return the error response.
      */
-    public static void setErrorResponse(Response response, ErrorCode errorCode, Exception e) {
+    public static Response createErrorResponse(Response response, ErrorCode errorCode, Exception e) {
         String errorMessage = e.toString();
         response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
         response.message = errorMessage;
         response.success = false;
+        return response;
+    }
+
+    /**
+     * Generate a CompletableFuture response with the given error message.
+     */
+    public static CompletableFuture<Response> createAsyncErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
+        return createAsyncResponse(createErrorResponse(response, errorCode, errorMessage));
+    }
+
+    /**
+     * Generate a CompletableFuture response with the given exception.
+     */
+    public static CompletableFuture<Response> createAsyncErrorResponse(Response response, ErrorCode errorCode, Exception e) {
+        return createAsyncResponse(createErrorResponse(response, errorCode, e));
+    }
+
+    /**
+     * Wrapper the response to a CompletableFuture object.
+     * @param response
+     *              the response.
+     * @return a CompletableFuture response.
+     */
+    public static CompletableFuture<Response> createAsyncResponse(Response response) {
+        CompletableFuture<Response> future = new CompletableFuture<>();
+        future.complete(response);
+        return future;
     }
 
     /**

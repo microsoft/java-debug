@@ -13,8 +13,10 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -30,7 +32,7 @@ public class DisconnectRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         DisconnectArguments disconnectArguments = (DisconnectArguments) arguments;
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
@@ -40,6 +42,7 @@ public class DisconnectRequestHandler implements IDebugRequestHandler {
                 debugSession.detach();
             }
         }
+        return AdapterUtils.createAsyncResponse(response);
     }
 
 }

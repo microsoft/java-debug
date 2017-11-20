@@ -23,7 +23,6 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,9 +45,6 @@ public abstract class AbstractProtocolServer {
     private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
 
-    private boolean isDispatchingData;
-    private ConcurrentLinkedQueue<Messages.Event> eventQueue;
-
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
      * @param input
@@ -61,7 +57,6 @@ public abstract class AbstractProtocolServer {
         this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
         this.contentLength = -1;
         this.rawData = new ByteBuffer();
-        this.eventQueue = new ConcurrentLinkedQueue<>();
     }
 
     /**
@@ -89,35 +84,6 @@ public abstract class AbstractProtocolServer {
      */
     public void stop() {
         this.terminateSession = true;
-    }
-
-    /**
-     * Send event to DA immediately.
-     * @param eventType
-     *                 event type
-     * @param body
-     *                 event body
-     */
-    protected void sendEvent(String eventType, Object body) {
-        sendMessage(new Messages.Event(eventType, body));
-    }
-
-    /**
-     * If the the dispatcher is idle, then send the event immediately.
-     * Else add the new event to an eventQueue first and send them when dispatcher becomes idle again.
-     * @param eventType
-     *              event type
-     * @param body
-     *              event content
-     */
-    protected void sendEventLater(String eventType, Object body) {
-        synchronized (this) {
-            if (this.isDispatchingData) {
-                this.eventQueue.offer(new Messages.Event(eventType, body));
-            } else {
-                sendMessage(new Messages.Event(eventType, body));
-            }
-        }
     }
 
     protected void sendMessage(Messages.ProtocolMessage message) {
@@ -160,20 +126,9 @@ public abstract class AbstractProtocolServer {
 
                     if (message.type.equals("request")) {
                         try {
-                            synchronized (this) {
-                                this.isDispatchingData = true;
-                            }
                             this.dispatchRequest(JsonUtils.fromJson(messageData, Messages.Request.class));
                         } catch (Exception e) {
                             logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
-                        } finally {
-                            synchronized (this) {
-                                this.isDispatchingData = false;
-                            }
-
-                            while (this.eventQueue.peek() != null) {
-                                sendMessage(this.eventQueue.poll());
-                            }
                         }
                     } else if (message.type.equals("response")) {
                         // handle response.

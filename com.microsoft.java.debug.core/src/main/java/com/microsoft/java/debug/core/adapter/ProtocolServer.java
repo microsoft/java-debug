@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
@@ -33,15 +34,8 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
-            // If the protocolServer has been stopped, it'll no longer receive any event.
-            if (!terminateSession) {
-                if (willSendLater) {
-                    sendEventLater(debugEvent.type, debugEvent);
-                } else {
-                    sendEvent(debugEvent.type, debugEvent);
-                }
-            }
+        this.debugAdapter = new DebugAdapter((message) -> {
+            sendMessage(message);
         }, context);
     }
 
@@ -51,24 +45,28 @@ public class ProtocolServer extends AbstractProtocolServer {
     public void start() {
         usageDataSession.reportStart();
         super.start();
-    }
-
-    /**
-     * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
-     */
-    public void stop() {
         usageDataSession.reportStop();
-        super.stop();
         usageDataSession.submitUsageData();
     }
 
-    protected void dispatchRequest(Messages.Request request) {
-        Messages.Response response = this.debugAdapter.dispatchRequest(request);
-        if (request.command.equals("disconnect")) {
-            stop();
+    @Override
+    protected void sendMessage(Messages.ProtocolMessage message) {
+        super.sendMessage(message);
+        if (message instanceof Messages.Response) {
+            usageDataSession.recordResponse((Messages.Response) message);
+        } else if (message instanceof Messages.Request) {
+            usageDataSession.recordRequest((Messages.Request) message);
         }
-        sendMessage(response);
-        usageDataSession.recordResponse(response);
+    }
+
+    protected void dispatchRequest(Messages.Request request) {
+        usageDataSession.recordRequest(request);
+        CompletableFuture<Messages.Response> future = this.debugAdapter.dispatchRequest(request);
+        if (future != null) {
+            future.thenAccept((response) -> {
+                sendMessage(response);
+            });
+        }
     }
 
 }

@@ -14,16 +14,19 @@ package com.microsoft.java.debug.core.adapter;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+import com.microsoft.java.debug.core.protocol.Messages;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
-    private DebugAdapter debugAdapter;
+    private IProviderContext providerContext;
+    private Consumer<Messages.ProtocolMessage> sendMessage;
 
     private IDebugSession debugSession;
     private boolean debuggerLinesStartAt1 = true;
@@ -41,23 +44,19 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
-    public DebugAdapterContext(DebugAdapter debugAdapter) {
-        this.debugAdapter = debugAdapter;
+    public DebugAdapterContext(Consumer<Messages.ProtocolMessage> sendMessage, IProviderContext providerContext) {
+        this.providerContext = providerContext;
+        this.sendMessage = sendMessage;
     }
 
     @Override
     public void sendEvent(DebugEvent event) {
-        debugAdapter.sendEvent(event);
-    }
-
-    @Override
-    public void sendEventAsync(DebugEvent event) {
-        debugAdapter.sendEventLater(event);
+        sendMessage.accept(new Messages.Event(event.type, event));
     }
 
     @Override
     public <T extends IProvider> T getProvider(Class<T> clazz) {
-        return debugAdapter.getProvider(clazz);
+        return providerContext.getProvider(clazz);
     }
 
     @Override

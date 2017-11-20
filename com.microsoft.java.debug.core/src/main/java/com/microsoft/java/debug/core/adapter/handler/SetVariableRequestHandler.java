@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -57,19 +58,17 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         SetVariableArguments setVarArguments = (SetVariableArguments) arguments;
         if (setVarArguments.value == null) {
             // Just exit out of editing if we're given an empty expression.
-            return;
+            return AdapterUtils.createAsyncResponse(response);
         } else if (setVarArguments.variablesReference == -1) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SetVariablesRequest: property 'variablesReference' is missing, null, or empty");
-            return;
         } else if (StringUtils.isBlank(setVarArguments.name)) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SetVariablesRequest: property 'name' is missing, null, or empty");
-            return;
         }
 
         this.context = context;
@@ -89,9 +88,8 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         Object container = context.getRecyclableIdPool().getObjectById(setVarArguments.variablesReference);
         // container is null means the stack frame is continued by user manually.
         if (container == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
                     "Failed to set variable. Reason: Cannot set value because the thread is resumed.");
-            return;
         }
 
         String name = setVarArguments.name;
@@ -112,15 +110,13 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value,
                         (ObjectReference) containerObj, options);
             } else {
-                AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
                         String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference));
-                return;
             }
         } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
                 | UnsupportedOperationException | ClassNotLoadedException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
                     String.format("Failed to set variable. Reason: %s", e.toString()));
-            return;
         }
         int referenceId = 0;
         if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
@@ -138,6 +134,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
                 context.getVariableFormatter().typeToString(newValue == null ? null : newValue.type(), options), // type
                 context.getVariableFormatter().valueToString(newValue, options), // value,
                 referenceId, indexedVariables);
+        return AdapterUtils.createAsyncResponse(response);
     }
 
     private Value handleSetValueForObject(String name, String belongToClass, String valueString,
