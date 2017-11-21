@@ -68,7 +68,7 @@ public class DebugAdapter implements IDebugAdapter {
         try {
             if (debugContext.isVmTerminated()) {
                 // the operation is meaningless
-                return AdapterUtils.createAsyncResponse(response);
+                return CompletableFuture.completedFuture(response);
             }
             List<IDebugRequestHandler> handlers = requestHandlers.get(command);
             if (handlers != null && !handlers.isEmpty()) {

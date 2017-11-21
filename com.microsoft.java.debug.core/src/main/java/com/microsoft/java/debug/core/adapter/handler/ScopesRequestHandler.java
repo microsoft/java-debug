@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
@@ -43,7 +42,7 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
         JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
         if (stackFrameProxy == null) {
             response.body = new Responses.ScopesResponseBody(scopes);
-            return AdapterUtils.createAsyncResponse(response);
+            return CompletableFuture.completedFuture(response);
         }
         StackFrame stackFrame = stackFrameProxy.getProxiedObject();
         VariableProxy localScope = new VariableProxy(stackFrame.thread().uniqueID(), "Local", stackFrame);
@@ -51,7 +50,7 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 
         response.body = new Responses.ScopesResponseBody(scopes);
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
 }

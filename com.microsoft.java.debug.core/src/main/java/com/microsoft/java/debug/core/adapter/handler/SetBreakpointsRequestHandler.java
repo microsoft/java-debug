@@ -97,7 +97,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 res.add(this.convertDebuggerBreakpointToClient(added[i], context));
             }
             response.body = new Responses.SetBreakpointsResponseBody(res);
-            return AdapterUtils.createAsyncResponse(response);
+            return CompletableFuture.completedFuture(response);
         } catch (DebugException e) {
             return AdapterUtils.createAsyncErrorResponse(response,
                     ErrorCode.SET_BREAKPOINT_FAILURE,

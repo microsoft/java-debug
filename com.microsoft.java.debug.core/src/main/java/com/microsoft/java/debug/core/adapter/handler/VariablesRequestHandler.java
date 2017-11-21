@@ -68,7 +68,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         // variable request will contain the right variablesReference.
         if (container == null) {
             response.body = new Responses.VariablesResponseBody(list);
-            return AdapterUtils.createAsyncResponse(response);
+            return CompletableFuture.completedFuture(response);
         }
 
         if (!(container instanceof VariableProxy)) {
@@ -164,7 +164,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private Set<String> getDuplicateNames(Collection<String> list) {

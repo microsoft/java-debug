@@ -62,7 +62,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         SetVariableArguments setVarArguments = (SetVariableArguments) arguments;
         if (setVarArguments.value == null) {
             // Just exit out of editing if we're given an empty expression.
-            return AdapterUtils.createAsyncResponse(response);
+            return CompletableFuture.completedFuture(response);
         } else if (setVarArguments.variablesReference == -1) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SetVariablesRequest: property 'variablesReference' is missing, null, or empty");
@@ -134,7 +134,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
                 context.getVariableFormatter().typeToString(newValue == null ? null : newValue.type(), options), // type
                 context.getVariableFormatter().valueToString(newValue, options), // value,
                 referenceId, indexedVariables);
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private Value handleSetValueForObject(String name, String belongToClass, String valueString,

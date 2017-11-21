@@ -165,7 +165,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
         context.sendEvent(new Events.InitializedEvent());
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private static String parseMainClassWithoutModuleName(String mainClass) {

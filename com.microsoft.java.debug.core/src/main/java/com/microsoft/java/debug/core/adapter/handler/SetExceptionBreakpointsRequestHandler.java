@@ -46,7 +46,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
             boolean notifyUncaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME);
 
             context.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
-            return AdapterUtils.createAsyncResponse(response);
+            return CompletableFuture.completedFuture(response);
         } catch (Exception ex) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
                     String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()));

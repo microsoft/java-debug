@@ -83,7 +83,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             // when the thread is exiting.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private CompletableFuture<Response> stepIn(Requests.StepInArguments arguments, Response response, IDebugAdapterContext context) {
@@ -92,7 +92,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             DebugUtility.stepInto(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private CompletableFuture<Response> stepOut(Requests.StepOutArguments arguments, Response response, IDebugAdapterContext context) {
@@ -101,7 +101,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             DebugUtility.stepOut(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private CompletableFuture<Response> next(Requests.NextArguments arguments, Response response, IDebugAdapterContext context) {
@@ -110,7 +110,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private CompletableFuture<Response> pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
@@ -126,7 +126,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getDebugSession().suspend();
             context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private CompletableFuture<Response> resume(Requests.ContinueArguments arguments, Response response, IDebugAdapterContext context) {
@@ -146,7 +146,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getRecyclableIdPool().removeAllObjects();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 
     private void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {

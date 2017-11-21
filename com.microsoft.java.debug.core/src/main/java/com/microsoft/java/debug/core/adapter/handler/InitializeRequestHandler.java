@@ -15,7 +15,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.protocol.Messages;
@@ -55,6 +54,6 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         };
         caps.exceptionBreakpointFilters = exceptionFilters;
         response.body = caps;
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 }

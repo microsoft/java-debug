@@ -178,6 +178,6 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         response.body = new Responses.EvaluateResponseBody(context.getVariableFormatter().valueToString(currentValue, options),
                 referenceId, context.getVariableFormatter().typeToString(currentValue == null ? null : currentValue.type(), options),
                 indexedVariables);
-        return AdapterUtils.createAsyncResponse(response);
+        return CompletableFuture.completedFuture(response);
     }
 }

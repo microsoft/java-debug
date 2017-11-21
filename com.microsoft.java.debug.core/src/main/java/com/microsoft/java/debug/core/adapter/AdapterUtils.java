@@ -211,26 +211,14 @@ public class AdapterUtils {
      * Generate a CompletableFuture response with the given error message.
      */
     public static CompletableFuture<Response> createAsyncErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
-        return createAsyncResponse(createErrorResponse(response, errorCode, errorMessage));
+        return CompletableFuture.completedFuture(createErrorResponse(response, errorCode, errorMessage));
     }
 
     /**
      * Generate a CompletableFuture response with the given exception.
      */
     public static CompletableFuture<Response> createAsyncErrorResponse(Response response, ErrorCode errorCode, Exception e) {
-        return createAsyncResponse(createErrorResponse(response, errorCode, e));
-    }
-
-    /**
-     * Wrapper the response to a CompletableFuture object.
-     * @param response
-     *              the response.
-     * @return a CompletableFuture response.
-     */
-    public static CompletableFuture<Response> createAsyncResponse(Response response) {
-        CompletableFuture<Response> future = new CompletableFuture<>();
-        future.complete(response);
-        return future;
+        return CompletableFuture.completedFuture(createErrorResponse(response, errorCode, e));
     }
 
     /**

@@ -43,7 +43,7 @@ public class SourceRequestHandler implements IDebugRequestHandler {
             String uri = context.getSourceUri(sourceReference);
             ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
             response.body = new Responses.SourceResponseBody(sourceProvider.getSourceContents(uri));
-            return AdapterUtils.createAsyncResponse(response);
+            return CompletableFuture.completedFuture(response);
         }
     }
 

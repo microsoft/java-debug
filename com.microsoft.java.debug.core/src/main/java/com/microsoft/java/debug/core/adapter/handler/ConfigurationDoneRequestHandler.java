@@ -59,7 +59,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             });
             // configuration is done, and start debug session.
             debugSession.start();
-            return AdapterUtils.createAsyncResponse(response);
+            return CompletableFuture.completedFuture(response);
         } else {
             context.sendEvent(new Events.TerminatedEvent());
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");
