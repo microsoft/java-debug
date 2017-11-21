@@ -1,7 +1,10 @@
 package com.microsoft.java.debug.core.adapter.variables;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.lang3.reflect.MethodUtils;
 
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ClassNotLoadedException;
@@ -14,12 +17,13 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
-
+@SuppressWarnings("unchecked")
 public class StackFrameProxy implements StackFrame {
     private final int depth;
     private final int hash;
     private StackFrame proxy;
     private final StoppedState stopState;
+
     public StackFrameProxy(StoppedState state, StackFrame stackFrame, int depth) {
         stopState = state;
         proxy = stackFrame;
@@ -34,13 +38,13 @@ public class StackFrameProxy implements StackFrame {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj == null) {
+        if (obj == null) {
             return false;
         }
-        if(obj.getClass() != this.getClass()){
+        if (obj.getClass() != this.getClass()) {
             return false;
         }
-        if(this == obj){
+        if (this == obj) {
             return true;
         }
         StackFrameProxy sf = (StackFrameProxy) obj;
@@ -51,161 +55,91 @@ public class StackFrameProxy implements StackFrame {
     public StoppedState getStoppedState() {
         return stopState;
     }
+
     public int getDepth() {
         return depth;
     }
 
-  @Override
-  public VirtualMachine virtualMachine() {
-      return proxy.virtualMachine();
-  }
+    @Override
+    public VirtualMachine virtualMachine() {
+        return proxy.virtualMachine();
+    }
+
+    @Override
+    public Location location() {
+        return proxy.location();
+    }
+
+    @Override
+    public ThreadReference thread() {
+        return proxy.thread();
+    }
+
+    private Object invokeProxy(String methodName, final Object[] args, final Class<?>[] parameterTypes) {
+        if (proxy == null) {
+            throw new InvalidStackFrameException();
+        }
+        try {
+            try {
+                return MethodUtils.invokeMethod(proxy, methodName, args, parameterTypes);
+            } catch (InvocationTargetException ex) {
+                if (!(ex.getTargetException() instanceof InvalidStackFrameException)) {
+                    throw ex;
+                }
+                if (stopState != null) {
+                    proxy = stopState.refreshStackFrames(depth);
+                    if (proxy == null) {
+                        throw ex;
+                    }
+                    return MethodUtils.invokeMethod(proxy, methodName, args, parameterTypes);
+                }
+                throw ex;
+            }
+        } catch (NoSuchMethodException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
 
-  @Override
-  public Location location() {
-      return proxy.location();
-  }
+    @Override
+    public List<Value> getArgumentValues() {
+        return (List<Value>)invokeProxy("getArgumentValues", null, null);
+    }
 
-  @Override
-  public ThreadReference thread() {
-      return proxy.thread();
-  }
+    @Override
+    public Value getValue(LocalVariable arg0) {
+        return (Value)invokeProxy("getValue", new Object[] {arg0}, new Class[] {LocalVariable.class});
+    }
 
+    @Override
+    public Map<LocalVariable, Value> getValues(List<? extends LocalVariable> arg0) {
+        return (Map<LocalVariable, Value>)invokeProxy("getValues", new Object[] {arg0}, new Class[] {List.class});
+    }
+    @Override
+    public void setValue(LocalVariable arg0, Value arg1) throws InvalidTypeException, ClassNotLoadedException {
+        invokeProxy("setValue", new Object[] {arg0, arg1}, new Class[] {LocalVariable.class, Value.class});
+    }
 
-  @Override
-  public List<Value> getArgumentValues() {
-      if (proxy == null) {
-          throw new InvalidStackFrameException();
-      }
-      try {
-          return proxy.getArgumentValues();
-      } catch (InvalidStackFrameException ex) {
-          if (stopState != null) {
-              proxy = stopState.refreshStackFrames(depth);
-              if (proxy == null) {
-                  throw ex;
-              }
-              return proxy.getArgumentValues();
-          }
-          throw ex;
-      }
-  }
+    @Override
+    public ObjectReference thisObject() {
+        return (ObjectReference) invokeProxy("thisObject", null, null);
+    }
 
-  @Override
-  public Value getValue(LocalVariable arg0) {
-      if (proxy == null) {
-          throw new InvalidStackFrameException();
-      }
-      try {
-          return proxy.getValue(arg0);
-      } catch (InvalidStackFrameException ex) {
-          if (stopState != null) {
-              proxy = stopState.refreshStackFrames(depth);
-              if (proxy == null) {
-                  throw ex;
-              }
-              return proxy.getValue(arg0);
-          }
-          throw ex;
-      }
-  }
+    @Override
+    public LocalVariable visibleVariableByName(String arg0) throws AbsentInformationException {
+        return (LocalVariable) invokeProxy("visibleVariableByName", new Object[] {arg0}, new Class[] {String.class});
+    }
 
-  @Override
-  public Map<LocalVariable, Value> getValues(List<? extends LocalVariable> arg0) {
-      if (proxy == null) {
-          throw new InvalidStackFrameException();
-      }
-      try {
-          return proxy.getValues(arg0);
-      } catch (InvalidStackFrameException ex) {
-          if (stopState != null) {
-              proxy = stopState.refreshStackFrames(depth);
-              if (proxy == null) {
-                  throw ex;
-              }
-              return proxy.getValues(arg0);
-          }
-          throw ex;
-      }
-  }
-
-  @Override
-  public void setValue(LocalVariable arg0, Value arg1) throws InvalidTypeException, ClassNotLoadedException {
-      if (proxy == null) {
-          throw new InvalidStackFrameException();
-      }
-      try {
-          proxy.setValue(arg0, arg1);
-      } catch (InvalidStackFrameException ex) {
-          if (stopState != null) {
-              proxy = stopState.refreshStackFrames(depth);
-              if (proxy == null) {
-                  throw ex;
-              }
-              proxy.setValue(arg0, arg1);
-              return;
-          }
-          throw ex;
-      }
-  }
-
-  @Override
-  public ObjectReference thisObject() {
-      if (proxy == null) {
-          throw new InvalidStackFrameException();
-      }
-      try {
-          return proxy.thisObject();
-      } catch (InvalidStackFrameException ex) {
-          if (stopState != null) {
-              proxy = stopState.refreshStackFrames(depth);
-              if (proxy == null) {
-                  throw ex;
-              }
-              return proxy.thisObject();
-          }
-          throw ex;
-      }
-  }
-
-
-  @Override
-  public LocalVariable visibleVariableByName(String arg0) throws AbsentInformationException {
-      if (proxy == null) {
-          throw new InvalidStackFrameException();
-      }
-      try {
-          return proxy.visibleVariableByName(arg0);
-      } catch (InvalidStackFrameException ex) {
-          if (stopState != null) {
-              proxy = stopState.refreshStackFrames(depth);
-              if (proxy == null) {
-                  throw ex;
-              }
-              return proxy.visibleVariableByName(arg0);
-          }
-          throw ex;
-      }
-  }
-
-  @Override
-  public List<LocalVariable> visibleVariables() throws AbsentInformationException {
-      if (proxy == null) {
-          throw new InvalidStackFrameException();
-      }
-      try {
-          return proxy.visibleVariables();
-      } catch (InvalidStackFrameException ex) {
-          if (stopState != null) {
-              proxy = stopState.refreshStackFrames(depth);
-              if (proxy == null) {
-                  throw ex;
-              }
-              return proxy.visibleVariables();
-          }
-          throw ex;
-      }
-  }
-
+    @Override
+    public List<LocalVariable> visibleVariables() throws AbsentInformationException {
+        return (List<LocalVariable>) invokeProxy("visibleVariables", null, null);
+    }
 
 }
