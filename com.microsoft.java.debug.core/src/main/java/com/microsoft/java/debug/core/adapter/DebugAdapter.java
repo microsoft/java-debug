@@ -49,8 +49,8 @@ public class DebugAdapter implements IDebugAdapter {
     /**
      * Constructor.
      */
-    public DebugAdapter(Consumer<Messages.ProtocolMessage> sendMessage, IProviderContext providerContext) {
-        debugContext = new DebugAdapterContext(sendMessage, providerContext);
+    public DebugAdapter(Consumer<Messages.ProtocolMessage> messageConsumer, IProviderContext providerContext) {
+        debugContext = new DebugAdapterContext(messageConsumer, providerContext);
         requestHandlers = new HashMap<>();
         initialize();
     }

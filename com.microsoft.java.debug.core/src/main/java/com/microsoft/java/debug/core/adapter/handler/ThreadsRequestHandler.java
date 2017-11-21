@@ -64,7 +64,8 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             case CONTINUE:
                 return this.resume((ContinueArguments) arguments, response, context);
             default:
-                return null;
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
+                        String.format("Unrecognized request: { _request: %s }", command.toString()));
         }
     }
 

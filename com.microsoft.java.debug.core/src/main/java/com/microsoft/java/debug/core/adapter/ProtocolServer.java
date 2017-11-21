@@ -13,7 +13,6 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
@@ -61,12 +60,9 @@ public class ProtocolServer extends AbstractProtocolServer {
 
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        CompletableFuture<Messages.Response> future = this.debugAdapter.dispatchRequest(request);
-        if (future != null) {
-            future.thenAccept((response) -> {
-                sendMessage(response);
-            });
-        }
+        this.debugAdapter.dispatchRequest(request).thenAccept((response) -> {
+            sendMessage(response);
+        });
     }
 
 }
