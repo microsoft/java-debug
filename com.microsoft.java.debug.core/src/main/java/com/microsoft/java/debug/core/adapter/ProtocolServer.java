@@ -41,9 +41,9 @@ public class ProtocolServer extends AbstractProtocolServer {
     /**
      * A while-loop to parse input data and send output data constantly.
      */
-    public void start() {
+    public void run() {
         usageDataSession.reportStart();
-        super.start();
+        super.run();
         usageDataSession.reportStop();
         usageDataSession.submitUsageData();
     }

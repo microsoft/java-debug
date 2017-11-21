@@ -62,7 +62,7 @@ public abstract class AbstractProtocolServer {
     /**
      * A while-loop to parse input data and send output data constantly.
      */
-    public void start() {
+    public void run() {
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
