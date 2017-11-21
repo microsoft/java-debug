@@ -65,28 +65,24 @@ public class DebugAdapter implements IDebugAdapter {
         Command command = Command.parse(request.command);
         Arguments cmdArgs = JsonUtils.fromJson(request.arguments, command.getArgumentType());
 
-        try {
-            if (debugContext.isVmTerminated()) {
-                // the operation is meaningless
-                return CompletableFuture.completedFuture(response);
-            }
-            List<IDebugRequestHandler> handlers = requestHandlers.get(command);
-            if (handlers != null && !handlers.isEmpty()) {
-                for (IDebugRequestHandler handler : handlers) {
-                    CompletableFuture<Messages.Response> result = handler.handle(command, cmdArgs, response, debugContext);
-                    if (result != null) {
-                        return result;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
-                    e.getMessage() != null ? e.getMessage() : e.toString());
+        if (debugContext.isVmTerminated()) {
+            // the operation is meaningless
+            return CompletableFuture.completedFuture(response);
         }
-
-        return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
-                String.format("Unrecognized request: { _request: %s }", request.command));
+        List<IDebugRequestHandler> handlers = requestHandlers.get(command);
+        if (handlers != null && !handlers.isEmpty()) {
+            CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
+            for (IDebugRequestHandler handler : handlers) {
+                future = future.thenCompose((res) -> {
+                    return handler.handle(command, cmdArgs, res, debugContext);
+                });
+            }
+            return future;
+        } else {
+            final String errorMessage = String.format("Unrecognized request: { _request: %s }", request.command);
+            logger.log(Level.SEVERE, errorMessage);
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE, errorMessage);
+        }
     }
 
     private void initialize() {

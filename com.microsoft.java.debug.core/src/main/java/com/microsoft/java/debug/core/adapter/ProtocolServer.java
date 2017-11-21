@@ -13,12 +13,17 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
 
 public class ProtocolServer extends AbstractProtocolServer {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
     private IDebugAdapter debugAdapter;
     private UsageDataSession usageDataSession = new UsageDataSession();
 
@@ -60,8 +65,20 @@ public class ProtocolServer extends AbstractProtocolServer {
 
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        this.debugAdapter.dispatchRequest(request).thenAccept((response) -> {
-            sendMessage(response);
+        this.debugAdapter.dispatchRequest(request).whenComplete((response, ex) -> {
+            if (response != null) {
+                sendMessage(response);
+            } else if (ex != null) {
+                logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", ex.toString()), ex);
+                sendMessage(AdapterUtils.setErrorResponse(response,
+                        ErrorCode.UNKNOWN_FAILURE,
+                        ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+            } else {
+                logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
+                sendMessage(AdapterUtils.setErrorResponse(response,
+                        ErrorCode.UNKNOWN_FAILURE,
+                        "The request dispatcher should not return null response."));
+            }
         });
     }
 
