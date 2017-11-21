@@ -57,11 +57,11 @@ public abstract class AbstractProtocolServer {
      *              the output stream
      */
     public AbstractProtocolServer(InputStream input, OutputStream output) {
-        this.reader = new BufferedReader(new InputStreamReader(input, PROTOCOL_ENCODING));
-        this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
-        this.contentLength = -1;
-        this.rawData = new ByteBuffer();
-        this.eventQueue = new ConcurrentLinkedQueue<>();
+        reader = new BufferedReader(new InputStreamReader(input, PROTOCOL_ENCODING));
+        writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
+        contentLength = -1;
+        rawData = new ByteBuffer();
+        eventQueue = new ConcurrentLinkedQueue<>();
     }
 
     /**
@@ -70,13 +70,13 @@ public abstract class AbstractProtocolServer {
     public void start() {
         char[] buffer = new char[BUFFER_SIZE];
         try {
-            while (!this.terminateSession) {
-                int read = this.reader.read(buffer, 0, BUFFER_SIZE);
+            while (!terminateSession) {
+                int read = reader.read(buffer, 0, BUFFER_SIZE);
                 if (read == -1) {
                     break;
                 }
 
-                this.rawData.append(new String(buffer, 0, read).getBytes(PROTOCOL_ENCODING));
+                rawData.append(new String(buffer, 0, read).getBytes(PROTOCOL_ENCODING));
                 this.processData();
             }
         } catch (IOException e) {
@@ -88,7 +88,7 @@ public abstract class AbstractProtocolServer {
      * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
      */
     public void stop() {
-        this.terminateSession = true;
+        terminateSession = true;
     }
 
     /**
@@ -112,8 +112,8 @@ public abstract class AbstractProtocolServer {
      */
     protected void sendEventLater(String eventType, Object body) {
         synchronized (this) {
-            if (this.isDispatchingData) {
-                this.eventQueue.offer(new Messages.Event(eventType, body));
+            if (isDispatchingData) {
+                eventQueue.offer(new Messages.Event(eventType, body));
             } else {
                 sendMessage(new Messages.Event(eventType, body));
             }
@@ -121,7 +121,10 @@ public abstract class AbstractProtocolServer {
     }
 
     protected void sendMessage(Messages.ProtocolMessage message) {
-        message.seq = this.sequenceNumber.getAndIncrement();
+        if (message == null) {
+            return;
+        }
+        message.seq = sequenceNumber.getAndIncrement();
 
         String jsonMessage = JsonUtils.toJson(message);
         byte[] jsonBytes = jsonMessage.getBytes(PROTOCOL_ENCODING);
@@ -137,8 +140,8 @@ public abstract class AbstractProtocolServer {
 
         try {
             logger.fine("\n[[RESPONSE]]\n" + utf8Data);
-            this.writer.write(utf8Data);
-            this.writer.flush();
+            writer.write(utf8Data);
+            writer.flush();
         } catch (IOException e) {
             logger.log(Level.SEVERE, String.format("Write data to io exception: %s", e.toString()), e);
         }
@@ -149,10 +152,10 @@ public abstract class AbstractProtocolServer {
             /**
              * In vscode debug protocol, the content length represents the message's byte length with utf8 format.
              */
-            if (this.contentLength >= 0) {
-                if (this.rawData.length() >= this.contentLength) {
-                    byte[] buf = this.rawData.removeFirst(this.contentLength);
-                    this.contentLength = -1;
+            if (contentLength >= 0) {
+                if (rawData.length() >= contentLength) {
+                    byte[] buf = rawData.removeFirst(contentLength);
+                    contentLength = -1;
                     String messageData = new String(buf, PROTOCOL_ENCODING);
                     Messages.ProtocolMessage message = JsonUtils.fromJson(messageData, Messages.ProtocolMessage.class);
 
@@ -161,18 +164,18 @@ public abstract class AbstractProtocolServer {
                     if (message.type.equals("request")) {
                         try {
                             synchronized (this) {
-                                this.isDispatchingData = true;
+                                isDispatchingData = true;
                             }
                             this.dispatchRequest(JsonUtils.fromJson(messageData, Messages.Request.class));
                         } catch (Exception e) {
                             logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
                         } finally {
                             synchronized (this) {
-                                this.isDispatchingData = false;
+                                isDispatchingData = false;
                             }
 
-                            while (this.eventQueue.peek() != null) {
-                                sendMessage(this.eventQueue.poll());
+                            while (eventQueue.peek() != null) {
+                                sendMessage(eventQueue.poll());
                             }
                         }
                     } else if (message.type.equals("response")) {
@@ -181,14 +184,14 @@ public abstract class AbstractProtocolServer {
                     continue;
                 }
             } else {
-                String rawMessage = this.rawData.getString(PROTOCOL_ENCODING);
+                String rawMessage = rawData.getString(PROTOCOL_ENCODING);
                 int idx = rawMessage.indexOf(TWO_CRLF);
                 if (idx != -1) {
                     Matcher matcher = CONTENT_LENGTH_MATCHER.matcher(rawMessage);
                     if (matcher.find()) {
-                        this.contentLength = Integer.parseInt(matcher.group(1));
+                        contentLength = Integer.parseInt(matcher.group(1));
                         int headerByteLength = rawMessage.substring(0, idx + TWO_CRLF.length()).getBytes(PROTOCOL_ENCODING).length;
-                        this.rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
+                        rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
                         continue;
                     }
                 }
@@ -203,15 +206,15 @@ public abstract class AbstractProtocolServer {
         private byte[] buffer;
 
         public ByteBuffer() {
-            this.buffer = new byte[0];
+            buffer = new byte[0];
         }
 
         public int length() {
-            return this.buffer.length;
+            return buffer.length;
         }
 
         public String getString(Charset cs) {
-            return new String(this.buffer, cs);
+            return new String(buffer, cs);
         }
 
         public void append(byte[] b) {
@@ -219,18 +222,18 @@ public abstract class AbstractProtocolServer {
         }
 
         public void append(byte[] b, int length) {
-            byte[] newBuffer = new byte[this.buffer.length + length];
-            System.arraycopy(buffer, 0, newBuffer, 0, this.buffer.length);
-            System.arraycopy(b, 0, newBuffer, this.buffer.length, length);
-            this.buffer = newBuffer;
+            byte[] newBuffer = new byte[buffer.length + length];
+            System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
+            System.arraycopy(b, 0, newBuffer, buffer.length, length);
+            buffer = newBuffer;
         }
 
         public byte[] removeFirst(int n) {
             byte[] b = new byte[n];
-            System.arraycopy(this.buffer, 0, b, 0, n);
-            byte[] newBuffer = new byte[this.buffer.length - n];
-            System.arraycopy(this.buffer, n, newBuffer, 0, this.buffer.length - n);
-            this.buffer = newBuffer;
+            System.arraycopy(buffer, 0, b, 0, n);
+            byte[] newBuffer = new byte[buffer.length - n];
+            System.arraycopy(buffer, n, newBuffer, 0, buffer.length - n);
+            buffer = newBuffer;
             return b;
         }
     }

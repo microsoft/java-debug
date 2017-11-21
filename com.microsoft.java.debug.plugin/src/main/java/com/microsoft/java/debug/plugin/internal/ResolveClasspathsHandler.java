@@ -170,4 +170,20 @@ public class ResolveClasspathsHandler {
         }
         return result;
     }
+
+    public Object resolveProject(List<Object> arguments) throws CoreException {
+        String mainClass = (String) arguments.get(0);
+        List<IJavaProject> projects = getJavaProjectFromType(mainClass);
+        if (projects.size() == 0) {
+            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID,
+                    String.format("Main class '%s' doesn't exist in the workspace.", mainClass)));
+        }
+        if (projects.size() > 1) {
+            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID,
+                    String.format(
+                            "Main class '%s' isn't unique in the workspace, please pass in specified projectname.",
+                            mainClass)));
+        }
+        return projects.get(0).getProject().getName();
+    }
 }

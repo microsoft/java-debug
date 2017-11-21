@@ -57,7 +57,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
-                || (ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths))) {
+                || ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths)) {
             AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
             return;
@@ -66,6 +66,13 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
 
+        if (StringUtils.isBlank(launchArguments.projectName)) {
+            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                    String.format("Failed to launch debuggee VM. Missing project name options in launch configuration"));
+            return;
+        }
+
+        context.setProjectName(launchArguments.projectName);
         if (StringUtils.isBlank(launchArguments.encoding)) {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);
         } else {

@@ -13,12 +13,17 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.sun.jdi.ThreadReference;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
@@ -36,6 +41,10 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
     private String mainClass;
+    private String projectName;
+    private transient boolean sendResponseLater;
+
+    private Map<Long, StoppedState> stoppedStates = new HashMap<>();
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -202,6 +211,74 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public String getMainClass() {
-        return this.mainClass;
+        return mainClass;
+    }
+
+     @Override
+    public void setResponseAsync(boolean async) {
+        sendResponseLater = async;
+
+    }
+
+    @Override
+    public boolean shouldSendResponseAsync() {
+        return sendResponseLater;
+    }
+
+    @Override
+    public void sendResponseAsync(Response res) {
+        func.accept(res);
+    }
+
+
+    private Consumer<Response> func;
+
+    @Override
+    public void setResponseConsumer(Consumer<Response> func) {
+        this.func = func;
+
+    }
+
+    @Override
+    public String getProjectName() {
+        return projectName;
+    }
+
+    @Override
+    public void setProjectName(String projectName) {
+        this.projectName = projectName;
+    }
+
+
+    @Override
+    public void saveStopState(ThreadReference thread) {
+        synchronized(stoppedStates) {
+            stoppedStates.compute(thread.uniqueID(), (k, v) -> {
+                return new StoppedState(thread);
+            });
+        }
+    }
+
+    @Override
+    public StoppedState getStoppedState(ThreadReference thread) {
+        synchronized(stoppedStates) {
+            return stoppedStates.get(thread.uniqueID());
+        }
+    }
+
+    @Override
+    public boolean isStaledState(StoppedState ctx) {
+        synchronized(stoppedStates) {
+            return ctx != stoppedStates.get(ctx.getThread().uniqueID());
+        }
+    }
+
+    @Override
+    public void clearStopState(ThreadReference thread) {
+        synchronized(stoppedStates) {
+            stoppedStates.compute(thread.uniqueID(), (k, v) -> {
+                return null;
+            });
+        }
     }
 }

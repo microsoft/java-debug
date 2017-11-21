@@ -17,7 +17,7 @@ import java.util.List;
 
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -25,7 +25,6 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.ScopesArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
-import com.sun.jdi.StackFrame;
 
 public class ScopesRequestHandler implements IDebugRequestHandler {
 
@@ -38,12 +37,11 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
     public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         ScopesArguments scopesArgs = (ScopesArguments) arguments;
         List<Types.Scope> scopes = new ArrayList<>();
-        JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
-        if (stackFrameProxy == null) {
+        StackFrameProxy stackFrame = (StackFrameProxy) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
+        if (stackFrame == null || context.isStaledState(stackFrame.getStoppedState())) {
             response.body = new Responses.ScopesResponseBody(scopes);
             return;
         }
-        StackFrame stackFrame = stackFrameProxy.getProxiedObject();
         VariableProxy localScope = new VariableProxy(stackFrame.thread().uniqueID(), "Local", stackFrame);
         int localScopeId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(), localScope);
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));

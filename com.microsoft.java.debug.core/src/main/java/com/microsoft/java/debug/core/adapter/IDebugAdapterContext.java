@@ -13,10 +13,14 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.sun.jdi.ThreadReference;
 
 public interface IDebugAdapterContext {
     /**
@@ -34,6 +38,10 @@ public interface IDebugAdapterContext {
      *            the debug event
      */
     void sendEventAsync(Events.DebugEvent event);
+
+    void setResponseAsync(boolean async);
+    boolean shouldSendResponseAsync();
+    void sendResponseAsync(Response response);
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 
@@ -104,4 +112,17 @@ public interface IDebugAdapterContext {
     void setMainClass(String mainClass);
 
     String getMainClass();
+
+    void setResponseConsumer(Consumer<Response> func);
+
+    String getProjectName();
+    void setProjectName(String projectName);
+
+    void saveStopState(ThreadReference thread);
+
+    void clearStopState(ThreadReference thread);
+
+    boolean isStaledState(StoppedState state);
+
+    StoppedState getStoppedState(ThreadReference thread);
 }

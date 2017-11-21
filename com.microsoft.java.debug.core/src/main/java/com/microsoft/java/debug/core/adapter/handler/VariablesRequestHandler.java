@@ -27,6 +27,7 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
@@ -38,8 +39,9 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
+import com.sun.jdi.InternalException;
+import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ObjectReference;
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 
@@ -78,18 +80,24 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList;
-        if (containerNode.getProxiedVariable() instanceof StackFrame) {
+        if (containerNode.getProxiedVariable() instanceof StackFrameProxy) {
             try {
-                StackFrame frame = (StackFrame) containerNode.getProxiedVariable();
-                childrenList = VariableUtils.listLocalVariables(frame);
-                Variable thisVariable = VariableUtils.getThisVariable(frame);
-                if (thisVariable != null) {
-                    childrenList.add(thisVariable);
+                StackFrameProxy frame = (StackFrameProxy) containerNode.getProxiedVariable();
+                if (!context.isStaledState(frame.getStoppedState())) {
+                    childrenList = VariableUtils.listLocalVariables(frame);
+                    Variable thisVariable = VariableUtils.getThisVariable(frame);
+                    if (thisVariable != null) {
+                        childrenList.add(thisVariable);
+                    }
+                    if (showStaticVariables && frame.location().method().isStatic()) {
+                        childrenList.addAll(VariableUtils.listStaticVariables(frame));
+                    }
+                } else {
+                    response.body = new Responses.VariablesResponseBody(list);
+                    return;
                 }
-                if (showStaticVariables && frame.location().method().isStatic()) {
-                    childrenList.addAll(VariableUtils.listStaticVariables(frame));
-                }
-            } catch (AbsentInformationException e) {
+
+            } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                         String.format("Failed to get variables. Reason: %s", e.toString()));
                 return;

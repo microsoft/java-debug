@@ -18,13 +18,13 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatter;
-import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
+import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -73,18 +73,10 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         }
 
         this.context = context;
-        Map<String, Object> options = context.getVariableFormatter().getDefaultOptions();
-        // This should be false by default(currently true for test).
-        // User will need to explicitly turn it on by configuring launch.json
-        boolean showStaticVariables = true;
-        // TODO: when vscode protocol support customize settings of value format, showFullyQualifiedNames should be one of the options.
-        boolean showFullyQualifiedNames = true;
-        if (setVarArguments.format != null && setVarArguments.format.hex) {
-            options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
-        }
-        if (showFullyQualifiedNames) {
-            options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, showFullyQualifiedNames);
-        }
+        boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
+        IVariableFormatter variableFormatter = context.getVariableFormatter();
+        Map<String, Object> options = variableFormatter.getDefaultOptions();
+        VariableUtils.applyFormatterOptions(options, setVarArguments.format != null && setVarArguments.format.hex);
 
         Object container = context.getRecyclableIdPool().getObjectById(setVarArguments.variablesReference);
         // container is null means the stack frame is continued by user manually.
@@ -105,9 +97,16 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
 
         Object containerObj = ((VariableProxy) container).getProxiedVariable();
         try {
-            if (containerObj instanceof StackFrame) {
+            if (containerObj instanceof StackFrameProxy) {
+                StackFrameProxy stackFrameProxy = (StackFrameProxy) containerObj;
+                if (context.isStaledState(stackFrameProxy.getStoppedState())) {
+                    AdapterUtils.setErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+                            "Failed to set variable. Reason: Cannot set value because the stackframe is invalid.");
+                    return;
+                }
                 newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value,
-                        showStaticVariables, (StackFrame) containerObj, options);
+                     showStaticVariables,  stackFrameProxy, options);
+
             } else if (containerObj instanceof ObjectReference) {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value,
                         (ObjectReference) containerObj, options);
@@ -126,7 +125,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
             long threadId = ((VariableProxy) container).getThreadId();
             String scopeName = ((VariableProxy) container).getScope();
-            VariableProxy varProxy = new VariableProxy(threadId, scopeName, (ObjectReference) newValue);
+            VariableProxy varProxy = new VariableProxy(threadId, scopeName, newValue);
             referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
         }
 
@@ -217,7 +216,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
 
     private Value setFrameValue(StackFrame frame, LocalVariable localVariable, String value, Map<String, Object> options)
             throws ClassNotLoadedException, InvalidTypeException {
-        return setValueProxy(localVariable.type(), value, newValue -> frame.setValue(localVariable, newValue), options);
+         return setValueProxy(localVariable.type(), value, newValue -> frame.setValue(localVariable, newValue), options);
     }
 
     private Value setObjectFieldValue(ObjectReference obj, Field field, String name, String value, Map<String, Object> options)

@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,8 +36,11 @@ import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Events.ExitedEvent;
+import com.microsoft.java.debug.core.protocol.Events.TerminatedEvent;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 
@@ -51,10 +55,11 @@ public class DebugAdapter implements IDebugAdapter {
     /**
      * Constructor.
      */
-    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, IProviderContext providerContext) {
+    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> consumer, Consumer<Response> sendMessageFunc, IProviderContext providerContext) {
         eventConsumer = consumer;
         this.providerContext = providerContext;
         debugContext = new DebugAdapterContext(this);
+        debugContext.setResponseConsumer(sendMessageFunc);
         requestHandlers = new HashMap<>();
         initialize();
     }
@@ -75,6 +80,7 @@ public class DebugAdapter implements IDebugAdapter {
                 return response;
             }
             List<IDebugRequestHandler> handlers = requestHandlers.get(command);
+            debugContext.setResponseAsync(false);
             if (handlers != null && !handlers.isEmpty()) {
                 for (IDebugRequestHandler handler : handlers) {
                     handler.handle(command, cmdArgs, response, debugContext);
@@ -82,6 +88,9 @@ public class DebugAdapter implements IDebugAdapter {
             } else {
                 AdapterUtils.setErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
                         String.format("Unrecognized request: { _request: %s }", request.command));
+            }
+            if (debugContext.shouldSendResponseAsync()) {
+                return null;
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
@@ -98,6 +107,10 @@ public class DebugAdapter implements IDebugAdapter {
      * @see ProtocolServer#sendEvent(String, Object)
      */
     public void sendEvent(Events.DebugEvent event) {
+        if (debugContext.isVmTerminated() && !(event instanceof TerminatedEvent || event instanceof ExitedEvent)) {
+            // the operation is meaningless
+            return;
+        }
         eventConsumer.accept(event, false);
     }
 
@@ -107,6 +120,10 @@ public class DebugAdapter implements IDebugAdapter {
      * @see ProtocolServer#sendEventLater(String, Object)
      */
     public void sendEventLater(Events.DebugEvent event) {
+        if (debugContext.isVmTerminated() && !(event instanceof TerminatedEvent || event instanceof ExitedEvent)) {
+            // the operation is meaningless
+            return;
+        }
         eventConsumer.accept(event, true);
     }
 
