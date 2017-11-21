@@ -22,7 +22,6 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests;
@@ -173,8 +172,8 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             } else {
                 context.getRecyclableIdPool().removeObjectsByOwner(thread.uniqueID());
             }
-            IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-            engine.clearAll();
+//            IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
+//            engine.clearAll();
 
         } catch (VMDisconnectedException ex) {
             // isSuspended may throw VMDisconnectedException when the VM terminates

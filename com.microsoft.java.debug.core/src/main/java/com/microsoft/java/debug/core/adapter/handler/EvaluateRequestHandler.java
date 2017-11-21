@@ -83,7 +83,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
         final IDebugAdapterContext finalContext = context;
         finalContext.setResponseAsync(true);
-        engine.eval(context.getProjectName(), expression, stackFrameProxy.thread(), stackFrameProxy.getDepth(), (result, error) -> {
+        engine.eval(context.getProjectName(), expression, stackFrameProxy, (result, error) -> {
             if (error != null) {
                 AdapterUtils.setErrorResponse(response, ErrorCode.EVALUATE_FAILURE, "Failed to evaluate. Reason:  " + error.getMessage());
                 finalContext.sendResponseAsync(response);

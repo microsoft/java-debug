@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
 /**
@@ -39,7 +40,6 @@ public interface IEvaluationProvider extends IProvider {
      * @param depth The stack frame depth of the evaluation task
      * @param listener the listener is to be notified when the evaluation finishes.
      */
-    void eval(String projectName, String expression, ThreadReference thread, int depth, IEvaluationListener listener);
+    void eval(String projectName, String expression, StackFrame sf, IEvaluationListener listener);
 
-    void clearAll();
 }

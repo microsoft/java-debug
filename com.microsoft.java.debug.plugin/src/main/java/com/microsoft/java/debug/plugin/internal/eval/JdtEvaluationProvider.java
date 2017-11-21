@@ -30,6 +30,7 @@ import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.IEvaluationListener;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -39,13 +40,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private JDIDebugTarget debugTarget;
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    @Override
-    public void clearAll() {
-        threadMap.clear();
 
-    }
     @Override
-    public void eval(String projectName, String code, ThreadReference thread, int depth, IEvaluationListener listener) {
+    public void eval(String projectName, String code, StackFrame sf, IEvaluationListener listener) {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
         if (project == null) {
             for (IProject proj : root.getProjects()) {
@@ -67,7 +64,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         if (launch == null) {
             launch = createLaunch(project);
         }
-
+        ThreadReference thread = sf.thread();
         if (debugTarget == null) {
             debugTarget = new JDIDebugTarget(launch, thread.virtualMachine(), "", false, false, null, false) {
                 @Override
@@ -84,15 +81,15 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                     JDIthread.wait();
                 }
 
-                int i = JDIthread.getStackFrames().length;
-                logger.severe("start to eval " + code + " " + i);
-                if (JDIthread.getStackFrames().length <= depth ) {
-                    logger.severe("Invalid depth for evaulation " + i);
-                    listener.evaluationComplete(null, new UnsupportedOperationException("Invalid depth for evaulation."));
-                    return;
-                }
+//                int i = JDIthread.getStackFrames().length;
+//                logger.severe("start to eval " + code + " " + i);
+//                if (JDIthread.getStackFrames().length <= depth ) {
+//                    logger.severe("Invalid depth for evaulation " + i);
+//                    listener.evaluationComplete(null, new UnsupportedOperationException("Invalid depth for evaulation."));
+//                    return;
+//                }
                 ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-                JDIStackFrame stackframe = (JDIStackFrame) JDIthread.getStackFrames()[depth];
+                JDIStackFrame stackframe = createStackFrame(sf);
 
                 ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
                 engine.evaluateExpression(ie, stackframe, evaluateResult -> {
@@ -128,12 +125,16 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
+    private JDIStackFrame createStackFrame(StackFrame sf) {
+        return new JDIStackFrame(getJDIThread(sf.thread()), sf, 0);
+    }
+
     private JDIThread getJDIThread(ThreadReference thread) {
         synchronized (threadMap) {
             return threadMap.computeIfAbsent(thread, threadKey -> {
                 try {
                     JDIThread newThread = new JDIThread(debugTarget, thread);
-                    newThread.computeStackFrames();
+//                    newThread.computeStackFrames();
                     threadMap.put(thread, newThread);
                     return newThread;
                 } catch(Exception ex) {
@@ -238,7 +239,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 try {
                     locator.setSourceContainers(new ProjectSourceContainer(project.getProject(), true).getSourceContainers());
                 } catch (CoreException e) {
-                    // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
                 locator.initializeParticipants();
