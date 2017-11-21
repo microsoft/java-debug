@@ -78,9 +78,6 @@ public class DebugAdapter implements IDebugAdapter {
                         return result;
                     }
                 }
-            } else {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
-                        String.format("Unrecognized request: { _request: %s }", request.command));
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
@@ -88,7 +85,8 @@ public class DebugAdapter implements IDebugAdapter {
                     e.getMessage() != null ? e.getMessage() : e.toString());
         }
 
-        return AdapterUtils.createAsyncResponse(response);
+        return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
+                String.format("Unrecognized request: { _request: %s }", request.command));
     }
 
     private void initialize() {
