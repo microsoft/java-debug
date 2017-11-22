@@ -39,7 +39,7 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
         ScopesArguments scopesArgs = (ScopesArguments) arguments;
         List<Types.Scope> scopes = new ArrayList<>();
         StackFrameProxy stackFrame = (StackFrameProxy) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
-        if (stackFrame == null || context.isStaledThreadTimestamp(stackFrame.thread(), stackFrame.getTimestamp())) {
+        if (stackFrame == null) {
             response.body = new Responses.ScopesResponseBody(scopes);
             return CompletableFuture.completedFuture(response);
         }

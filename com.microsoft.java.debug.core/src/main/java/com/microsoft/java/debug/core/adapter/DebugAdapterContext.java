@@ -13,7 +13,6 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -23,7 +22,6 @@ import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.sun.jdi.StackFrame;
-import com.sun.jdi.ThreadReference;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_SOURCE_MAPPING_CACHE_ITEMS = 10000;
@@ -45,7 +43,6 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean isVmStopOnEntry = false;
     private String mainClass;
     private String projectName;
-    private Map<Long, Object> stoppedStates = new HashMap<>();
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -224,34 +221,5 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setProjectName(String projectName) {
         this.projectName = projectName;
-    }
-
-
-    @Override
-    public void saveThreadTimestamp(ThreadReference thread) {
-        synchronized (stoppedStates) {
-            stoppedStates.compute(thread.uniqueID(), (k, v) -> new Object());
-        }
-    }
-
-    @Override
-    public Object getThreadTimestamp(ThreadReference thread) {
-        synchronized (stoppedStates) {
-            return stoppedStates.get(thread.uniqueID());
-        }
-    }
-
-    @Override
-    public boolean isStaledThreadTimestamp(ThreadReference thread, Object ctx) {
-        synchronized (stoppedStates) {
-            return ctx != stoppedStates.get(thread.uniqueID());
-        }
-    }
-
-    @Override
-    public void clearThreadTimestamp(ThreadReference thread) {
-        synchronized (stoppedStates) {
-            stoppedStates.remove(thread.uniqueID());
-        }
     }
 }

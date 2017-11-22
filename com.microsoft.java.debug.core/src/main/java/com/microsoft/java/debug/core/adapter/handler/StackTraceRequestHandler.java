@@ -61,8 +61,6 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         int totalFrames = 0;
         if (thread != null) {
 
-            Object timestamp = context.getThreadTimestamp(thread);
-
             try {
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
@@ -73,7 +71,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 Map<Object, StackFrame[]> cache = context.getStackFrameCache();
                 StackFrame[] frames = new StackFrame[0];
                 synchronized (cache) {
-                    frames = cache.compute(timestamp, (k, v) -> {
+                    frames = cache.compute(thread, (k, v) -> {
                             try {
                                 return thread.frames().toArray(new StackFrame[0]);
                             } catch (IncompatibleThreadStateException e) {
@@ -88,7 +86,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                         ? totalFrames - stacktraceArgs.startFrame
                         : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
                 for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
-                    StackFrameProxy stackframe = new StackFrameProxy(timestamp, frames[i].thread(), i, context.getStackFrameCache());
+                    StackFrameProxy stackframe = new StackFrameProxy(frames[i].thread(), i, context.getStackFrameCache());
                     int frameId = context.getRecyclableIdPool().addObject(stackframe.thread().uniqueID(),
                             stackframe);
                     result.add(convertDebuggerStackFrameToClient(stackframe, frameId, context));

@@ -83,20 +83,14 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         if (containerNode.getProxiedVariable() instanceof StackFrameProxy) {
             try {
                 StackFrameProxy frame = (StackFrameProxy) containerNode.getProxiedVariable();
-                if (!context.isStaledThreadTimestamp(frame.thread(), frame.getTimestamp())) {
-                    childrenList = VariableUtils.listLocalVariables(frame);
-                    Variable thisVariable = VariableUtils.getThisVariable(frame);
-                    if (thisVariable != null) {
-                        childrenList.add(thisVariable);
-                    }
-                    if (showStaticVariables && frame.location().method().isStatic()) {
-                        childrenList.addAll(VariableUtils.listStaticVariables(frame));
-                    }
-                } else {
-                    response.body = new Responses.VariablesResponseBody(list);
-                    return CompletableFuture.completedFuture(response);
+                childrenList = VariableUtils.listLocalVariables(frame);
+                Variable thisVariable = VariableUtils.getThisVariable(frame);
+                if (thisVariable != null) {
+                    childrenList.add(thisVariable);
                 }
-
+                if (showStaticVariables && frame.location().method().isStatic()) {
+                    childrenList.addAll(VariableUtils.listStaticVariables(frame));
+                }
             } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                         String.format("Failed to get variables. Reason: %s", e.toString()));

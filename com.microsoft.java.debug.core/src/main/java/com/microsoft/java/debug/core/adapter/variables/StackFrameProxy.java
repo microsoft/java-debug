@@ -37,7 +37,6 @@ public class StackFrameProxy implements StackFrame {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private final int depth;
     private final int hash;
-    private final Object timestamp;
     private final ThreadReference thread;
     private final Map<Object, StackFrame[]> cache;
 
@@ -45,23 +44,21 @@ public class StackFrameProxy implements StackFrame {
     /**
      * Create a wrapper of JDI stackframe to handle the situation of refresh stackframe when encountering InvalidStackFrameException
      *
-     * @param timestamp the timestamp object.
      * @param depth the index of this stackframe inside all frames inside one stopped thread
-     * @param cache a map with timestamp object as the key and all stack frames as the value.
+     * @param cache a map with thread object as the key and all stack frames as the value.
      */
-    public StackFrameProxy(Object timestamp, ThreadReference thread, int depth, Map<Object, StackFrame[]> cache) {
-        if (timestamp == null) {
-            throw new NullPointerException("'timestamp' should not be null for StackFrameProxy");
+    public StackFrameProxy(ThreadReference thread, int depth, Map<Object, StackFrame[]> cache) {
+        if (thread == null) {
+            throw new NullPointerException("'thread' should not be null for StackFrameProxy");
         }
 
         if (depth < 0) {
             throw new IllegalArgumentException("'depth' should not be zero or an positive integer.");
         }
         this.thread = thread;
-        this.timestamp = timestamp;
         this.depth = depth;
         this.cache = cache;
-        hash = Long.hashCode(timestamp.hashCode()) + depth;
+        hash = Long.hashCode(thread.hashCode()) + depth;
     }
 
     @Override
@@ -81,12 +78,7 @@ public class StackFrameProxy implements StackFrame {
             return true;
         }
         StackFrameProxy sf = (StackFrameProxy) obj;
-        return timestamp == sf.timestamp && depth == sf.depth;
-
-    }
-
-    public Object getTimestamp() {
-        return timestamp;
+        return thread.equals(sf.thread) && depth == sf.depth;
     }
 
     public int getDepth() {
@@ -120,24 +112,21 @@ public class StackFrameProxy implements StackFrame {
                 if (!(ex.getTargetException() instanceof InvalidStackFrameException)) {
                     throw ex;
                 }
-                if (timestamp != null) {
-                    synchronized (cache) {
-                        StackFrame[] frames = cache.compute(timestamp, (k, v) -> {
-                                try {
-                                    return thread.frames().toArray(new StackFrame[0]);
-                                } catch (IncompatibleThreadStateException e) {
-                                    return new StackFrame[0];
-                                }
+                synchronized (cache) {
+                    StackFrame[] frames = cache.compute(thread, (k, v) -> {
+                            try {
+                                return thread.frames().toArray(new StackFrame[0]);
+                            } catch (IncompatibleThreadStateException e) {
+                                return new StackFrame[0];
                             }
-                        );
-                        proxy = frames.length > depth ? frames[depth] : null;
-                    }
-                    if (proxy == null) {
-                        throw ex;
-                    }
-                    return MethodUtils.invokeMethod(proxy, methodName, args, parameterTypes);
+                        }
+                    );
+                    proxy = frames.length > depth ? frames[depth] : null;
                 }
-                throw ex;
+                if (proxy == null) {
+                    throw ex;
+                }
+                return MethodUtils.invokeMethod(proxy, methodName, args, parameterTypes);
             }
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException  e) {
             logger.severe(String.format("StackFrameProxy cannot proxy on the method: %s, due to %s", methodName, e.toString()));
@@ -183,7 +172,7 @@ public class StackFrameProxy implements StackFrame {
 
     private StackFrame getProxy() {
         synchronized (cache) {
-            StackFrame[] frames = cache.get(timestamp);
+            StackFrame[] frames = cache.get(thread);
             return frames == null || frames.length < depth ? null : frames[depth];
         }
     }

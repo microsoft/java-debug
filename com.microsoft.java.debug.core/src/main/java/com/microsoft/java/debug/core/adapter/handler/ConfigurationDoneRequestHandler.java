@@ -117,19 +117,16 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 ThreadReference bpThread = ((BreakpointEvent) event).thread();
                 IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
                 if (!engine.isInEvaluation(bpThread)) {
-                    context.saveThreadTimestamp(bpThread);
                     context.sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                     debugEvent.shouldResume = false;
                 }
             }
         } else if (event instanceof StepEvent) {
             ThreadReference stepThread = ((StepEvent) event).thread();
-            context.saveThreadTimestamp(stepThread);
             context.sendEvent(new Events.StoppedEvent("step", stepThread.uniqueID()));
             debugEvent.shouldResume = false;
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
-            context.saveThreadTimestamp(thread);
             context.sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {

@@ -97,11 +97,6 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         try {
             if (containerObj instanceof StackFrameProxy) {
                 StackFrameProxy stackFrameProxy = (StackFrameProxy) containerObj;
-                if (context.isStaledThreadTimestamp(stackFrameProxy.thread(), stackFrameProxy.getTimestamp())) {
-                    return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                            "Failed to set variable. Reason: Cannot set value because the stackframe is invalid.");
-
-                }
                 newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value,
                      showStaticVariables,  stackFrameProxy, options);
 

@@ -18,7 +18,6 @@ import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.sun.jdi.StackFrame;
-import com.sun.jdi.ThreadReference;
 
 public interface IDebugAdapterContext {
     /**
@@ -102,14 +101,6 @@ public interface IDebugAdapterContext {
     String getProjectName();
 
     void setProjectName(String projectName);
-
-    void saveThreadTimestamp(ThreadReference thread);
-
-    void clearThreadTimestamp(ThreadReference thread);
-
-    boolean isStaledThreadTimestamp(ThreadReference thread, Object ctx);
-
-    Object getThreadTimestamp(ThreadReference thread);
 
     Map<Object, StackFrame[]> getStackFrameCache();
 }
