@@ -21,20 +21,12 @@ import com.microsoft.java.debug.core.protocol.Requests.DebugFilters;
 
 public interface IDebugAdapterContext {
     /**
-     * Send debug event synchronously.
+     * Send debug event to the DA.
      *
      * @param event
      *            the debug event
      */
     void sendEvent(Events.DebugEvent event);
-
-    /**
-     * Send debug event asynchronously.
-     *
-     * @param event
-     *            the debug event
-     */
-    void sendEventAsync(Events.DebugEvent event);
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 
