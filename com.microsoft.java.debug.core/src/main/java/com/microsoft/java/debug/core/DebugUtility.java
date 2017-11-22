@@ -244,7 +244,7 @@ public class DebugUtility {
                 .subscribe(debugEvent -> {
                     StepEvent event = (StepEvent) debugEvent.event;
                     future.complete(event.location());
-                    thread.virtualMachine().eventRequestManager().deleteEventRequest(request);
+                    deleteEventRequestSafely(thread.virtualMachine().eventRequestManager(), request);
                 });
         request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         request.addCountFilter(1);
@@ -278,7 +278,7 @@ public class DebugUtility {
             Method method = ((MethodEntryEvent) debugEvent.event).method();
             if (method.isPublic() && method.isStatic() && method.name().equals("main")
                     && method.signature().equals("([Ljava/lang/String;)V")) {
-                debugSession.getVM().eventRequestManager().deleteEventRequest(request);
+                deleteEventRequestSafely(debugSession.getVM().eventRequestManager(), request);
                 debugEvent.shouldResume = false;
                 ThreadReference bpThread = ((MethodEntryEvent) debugEvent.event).thread();
                 future.complete(bpThread.uniqueID());
@@ -347,6 +347,36 @@ public class DebugUtility {
         } catch (ObjectCollectedException ex) {
             // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM when calling suspendCount,
             // the resume operation to this thread is meanness.
+        }
+    }
+
+    /**
+     * Remove the event request from the vm. If the vm has terminated, do nothing.
+     * @param eventManager
+     *                  The event request manager.
+     * @param request
+     *                  The target event request.
+     */
+    public static void deleteEventRequestSafely(EventRequestManager eventManager, EventRequest request) {
+        try {
+            eventManager.deleteEventRequest(request);
+        } catch (VMDisconnectedException ex) {
+            // ignore.
+        }
+    }
+
+    /**
+     * Remove the event request list from the vm. If the vm has terminated, do nothing.
+     * @param eventManager
+     *                  The event request manager.
+     * @param requests
+     *                  The target event request list.
+     */
+    public static void deleteEventRequestSafely(EventRequestManager eventManager, List<EventRequest> requests) {
+        try {
+            eventManager.deleteEventRequests(requests);
+        } catch (VMDisconnectedException ex) {
+            // ignore.
         }
     }
 
