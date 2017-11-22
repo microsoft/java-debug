@@ -71,18 +71,13 @@ public class ProtocolServer extends AbstractProtocolServer {
             if (response != null) {
                 sendMessage(response);
             } else {
-                response = new Messages.Response();
-                response.request_seq = request.seq;
-                response.command = request.command;
-                response.success = false;
-
+                response = new Messages.Response(request.seq, request.command);
                 if (ex != null) {
                     if (ex instanceof CompletionException && ex.getCause() != null) {
                         ex = ex.getCause();
                     }
 
                     if (ex instanceof VMDisconnectedException) {
-                        //response.success = true;
                         sendMessage(response);
                     } else {
                         sendMessage(AdapterUtils.setErrorResponse(response,
