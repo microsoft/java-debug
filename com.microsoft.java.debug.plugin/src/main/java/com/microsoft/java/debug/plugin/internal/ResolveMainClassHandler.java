@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.JavaModelException;
@@ -30,6 +31,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -42,11 +44,19 @@ public class ResolveMainClassHandler {
      * @return an array of main class and project name
      * @throws CoreException when there are errors when resolving main class.
      */
-    public Object resolveMainClass() throws CoreException {
-        return resolveMainClassCore();
+    public Object resolveMainClass(List<Object> arguments) throws CoreException {
+        return resolveMainClassCore(arguments);
     }
 
-    private List<ResolutionItem> resolveMainClassCore() throws CoreException {
+    private List<ResolutionItem> resolveMainClassCore(List<Object> arguments) throws CoreException {
+        IPath rootPath = null;
+        if (arguments != null && arguments.size() > 0) {
+            rootPath = ResourceUtils.filePathFromURI((String) arguments.get(0));
+        }
+        final ArrayList<IPath> targetProjectPath = new ArrayList<>();
+        if (rootPath != null) {
+            targetProjectPath.add(rootPath);
+        }
         IJavaSearchScope searchScope = SearchEngine.createWorkspaceScope();
         SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
                 IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
@@ -72,7 +82,11 @@ public class ResolveMainClassHandler {
                                         }
                                     }
                                     String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
-                                    res.add(new ResolutionItem(mainClass, projectName));
+                                    if (projectName == null
+                                        || targetProjectPath.isEmpty()
+                                        || ResourceUtils.isContainedIn(project.getLocation(), targetProjectPath)) {
+                                        res.add(new ResolutionItem(mainClass, projectName));
+                                    }
                                 }
                             }
                         }
