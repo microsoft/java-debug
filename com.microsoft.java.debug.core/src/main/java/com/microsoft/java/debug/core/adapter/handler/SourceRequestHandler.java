@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -33,15 +34,16 @@ public class SourceRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         int sourceReference = ((SourceArguments) arguments).sourceReference;
         if (sourceReference <= 0) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                     "SourceRequest: property 'sourceReference' is missing, null, or empty");
         } else {
             String uri = context.getSourceUri(sourceReference);
             ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
             response.body = new Responses.SourceResponseBody(sourceProvider.getSourceContents(uri));
+            return CompletableFuture.completedFuture(response);
         }
     }
 
