@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,6 +21,7 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
+import com.sun.jdi.VMDisconnectedException;
 
 public class ProtocolServer extends AbstractProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -68,16 +70,35 @@ public class ProtocolServer extends AbstractProtocolServer {
         this.debugAdapter.dispatchRequest(request).whenComplete((response, ex) -> {
             if (response != null) {
                 sendMessage(response);
-            } else if (ex != null) {
-                logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", ex.toString()), ex);
-                sendMessage(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             } else {
-                logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
-                sendMessage(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        "The request dispatcher should not return null response."));
+                response = new Messages.Response();
+                response.request_seq = request.seq;
+                response.command = request.command;
+                response.success = false;
+
+                if (ex != null) {
+                    if (ex instanceof CompletionException && ex.getCause() != null) {
+                        ex = ex.getCause();
+                    }
+
+                    if (ex instanceof VMDisconnectedException) {
+                        //response.success = true;
+                        sendMessage(response);
+                    } else {
+                        sendMessage(AdapterUtils.setErrorResponse(response,
+                                ErrorCode.UNKNOWN_FAILURE,
+                                ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+                    }
+                } else {
+                    logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
+                    sendMessage(AdapterUtils.setErrorResponse(response,
+                            ErrorCode.UNKNOWN_FAILURE,
+                            "The request dispatcher should not return null response."));
+                }
+            }
+        }).whenComplete((r, e) -> {
+            if (e != null) {
+                logger.log(Level.SEVERE, "Unexpected exception occurs when sending message to VSCode: %s" + e.getMessage());
             }
         });
     }
