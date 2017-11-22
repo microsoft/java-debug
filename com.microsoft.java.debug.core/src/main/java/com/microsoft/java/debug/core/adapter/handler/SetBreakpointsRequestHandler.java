@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -43,10 +44,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
-            return;
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
         }
 
         SetBreakpointArguments bpArguments = (SetBreakpointArguments) arguments;
@@ -74,9 +74,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (StringUtils.isBlank(sourcePath)) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
-                    String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
-            return;
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
+                        String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
         }
         try {
             List<Types.Breakpoint> res = new ArrayList<>();
@@ -89,7 +88,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 if (toAdds[i] == added[i] && added[i].className() != null) {
                     added[i].install().thenAccept(bp -> {
                         Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
-                        context.sendEventAsync(bpEvent);
+                        context.sendEvent(bpEvent);
                     });
                 } else if (toAdds[i].hitCount() != added[i].hitCount() && added[i].className() != null) {
                     // Update hitCount condition.
@@ -98,8 +97,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 res.add(this.convertDebuggerBreakpointToClient(added[i], context));
             }
             response.body = new Responses.SetBreakpointsResponseBody(res);
+            return CompletableFuture.completedFuture(response);
         } catch (DebugException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE, String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()));
+            return AdapterUtils.createAsyncErrorResponse(response,
+                    ErrorCode.SET_BREAKPOINT_FAILURE,
+                    String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()));
         }
     }
 
