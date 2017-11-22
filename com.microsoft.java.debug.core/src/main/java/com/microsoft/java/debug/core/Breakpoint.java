@@ -69,7 +69,7 @@ public class Breakpoint implements IBreakpoint {
         try {
             vm.eventRequestManager().deleteEventRequests(requests());
         } catch (VMDisconnectedException ex) {
-            // ignore since removing breakpoints is meanness when JVM is terminated.
+            // ignore since removing breakpoints is meaningless when JVM is terminated.
         }
         subscriptions().forEach(subscription -> {
             subscription.dispose();
