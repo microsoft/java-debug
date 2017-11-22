@@ -39,7 +39,6 @@ import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
-import com.sun.jdi.VMDisconnectedException;
 
 public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
