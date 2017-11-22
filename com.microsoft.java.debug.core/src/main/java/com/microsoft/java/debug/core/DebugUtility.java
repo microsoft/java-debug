@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
 
 import com.sun.jdi.Location;
+import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
@@ -35,8 +36,11 @@ import com.sun.jdi.connect.Connector.Argument;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
+import com.sun.jdi.event.MethodEntryEvent;
 import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.request.EventRequest;
+import com.sun.jdi.request.EventRequestManager;
+import com.sun.jdi.request.MethodEntryRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
@@ -247,6 +251,40 @@ public class DebugUtility {
         request.enable();
 
         thread.resume();
+
+        return future;
+    }
+
+    /**
+     * Suspend the main thread when the program enters the main method of the specified main class.
+     * @param debugSession
+     *                  the debug session.
+     * @param mainClass
+     *                  the fully qualified name of the main class.
+     * @return
+     *        a {@link CompletableFuture} that contains the suspended main thread id.
+     */
+    public static CompletableFuture<Long> stopOnEntry(IDebugSession debugSession, String mainClass) {
+        CompletableFuture<Long> future = new CompletableFuture<>();
+
+        EventRequestManager manager = debugSession.getVM().eventRequestManager();
+        MethodEntryRequest request = manager.createMethodEntryRequest();
+        request.addClassFilter(mainClass);
+        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+
+        debugSession.getEventHub().events().filter(debugEvent -> {
+            return debugEvent.event instanceof MethodEntryEvent && request.equals(debugEvent.event.request());
+        }).subscribe(debugEvent -> {
+            Method method = ((MethodEntryEvent) debugEvent.event).method();
+            if (method.isPublic() && method.isStatic() && method.name().equals("main")
+                    && method.signature().equals("([Ljava/lang/String;)V")) {
+                debugSession.getVM().eventRequestManager().deleteEventRequest(request);
+                debugEvent.shouldResume = false;
+                ThreadReference bpThread = ((MethodEntryEvent) debugEvent.event).thread();
+                future.complete(bpThread.uniqueID());
+            }
+        });
+        request.enable();
 
         return future;
     }
