@@ -19,15 +19,17 @@ import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
-import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 import com.microsoft.java.debug.core.protocol.Messages;
+import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
-    private static final int MAX_CACHE_ITEMS = 10000;
-    private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
+    private static final int MAX_SOURCE_MAPPING_CACHE_ITEMS = 10000;
+    private static final int MAX_STACKFRAME_CACHE_ITEMS = 1000;
+    private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_SOURCE_MAPPING_CACHE_ITEMS));
+    private Map<Object, StackFrame[]> stackFrameCache = Collections.synchronizedMap(new LRUCache<>(MAX_STACKFRAME_CACHE_ITEMS));
     private IProviderContext providerContext;
     private Consumer<Messages.ProtocolMessage> messageConsumer;
 
@@ -43,8 +45,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean isVmStopOnEntry = false;
     private String mainClass;
     private String projectName;
-
-    private Map<Long, StoppedState> stoppedStates = new HashMap<>();
+    private Map<Long, Object> stoppedStates = new HashMap<>();
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -171,6 +172,11 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
+    public Map<Object, StackFrame[]> getStackFrameCache() {
+        return stackFrameCache;
+    }
+
+    @Override
     public void setDebuggeeEncoding(Charset encoding) {
         debuggeeEncoding = encoding;
     }
@@ -222,30 +228,28 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
 
     @Override
-    public void saveStopState(ThreadReference thread) {
+    public void saveThreadTimestamp(ThreadReference thread) {
         synchronized (stoppedStates) {
-            stoppedStates.compute(thread.uniqueID(), (k, v) -> {
-                return new StoppedState(thread);
-            });
+            stoppedStates.compute(thread.uniqueID(), (k, v) -> new Object());
         }
     }
 
     @Override
-    public StoppedState getStoppedState(ThreadReference thread) {
+    public Object getThreadTimestamp(ThreadReference thread) {
         synchronized (stoppedStates) {
             return stoppedStates.get(thread.uniqueID());
         }
     }
 
     @Override
-    public boolean isStaledState(StoppedState ctx) {
+    public boolean isStaledThreadTimestamp(ThreadReference thread, Object ctx) {
         synchronized (stoppedStates) {
-            return ctx != stoppedStates.get(ctx.getThread().uniqueID());
+            return ctx != stoppedStates.get(thread.uniqueID());
         }
     }
 
     @Override
-    public void clearStopState(ThreadReference thread) {
+    public void clearThreadTimestamp(ThreadReference thread) {
         synchronized (stoppedStates) {
             stoppedStates.remove(thread.uniqueID());
         }

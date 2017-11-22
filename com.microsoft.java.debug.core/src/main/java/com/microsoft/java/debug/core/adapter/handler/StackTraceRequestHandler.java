@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -27,7 +28,6 @@ import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
-import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -35,6 +35,7 @@ import com.microsoft.java.debug.core.protocol.Requests.StackTraceArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
+import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
@@ -60,24 +61,42 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         int totalFrames = 0;
         if (thread != null) {
 
-            StoppedState stop = context.getStoppedState(thread);
+            Object timestamp = context.getThreadTimestamp(thread);
 
             try {
-                totalFrames = stop.getStackFrames().size();
+                totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-                int i = 0;
-                for (StackFrame stackFrame : stop.getStackFrames()
-                        .subList(stacktraceArgs.startFrame, stacktraceArgs.levels == 0 ? totalFrames
-                                : Math.min(totalFrames, stacktraceArgs.startFrame + stacktraceArgs.levels))) {
-                    StackFrameProxy sf = new StackFrameProxy(stop, stackFrame, stacktraceArgs.startFrame + i++);
-                    int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(), sf);
-                    Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
-                    result.add(clientStackFrame);
+
+                Map<Object, StackFrame[]> cache = context.getStackFrameCache();
+                StackFrame[] frames = new StackFrame[0];
+                synchronized (cache) {
+                    frames = cache.compute(timestamp, (k, v) -> {
+                            try {
+                                return thread.frames().toArray(new StackFrame[0]);
+                            } catch (IncompatibleThreadStateException e) {
+                                return new StackFrame[0];
+                            }
+                        }
+                    );
+
                 }
-            } catch (IndexOutOfBoundsException | URISyntaxException | AbsentInformationException | ObjectCollectedException e) {
+
+                int count  = stacktraceArgs.levels == 0
+                        ? totalFrames - stacktraceArgs.startFrame
+                        : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
+                for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
+                    StackFrameProxy stackframe = new StackFrameProxy(timestamp, frames[i].thread(), i, context.getStackFrameCache());
+                    int frameId = context.getRecyclableIdPool().addObject(stackframe.thread().uniqueID(),
+                            stackframe);
+                    result.add(convertDebuggerStackFrameToClient(stackframe, frameId, context));
+                }
+
+
+            } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
+                    | AbsentInformationException | ObjectCollectedException e) {
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates

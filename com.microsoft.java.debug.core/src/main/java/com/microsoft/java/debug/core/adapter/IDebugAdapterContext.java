@@ -16,8 +16,8 @@ import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
-import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
 public interface IDebugAdapterContext {
@@ -103,11 +103,13 @@ public interface IDebugAdapterContext {
 
     void setProjectName(String projectName);
 
-    void saveStopState(ThreadReference thread);
+    void saveThreadTimestamp(ThreadReference thread);
 
-    void clearStopState(ThreadReference thread);
+    void clearThreadTimestamp(ThreadReference thread);
 
-    boolean isStaledState(StoppedState state);
+    boolean isStaledThreadTimestamp(ThreadReference thread, Object ctx);
 
-    StoppedState getStoppedState(ThreadReference thread);
+    Object getThreadTimestamp(ThreadReference thread);
+
+    Map<Object, StackFrame[]> getStackFrameCache();
 }

@@ -21,6 +21,7 @@ import org.apache.commons.lang3.reflect.MethodUtils;
 import com.microsoft.java.debug.core.Configuration;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ClassNotLoadedException;
+import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.InvalidTypeException;
 import com.sun.jdi.LocalVariable;
@@ -36,22 +37,31 @@ public class StackFrameProxy implements StackFrame {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private final int depth;
     private final int hash;
-    private StackFrame proxy;
-    private final StoppedState stopState;
+    private final Object timestamp;
+    private final ThreadReference thread;
+    private final Map<Object, StackFrame[]> cache;
 
 
     /**
      * Create a wrapper of JDI stackframe to handle the situation of refresh stackframe when encountering InvalidStackFrameException
      *
-     * @param state the stop point where the stackframe comes from.
-     * @param stackFrame the JDI stack frame
+     * @param timestamp the timestamp object.
      * @param depth the index of this stackframe inside all frames inside one stopped thread
+     * @param cache a map with timestamp object as the key and all stack frames as the value.
      */
-    public StackFrameProxy(StoppedState state, StackFrame stackFrame, int depth) {
-        stopState = state;
-        proxy = stackFrame;
+    public StackFrameProxy(Object timestamp, ThreadReference thread, int depth, Map<Object, StackFrame[]> cache) {
+        if (timestamp == null) {
+            throw new NullPointerException("'timestamp' should not be null for StackFrameProxy");
+        }
+
+        if (depth < 0) {
+            throw new IllegalArgumentException("'depth' should not be zero or an positive integer.");
+        }
+        this.thread = thread;
+        this.timestamp = timestamp;
         this.depth = depth;
-        hash = Long.hashCode(state.getVersion()) + stackFrame.thread().hashCode() + depth;
+        this.cache = cache;
+        hash = Long.hashCode(timestamp.hashCode()) + depth;
     }
 
     @Override
@@ -71,12 +81,12 @@ public class StackFrameProxy implements StackFrame {
             return true;
         }
         StackFrameProxy sf = (StackFrameProxy) obj;
-        return stopState == sf.stopState && depth == sf.depth;
+        return timestamp == sf.timestamp && depth == sf.depth;
 
     }
 
-    public StoppedState getStoppedState() {
-        return stopState;
+    public Object getTimestamp() {
+        return timestamp;
     }
 
     public int getDepth() {
@@ -85,20 +95,21 @@ public class StackFrameProxy implements StackFrame {
 
     @Override
     public VirtualMachine virtualMachine() {
-        return proxy.virtualMachine();
+        return thread.virtualMachine();
     }
 
     @Override
     public Location location() {
-        return proxy.location();
+        return getProxy().location();
     }
 
     @Override
     public ThreadReference thread() {
-        return proxy.thread();
+        return thread;
     }
 
     private Object invokeProxy(String methodName, final Object[] args, final Class<?>[] parameterTypes) {
+        StackFrame proxy = getProxy();
         if (proxy == null) {
             throw new InvalidStackFrameException();
         }
@@ -109,8 +120,18 @@ public class StackFrameProxy implements StackFrame {
                 if (!(ex.getTargetException() instanceof InvalidStackFrameException)) {
                     throw ex;
                 }
-                if (stopState != null) {
-                    proxy = stopState.refreshStackFrames(depth);
+                if (timestamp != null) {
+                    synchronized (cache) {
+                        StackFrame[] frames = cache.compute(timestamp, (k, v) -> {
+                                try {
+                                    return thread.frames().toArray(new StackFrame[0]);
+                                } catch (IncompatibleThreadStateException e) {
+                                    return new StackFrame[0];
+                                }
+                            }
+                        );
+                        proxy = frames.length > depth ? frames[depth] : null;
+                    }
                     if (proxy == null) {
                         throw ex;
                     }
@@ -158,6 +179,13 @@ public class StackFrameProxy implements StackFrame {
     @Override
     public List<LocalVariable> visibleVariables() throws AbsentInformationException {
         return (List<LocalVariable>) invokeProxy("visibleVariables", null, null);
+    }
+
+    private StackFrame getProxy() {
+        synchronized (cache) {
+            StackFrame[] frames = cache.get(timestamp);
+            return frames == null || frames.length < depth ? null : frames[depth];
+        }
     }
 
 }
