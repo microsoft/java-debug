@@ -13,7 +13,6 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -33,6 +32,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -52,13 +52,16 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
+import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import com.sun.jdi.connect.ListeningConnector;
 import com.sun.jdi.connect.VMStartException;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final int RUNINTERMINAL_TIMEOUT = 10 * 1000;
-    private static final int ATTACH_TIMEOUT = 5 * 1000;
+    private static final int ACCEPT_TIMEOUT = 10 * 1000;
     private static final String TERMINAL_TITLE = "Java Debug Console";
 
     @Override
@@ -155,60 +158,59 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         launchLogs.append(String.format("vmArgs: %s", launchArguments.vmArgs));
         logger.info(launchLogs.toString());
 
-        if (context.isSupportsRunInTerminalRequest()
-                && (launchArguments.console.equals("integratedTerminal") || launchArguments.console.equals("externalTerminal"))) {
-            CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+        try {
+            if (context.isSupportsRunInTerminalRequest()
+                    && (launchArguments.console.equals("integratedTerminal") || launchArguments.console.equals("externalTerminal"))) {
+                CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
-            int address = findFreePort();
-            if (address < 0) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
-                        "Failed to launch debuggee in terminal. Reason: Cannot find free socket.");
-            }
+                List<ListeningConnector> connectors = vmProvider.getVirtualMachineManager().listeningConnectors();
+                ListeningConnector listenConnector = connectors.get(0);
+                Map<String, Connector.Argument> args = listenConnector.defaultArguments();
+                ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
+                String address = listenConnector.startListening(args);
 
-            String[] cmds = constructLaunchCommands(launchArguments, String.valueOf(address));
-            RunInTerminalRequestArguments requestArgs = null;
-            if (launchArguments.console.equals("integratedTerminal")) {
-                requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
-                        cmds,
-                        launchArguments.cwd,
-                        launchArguments.env,
-                        TERMINAL_TITLE);
-            } else {
-                requestArgs = RunInTerminalRequestArguments.createExternalTerminal(
-                        cmds,
-                        launchArguments.cwd,
-                        launchArguments.env,
-                        TERMINAL_TITLE);
-            }
-            Messages.Request request = new Messages.Request(
-                    Requests.Command.RUNINTERMINAL.getName(),
-                    (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));
-
-            // The DA will delegate the execution to the shell, but it doesn't promise to return the process id and exit code to debugger.
-            // This is because the DA cannot really know whether the launching of the target was successful and whether the target is ready
-            // for debugging. For this reason the debugger cannot depend on the runInTerminal response to determine if the debuggee is ready or not.
-            // The debugger will create a listening connector in server mode, and let the debuggee that was started on the shell to
-            // connect to the connector server. And it times out after 10 seconds.
-            context.sendRequest(request, RUNINTERMINAL_TIMEOUT, (runResponse) -> {
-                if (runResponse.success) {
-                    try {
-                        IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), "localhost", address, ATTACH_TIMEOUT);
-                        context.setDebugSession(debugSession);
-                        logger.info("Launching debuggee in terminal console succeeded.");
-                        resultFuture.complete(response);
-                    } catch (IOException | IllegalConnectorArgumentsException e) {
-                        resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
-                                String.format("Failed to launch debuggee in terminal. Reason: %s", e.toString())));
-                    }
+                String[] cmds = constructLaunchCommands(launchArguments, false, address);
+                RunInTerminalRequestArguments requestArgs = null;
+                if (launchArguments.console.equals("integratedTerminal")) {
+                    requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
+                            cmds,
+                            launchArguments.cwd,
+                            launchArguments.env,
+                            TERMINAL_TITLE);
                 } else {
-                    resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
-                            String.format("Failed to launch debuggee in terminal. Reason: %s", runResponse.message)));
+                    requestArgs = RunInTerminalRequestArguments.createExternalTerminal(
+                            cmds,
+                            launchArguments.cwd,
+                            launchArguments.env,
+                            TERMINAL_TITLE);
                 }
-            });
+                Messages.Request request = new Messages.Request(
+                        Requests.Command.RUNINTERMINAL.getName(),
+                        (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));
 
-            return resultFuture;
-        } else {
-            try {
+                // Notes: In windows (reference to https://support.microsoft.com/en-us/help/830473/command-prompt-cmd--exe-command-line-string-limitation),
+                // when launching the program in cmd.exe, if the command line length exceed the threshold value (8191 characters),
+                // it will be automatically truncated so that launching in terminal failed. Especially, for maven project, the class path contains
+                // the local .m2 repository path, it may exceed the limit.
+                context.sendRequest(request, RUNINTERMINAL_TIMEOUT, (runResponse) -> {
+                    if (runResponse.success) {
+                        try {
+                            VirtualMachine vm = listenConnector.accept(args);
+                            context.setDebugSession(new DebugSession(vm));
+                            logger.info("Launching debuggee in terminal console succeeded.");
+                            resultFuture.complete(response);
+                        } catch (IOException | IllegalConnectorArgumentsException e) {
+                            resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
+                                    String.format("Failed to launch debuggee in terminal. Reason: %s", e.toString())));
+                        }
+                    } else {
+                        resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
+                                String.format("Failed to launch debuggee in terminal. Reason: %s", runResponse.message)));
+                    }
+                });
+
+                return resultFuture;
+            } else {
                 IDebugSession debugSession = DebugUtility.launch(
                         vmProvider.getVirtualMachineManager(),
                         launchArguments.mainClass,
@@ -235,10 +237,10 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 debuggeeConsole.start();
 
                 return CompletableFuture.completedFuture(response);
-            } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
-                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
             }
+        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
+                        String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }
     }
 
@@ -247,12 +249,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         return mainClass.substring(index + 1);
     }
 
-    private String[] constructLaunchCommands(LaunchArguments launchArguments, String address) {
+    private String[] constructLaunchCommands(LaunchArguments launchArguments, boolean serverMode, String address) {
         String slash = System.getProperty("file.separator");
 
         List<String> launchCmds = new ArrayList<>();
         launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
-        launchCmds.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=" + address);
+        launchCmds.add("-agentlib:jdwp=transport=dt_socket,server=" + (serverMode ? "y" : "n") + ",suspend=y,address=" + address);
         if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
             launchCmds.addAll(parseArguments(launchArguments.vmArgs));
         }
@@ -294,13 +296,5 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             list.add(arg);
         }
         return list;
-    }
-
-    private static int findFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        } catch (IOException e) {
-            return -1;
-        }
     }
 }
