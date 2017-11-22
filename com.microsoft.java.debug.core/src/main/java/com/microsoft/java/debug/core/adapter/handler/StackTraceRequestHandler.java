@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -48,12 +49,12 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         StackTraceArguments stacktraceArgs = (StackTraceArguments) arguments;
         List<Types.StackFrame> result = new ArrayList<>();
         if (stacktraceArgs.startFrame < 0 || stacktraceArgs.levels < 0) {
             response.body = new Responses.StackTraceResponseBody(result, 0);
-            return;
+            return CompletableFuture.completedFuture(response);
         }
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
         int totalFrames = 0;
@@ -62,7 +63,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
-                    return;
+                    return CompletableFuture.completedFuture(response);
                 }
                 List<StackFrame> stackFrames = stacktraceArgs.levels == 0
                         ? thread.frames(stacktraceArgs.startFrame, totalFrames - stacktraceArgs.startFrame)
@@ -85,6 +86,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             }
         }
         response.body = new Responses.StackTraceResponseBody(result, totalFrames);
+        return CompletableFuture.completedFuture(response);
     }
 
     private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId, IDebugAdapterContext context)
