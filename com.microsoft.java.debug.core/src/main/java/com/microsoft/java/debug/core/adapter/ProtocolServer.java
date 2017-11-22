@@ -78,6 +78,8 @@ public class ProtocolServer extends AbstractProtocolServer {
                     }
 
                     if (ex instanceof VMDisconnectedException) {
+                        // mark it success to avoid reporting error on VSCode.
+                        response.success = true;
                         sendMessage(response);
                     } else {
                         sendMessage(AdapterUtils.setErrorResponse(response,
