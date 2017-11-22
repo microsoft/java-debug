@@ -133,7 +133,7 @@ public class JavaDebugServer implements IDebugServer {
                     ProtocolServer protocolServer = new ProtocolServer(connection.getInputStream(), connection.getOutputStream(),
                             JdtProviderContextFactory.createProviderContext());
                     // protocol server will dispatch request and send response in a while-loop.
-                    protocolServer.start();
+                    protocolServer.run();
                 } catch (IOException e) {
                     logger.log(Level.SEVERE, String.format("Socket connection exception: %s", e.toString()), e);
                 } finally {

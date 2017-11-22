@@ -12,13 +12,16 @@
 package com.microsoft.java.debug.core.adapter;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
 
 public interface IDebugRequestHandler {
     List<Requests.Command> getTargetCommands();
 
-    void handle(Requests.Command command, Requests.Arguments arguments, Messages.Response response, IDebugAdapterContext context);
+    CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context);
 
 }

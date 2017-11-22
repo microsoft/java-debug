@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -45,7 +46,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         AttachArguments attachArguments = (AttachArguments) arguments;
         context.setAttached(true);
         context.setSourcePaths(attachArguments.sourcePaths);
@@ -74,8 +75,8 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                 }
             }
         } catch (IOException | IllegalConnectorArgumentsException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ATTACH_FAILURE,
-                    String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ATTACH_FAILURE,
+                        String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
         }
 
         Map<String, Object> options = new HashMap<>();
@@ -85,6 +86,11 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         }
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
         sourceProvider.initialize(context.getDebugSession(), options);
+
+        // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
+        // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
+        context.sendEvent(new Events.InitializedEvent());
+        return CompletableFuture.completedFuture(response);
     }
 
 }
