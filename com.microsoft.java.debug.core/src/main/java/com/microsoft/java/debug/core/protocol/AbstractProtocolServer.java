@@ -25,7 +25,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -50,9 +50,6 @@ public abstract class AbstractProtocolServer {
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
     private Map<Integer, Consumer<Messages.Response>> pendingRequests = new HashMap<>();
 
-    private boolean isDispatchingData;
-    private ConcurrentLinkedQueue<Messages.Event> eventQueue;
-
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
      * @param input
@@ -65,13 +62,12 @@ public abstract class AbstractProtocolServer {
         this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
         this.contentLength = -1;
         this.rawData = new ByteBuffer();
-        this.eventQueue = new ConcurrentLinkedQueue<>();
     }
 
     /**
      * A while-loop to parse input data and send output data constantly.
      */
-    public void start() {
+    public void run() {
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
@@ -96,34 +92,10 @@ public abstract class AbstractProtocolServer {
     }
 
     /**
-     * Send event to DA immediately.
-     * @param eventType
-     *                 event type
-     * @param body
-     *                 event body
+     * Send a request/response/event to the DA.
+     * @param message
+     *              the message.
      */
-    protected void sendEvent(String eventType, Object body) {
-        sendMessage(new Messages.Event(eventType, body));
-    }
-
-    /**
-     * If the the dispatcher is idle, then send the event immediately.
-     * Else add the new event to an eventQueue first and send them when dispatcher becomes idle again.
-     * @param eventType
-     *              event type
-     * @param body
-     *              event content
-     */
-    protected void sendEventLater(String eventType, Object body) {
-        synchronized (this) {
-            if (this.isDispatchingData) {
-                this.eventQueue.offer(new Messages.Event(eventType, body));
-            } else {
-                sendMessage(new Messages.Event(eventType, body));
-            }
-        }
-    }
-
     protected void sendMessage(Messages.ProtocolMessage message) {
         message.seq = this.sequenceNumber.getAndIncrement();
 
@@ -142,6 +114,8 @@ public abstract class AbstractProtocolServer {
         try {
             if (message instanceof Messages.Request) {
                 logger.fine("\n[[REQUEST]]\n" + utf8Data);
+            } else if (message instanceof Messages.Event) {
+                logger.fine("\n[[EVENT]]\n" + utf8Data);
             } else {
                 logger.fine("\n[[RESPONSE]]\n" + utf8Data);
             }
@@ -152,11 +126,39 @@ public abstract class AbstractProtocolServer {
         }
     }
 
-    protected void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
+    /**
+     * Send a request to the DA.
+     * @param request
+     *              the request message.
+     * @param timeout
+     *              the timeout (in millis).
+     * @param cb
+     *              the request call back function.
+     */
+    protected void sendRequest(Messages.Request request, int timeout, Consumer<Messages.Response> cb) {
         sendMessage(request);
         if (cb != null) {
             pendingRequests.put(request.seq, cb);
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(timeout);
+                    Consumer<Messages.Response> callback = fetchPendingRequestCallback(request.seq);
+                    if (callback != null) {
+                        callback.accept(new Messages.Response(request.seq, request.command, false, "timeout"));
+                    }
+                } catch (InterruptedException e) {
+                    // ignore.
+                }
+            });
         }
+    }
+
+    private synchronized Consumer<Messages.Response> fetchPendingRequestCallback(int req) {
+        Consumer<Messages.Response> callback = pendingRequests.get(req);
+        if (callback != null) {
+            pendingRequests.remove(req);
+        }
+        return callback;
     }
 
     private void processData() {
@@ -175,26 +177,14 @@ public abstract class AbstractProtocolServer {
 
                     if (message.type.equals("request")) {
                         try {
-                            synchronized (this) {
-                                this.isDispatchingData = true;
-                            }
                             this.dispatchRequest(JsonUtils.fromJson(messageData, Messages.Request.class));
                         } catch (Exception e) {
                             logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
-                        } finally {
-                            synchronized (this) {
-                                this.isDispatchingData = false;
-                            }
-
-                            while (this.eventQueue.peek() != null) {
-                                sendMessage(this.eventQueue.poll());
-                            }
                         }
                     } else if (message.type.equals("response")) {
                         Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
-                        Consumer<Messages.Response> cb = pendingRequests.get(response.request_seq);
+                        Consumer<Messages.Response> cb = fetchPendingRequestCallback(response.request_seq);
                         if (cb != null) {
-                            pendingRequests.remove(response.request_seq);
                             cb.accept(response);
                         }
                     }

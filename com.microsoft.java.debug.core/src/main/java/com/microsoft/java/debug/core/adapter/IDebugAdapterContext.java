@@ -22,7 +22,7 @@ import com.microsoft.java.debug.core.protocol.Messages;
 
 public interface IDebugAdapterContext {
     /**
-     * Send debug event synchronously.
+     * Send debug event to the DA.
      *
      * @param event
      *            the debug event
@@ -30,14 +30,15 @@ public interface IDebugAdapterContext {
     void sendEvent(Events.DebugEvent event);
 
     /**
-     * Send debug event asynchronously.
-     *
-     * @param event
-     *            the debug event
+     * Send a request to the DA.
+     * @param request
+     *              the request.
+     * @param timeout
+     *              the timeout (in millis).
+     * @param cb
+     *              the request call back function.
      */
-    void sendEventAsync(Events.DebugEvent event);
-
-    void sendRequest(Messages.Request request, Consumer<Messages.Response> cb);
+    void sendRequest(Messages.Request request, int timeout, Consumer<Messages.Response> cb);
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 

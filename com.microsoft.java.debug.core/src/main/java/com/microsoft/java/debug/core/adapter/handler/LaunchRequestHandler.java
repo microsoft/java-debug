@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -21,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,7 +33,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -50,14 +52,14 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
-import com.sun.jdi.VirtualMachine;
-import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
-import com.sun.jdi.connect.ListeningConnector;
 import com.sun.jdi.connect.VMStartException;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private static final int RUNINTERMINAL_TIMEOUT = 10 * 1000;
+    private static final int ATTACH_TIMEOUT = 5 * 1000;
+    private static final String TERMINAL_TITLE = "Java Debug Console";
 
     @Override
     public List<Command> getTargetCommands() {
@@ -65,30 +67,52 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
                 || (ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths))) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                    String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
-            return;
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
+                       String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
         }
 
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
+        context.setVmStopOnEntry(launchArguments.stopOnEntry);
+        context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
 
         if (StringUtils.isBlank(launchArguments.encoding)) {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);
         } else {
             if (!Charset.isSupported(launchArguments.encoding)) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.INVALID_ENCODING,
-                        String.format("Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized."));
-                return;
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.INVALID_ENCODING,
+                            String.format("Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized."));
             }
 
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
         }
 
+        return launch(launchArguments, response, context).thenCompose(res -> {
+            if (res.success) {
+                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+                Map<String, Object> options = new HashMap<>();
+                options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
+                if (launchArguments.projectName != null) {
+                    options.put(Constants.PROJECTNAME, launchArguments.projectName);
+                }
+                sourceProvider.initialize(context.getDebugSession(), options);
+
+                // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
+                // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
+                context.sendEvent(new Events.InitializedEvent());
+            } else {
+                logger.log(Level.SEVERE, res.message == null ? "Failed to launch debuggee." : res.message);
+            }
+            return CompletableFuture.completedFuture(res);
+        });
+    }
+
+    private CompletableFuture<Response> launch(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
+        IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
         if (StringUtils.isBlank(launchArguments.vmArgs)) {
             launchArguments.vmArgs = String.format("-Dfile.encoding=%s", context.getDebuggeeEncoding().name());
@@ -96,10 +120,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             // if vmArgs already has the file.encoding settings, duplicate options for jvm will not cause an error, the right most value wins
             launchArguments.vmArgs = String.format("%s -Dfile.encoding=%s", launchArguments.vmArgs, context.getDebuggeeEncoding().name());
         }
-
-
-        IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
-
 
         // Append environment to native environment.
         String[] envVars = null;
@@ -125,64 +145,70 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             }
         }
 
-        try {
-            StringBuilder launchLogs = new StringBuilder();
-            launchLogs.append("Trying to launch Java Program with options:\n");
-            launchLogs.append(String.format("main-class: %s\n", launchArguments.mainClass));
-            launchLogs.append(String.format("args: %s\n", launchArguments.args));
-            launchLogs.append(String.format("module-path: %s\n", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
-            launchLogs.append(String.format("class-path: %s\n", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
-            launchLogs.append(String.format("vmArgs: %s", launchArguments.vmArgs));
-            logger.info(launchLogs.toString());
 
-            if (context.isSupportsRunInTerminalRequest()
-                    && (launchArguments.console.equals("integratedTerminal") || launchArguments.console.equals("externalTerminal"))) {
-                final int ACCEPT_TIMEOUT = 10 * 1000;
-                List<ListeningConnector> connectors = vmProvider.getVirtualMachineManager().listeningConnectors();
-                final ListeningConnector listenConnector = connectors.get(0);
-                Map<String, Connector.Argument> args = listenConnector.defaultArguments();
-                ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
-                String address = listenConnector.startListening(args);
+        StringBuilder launchLogs = new StringBuilder();
+        launchLogs.append("Trying to launch Java Program with options:\n");
+        launchLogs.append(String.format("main-class: %s\n", launchArguments.mainClass));
+        launchLogs.append(String.format("args: %s\n", launchArguments.args));
+        launchLogs.append(String.format("module-path: %s\n", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
+        launchLogs.append(String.format("class-path: %s\n", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
+        launchLogs.append(String.format("vmArgs: %s", launchArguments.vmArgs));
+        logger.info(launchLogs.toString());
 
-                String[] cmds = constructLaunchCommands(launchArguments, address);
-                RunInTerminalRequestArguments requestArgs = null;
-                if (launchArguments.console.equals("integratedTerminal")) {
-                    requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
-                            cmds,
-                            launchArguments.cwd,
-                            launchArguments.env,
-                            Constants.JAVA_DEBUG_CONSOLE);
-                } else {
-                    requestArgs = RunInTerminalRequestArguments.createExternalTerminal(
-                            cmds,
-                            launchArguments.cwd,
-                            launchArguments.env,
-                            Constants.JAVA_DEBUG_CONSOLE);
-                }
-                Messages.Request request = new Messages.Request(
-                        Requests.Command.RUNINTERMINAL.getName(),
-                        (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));
+        if (context.isSupportsRunInTerminalRequest()
+                && (launchArguments.console.equals("integratedTerminal") || launchArguments.console.equals("externalTerminal"))) {
+            CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
-                // The DA will delegate the execution to the shell, but it doesn't promise to return the process id and exit code to debugger.
-                // This is because the DA cannot really know whether the launching of the target was successful and whether the target is ready
-                // for debugging. For this reason the debugger cannot depend on the runInTerminal response to determine if the debuggee is ready or not.
-                // The debugger will create a listening connector in server mode, and let the debuggee that was started on the shell to
-                // connect to the connector server. And it times out after 10 seconds.
-                context.sendRequest(request, (runResponse) -> {
-                    logger.info("runInTerminalRequest response.");
-                });
+            int address = findFreePort();
+            if (address < 0) {
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
+                        "Failed to launch debuggee in terminal. Reason: Cannot find free socket.");
+            }
 
-                try {
-                    VirtualMachine virtualMachine = listenConnector.accept(args);
-                    DebugSession debugSession = new DebugSession(virtualMachine);
-                    context.setDebugSession(debugSession);
-
-                    logger.info("Launching debuggee VM in external console succeeded.");
-                } catch (IOException | IllegalConnectorArgumentsException e) {
-                    AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
-                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
-                }
+            String[] cmds = constructLaunchCommands(launchArguments, String.valueOf(address));
+            RunInTerminalRequestArguments requestArgs = null;
+            if (launchArguments.console.equals("integratedTerminal")) {
+                requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
+                        cmds,
+                        launchArguments.cwd,
+                        launchArguments.env,
+                        TERMINAL_TITLE);
             } else {
+                requestArgs = RunInTerminalRequestArguments.createExternalTerminal(
+                        cmds,
+                        launchArguments.cwd,
+                        launchArguments.env,
+                        TERMINAL_TITLE);
+            }
+            Messages.Request request = new Messages.Request(
+                    Requests.Command.RUNINTERMINAL.getName(),
+                    (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));
+
+            // The DA will delegate the execution to the shell, but it doesn't promise to return the process id and exit code to debugger.
+            // This is because the DA cannot really know whether the launching of the target was successful and whether the target is ready
+            // for debugging. For this reason the debugger cannot depend on the runInTerminal response to determine if the debuggee is ready or not.
+            // The debugger will create a listening connector in server mode, and let the debuggee that was started on the shell to
+            // connect to the connector server. And it times out after 10 seconds.
+            context.sendRequest(request, RUNINTERMINAL_TIMEOUT, (runResponse) -> {
+                if (runResponse.success) {
+                    try {
+                        IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), "localhost", address, ATTACH_TIMEOUT);
+                        context.setDebugSession(debugSession);
+                        logger.info("Launching debuggee in terminal console succeeded.");
+                        resultFuture.complete(response);
+                    } catch (IOException | IllegalConnectorArgumentsException e) {
+                        resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
+                                String.format("Failed to launch debuggee in terminal. Reason: %s", e.toString())));
+                    }
+                } else {
+                    resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
+                            String.format("Failed to launch debuggee in terminal. Reason: %s", runResponse.message)));
+                }
+            });
+
+            return resultFuture;
+        } else {
+            try {
                 IDebugSession debugSession = DebugUtility.launch(
                         vmProvider.getVirtualMachineManager(),
                         launchArguments.mainClass,
@@ -207,22 +233,13 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     context.sendEvent(Events.OutputEvent.createStderrOutput(err));
                 });
                 debuggeeConsole.start();
+
+                return CompletableFuture.completedFuture(response);
+            } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
+                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
             }
-        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
-                    String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }
-
-        context.setVmStopOnEntry(launchArguments.stopOnEntry);
-        context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
-
-        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        Map<String, Object> options = new HashMap<>();
-        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
-        if (launchArguments.projectName != null) {
-            options.put(Constants.PROJECTNAME, launchArguments.projectName);
-        }
-        sourceProvider.initialize(context.getDebugSession(), options);
     }
 
     private static String parseMainClassWithoutModuleName(String mainClass) {
@@ -235,7 +252,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         List<String> launchCmds = new ArrayList<>();
         launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
-        launchCmds.add("-agentlib:jdwp=transport=dt_socket,server=n,suspend=y,address=" + address);
+        launchCmds.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=" + address);
         if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
             launchCmds.addAll(parseArguments(launchArguments.vmArgs));
         }
@@ -277,5 +294,13 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             list.add(arg);
         }
         return list;
+    }
+
+    private static int findFreePort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            return -1;
+        }
     }
 }

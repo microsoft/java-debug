@@ -13,12 +13,20 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Messages.Request;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
 
 public class ProtocolServer extends AbstractProtocolServer {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
     private IDebugAdapter debugAdapter;
     private UsageDataSession usageDataSession = new UsageDataSession();
 
@@ -33,46 +41,52 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter((debugEvent, willSendLater) -> {
-            // If the protocolServer has been stopped, it'll no longer receive any event.
-            if (!terminateSession) {
-                if (willSendLater) {
-                    sendEventLater(debugEvent.type, debugEvent);
-                } else {
-                    sendEvent(debugEvent.type, debugEvent);
-                }
-            }
-        }, (request, cb) -> {
-            if (!terminateSession) {
-                sendRequest(request, cb);
-            }
-        }, context);
+        IDebugAdapterContext debugContext = new DebugAdapterContext(this, context);
+        this.debugAdapter = new DebugAdapter(debugContext);
     }
 
     /**
      * A while-loop to parse input data and send output data constantly.
      */
-    public void start() {
+    public void run() {
         usageDataSession.reportStart();
-        super.start();
-    }
-
-    /**
-     * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
-     */
-    public void stop() {
+        super.run();
         usageDataSession.reportStop();
-        super.stop();
         usageDataSession.submitUsageData();
     }
 
-    protected void dispatchRequest(Messages.Request request) {
-        Messages.Response response = this.debugAdapter.dispatchRequest(request);
-        if (request.command.equals("disconnect")) {
-            stop();
+    @Override
+    protected void sendMessage(Messages.ProtocolMessage message) {
+        super.sendMessage(message);
+        if (message instanceof Messages.Response) {
+            usageDataSession.recordResponse((Messages.Response) message);
+        } else if (message instanceof Messages.Request) {
+            usageDataSession.recordRequest((Messages.Request) message);
         }
-        sendMessage(response);
-        usageDataSession.recordResponse(response);
+    }
+
+    @Override
+    protected void sendRequest(Request request, int timeout, Consumer<Response> cb) {
+        super.sendRequest(request, timeout, cb);
+    }
+
+    protected void dispatchRequest(Messages.Request request) {
+        usageDataSession.recordRequest(request);
+        this.debugAdapter.dispatchRequest(request).whenComplete((response, ex) -> {
+            if (response != null) {
+                sendMessage(response);
+            } else if (ex != null) {
+                logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", ex.toString()), ex);
+                sendMessage(AdapterUtils.setErrorResponse(response,
+                        ErrorCode.UNKNOWN_FAILURE,
+                        ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+            } else {
+                logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
+                sendMessage(AdapterUtils.setErrorResponse(response,
+                        ErrorCode.UNKNOWN_FAILURE,
+                        "The request dispatcher should not return null response."));
+            }
+        });
     }
 
 }

@@ -106,6 +106,15 @@ public class Messages {
             this(rseq, cmd);
             this.success = succ;
         }
+
+        /**
+         * Constructor.
+         */
+        public Response(int rseq, String cmd, boolean succ, String message) {
+            this(rseq, cmd);
+            this.success = succ;
+            this.message = message;
+        }
     }
 
     public static class Event extends ProtocolMessage {

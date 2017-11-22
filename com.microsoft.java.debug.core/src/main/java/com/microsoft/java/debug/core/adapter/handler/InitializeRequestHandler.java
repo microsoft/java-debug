@@ -13,10 +13,10 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Types;
@@ -28,7 +28,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Requests.Command command, Requests.Arguments argument, Messages.Response response,
+    public CompletableFuture<Messages.Response> handle(Requests.Command command, Requests.Arguments argument, Messages.Response response,
                        IDebugAdapterContext context) {
         Requests.InitializeArguments initializeArguments = (Requests.InitializeArguments) argument;
         context.setClientLinesStartAt1(initializeArguments.linesStartAt1);
@@ -44,9 +44,6 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         }
         context.setSupportsRunInTerminalRequest(initializeArguments.supportsRunInTerminalRequest);
 
-        // Send an InitializedEvent
-        context.sendEventAsync(new Events.InitializedEvent());
-
         Types.Capabilities caps = new Types.Capabilities();
         caps.supportsConfigurationDoneRequest = true;
         caps.supportsHitConditionalBreakpoints = true;
@@ -58,5 +55,6 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         };
         caps.exceptionBreakpointFilters = exceptionFilters;
         response.body = caps;
+        return CompletableFuture.completedFuture(response);
     }
 }

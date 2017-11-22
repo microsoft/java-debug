@@ -15,8 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,7 +34,6 @@ import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
-import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -44,28 +42,20 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
-    private BiConsumer<Events.DebugEvent, Boolean> eventConsumer;
-    private BiConsumer<Messages.Request, Consumer<Messages.Response>> requestConsumer;
-    private IProviderContext providerContext;
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
 
     /**
      * Constructor.
      */
-    public DebugAdapter(BiConsumer<Events.DebugEvent, Boolean> sendEvent,
-            BiConsumer<Messages.Request, Consumer<Messages.Response>> sendRequest,
-            IProviderContext providerContext) {
-        eventConsumer = sendEvent;
-        requestConsumer = sendRequest;
-        this.providerContext = providerContext;
-        debugContext = new DebugAdapterContext(this);
+    public DebugAdapter(IDebugAdapterContext debugContext) {
+        this.debugContext = debugContext;
         requestHandlers = new HashMap<>();
         initialize();
     }
 
     @Override
-    public Messages.Response dispatchRequest(Messages.Request request) {
+    public CompletableFuture<Messages.Response> dispatchRequest(Messages.Request request) {
         Messages.Response response = new Messages.Response();
         response.request_seq = request.seq;
         response.command = request.command;
@@ -74,60 +64,24 @@ public class DebugAdapter implements IDebugAdapter {
         Command command = Command.parse(request.command);
         Arguments cmdArgs = JsonUtils.fromJson(request.arguments, command.getArgumentType());
 
-        try {
-            if (debugContext.isVmTerminated()) {
-                // the operation is meaningless
-                return response;
-            }
-            List<IDebugRequestHandler> handlers = requestHandlers.get(command);
-            if (handlers != null && !handlers.isEmpty()) {
-                for (IDebugRequestHandler handler : handlers) {
-                    handler.handle(command, cmdArgs, response, debugContext);
-                }
-            } else {
-                AdapterUtils.setErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
-                        String.format("Unrecognized request: { _request: %s }", request.command));
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", e.toString()), e);
-            AdapterUtils.setErrorResponse(response, ErrorCode.UNKNOWN_FAILURE,
-                    e.getMessage() != null ? e.getMessage() : e.toString());
+        if (debugContext.isVmTerminated()) {
+            // the operation is meaningless
+            return CompletableFuture.completedFuture(response);
         }
-
-        return response;
-    }
-
-    /**
-     * Send event to DA immediately.
-     *
-     * @see ProtocolServer#sendEvent(String, Object)
-     */
-    public void sendEvent(Events.DebugEvent event) {
-        eventConsumer.accept(event, false);
-    }
-
-    /**
-     * Send event to DA after the current dispatching request is resolved.
-     *
-     * @see ProtocolServer#sendEventLater(String, Object)
-     */
-    public void sendEventLater(Events.DebugEvent event) {
-        eventConsumer.accept(event, true);
-    }
-
-    /**
-     * Send a request to DA.
-     * @param request
-     *              the target request.
-     * @param cb
-     *              the call back function to handle the response.
-     */
-    public void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
-        requestConsumer.accept(request, cb);
-    }
-
-    public <T extends IProvider> T getProvider(Class<T> clazz) {
-        return providerContext.getProvider(clazz);
+        List<IDebugRequestHandler> handlers = requestHandlers.get(command);
+        if (handlers != null && !handlers.isEmpty()) {
+            CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
+            for (IDebugRequestHandler handler : handlers) {
+                future = future.thenCompose((res) -> {
+                    return handler.handle(command, cmdArgs, res, debugContext);
+                });
+            }
+            return future;
+        } else {
+            final String errorMessage = String.format("Unrecognized request: { _request: %s }", request.command);
+            logger.log(Level.SEVERE, errorMessage);
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE, errorMessage);
+        }
     }
 
     private void initialize() {

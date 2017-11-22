@@ -25,7 +25,8 @@ import com.microsoft.java.debug.core.protocol.Messages;
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
-    private DebugAdapter debugAdapter;
+    private IProviderContext providerContext;
+    private ProtocolServer server;
 
     private IDebugSession debugSession;
     private boolean debuggerLinesStartAt1 = true;
@@ -44,28 +45,24 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
-    public DebugAdapterContext(DebugAdapter debugAdapter) {
-        this.debugAdapter = debugAdapter;
+    public DebugAdapterContext(ProtocolServer server, IProviderContext providerContext) {
+        this.providerContext = providerContext;
+        this.server = server;
     }
 
     @Override
     public void sendEvent(DebugEvent event) {
-        debugAdapter.sendEvent(event);
+        server.sendMessage(new Messages.Event(event.type, event));
     }
 
     @Override
-    public void sendEventAsync(DebugEvent event) {
-        debugAdapter.sendEventLater(event);
-    }
-
-    @Override
-    public void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
-        debugAdapter.sendRequest(request, cb);
+    public void sendRequest(Messages.Request request, int timeout, Consumer<Messages.Response> cb) {
+        server.sendRequest(request, timeout, cb);
     }
 
     @Override
     public <T extends IProvider> T getProvider(Class<T> clazz) {
-        return debugAdapter.getProvider(clazz);
+        return providerContext.getProvider(clazz);
     }
 
     @Override
