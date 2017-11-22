@@ -85,11 +85,11 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             };
         }
         try {
-            JDIThread JDIthread = getJDIThread(thread);
+            JDIThread jdiThread = getJDIThread(thread);
 
-            synchronized (JDIthread) {
-                if (JDIthread.isPerformingEvaluation()) {
-                    JDIthread.wait();
+            synchronized (jdiThread) {
+                if (jdiThread.isPerformingEvaluation()) {
+                    jdiThread.wait();
                 }
 
                 ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
@@ -97,8 +97,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
                 ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
                 engine.evaluateExpression(ie, stackframe, evaluateResult -> {
-                    synchronized (JDIthread) {
-                        JDIthread.notify();
+                    synchronized (jdiThread) {
+                        jdiThread.notify();
                     }
                     if (evaluateResult == null || evaluateResult.hasErrors()) {
                         listener.evaluationComplete(null, evaluateResult.getException() != null ? evaluateResult.getException()
