@@ -16,7 +16,9 @@ import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.sun.jdi.ThreadReference;
 
 public interface IDebugAdapterContext {
     /**
@@ -96,4 +98,16 @@ public interface IDebugAdapterContext {
     void setMainClass(String mainClass);
 
     String getMainClass();
+
+    String getProjectName();
+
+    void setProjectName(String projectName);
+
+    void saveStopState(ThreadReference thread);
+
+    void clearStopState(ThreadReference thread);
+
+    boolean isStaledState(StoppedState state);
+
+    StoppedState getStoppedState(ThreadReference thread);
 }

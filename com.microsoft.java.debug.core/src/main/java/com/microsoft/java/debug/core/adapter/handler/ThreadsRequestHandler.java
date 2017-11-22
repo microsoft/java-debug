@@ -91,6 +91,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             DebugUtility.stepInto(thread, context.getDebugSession().getEventHub());
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         }
         return CompletableFuture.completedFuture(response);
@@ -100,6 +101,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             DebugUtility.stepOut(thread, context.getDebugSession().getEventHub());
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         }
         return CompletableFuture.completedFuture(response);
@@ -109,6 +111,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         }
         return CompletableFuture.completedFuture(response);
@@ -118,6 +121,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             thread.suspend();
+            context.clearStopState(thread);
             context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
         } else {
             context.getDebugSession().suspend();
@@ -137,6 +141,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (thread != null) {
             allThreadsContinued = false;
             DebugUtility.resumeThread(thread);
+            context.clearStopState(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         } else {
             context.getDebugSession().resume();

@@ -26,7 +26,8 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
+import com.microsoft.java.debug.core.adapter.variables.StoppedState;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -34,7 +35,6 @@ import com.microsoft.java.debug.core.protocol.Requests.StackTraceArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
@@ -59,25 +59,25 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
         int totalFrames = 0;
         if (thread != null) {
+
+            StoppedState stop = context.getStoppedState(thread);
+
             try {
-                totalFrames = thread.frameCount();
+                totalFrames = stop.getStackFrames().size();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-                List<StackFrame> stackFrames = stacktraceArgs.levels == 0
-                        ? thread.frames(stacktraceArgs.startFrame, totalFrames - stacktraceArgs.startFrame)
-                        : thread.frames(stacktraceArgs.startFrame,
-                        Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels));
-                for (int i = 0; i < stackFrames.size(); i++) {
-                    StackFrame stackFrame = stackFrames.get(i);
-                    int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(),
-                            new JdiObjectProxy<>(stackFrame));
+                int i = 0;
+                for (StackFrame stackFrame : stop.getStackFrames()
+                        .subList(stacktraceArgs.startFrame, stacktraceArgs.levels == 0 ? totalFrames
+                                : Math.min(totalFrames, stacktraceArgs.startFrame + stacktraceArgs.levels))) {
+                    StackFrameProxy sf = new StackFrameProxy(stop, stackFrame, stacktraceArgs.startFrame + i++);
+                    int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(), sf);
                     Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
                     result.add(clientStackFrame);
                 }
-            } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
-                    | AbsentInformationException | ObjectCollectedException e) {
+            } catch (IndexOutOfBoundsException | URISyntaxException | AbsentInformationException | ObjectCollectedException e) {
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates

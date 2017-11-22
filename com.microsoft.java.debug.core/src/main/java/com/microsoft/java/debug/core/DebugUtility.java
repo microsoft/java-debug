@@ -246,8 +246,7 @@ public class DebugUtility {
         request.addCountFilter(1);
         request.enable();
 
-        thread.resume();
-
+        DebugUtility.resumeThread(thread);
         return future;
     }
 
