@@ -63,7 +63,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                         break;
                     }
                 } catch (CoreException e) {
-                    e.printStackTrace();
+                    logger.severe(String.format("Cannot initialize project: %s", e.toString()));
                 }
             }
         }
@@ -230,7 +230,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 try {
                     locator.setSourceContainers(new ProjectSourceContainer(project.getProject(), true).getSourceContainers());
                 } catch (CoreException e) {
-                    e.printStackTrace();
+                    logger.severe(String.format("Cannot initialize JavaSourceLookupDirector: %s", e.toString()));
                 }
                 locator.initializeParticipants();
                 return locator;
