@@ -193,6 +193,19 @@ public class DebugUtility {
      *            the target thread.
      * @param eventHub
      *            the {@link IEventHub} instance.
+     * @return the created {@link StepRequest}.
+     */
+    public static StepRequest stepOver(ThreadReference thread, IEventHub eventHub) {
+        return stepOver(thread, eventHub, null);
+    }
+
+    /**
+     * Steps over newly pushed frames.
+     *
+     * @param thread
+     *            the target thread.
+     * @param eventHub
+     *            the {@link IEventHub} instance.
      * @param stepFilters
      *            the step filters when stepping.
      * @return the created {@link StepRequest}.
@@ -208,12 +221,38 @@ public class DebugUtility {
      *            the target thread.
      * @param eventHub
      *            the {@link IEventHub} instance.
+     * @return the created {@link StepRequest}.
+     */
+    public static StepRequest stepInto(ThreadReference thread, IEventHub eventHub) {
+        return stepInto(thread, eventHub, null);
+    }
+
+    /**
+     * Steps into newly pushed frames.
+     *
+     * @param thread
+     *            the target thread.
+     * @param eventHub
+     *            the {@link IEventHub} instance.
      * @param stepFilters
      *            the step filters when stepping.
      * @return the created {@link StepRequest}.
      */
     public static StepRequest stepInto(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
         return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
+    }
+
+    /**
+     * Steps out of the current frame.
+     *
+     * @param thread
+     *            the target thread.
+     * @param eventHub
+     *            the {@link IEventHub} instance.
+     * @return the created {@link StepRequest}.
+     */
+    public static StepRequest stepOut(ThreadReference thread, IEventHub eventHub) {
+        return stepOut(thread, eventHub, null);
     }
 
     /**

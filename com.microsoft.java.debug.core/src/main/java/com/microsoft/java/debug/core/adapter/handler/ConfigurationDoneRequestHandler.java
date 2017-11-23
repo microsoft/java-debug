@@ -117,8 +117,6 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 context.sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
             }
-        } else if (event instanceof StepEvent) {
-            // do nothing.
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
             context.sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));

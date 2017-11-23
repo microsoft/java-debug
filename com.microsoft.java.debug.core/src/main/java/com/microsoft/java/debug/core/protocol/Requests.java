@@ -119,17 +119,20 @@ public class Requests {
         public long threadId;
     }
 
-    public static class NextArguments extends Arguments {
+    public static class StepArguments extends Arguments {
         public long threadId;
     }
 
-    public static class StepInArguments extends Arguments {
-        public long threadId;
+    public static class NextArguments extends StepArguments {
+
+    }
+
+    public static class StepInArguments extends StepArguments {
         public int targetId;
     }
 
-    public static class StepOutArguments extends Arguments {
-        public long threadId;
+    public static class StepOutArguments extends StepArguments {
+
     }
 
     public static class PauseArguments extends Arguments {

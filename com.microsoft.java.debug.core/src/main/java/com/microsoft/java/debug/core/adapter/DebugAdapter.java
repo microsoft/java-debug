@@ -33,6 +33,7 @@ import com.microsoft.java.debug.core.adapter.handler.SetExceptionBreakpointsRequ
 import com.microsoft.java.debug.core.adapter.handler.SetVariableRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.StepRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
@@ -96,6 +97,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new SetExceptionBreakpointsRequestHandler());
         registerHandler(new SourceRequestHandler());
         registerHandler(new ThreadsRequestHandler());
+        registerHandler(new StepRequestHandler());
         registerHandler(new StackTraceRequestHandler());
         registerHandler(new ScopesRequestHandler());
         registerHandler(new VariablesRequestHandler());
