@@ -157,6 +157,10 @@ public class Requests {
         public ValueFormat format;
     }
 
+    public static class SaveDocumentArguments extends Arguments {
+        public String documentUri;
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -178,6 +182,7 @@ public class Requests {
         SETEXCEPTIONBREAKPOINTS("setExceptionBreakpoints", SetExceptionBreakpointsArguments.class),
         SETFUNCTIONBREAKPOINTS("setFunctionBreakpoints", SetFunctionBreakpointsArguments.class),
         EVALUATE("evaluate", EvaluateArguments.class),
+        SAVEDOCUMENT("saveDocument", SaveDocumentArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;
