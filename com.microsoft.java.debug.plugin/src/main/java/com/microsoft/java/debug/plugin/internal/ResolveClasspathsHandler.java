@@ -160,7 +160,7 @@ public class ResolveClasspathsHandler {
         if (javaProject == null) {
             throw new IllegalArgumentException("javaProject is null");
         }
-        String[][] result = new String[2][];
+        String[][] result = new String[3][];
         if (JavaRuntime.isModularProject(javaProject)) {
             result[0] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
             result[1] = new String[0];
@@ -168,6 +168,7 @@ public class ResolveClasspathsHandler {
             result[0] = new String[0];
             result[1] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
         }
+        result[2] = new String[] {javaProject.getProject().getName()};
         return result;
     }
 }
