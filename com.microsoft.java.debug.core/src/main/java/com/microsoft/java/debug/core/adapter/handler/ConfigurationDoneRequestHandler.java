@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.DebugEvent;
+import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -26,21 +27,16 @@ import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
-import com.sun.jdi.Method;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.ExceptionEvent;
-import com.sun.jdi.event.MethodEntryEvent;
 import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.event.ThreadDeathEvent;
 import com.sun.jdi.event.ThreadStartEvent;
 import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.event.VMStartEvent;
-import com.sun.jdi.request.EventRequest;
-import com.sun.jdi.request.EventRequestManager;
-import com.sun.jdi.request.MethodEntryRequest;
 
 public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
 
@@ -69,24 +65,11 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
         Event event = debugEvent.event;
         boolean isImportantEvent = true;
-        MethodEntryRequest request = null;
         if (event instanceof VMStartEvent) {
             if (context.isVmStopOnEntry()) {
-                EventRequestManager manager = debugSession.getVM().eventRequestManager();
-                request = manager.createMethodEntryRequest();
-                request.addClassFilter(context.getMainClass());
-                request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-                request.enable();
-            }
-        } else if (event instanceof MethodEntryEvent) {
-            Method method = ((MethodEntryEvent) event).method();
-            if (method.name().equals("main") && method.isStatic() && method.isPublic() && method.signature().equals("([Ljava/lang/String;)V")) {
-                ThreadReference bpThread = ((MethodEntryEvent) event).thread();
-                context.sendEvent(new Events.StoppedEvent("entry", bpThread.uniqueID()));
-                debugEvent.shouldResume = false;
-                if (request != null) {
-                    request.disable();
-                }
+                DebugUtility.stopOnEntry(debugSession, context.getMainClass()).thenAccept(threadId -> {
+                    context.sendEvent(new Events.StoppedEvent("entry", threadId));
+                });
             }
         } else if (event instanceof VMDeathEvent) {
             context.setVmTerminated();

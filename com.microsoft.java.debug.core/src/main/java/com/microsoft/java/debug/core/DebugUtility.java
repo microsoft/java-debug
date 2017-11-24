@@ -20,10 +20,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
@@ -35,7 +37,10 @@ import com.sun.jdi.connect.Connector.Argument;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
+import com.sun.jdi.event.MethodEntryEvent;
 import com.sun.jdi.request.EventRequest;
+import com.sun.jdi.request.EventRequestManager;
+import com.sun.jdi.request.MethodEntryRequest;
 import com.sun.jdi.request.StepRequest;
 
 public class DebugUtility {
@@ -277,7 +282,7 @@ public class DebugUtility {
 
         eventHub.stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1)
                 .subscribe(debugEvent -> {
-                    thread.virtualMachine().eventRequestManager().deleteEventRequest(request);
+                    deleteEventRequestSafely(thread.virtualMachine().eventRequestManager(), request);
                 });
 
         if (stepFilters != null) {
@@ -292,6 +297,40 @@ public class DebugUtility {
         thread.resume();
 
         return request;
+    }
+
+    /**
+     * Suspend the main thread when the program enters the main method of the specified main class.
+     * @param debugSession
+     *                  the debug session.
+     * @param mainClass
+     *                  the fully qualified name of the main class.
+     * @return
+     *        a {@link CompletableFuture} that contains the suspended main thread id.
+     */
+    public static CompletableFuture<Long> stopOnEntry(IDebugSession debugSession, String mainClass) {
+        CompletableFuture<Long> future = new CompletableFuture<>();
+
+        EventRequestManager manager = debugSession.getVM().eventRequestManager();
+        MethodEntryRequest request = manager.createMethodEntryRequest();
+        request.addClassFilter(mainClass);
+        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+
+        debugSession.getEventHub().events().filter(debugEvent -> {
+            return debugEvent.event instanceof MethodEntryEvent && request.equals(debugEvent.event.request());
+        }).subscribe(debugEvent -> {
+            Method method = ((MethodEntryEvent) debugEvent.event).method();
+            if (method.isPublic() && method.isStatic() && method.name().equals("main")
+                    && method.signature().equals("([Ljava/lang/String;)V")) {
+                deleteEventRequestSafely(debugSession.getVM().eventRequestManager(), request);
+                debugEvent.shouldResume = false;
+                ThreadReference bpThread = ((MethodEntryEvent) debugEvent.event).thread();
+                future.complete(bpThread.uniqueID());
+            }
+        });
+        request.enable();
+
+        return future;
     }
 
     /**
@@ -352,6 +391,36 @@ public class DebugUtility {
         } catch (ObjectCollectedException ex) {
             // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM when calling suspendCount,
             // the resume operation to this thread is meanness.
+        }
+    }
+
+    /**
+     * Remove the event request from the vm. If the vm has terminated, do nothing.
+     * @param eventManager
+     *                  The event request manager.
+     * @param request
+     *                  The target event request.
+     */
+    public static void deleteEventRequestSafely(EventRequestManager eventManager, EventRequest request) {
+        try {
+            eventManager.deleteEventRequest(request);
+        } catch (VMDisconnectedException ex) {
+            // ignore.
+        }
+    }
+
+    /**
+     * Remove the event request list from the vm. If the vm has terminated, do nothing.
+     * @param eventManager
+     *                  The event request manager.
+     * @param requests
+     *                  The target event request list.
+     */
+    public static void deleteEventRequestSafely(EventRequestManager eventManager, List<EventRequest> requests) {
+        try {
+            eventManager.deleteEventRequests(requests);
+        } catch (VMDisconnectedException ex) {
+            // ignore.
         }
     }
 
