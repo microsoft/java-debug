@@ -25,7 +25,8 @@ public enum ErrorCode {
     EVALUATE_FAILURE(1010),
     EMPTY_DEBUG_SESSION(1011),
     INVALID_ENCODING(1012),
-    VM_TERMINATED(1013);
+    VM_TERMINATED(1013),
+    STEP_FAILURE(1014);
 
     private int id;
 

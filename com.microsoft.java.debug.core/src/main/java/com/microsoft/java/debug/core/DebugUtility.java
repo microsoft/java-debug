@@ -24,10 +24,8 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
@@ -421,34 +419,6 @@ public class DebugUtility {
             eventManager.deleteEventRequests(requests);
         } catch (VMDisconnectedException ex) {
             // ignore.
-        }
-    }
-
-    /**
-     * Return the frame count of the specified thread safely.
-     * @param thread
-     *              the thread reference
-     * @return the frame count or -1
-     */
-    public static int getFrameCount(ThreadReference thread) {
-        try {
-            return thread.frameCount();
-        } catch (IncompatibleThreadStateException e) {
-            return -1;
-        }
-    }
-
-    /**
-     * Return the top stack frame of the specified thread safely.
-     * @param thread
-     *              the thread reference
-     * @return the top stack frame
-     */
-    public static StackFrame getTopFrame(ThreadReference thread) {
-        try {
-            return thread.frame(0);
-        } catch (IncompatibleThreadStateException e) {
-            return null;
         }
     }
 
