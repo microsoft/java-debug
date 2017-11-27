@@ -26,6 +26,7 @@ import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.PostLaunchingRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetBreakpointsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetExceptionBreakpointsRequestHandler;
@@ -86,9 +87,11 @@ public class DebugAdapter implements IDebugAdapter {
 
     private void initialize() {
         // Register request handlers.
+        // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
         registerHandler(new LaunchRequestHandler());
         registerHandler(new AttachRequestHandler());
+        registerHandler(new PostLaunchingRequestHandler());
         registerHandler(new ConfigurationDoneRequestHandler());
         registerHandler(new DisconnectRequestHandler());
         registerHandler(new SetBreakpointsRequestHandler());

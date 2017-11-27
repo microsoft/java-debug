@@ -38,33 +38,31 @@ public class Requests {
         public boolean supportsRunInTerminalRequest;
     }
 
-    public static class LaunchArguments extends Arguments {
+    public static class LaunchBaseArguments extends Arguments {
         public String type;
         public String name;
         public String request;
         public String projectName;
+        public String[] sourcePaths = new String[0];
+    }
+
+    public static class LaunchArguments extends LaunchBaseArguments {
         public String mainClass;
         public String args = "";
         public String vmArgs = "";
         public String encoding = "";
         public String[] classPaths = new String[0];
         public String[] modulePaths = new String[0];
-        public String[] sourcePaths = new String[0];
         public String cwd;
         public Map<String, String> env;
         public boolean stopOnEntry;
         public String console = "internalConsole";
     }
 
-    public static class AttachArguments extends Arguments {
-        public String type;
-        public String name;
-        public String request;
+    public static class AttachArguments extends LaunchBaseArguments {
         public String hostName;
         public int port;
         public int timeout = 30000; // Default to 30s.
-        public String[] sourcePaths = new String[0];
-        public String projectName;
     }
 
     public static class RunInTerminalRequestArguments extends Arguments {

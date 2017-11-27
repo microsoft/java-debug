@@ -36,11 +36,9 @@ import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
@@ -79,7 +77,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         context.setAttached(false);
-        context.setSourcePaths(launchArguments.sourcePaths);
         context.setVmStopOnEntry(launchArguments.stopOnEntry);
         context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
 
@@ -93,29 +90,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
         }
-
-        return launch(launchArguments, response, context).thenCompose(res -> {
-            if (res.success) {
-                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-                Map<String, Object> options = new HashMap<>();
-                options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
-                if (launchArguments.projectName != null) {
-                    options.put(Constants.PROJECTNAME, launchArguments.projectName);
-                }
-                sourceProvider.initialize(context.getDebugSession(), options);
-
-                // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
-                // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
-                context.sendEvent(new Events.InitializedEvent());
-            } else {
-                logger.log(Level.SEVERE, res.message == null ? "Failed to launch debuggee." : res.message);
-            }
-            return CompletableFuture.completedFuture(res);
-        });
-    }
-
-    private CompletableFuture<Response> launch(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
-        IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
         if (StringUtils.isBlank(launchArguments.vmArgs)) {
             launchArguments.vmArgs = String.format("-Dfile.encoding=%s", context.getDebuggeeEncoding().name());
@@ -148,17 +122,15 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             }
         }
 
-
-        StringBuilder launchLogs = new StringBuilder();
-        launchLogs.append("Trying to launch Java Program with options:\n");
-        launchLogs.append(String.format("main-class: %s\n", launchArguments.mainClass));
-        launchLogs.append(String.format("args: %s\n", launchArguments.args));
-        launchLogs.append(String.format("module-path: %s\n", StringUtils.join(launchArguments.modulePaths, File.pathSeparator)));
-        launchLogs.append(String.format("class-path: %s\n", StringUtils.join(launchArguments.classPaths, File.pathSeparator)));
-        launchLogs.append(String.format("vmArgs: %s", launchArguments.vmArgs));
-        logger.info(launchLogs.toString());
+        logger.info("Trying to launch Java Program with options:\n" + String.format("main-class: %s\n", launchArguments.mainClass)
+                + String.format("args: %s\n", launchArguments.args)
+                + String.format("module-path: %s\n", StringUtils.join(launchArguments.modulePaths, File.pathSeparator))
+                + String.format("class-path: %s\n", StringUtils.join(launchArguments.classPaths, File.pathSeparator))
+                + String.format("vmArgs: %s", launchArguments.vmArgs));
 
         try {
+            IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
+
             if (context.isSupportsRunInTerminalRequest()
                     && (launchArguments.console.equals("integratedTerminal") || launchArguments.console.equals("externalTerminal"))) {
                 CompletableFuture<Response> resultFuture = new CompletableFuture<>();
@@ -200,10 +172,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                             logger.info("Launching debuggee in terminal console succeeded.");
                             resultFuture.complete(response);
                         } catch (IOException | IllegalConnectorArgumentsException e) {
+                            logger.log(Level.SEVERE, String.format("Failed to launch debuggee in terminal. Reason: %s", e.toString()));
                             resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
                                     String.format("Failed to launch debuggee in terminal. Reason: %s", e.toString())));
                         }
                     } else {
+                        logger.log(Level.SEVERE, String.format("Failed to launch debuggee in terminal. Reason: %s", runResponse.message));
                         resultFuture.complete(AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_IN_TERMINAL_FAILURE,
                                 String.format("Failed to launch debuggee in terminal. Reason: %s", runResponse.message)));
                     }
@@ -239,6 +213,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 return CompletableFuture.completedFuture(response);
             }
         } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+            logger.log(Level.SEVERE, String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.LAUNCH_FAILURE,
                         String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
         }
