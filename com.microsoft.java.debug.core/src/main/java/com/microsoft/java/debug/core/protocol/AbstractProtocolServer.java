@@ -128,28 +128,43 @@ public abstract class AbstractProtocolServer {
 
     /**
      * Send a request to the DA.
+     *
      * @param request
-     *              the request message.
-     * @param timeout
-     *              the timeout (in millis).
+     *            the request message.
      * @param cb
-     *              the request call back function.
+     *            the request call back function.
+     */
+    protected void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
+        sendRequest(request, 0, cb);
+    }
+
+    /**
+     * Send a request to the DA. And create a timeout error response to the callback if no response is received at the give time.
+     *
+     * @param request
+     *            the request message.
+     * @param timeout
+     *            the maximum time (in millis) to wait.
+     * @param cb
+     *            the request call back function.
      */
     protected void sendRequest(Messages.Request request, int timeout, Consumer<Messages.Response> cb) {
         sendMessage(request);
         if (cb != null) {
             pendingRequests.put(request.seq, cb);
-            CompletableFuture.runAsync(() -> {
-                try {
-                    Thread.sleep(timeout);
-                    Consumer<Messages.Response> callback = fetchPendingRequestCallback(request.seq);
-                    if (callback != null) {
-                        callback.accept(new Messages.Response(request.seq, request.command, false, "timeout"));
+            if (timeout > 0) {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(timeout);
+                        Consumer<Messages.Response> callback = fetchPendingRequestCallback(request.seq);
+                        if (callback != null) {
+                            callback.accept(new Messages.Response(request.seq, request.command, false, "timeout"));
+                        }
+                    } catch (InterruptedException e) {
+                        // ignore.
                     }
-                } catch (InterruptedException e) {
-                    // ignore.
-                }
-            });
+                });
+            }
         }
     }
 
