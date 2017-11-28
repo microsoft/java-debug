@@ -43,10 +43,10 @@ import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
-import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Messages.Request;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
-import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
@@ -132,7 +132,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
             if (context.isSupportsRunInTerminalRequest()
-                    && (launchArguments.console.equals("integratedTerminal") || launchArguments.console.equals("externalTerminal"))) {
+                    && (launchArguments.console == CONSOLE.INTEGRATED_TERMINAL || launchArguments.console == CONSOLE.EXTERNAL_TERMINAL)) {
                 CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
                 List<ListeningConnector> connectors = vmProvider.getVirtualMachineManager().listeningConnectors();
@@ -143,7 +143,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
                 String[] cmds = constructLaunchCommands(launchArguments, false, address);
                 RunInTerminalRequestArguments requestArgs = null;
-                if (launchArguments.console.equals("integratedTerminal")) {
+                if (launchArguments.console == CONSOLE.INTEGRATED_TERMINAL) {
                     requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
                             cmds,
                             launchArguments.cwd,
@@ -156,8 +156,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                             launchArguments.env,
                             TERMINAL_TITLE);
                 }
-                Messages.Request request = new Messages.Request(
-                        Requests.Command.RUNINTERMINAL.getName(),
+                Request request = new Request(Command.RUNINTERMINAL.getName(),
                         (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));
 
                 // Notes: In windows (reference to https://support.microsoft.com/en-us/help/830473/command-prompt-cmd--exe-command-line-string-limitation),
