@@ -14,8 +14,6 @@ package com.microsoft.java.debug.core.protocol;
 import java.util.Arrays;
 import java.util.Map;
 
-import com.google.gson.annotations.SerializedName;
-
 /**
  * The request arguments types defined by VSCode Debug Protocol.
  */
@@ -49,23 +47,9 @@ public class Requests {
     }
 
     public static enum CONSOLE {
-        @SerializedName("internalConsole")
-        INTERNAL_CONSOLE("internalConsole"),
-
-        @SerializedName("integratedTerminal")
-        INTEGRATED_TERMINAL("integratedTerminal"),
-
-        @SerializedName("externalTerminal")
-        EXTERNAL_TERMINAL("externalTerminal");
-
-        private String type;
-        CONSOLE(String type) {
-            this.type = type;
-        }
-
-        public String getType() {
-            return type;
-        }
+        internalConsole,
+        integratedTerminal,
+        externalTerminal;
     }
 
     public static class LaunchArguments extends LaunchBaseArguments {
@@ -78,7 +62,7 @@ public class Requests {
         public String cwd;
         public Map<String, String> env;
         public boolean stopOnEntry;
-        public CONSOLE console = CONSOLE.INTERNAL_CONSOLE;
+        public CONSOLE console = CONSOLE.internalConsole;
     }
 
     public static class AttachArguments extends LaunchBaseArguments {

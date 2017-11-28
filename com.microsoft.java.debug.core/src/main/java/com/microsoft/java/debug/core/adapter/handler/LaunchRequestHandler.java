@@ -132,7 +132,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
             if (context.isSupportsRunInTerminalRequest()
-                    && (launchArguments.console == CONSOLE.INTEGRATED_TERMINAL || launchArguments.console == CONSOLE.EXTERNAL_TERMINAL)) {
+                    && (launchArguments.console == CONSOLE.integratedTerminal || launchArguments.console == CONSOLE.externalTerminal)) {
                 CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
                 List<ListeningConnector> connectors = vmProvider.getVirtualMachineManager().listeningConnectors();
@@ -143,7 +143,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
                 String[] cmds = constructLaunchCommands(launchArguments, false, address);
                 RunInTerminalRequestArguments requestArgs = null;
-                if (launchArguments.console == CONSOLE.INTEGRATED_TERMINAL) {
+                if (launchArguments.console == CONSOLE.integratedTerminal) {
                     requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
                             cmds,
                             launchArguments.cwd,
