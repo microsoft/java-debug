@@ -65,7 +65,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
-        context.setDebugFilters(launchArguments.debugFilters);
+        context.setStepFilters(launchArguments.stepFilters);
 
         if (StringUtils.isBlank(launchArguments.encoding)) {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);

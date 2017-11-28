@@ -38,8 +38,8 @@ public class Requests {
         public boolean supportsRunInTerminalRequest;
     }
 
-    public static class DebugFilters {
-        public String[] stepFilters = new String[0];
+    public static class StepFilters {
+        public String[] classNameFilters = new String[0];
         public boolean skipSynthetics;
         public boolean skipStaticInitializers;
         public boolean skipConstructors;
@@ -60,7 +60,7 @@ public class Requests {
         public String cwd;
         public Map<String, String> env;
         public boolean stopOnEntry;
-        public DebugFilters debugFilters = new DebugFilters();
+        public StepFilters stepFilters = new StepFilters();
     }
 
     public static class AttachArguments extends Arguments {
@@ -72,7 +72,7 @@ public class Requests {
         public int timeout = 30000; // Default to 30s.
         public String[] sourcePaths = new String[0];
         public String projectName;
-        public DebugFilters debugFilters = new DebugFilters();
+        public StepFilters stepFilters = new StepFilters();
     }
 
     public static class RestartArguments extends Arguments {

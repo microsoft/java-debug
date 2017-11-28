@@ -33,8 +33,8 @@ import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
-import com.microsoft.java.debug.core.protocol.Requests.DebugFilters;
 import com.microsoft.java.debug.core.protocol.Requests.StepArguments;
+import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
@@ -81,25 +81,25 @@ public class StepRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), threadId);
         if (thread != null) {
             try {
-                setPendingStepKind(threadId, command);
+                setPendingStepType(threadId, command);
                 setOriginalStackDepth(threadId, thread.frameCount());
                 setOriginalStepLocation(threadId, getTopFrame(thread).location());
                 StepRequest stepRequest;
                 if (command == Command.STEPIN) {
-                    stepRequest = DebugUtility.stepInto(thread, context.getDebugSession().getEventHub(), context.getDebugFilters().stepFilters);
+                    stepRequest = DebugUtility.stepInto(thread, context.getDebugSession().getEventHub(), context.getStepFilters().classNameFilters);
                 } else if (command == Command.STEPOUT) {
-                    stepRequest = DebugUtility.stepOut(thread, context.getDebugSession().getEventHub(), context.getDebugFilters().stepFilters);
+                    stepRequest = DebugUtility.stepOut(thread, context.getDebugSession().getEventHub(), context.getStepFilters().classNameFilters);
                 } else {
-                    stepRequest = DebugUtility.stepOver(thread, context.getDebugSession().getEventHub(), context.getDebugFilters().stepFilters);
+                    stepRequest = DebugUtility.stepOver(thread, context.getDebugSession().getEventHub(), context.getStepFilters().classNameFilters);
                 }
                 setPendingStepRequest(threadId, stepRequest);
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
-                final String failureMessage = String.format("Failed to step because the thread %d is not suspended in the target VM.", threadId);
+                final String failureMessage = String.format("Failed to step because the thread '%s' is not suspended in the target VM.", thread.name());
                 logger.log(Level.SEVERE, failureMessage);
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.STEP_FAILURE, failureMessage);
             } catch (IndexOutOfBoundsException ex) {
-                final String failureMessage = String.format("Failed to step because the thread %d doesn't contain any stack frame", threadId);
+                final String failureMessage = String.format("Failed to step because the thread '%s' doesn't contain any stack frame", thread.name());
                 logger.log(Level.SEVERE, failureMessage);
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.STEP_FAILURE, failureMessage);
             }
@@ -118,7 +118,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
             if (pendingStepRequest != null) {
                 DebugUtility.deleteEventRequestSafely(debugSession.getVM().eventRequestManager(), pendingStepRequest);
             }
-            setPendingStepRequest(threadId, null);
+            removeThreadState(threadId);
         } else if (event instanceof ThreadDeathEvent) {
             long threadId = ((ThreadDeathEvent) event).thread().uniqueID();
             removeThreadState(threadId);
@@ -127,20 +127,20 @@ public class StepRequestHandler implements IDebugRequestHandler {
             ThreadReference thread = ((StepEvent) event).thread();
             long threadId = thread.uniqueID();
             setPendingStepRequest(threadId, null); // clean up the pending status.
-            if (isDebugFiltersConfigured(context.getDebugFilters())) {
+            if (isStepFiltersConfigured(context.getStepFilters())) {
                 try {
-                    if (getPendingStepKind(threadId) == Command.STEPIN) {
+                    if (getPendingStepType(threadId) == Command.STEPIN) {
                         // Check if the step into operation stepped through the filtered code and stopped at an un-filtered location.
                         if (getOriginalStackDepth(threadId) + 1 < thread.frameCount()) {
                             // Create another stepOut request to return back where we started the step into.
-                            StepRequest stepRequest = DebugUtility.stepOut(thread, debugSession.getEventHub(), context.getDebugFilters().stepFilters);
+                            StepRequest stepRequest = DebugUtility.stepOut(thread, debugSession.getEventHub(), context.getStepFilters().classNameFilters);
                             setPendingStepRequest(threadId, stepRequest);
                             return;
                         }
                         // If the ending step location is filtered, or same as the original location where the step into operation is originated,
                         // do another step of the same kind.
                         if (shouldFilterLocation(thread, context) || shouldDoExtraStepInto(thread)) {
-                            StepRequest stepRequest = DebugUtility.stepInto(thread, debugSession.getEventHub(), context.getDebugFilters().stepFilters);
+                            StepRequest stepRequest = DebugUtility.stepInto(thread, debugSession.getEventHub(), context.getStepFilters().classNameFilters);
                             setPendingStepRequest(threadId, stepRequest);
                             return;
                         }
@@ -153,11 +153,11 @@ public class StepRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private boolean isDebugFiltersConfigured(DebugFilters filters) {
+    private boolean isStepFiltersConfigured(StepFilters filters) {
         if (filters == null) {
             return false;
         }
-        return ArrayUtils.isNotEmpty(filters.stepFilters) || filters.skipConstructors
+        return ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
                || filters.skipStaticInitializers || filters.skipSynthetics;
     }
 
@@ -177,9 +177,9 @@ public class StepRequestHandler implements IDebugRequestHandler {
     }
 
     private boolean shouldFilterMethod(Method method, IDebugAdapterContext context) {
-        if ((context.getDebugFilters().skipStaticInitializers && method.isStaticInitializer())
-                || (context.getDebugFilters().skipSynthetics && method.isSynthetic())
-                || (context.getDebugFilters().skipConstructors && method.isConstructor())) {
+        if ((context.getStepFilters().skipStaticInitializers && method.isStaticInitializer())
+                || (context.getStepFilters().skipSynthetics && method.isSynthetic())
+                || (context.getStepFilters().skipConstructors && method.isConstructor())) {
             return true;
         }
         return false;
@@ -239,19 +239,19 @@ public class StepRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private void setPendingStepKind(long threadId, Command kind) {
+    private void setPendingStepType(long threadId, Command type) {
         ThreadState state = getThreadState(threadId);
         if (state != null) {
-            state.pendingStepKind = kind;
+            state.pendingStepType = type;
         }
     }
 
-    private Command getPendingStepKind(long threadId) {
+    private Command getPendingStepType(long threadId) {
         ThreadState state = getThreadState(threadId);
         if (state == null) {
             return Command.UNSUPPORTED;
         }
-        return state.pendingStepKind;
+        return state.pendingStepType;
     }
 
     private void setPendingStepRequest(long threadId, StepRequest stepRequest) {
@@ -300,7 +300,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
     }
 
     class ThreadState {
-        Command pendingStepKind;
+        Command pendingStepType;
         StepRequest pendingStepRequest = null;
         int stackDepth = -1;
         Location stepLocation = null;

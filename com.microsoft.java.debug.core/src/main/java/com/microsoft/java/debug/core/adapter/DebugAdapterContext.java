@@ -21,7 +21,7 @@ import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 import com.microsoft.java.debug.core.protocol.Messages;
-import com.microsoft.java.debug.core.protocol.Requests.DebugFilters;
+import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
@@ -40,7 +40,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
     private String mainClass;
-    private DebugFilters debugFilters;
+    private StepFilters stepFilters;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -207,12 +207,12 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
-    public void setDebugFilters(DebugFilters debugFilters) {
-        this.debugFilters = debugFilters;
+    public void setStepFilters(StepFilters stepFilters) {
+        this.stepFilters = stepFilters;
     }
 
     @Override
-    public DebugFilters getDebugFilters() {
-        return debugFilters;
+    public StepFilters getStepFilters() {
+        return stepFilters;
     }
 }
