@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -26,7 +27,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -59,23 +60,39 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
         int totalFrames = 0;
         if (thread != null) {
+
             try {
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-                List<StackFrame> stackFrames = stacktraceArgs.levels == 0
-                        ? thread.frames(stacktraceArgs.startFrame, totalFrames - stacktraceArgs.startFrame)
-                        : thread.frames(stacktraceArgs.startFrame,
-                        Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels));
-                for (int i = 0; i < stackFrames.size(); i++) {
-                    StackFrame stackFrame = stackFrames.get(i);
-                    int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(),
-                            new JdiObjectProxy<>(stackFrame));
-                    Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
-                    result.add(clientStackFrame);
+
+                Map<Object, StackFrame[]> cache = context.getStackFrameCache();
+                StackFrame[] frames = new StackFrame[0];
+                synchronized (cache) {
+                    frames = cache.compute(thread, (k, v) -> {
+                            try {
+                                return thread.frames().toArray(new StackFrame[0]);
+                            } catch (IncompatibleThreadStateException e) {
+                                return new StackFrame[0];
+                            }
+                        }
+                    );
+
                 }
+
+                int count  = stacktraceArgs.levels == 0
+                        ? totalFrames - stacktraceArgs.startFrame
+                        : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
+                for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
+                    StackFrameProxy stackframe = new StackFrameProxy(frames[i].thread(), i, context.getStackFrameCache());
+                    int frameId = context.getRecyclableIdPool().addObject(stackframe.thread().uniqueID(),
+                            stackframe);
+                    result.add(convertDebuggerStackFrameToClient(stackframe, frameId, context));
+                }
+
+
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {
                 // when error happens, the possible reason is:

@@ -17,6 +17,7 @@ import java.util.Map;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.protocol.Events;
+import com.sun.jdi.StackFrame;
 
 public interface IDebugAdapterContext {
     /**
@@ -96,4 +97,10 @@ public interface IDebugAdapterContext {
     void setMainClass(String mainClass);
 
     String getMainClass();
+
+    String getProjectName();
+
+    void setProjectName(String projectName);
+
+    Map<Object, StackFrame[]> getStackFrameCache();
 }
