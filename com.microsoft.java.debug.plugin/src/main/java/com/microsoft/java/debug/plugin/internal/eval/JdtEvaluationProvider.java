@@ -142,6 +142,20 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         return debugTarget != null && getJDIThread(thread).isPerformingEvaluation();
     }
 
+    @Override
+    public void cancelEvaluation(ThreadReference thread) {
+        if (debugTarget != null) {
+            JDIThread jdiThread = getJDIThread(thread);
+            if (jdiThread != null) {
+                try {
+                    jdiThread.terminateEvaluation();
+                } catch (DebugException e) {
+                    logger.warning(String.format("Error stopping evalutoin on thread %d: %s", thread.uniqueID(), e.toString()));
+                }
+            }
+        }
+    }
+
     private static ILaunch createLaunch(IJavaProject project) {
         return new ILaunch() {
 
@@ -266,5 +280,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
         };
     }
+
+
 
 }

@@ -41,4 +41,11 @@ public interface IEvaluationProvider extends IProvider {
      */
     void eval(String projectName, String expression, StackFrame sf, IEvaluationListener listener);
 
+
+    /**
+     * Cancel ongoing evaluation tasks on specified thread.
+     * @param thread the jdi thread
+     */
+    void cancelEvaluation(ThreadReference thread);
+
 }
