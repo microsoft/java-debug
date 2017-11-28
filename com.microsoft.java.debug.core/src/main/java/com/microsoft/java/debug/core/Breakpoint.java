@@ -66,6 +66,7 @@ public class Breakpoint implements IBreakpoint {
     // AutoCloseable
     @Override
     public void close() throws Exception {
+        requests.clear();
         vm.eventRequestManager().deleteEventRequests(requests());
         subscriptions().forEach(subscription -> {
             subscription.dispose();
