@@ -60,7 +60,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
+    public synchronized CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
@@ -81,6 +81,12 @@ public class StepRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), threadId);
         if (thread != null) {
             try {
+                // if previous step request is still on progress, and there is a new step request triggered on the same thread,
+                // cancel the old step request.
+                StepRequest pendingStepRequest = getPendingStepRequest(threadId);
+                if (pendingStepRequest != null) {
+                    DebugUtility.deleteEventRequestSafely(context.getDebugSession().getVM().eventRequestManager(), pendingStepRequest);
+                }
                 setPendingStepType(threadId, command);
                 setOriginalStackDepth(threadId, thread.frameCount());
                 setOriginalStepLocation(threadId, getTopFrame(thread).location());
@@ -108,7 +114,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
+    private synchronized void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
         Event event = debugEvent.event;
 
         // When a breakpoint occurs, abort any pending step requests from the same thread.
@@ -126,8 +132,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
             debugEvent.shouldResume = false;
             ThreadReference thread = ((StepEvent) event).thread();
             long threadId = thread.uniqueID();
-            setPendingStepRequest(threadId, null); // clean up the pending status.
-            if (isStepFiltersConfigured(context.getStepFilters())) {
+            if (event.request().equals(getPendingStepRequest(threadId)) && isStepFiltersConfigured(context.getStepFilters())) {
                 try {
                     if (getPendingStepType(threadId) == Command.STEPIN) {
                         // Check if the step into operation stepped through the filtered code and stopped at an un-filtered location.
@@ -149,6 +154,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     // ignore.
                 }
             }
+            setPendingStepRequest(threadId, null); // clean up the pending status.
             context.sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
         }
     }
