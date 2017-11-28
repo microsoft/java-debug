@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,6 +26,7 @@ import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.PostLaunchingRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetBreakpointsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetExceptionBreakpointsRequestHandler;
@@ -49,8 +49,8 @@ public class DebugAdapter implements IDebugAdapter {
     /**
      * Constructor.
      */
-    public DebugAdapter(Consumer<Messages.ProtocolMessage> messageConsumer, IProviderContext providerContext) {
-        debugContext = new DebugAdapterContext(messageConsumer, providerContext);
+    public DebugAdapter(IDebugAdapterContext debugContext) {
+        this.debugContext = debugContext;
         requestHandlers = new HashMap<>();
         initialize();
     }
@@ -87,9 +87,11 @@ public class DebugAdapter implements IDebugAdapter {
 
     private void initialize() {
         // Register request handlers.
+        // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
         registerHandler(new LaunchRequestHandler());
         registerHandler(new AttachRequestHandler());
+        registerHandler(new PostLaunchingRequestHandler());
         registerHandler(new ConfigurationDoneRequestHandler());
         registerHandler(new DisconnectRequestHandler());
         registerHandler(new SetBreakpointsRequestHandler());

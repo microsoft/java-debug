@@ -40,6 +40,15 @@ public class Messages {
             this.command = cmd;
             this.arguments = arg;
         }
+
+        /**
+         * Constructor.
+         */
+        public Request(String cmd, JsonObject arg) {
+            super("request");
+            this.command = cmd;
+            this.arguments = arg;
+        }
     }
 
     public static class Response extends ProtocolMessage {
@@ -96,6 +105,15 @@ public class Messages {
         public Response(int rseq, String cmd, boolean succ) {
             this(rseq, cmd);
             this.success = succ;
+        }
+
+        /**
+         * Constructor.
+         */
+        public Response(int rseq, String cmd, boolean succ, String message) {
+            this(rseq, cmd);
+            this.success = succ;
+            this.message = message;
         }
     }
 

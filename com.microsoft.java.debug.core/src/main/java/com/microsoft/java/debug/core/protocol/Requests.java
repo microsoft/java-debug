@@ -38,32 +38,123 @@ public class Requests {
         public boolean supportsRunInTerminalRequest;
     }
 
-    public static class LaunchArguments extends Arguments {
+    public static class LaunchBaseArguments extends Arguments {
         public String type;
         public String name;
         public String request;
         public String projectName;
+        public String[] sourcePaths = new String[0];
+    }
+
+    public static enum CONSOLE {
+        internalConsole,
+        integratedTerminal,
+        externalTerminal;
+    }
+
+    public static class LaunchArguments extends LaunchBaseArguments {
         public String mainClass;
         public String args = "";
         public String vmArgs = "";
         public String encoding = "";
         public String[] classPaths = new String[0];
         public String[] modulePaths = new String[0];
-        public String[] sourcePaths = new String[0];
         public String cwd;
         public Map<String, String> env;
         public boolean stopOnEntry;
+        public CONSOLE console = CONSOLE.internalConsole;
     }
 
-    public static class AttachArguments extends Arguments {
-        public String type;
-        public String name;
-        public String request;
+    public static class AttachArguments extends LaunchBaseArguments {
         public String hostName;
         public int port;
         public int timeout = 30000; // Default to 30s.
-        public String[] sourcePaths = new String[0];
-        public String projectName;
+    }
+
+    public static class RunInTerminalRequestArguments extends Arguments {
+        public String kind; // Supported kind should be "integrated" or "external".
+        public String title;
+        public String cwd; // required.
+        public String[] args; // required.
+        public Map<String, String> env;
+
+        private RunInTerminalRequestArguments() {
+            // do nothing.
+        }
+
+        /**
+         * Create a RunInTerminalRequestArguments instance.
+         * @param cmds
+         *            List of command arguments. The first arguments is the command to run.
+         * @param cwd
+         *            Working directory of the command.
+         * @return the request arguments instance.
+         */
+        public static RunInTerminalRequestArguments createIntegratedTerminal(String[] cmds, String cwd) {
+            RunInTerminalRequestArguments requestArgs = new RunInTerminalRequestArguments();
+            requestArgs.args = cmds;
+            requestArgs.cwd = cwd;
+            requestArgs.kind = "integrated";
+            return requestArgs;
+        }
+
+        /**
+         * Create a RunInTerminalRequestArguments instance.
+         * @param cmds
+         *            List of command arguments. The first arguments is the command to run.
+         * @param cwd
+         *            Working directory of the command.
+         * @param env
+         *            Environment key-value pairs that are added to the default environment.
+         * @param title
+         *            Optional title of the terminal.
+         * @return the request arguments instance.
+         */
+        public static RunInTerminalRequestArguments createIntegratedTerminal(String[] cmds, String cwd, Map<String, String> env, String title) {
+            RunInTerminalRequestArguments requestArgs = createIntegratedTerminal(cmds, cwd);
+            requestArgs.env = env;
+            if (title != null && !title.trim().equals("")) {
+                requestArgs.title = title;
+            }
+            return requestArgs;
+        }
+
+        /**
+         * Create a RunInTerminalRequestArguments instance.
+         * @param cmds
+         *            List of command arguments. The first arguments is the command to run.
+         * @param cwd
+         *            Working directory of the command.
+         * @return the request arguments instance.
+         */
+        public static RunInTerminalRequestArguments createExternalTerminal(String[] cmds, String cwd) {
+            RunInTerminalRequestArguments requestArgs = new RunInTerminalRequestArguments();
+            requestArgs.args = cmds;
+            requestArgs.cwd = cwd;
+            requestArgs.kind = "external";
+            return requestArgs;
+        }
+
+        /**
+         * Create a RunInTerminalRequestArguments instance.
+         * @param cmds
+         *            List of command arguments. The first arguments is the command to run.
+         * @param cwd
+         *            Working directory of the command.
+         * @param env
+         *            Environment key-value pairs that are added to the default environment.
+         * @param title
+         *            Optional title of the terminal.
+         * @return the request arguments instance.
+         */
+        public static RunInTerminalRequestArguments createExternalTerminal(String[] cmds, String cwd, Map<String, String> env, String title) {
+            RunInTerminalRequestArguments requestArgs = createExternalTerminal(cmds, cwd);
+            requestArgs.env = env;
+            if (title != null && !title.trim().equals("")) {
+                requestArgs.title = title;
+            }
+            return requestArgs;
+        }
     }
 
     public static class RestartArguments extends Arguments {
@@ -178,6 +269,7 @@ public class Requests {
         SETEXCEPTIONBREAKPOINTS("setExceptionBreakpoints", SetExceptionBreakpointsArguments.class),
         SETFUNCTIONBREAKPOINTS("setFunctionBreakpoints", SetFunctionBreakpointsArguments.class),
         EVALUATE("evaluate", EvaluateArguments.class),
+        RUNINTERMINAL("runInTerminal", RunInTerminalRequestArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;
@@ -188,6 +280,11 @@ public class Requests {
             this.argumentType = argumentType;
         }
 
+        public String getName() {
+            return this.command;
+        }
+
+        @Override
         public String toString() {
             return this.command;
         }

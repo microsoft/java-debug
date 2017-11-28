@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,6 +21,8 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Messages.Request;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
 
 public class ProtocolServer extends AbstractProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -38,9 +41,8 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter((message) -> {
-            sendMessage(message);
-        }, context);
+        IDebugAdapterContext debugContext = new DebugAdapterContext(this, context);
+        this.debugAdapter = new DebugAdapter(debugContext);
     }
 
     /**
@@ -61,6 +63,11 @@ public class ProtocolServer extends AbstractProtocolServer {
         } else if (message instanceof Messages.Request) {
             usageDataSession.recordRequest((Messages.Request) message);
         }
+    }
+
+    @Override
+    protected void sendRequest(Request request, int timeout, Consumer<Response> cb) {
+        super.sendRequest(request, timeout, cb);
     }
 
     protected void dispatchRequest(Messages.Request request) {

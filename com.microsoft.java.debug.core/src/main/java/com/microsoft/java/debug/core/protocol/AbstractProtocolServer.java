@@ -23,7 +23,11 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -44,6 +48,7 @@ public abstract class AbstractProtocolServer {
     private ByteBuffer rawData;
     private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
+    private Map<Integer, Consumer<Messages.Response>> pendingRequests = new HashMap<>();
 
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
@@ -86,6 +91,11 @@ public abstract class AbstractProtocolServer {
         this.terminateSession = true;
     }
 
+    /**
+     * Send a request/response/event to the DA.
+     * @param message
+     *              the message.
+     */
     protected void sendMessage(Messages.ProtocolMessage message) {
         message.seq = this.sequenceNumber.getAndIncrement();
 
@@ -102,12 +112,68 @@ public abstract class AbstractProtocolServer {
         String utf8Data = data.getString(PROTOCOL_ENCODING);
 
         try {
-            logger.fine("\n[[RESPONSE]]\n" + utf8Data);
+            if (message instanceof Messages.Request) {
+                logger.fine("\n[[REQUEST]]\n" + utf8Data);
+            } else if (message instanceof Messages.Event) {
+                logger.fine("\n[[EVENT]]\n" + utf8Data);
+            } else {
+                logger.fine("\n[[RESPONSE]]\n" + utf8Data);
+            }
             this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
             logger.log(Level.SEVERE, String.format("Write data to io exception: %s", e.toString()), e);
         }
+    }
+
+    /**
+     * Send a request to the DA.
+     *
+     * @param request
+     *            the request message.
+     * @param cb
+     *            the request call back function.
+     */
+    protected void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
+        sendRequest(request, 0, cb);
+    }
+
+    /**
+     * Send a request to the DA. And create a timeout error response to the callback if no response is received at the give time.
+     *
+     * @param request
+     *            the request message.
+     * @param timeout
+     *            the maximum time (in millis) to wait.
+     * @param cb
+     *            the request call back function.
+     */
+    protected void sendRequest(Messages.Request request, int timeout, Consumer<Messages.Response> cb) {
+        sendMessage(request);
+        if (cb != null) {
+            pendingRequests.put(request.seq, cb);
+            if (timeout > 0) {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(timeout);
+                        Consumer<Messages.Response> callback = fetchPendingRequestCallback(request.seq);
+                        if (callback != null) {
+                            callback.accept(new Messages.Response(request.seq, request.command, false, "timeout"));
+                        }
+                    } catch (InterruptedException e) {
+                        // ignore.
+                    }
+                });
+            }
+        }
+    }
+
+    private synchronized Consumer<Messages.Response> fetchPendingRequestCallback(int req) {
+        Consumer<Messages.Response> callback = pendingRequests.get(req);
+        if (callback != null) {
+            pendingRequests.remove(req);
+        }
+        return callback;
     }
 
     private void processData() {
@@ -131,7 +197,11 @@ public abstract class AbstractProtocolServer {
                             logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
                         }
                     } else if (message.type.equals("response")) {
-                        // handle response.
+                        Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
+                        Consumer<Messages.Response> cb = fetchPendingRequestCallback(response.request_seq);
+                        if (cb != null) {
+                            cb.accept(response);
+                        }
                     }
                     continue;
                 }

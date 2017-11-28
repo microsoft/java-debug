@@ -14,21 +14,18 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -49,7 +46,6 @@ public class AttachRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         AttachArguments attachArguments = (AttachArguments) arguments;
         context.setAttached(true);
-        context.setSourcePaths(attachArguments.sourcePaths);
         context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
@@ -75,21 +71,11 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                 }
             }
         } catch (IOException | IllegalConnectorArgumentsException e) {
+            logger.log(Level.SEVERE, String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ATTACH_FAILURE,
                         String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()));
         }
 
-        Map<String, Object> options = new HashMap<>();
-        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
-        if (attachArguments.projectName != null) {
-            options.put(Constants.PROJECTNAME, attachArguments.projectName);
-        }
-        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        sourceProvider.initialize(context.getDebugSession(), options);
-
-        // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
-        // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
-        context.sendEvent(new Events.InitializedEvent());
         return CompletableFuture.completedFuture(response);
     }
 
