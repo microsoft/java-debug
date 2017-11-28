@@ -121,7 +121,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
-    public boolean isSupportsRunInTerminalRequest() {
+    public boolean supportsRunInTerminalRequest() {
         return supportsRunInTerminalRequest;
     }
 

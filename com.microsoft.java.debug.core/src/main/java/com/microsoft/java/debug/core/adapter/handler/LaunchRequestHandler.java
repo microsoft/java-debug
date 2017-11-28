@@ -131,7 +131,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         try {
             IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
-            if (context.isSupportsRunInTerminalRequest()
+            if (context.supportsRunInTerminalRequest()
                     && (launchArguments.console == CONSOLE.integratedTerminal || launchArguments.console == CONSOLE.externalTerminal)) {
                 CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
@@ -228,7 +228,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         List<String> launchCmds = new ArrayList<>();
         launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
-        launchCmds.add("-agentlib:jdwp=transport=dt_socket,server=" + (serverMode ? "y" : "n") + ",suspend=y,address=" + address);
+        launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", (serverMode ? "y" : "n"), address));
         if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
             launchCmds.addAll(parseArguments(launchArguments.vmArgs));
         }

@@ -74,7 +74,7 @@ public interface IDebugAdapterContext {
 
     void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest);
 
-    boolean isSupportsRunInTerminalRequest();
+    boolean supportsRunInTerminalRequest();
 
     boolean isAttached();
 
