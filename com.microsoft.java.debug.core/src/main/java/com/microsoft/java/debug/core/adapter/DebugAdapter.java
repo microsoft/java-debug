@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,6 +34,7 @@ import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
+import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -49,8 +49,8 @@ public class DebugAdapter implements IDebugAdapter {
     /**
      * Constructor.
      */
-    public DebugAdapter(Consumer<Messages.ProtocolMessage> messageConsumer, IProviderContext providerContext) {
-        debugContext = new DebugAdapterContext(messageConsumer, providerContext);
+    public DebugAdapter(IProtocolServer server, IProviderContext providerContext) {
+        this.debugContext = new DebugAdapterContext(server, providerContext);
         requestHandlers = new HashMap<>();
         initialize();
     }
@@ -87,6 +87,7 @@ public class DebugAdapter implements IDebugAdapter {
 
     private void initialize() {
         // Register request handlers.
+        // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
         registerHandler(new LaunchRequestHandler());
         registerHandler(new AttachRequestHandler());

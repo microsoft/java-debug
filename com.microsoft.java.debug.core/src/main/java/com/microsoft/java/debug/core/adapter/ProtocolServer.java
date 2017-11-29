@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,6 +21,8 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.Messages.Request;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
 
 public class ProtocolServer extends AbstractProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -38,14 +41,13 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter((message) -> {
-            sendMessage(message);
-        }, context);
+        this.debugAdapter = new DebugAdapter(this, context);
     }
 
     /**
      * A while-loop to parse input data and send output data constantly.
      */
+    @Override
     public void run() {
         usageDataSession.reportStart();
         super.run();
@@ -54,28 +56,37 @@ public class ProtocolServer extends AbstractProtocolServer {
     }
 
     @Override
-    protected void sendMessage(Messages.ProtocolMessage message) {
-        super.sendMessage(message);
-        if (message instanceof Messages.Response) {
-            usageDataSession.recordResponse((Messages.Response) message);
-        } else if (message instanceof Messages.Request) {
-            usageDataSession.recordRequest((Messages.Request) message);
-        }
+    public void sendResponse(Messages.Response response) {
+        usageDataSession.recordResponse(response);
+        super.sendResponse(response);
     }
 
+    @Override
+    public void sendRequest(Request request, Consumer<Response> cb) {
+        usageDataSession.recordRequest(request);
+        super.sendRequest(request, cb);
+    }
+
+    @Override
+    public void sendRequest(Request request, long timeout, Consumer<Response> cb) {
+        usageDataSession.recordRequest(request);
+        super.sendRequest(request, timeout, cb);
+    }
+
+    @Override
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
         this.debugAdapter.dispatchRequest(request).whenComplete((response, ex) -> {
             if (response != null) {
-                sendMessage(response);
+                sendResponse(response);
             } else if (ex != null) {
                 logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", ex.toString()), ex);
-                sendMessage(AdapterUtils.setErrorResponse(response,
+                sendResponse(AdapterUtils.setErrorResponse(response,
                         ErrorCode.UNKNOWN_FAILURE,
                         ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             } else {
                 logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
-                sendMessage(AdapterUtils.setErrorResponse(response,
+                sendResponse(AdapterUtils.setErrorResponse(response,
                         ErrorCode.UNKNOWN_FAILURE,
                         "The request dispatcher should not return null response."));
             }

@@ -23,13 +23,21 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class AbstractProtocolServer {
+import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+
+import io.reactivex.disposables.Disposable;
+import io.reactivex.subjects.PublishSubject;
+
+public abstract class AbstractProtocolServer implements IProtocolServer {
     private static final Logger logger = Logger.getLogger("java-debug");
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
@@ -44,6 +52,8 @@ public abstract class AbstractProtocolServer {
     private ByteBuffer rawData;
     private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
+
+    private PublishSubject<Messages.Response> subject = PublishSubject.<Messages.Response>create();
 
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
@@ -86,7 +96,12 @@ public abstract class AbstractProtocolServer {
         this.terminateSession = true;
     }
 
-    protected void sendMessage(Messages.ProtocolMessage message) {
+    /**
+     * Send a request/response/event to the DA.
+     * @param message
+     *              the message.
+     */
+    private void sendMessage(Messages.ProtocolMessage message) {
         message.seq = this.sequenceNumber.getAndIncrement();
 
         String jsonMessage = JsonUtils.toJson(message);
@@ -102,11 +117,58 @@ public abstract class AbstractProtocolServer {
         String utf8Data = data.getString(PROTOCOL_ENCODING);
 
         try {
-            logger.fine("\n[[RESPONSE]]\n" + utf8Data);
+            if (message instanceof Messages.Request) {
+                logger.fine("\n[[REQUEST]]\n" + utf8Data);
+            } else if (message instanceof Messages.Event) {
+                logger.fine("\n[[EVENT]]\n" + utf8Data);
+            } else {
+                logger.fine("\n[[RESPONSE]]\n" + utf8Data);
+            }
             this.writer.write(utf8Data);
             this.writer.flush();
         } catch (IOException e) {
             logger.log(Level.SEVERE, String.format("Write data to io exception: %s", e.toString()), e);
+        }
+    }
+
+    @Override
+    public void sendEvent(DebugEvent event) {
+        sendMessage(new Messages.Event(event.type, event));
+    }
+
+    @Override
+    public void sendResponse(Messages.Response response) {
+        sendMessage(response);
+    }
+
+    @Override
+    public void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
+        sendRequest(request, 0, cb);
+    }
+
+    @Override
+    public void sendRequest(Messages.Request request, long timeout, Consumer<Messages.Response> cb) {
+        Timer timer = new Timer();
+        Disposable[] disposable = new Disposable[1];
+        disposable[0] = subject.filter(response -> response.request_seq == request.seq).subscribe((response) -> {
+            timer.cancel();
+            cb.accept(response);
+            if (disposable[0] != null) {
+                disposable[0].dispose();
+            }
+        });
+        sendMessage(request);
+        if (timeout > 0) {
+            try {
+                timer.schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        cb.accept(new Messages.Response(request.seq, request.command, false, "timeout"));
+                    }
+                }, timeout);
+            } catch (IllegalStateException ex) {
+                // if timer or task has been cancelled, do nothing.
+            }
         }
     }
 
@@ -131,7 +193,12 @@ public abstract class AbstractProtocolServer {
                             logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
                         }
                     } else if (message.type.equals("response")) {
-                        // handle response.
+                        try {
+                            Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
+                            subject.onNext(response);
+                        } catch (Exception e) {
+                            logger.log(Level.SEVERE, String.format("Handle response error: %s", e.toString()), e);
+                        }
                     }
                     continue;
                 }

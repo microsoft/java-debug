@@ -57,7 +57,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             debugSession.start();
             return CompletableFuture.completedFuture(response);
         } else {
-            context.sendEvent(new Events.TerminatedEvent());
+            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");
         }
     }
@@ -68,15 +68,15 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         if (event instanceof VMStartEvent) {
             if (context.isVmStopOnEntry()) {
                 DebugUtility.stopOnEntry(debugSession, context.getMainClass()).thenAccept(threadId -> {
-                    context.sendEvent(new Events.StoppedEvent("entry", threadId));
+                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("entry", threadId));
                 });
             }
         } else if (event instanceof VMDeathEvent) {
             context.setVmTerminated();
-            context.sendEvent(new Events.ExitedEvent(0));
+            context.getProtocolServer().sendEvent(new Events.ExitedEvent(0));
         } else if (event instanceof VMDisconnectEvent) {
             context.setVmTerminated();
-            context.sendEvent(new Events.TerminatedEvent());
+            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
             // Terminate eventHub thread.
             try {
                 debugSession.getEventHub().close();
@@ -86,27 +86,27 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         } else if (event instanceof ThreadStartEvent) {
             ThreadReference startThread = ((ThreadStartEvent) event).thread();
             Events.ThreadEvent threadEvent = new Events.ThreadEvent("started", startThread.uniqueID());
-            context.sendEvent(threadEvent);
+            context.getProtocolServer().sendEvent(threadEvent);
         } else if (event instanceof ThreadDeathEvent) {
             ThreadReference deathThread = ((ThreadDeathEvent) event).thread();
             Events.ThreadEvent threadDeathEvent = new Events.ThreadEvent("exited", deathThread.uniqueID());
-            context.sendEvent(threadDeathEvent);
+            context.getProtocolServer().sendEvent(threadDeathEvent);
         } else if (event instanceof BreakpointEvent) {
             if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
                 // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
                 // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
             } else {
                 ThreadReference bpThread = ((BreakpointEvent) event).thread();
-                context.sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
             }
         } else if (event instanceof StepEvent) {
             ThreadReference stepThread = ((StepEvent) event).thread();
-            context.sendEvent(new Events.StoppedEvent("step", stepThread.uniqueID()));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", stepThread.uniqueID()));
             debugEvent.shouldResume = false;
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
-            context.sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {
             isImportantEvent = false;

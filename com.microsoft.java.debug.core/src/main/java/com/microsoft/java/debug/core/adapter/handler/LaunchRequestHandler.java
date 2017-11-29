@@ -142,11 +142,11 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             debuggeeConsole.onStdout((output) -> {
                 // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
                 // That means the debugger can send OutputEvent to DA at any time.
-                context.sendEvent(Events.OutputEvent.createStdoutOutput(output));
+                context.getProtocolServer().sendEvent(Events.OutputEvent.createStdoutOutput(output));
             });
 
             debuggeeConsole.onStderr((err) -> {
-                context.sendEvent(Events.OutputEvent.createStderrOutput(err));
+                context.getProtocolServer().sendEvent(Events.OutputEvent.createStderrOutput(err));
             });
             debuggeeConsole.start();
         } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
@@ -164,7 +164,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
-        context.sendEvent(new Events.InitializedEvent());
+        context.getProtocolServer().sendEvent(new Events.InitializedEvent());
         return CompletableFuture.completedFuture(response);
     }
 

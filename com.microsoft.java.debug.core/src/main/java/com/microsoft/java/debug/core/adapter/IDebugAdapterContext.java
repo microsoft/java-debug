@@ -16,16 +16,10 @@ import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
-import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.IProtocolServer;
 
 public interface IDebugAdapterContext {
-    /**
-     * Send debug event to the DA.
-     *
-     * @param event
-     *            the debug event
-     */
-    void sendEvent(Events.DebugEvent event);
+    IProtocolServer getProtocolServer();
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 

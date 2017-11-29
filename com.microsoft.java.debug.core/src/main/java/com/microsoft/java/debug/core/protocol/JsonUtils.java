@@ -46,6 +46,10 @@ public class JsonUtils {
         return GSON.toJson(src, typeOfSrc);
     }
 
+    public static JsonElement toJsonTree(Object src, Type typeOfSrc) {
+        return GSON.toJsonTree(src, typeOfSrc);
+    }
+
     /**
      * Get the integer value for the specified property from the json Object.
      * @param args

@@ -88,7 +88,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 if (toAdds[i] == added[i] && added[i].className() != null) {
                     added[i].install().thenAccept(bp -> {
                         Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
-                        context.sendEvent(bpEvent);
+                        context.getProtocolServer().sendEvent(bpEvent);
                     });
                 } else if (toAdds[i].hitCount() != added[i].hitCount() && added[i].className() != null) {
                     // Update hitCount condition.
