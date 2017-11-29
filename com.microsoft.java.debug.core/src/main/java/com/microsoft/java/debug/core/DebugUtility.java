@@ -190,99 +190,43 @@ public class DebugUtility {
     }
 
     /**
-     * Steps over newly pushed frames.
-     *
+     * Create a step over request on the specified thread.
      * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
-     * @return the created {@link StepRequest}.
-     */
-    public static StepRequest stepOver(ThreadReference thread, IEventHub eventHub) {
-        return stepOver(thread, eventHub, null);
-    }
-
-    /**
-     * Steps over newly pushed frames.
-     *
-     * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
+     *              the target thread.
      * @param stepFilters
-     *            the step filters when stepping.
-     * @return the created {@link StepRequest}.
+     *              the step filters when stepping.
+     * @return the new step request.
      */
-    public static StepRequest stepOver(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OVER, stepFilters);
+    public static StepRequest createStepOverRequest(ThreadReference thread, String[] stepFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OVER, stepFilters);
     }
 
     /**
-     * Steps into newly pushed frames.
-     *
+     * Create a step into request on the specified thread.
      * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
-     * @return the created {@link StepRequest}.
-     */
-    public static StepRequest stepInto(ThreadReference thread, IEventHub eventHub) {
-        return stepInto(thread, eventHub, null);
-    }
-
-    /**
-     * Steps into newly pushed frames.
-     *
-     * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
+     *              the target thread.
      * @param stepFilters
-     *            the step filters when stepping.
-     * @return the created {@link StepRequest}.
+     *              the step filters when stepping.
+     * @return the new step request.
      */
-    public static StepRequest stepInto(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
+    public static StepRequest createStepIntoRequest(ThreadReference thread, String[] stepFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
     }
 
     /**
-     * Steps out of the current frame.
-     *
+     * Create a step out request on the specified thread.
      * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
-     * @return the created {@link StepRequest}.
-     */
-    public static StepRequest stepOut(ThreadReference thread, IEventHub eventHub) {
-        return stepOut(thread, eventHub, null);
-    }
-
-    /**
-     * Steps out of the current frame.
-     *
-     * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
+     *              the target thread.
      * @param stepFilters
-     *            the step filters when stepping.
-     * @return the created {@link StepRequest}.
+     *              the step filters when stepping.
+     * @return the new step request.
      */
-    public static StepRequest stepOut(ThreadReference thread, IEventHub eventHub, String[] stepFilters) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OUT, stepFilters);
+    public static StepRequest createStepOutRequest(ThreadReference thread, String[] stepFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OUT, stepFilters);
     }
 
-    private static StepRequest step(ThreadReference thread, IEventHub eventHub, int stepSize,
-            int stepDepth, String[] stepFilters) {
-        StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize,
-                stepDepth);
-
-        eventHub.stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1)
-                .subscribe(debugEvent -> {
-                    deleteEventRequestSafely(thread.virtualMachine().eventRequestManager(), request);
-                });
-
+    private static StepRequest createStepRequest(ThreadReference thread, int stepSize, int stepDepth, String[] stepFilters) {
+        StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize, stepDepth);
         if (stepFilters != null) {
             for (String stepFilter : stepFilters) {
                 request.addClassExclusionFilter(stepFilter);
@@ -290,9 +234,6 @@ public class DebugUtility {
         }
         request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         request.addCountFilter(1);
-        request.enable();
-
-        thread.resume();
 
         return request;
     }

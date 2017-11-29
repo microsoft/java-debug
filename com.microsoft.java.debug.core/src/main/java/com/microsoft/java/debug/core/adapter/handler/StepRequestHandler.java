@@ -12,9 +12,7 @@
 package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -43,62 +41,54 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.StepEvent;
-import com.sun.jdi.event.ThreadDeathEvent;
 import com.sun.jdi.request.StepRequest;
+
+import io.reactivex.disposables.Disposable;
 
 public class StepRequestHandler implements IDebugRequestHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private Map<Long, ThreadState> threadStates;
-
-    public StepRequestHandler() {
-        threadStates = new HashMap<>();
-    }
 
     @Override
     public List<Command> getTargetCommands() {
-        return Arrays.asList(Command.CONFIGURATIONDONE, Command.STEPIN, Command.STEPOUT, Command.NEXT);
+        return Arrays.asList(Command.STEPIN, Command.STEPOUT, Command.NEXT);
     }
 
     @Override
-    public synchronized CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
-        }
-
-        if (command == Command.CONFIGURATIONDONE) {
-            context.getDebugSession().getEventHub().events()
-                .filter(debugEvent -> debugEvent.event instanceof StepEvent
-                        || debugEvent.event instanceof BreakpointEvent
-                        || debugEvent.event instanceof ThreadDeathEvent)
-                .subscribe(debugEvent -> {
-                    handleDebugEvent(debugEvent, context.getDebugSession(), context);
-                });
-            return CompletableFuture.completedFuture(response);
         }
 
         long threadId = ((StepArguments) arguments).threadId;
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), threadId);
         if (thread != null) {
             try {
-                // if previous step request is still on progress, and there is a new step request triggered on the same thread,
-                // cancel the old step request.
-                StepRequest pendingStepRequest = getPendingStepRequest(threadId);
-                if (pendingStepRequest != null) {
-                    DebugUtility.deleteEventRequestSafely(context.getDebugSession().getVM().eventRequestManager(), pendingStepRequest);
-                }
-                setPendingStepType(threadId, command);
-                setOriginalStackDepth(threadId, thread.frameCount());
-                setOriginalStepLocation(threadId, getTopFrame(thread).location());
-                StepRequest stepRequest;
+                ThreadState threadState = new ThreadState();
+                threadState.threadId = threadId;
+                threadState.pendingStepType = command;
+                threadState.stackDepth = thread.frameCount();
+                threadState.stepLocation = getTopFrame(thread).location();
+                threadState.disposable = context.getDebugSession().getEventHub().events()
+                    .filter(debugEvent -> (debugEvent.event instanceof StepEvent && debugEvent.event.request().equals(threadState.pendingStepRequest))
+                            || debugEvent.event instanceof BreakpointEvent)
+                    .subscribe(debugEvent -> {
+                        handleDebugEvent(debugEvent, context.getDebugSession(), context, threadState);
+                    });
+
                 if (command == Command.STEPIN) {
-                    stepRequest = DebugUtility.stepInto(thread, context.getDebugSession().getEventHub(), context.getStepFilters().classNameFilters);
+                    threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                            context.getStepFilters().classNameFilters);
                 } else if (command == Command.STEPOUT) {
-                    stepRequest = DebugUtility.stepOut(thread, context.getDebugSession().getEventHub(), context.getStepFilters().classNameFilters);
+                    threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
+                            context.getStepFilters().classNameFilters);
                 } else {
-                    stepRequest = DebugUtility.stepOver(thread, context.getDebugSession().getEventHub(), context.getStepFilters().classNameFilters);
+                    threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread,
+                            context.getStepFilters().classNameFilters);
                 }
-                setPendingStepRequest(threadId, stepRequest);
+                threadState.pendingStepRequest.enable();
+                thread.resume();
+
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
                 final String failureMessage = String.format("Failed to step because the thread '%s' is not suspended in the target VM.", thread.name());
@@ -114,39 +104,46 @@ public class StepRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private synchronized void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
+    private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context,
+            ThreadState threadState) {
         Event event = debugEvent.event;
 
         // When a breakpoint occurs, abort any pending step requests from the same thread.
         if (event instanceof BreakpointEvent) {
             long threadId = ((BreakpointEvent) event).thread().uniqueID();
-            StepRequest pendingStepRequest = getPendingStepRequest(threadId);
-            if (pendingStepRequest != null) {
-                DebugUtility.deleteEventRequestSafely(debugSession.getVM().eventRequestManager(), pendingStepRequest);
+            if (threadId == threadState.threadId && threadState.pendingStepRequest != null) {
+                DebugUtility.deleteEventRequestSafely(debugSession.getVM().eventRequestManager(), threadState.pendingStepRequest);
+                threadState.pendingStepRequest = null;
+                if (threadState.disposable != null) {
+                    threadState.disposable.dispose();
+                }
             }
-            removeThreadState(threadId);
-        } else if (event instanceof ThreadDeathEvent) {
-            long threadId = ((ThreadDeathEvent) event).thread().uniqueID();
-            removeThreadState(threadId);
         } else if (event instanceof StepEvent) {
-            debugEvent.shouldResume = false;
             ThreadReference thread = ((StepEvent) event).thread();
-            long threadId = thread.uniqueID();
-            if (event.request().equals(getPendingStepRequest(threadId)) && isStepFiltersConfigured(context.getStepFilters())) {
+            DebugUtility.deleteEventRequestSafely(thread.virtualMachine().eventRequestManager(), threadState.pendingStepRequest);
+            threadState.pendingStepRequest = null;
+            if (isStepFiltersConfigured(context.getStepFilters())) {
                 try {
-                    if (getPendingStepType(threadId) == Command.STEPIN) {
+                    if (threadState.pendingStepType == Command.STEPIN) {
+                        int currentStackDepth = thread.frameCount();
+                        Location currentStepLocation = getTopFrame(thread).location();
                         // Check if the step into operation stepped through the filtered code and stopped at an un-filtered location.
-                        if (getOriginalStackDepth(threadId) + 1 < thread.frameCount()) {
+                        if (threadState.stackDepth + 1 < thread.frameCount()) {
                             // Create another stepOut request to return back where we started the step into.
-                            StepRequest stepRequest = DebugUtility.stepOut(thread, debugSession.getEventHub(), context.getStepFilters().classNameFilters);
-                            setPendingStepRequest(threadId, stepRequest);
+                            threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
+                                    context.getStepFilters().classNameFilters);
+                            threadState.pendingStepRequest.enable();
+                            debugEvent.shouldResume = true;
                             return;
                         }
                         // If the ending step location is filtered, or same as the original location where the step into operation is originated,
                         // do another step of the same kind.
-                        if (shouldFilterLocation(thread, context) || shouldDoExtraStepInto(thread)) {
-                            StepRequest stepRequest = DebugUtility.stepInto(thread, debugSession.getEventHub(), context.getStepFilters().classNameFilters);
-                            setPendingStepRequest(threadId, stepRequest);
+                        if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, context)
+                                || shouldDoExtraStepInto(threadState.stackDepth, threadState.stepLocation, currentStackDepth, currentStepLocation)) {
+                            threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                                    context.getStepFilters().classNameFilters);
+                            threadState.pendingStepRequest.enable();
+                            debugEvent.shouldResume = true;
                             return;
                         }
                     }
@@ -154,8 +151,11 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     // ignore.
                 }
             }
-            setPendingStepRequest(threadId, null); // clean up the pending status.
+            if (threadState.disposable != null) {
+                threadState.disposable.dispose();
+            }
             context.sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
+            debugEvent.shouldResume = false;
         }
     }
 
@@ -173,9 +173,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
      * @throws IncompatibleThreadStateException
      *                      if the thread is not suspended in the target VM.
      */
-    private boolean shouldFilterLocation(ThreadReference thread, IDebugAdapterContext context) throws IncompatibleThreadStateException {
-        Location originalLocation = getOriginalStepLocation(thread.uniqueID());
-        Location currentLocation = getTopFrame(thread).location();
+    private boolean shouldFilterLocation(Location originalLocation, Location currentLocation, IDebugAdapterContext context)
+            throws IncompatibleThreadStateException {
         if (originalLocation == null || currentLocation == null) {
             return false;
         }
@@ -197,15 +196,14 @@ public class StepRequestHandler implements IDebugRequestHandler {
      * @throws IncompatibleThreadStateException
      *                      if the thread is not suspended in the target VM.
      */
-    private boolean shouldDoExtraStepInto(ThreadReference thread) throws IncompatibleThreadStateException {
-        if (getOriginalStackDepth(thread.uniqueID()) != thread.frameCount()) {
+    private boolean shouldDoExtraStepInto(int originalStackDepth, Location originalLocation, int currentStackDepth, Location currentLocation)
+            throws IncompatibleThreadStateException {
+        if (originalStackDepth != currentStackDepth) {
             return false;
         }
-        Location originalLocation = getOriginalStepLocation(thread.uniqueID());
         if (originalLocation == null) {
             return false;
         }
-        Location currentLocation = getTopFrame(thread).location();
         Method originalMethod = originalLocation.method();
         Method currentMethod = currentLocation.method();
         if (!originalMethod.equals(currentMethod)) {
@@ -232,83 +230,12 @@ public class StepRequestHandler implements IDebugRequestHandler {
         return thread.frame(0);
     }
 
-    private ThreadState getThreadState(long threadId) {
-        if (!threadStates.containsKey(threadId)) {
-            threadStates.put(threadId, new ThreadState());
-        }
-        return threadStates.get(threadId);
-    }
-
-    private void removeThreadState(long threadId) {
-        if (threadStates.containsKey(threadId)) {
-            threadStates.remove(threadId);
-        }
-    }
-
-    private void setPendingStepType(long threadId, Command type) {
-        ThreadState state = getThreadState(threadId);
-        if (state != null) {
-            state.pendingStepType = type;
-        }
-    }
-
-    private Command getPendingStepType(long threadId) {
-        ThreadState state = getThreadState(threadId);
-        if (state == null) {
-            return Command.UNSUPPORTED;
-        }
-        return state.pendingStepType;
-    }
-
-    private void setPendingStepRequest(long threadId, StepRequest stepRequest) {
-        ThreadState state = getThreadState(threadId);
-        if (state != null) {
-            state.pendingStepRequest = stepRequest;
-        }
-    }
-
-    private StepRequest getPendingStepRequest(long threadId) {
-        ThreadState state = getThreadState(threadId);
-        if (state != null) {
-            return state.pendingStepRequest;
-        }
-        return null;
-    }
-
-    private void setOriginalStackDepth(long threadId, int depth) {
-        ThreadState state = getThreadState(threadId);
-        if (state != null) {
-            state.stackDepth = depth;
-        }
-    }
-
-    private int getOriginalStackDepth(long threadId) {
-        ThreadState state = getThreadState(threadId);
-        if (state == null) {
-            return -1;
-        }
-        return state.stackDepth;
-    }
-
-    private void setOriginalStepLocation(long threadId, Location location) {
-        ThreadState state = getThreadState(threadId);
-        if (state != null) {
-            state.stepLocation = location;
-        }
-    }
-
-    private Location getOriginalStepLocation(long threadId) {
-        ThreadState state = getThreadState(threadId);
-        if (state != null) {
-            return state.stepLocation;
-        }
-        return null;
-    }
-
     class ThreadState {
+        long threadId = -1;
         Command pendingStepType;
         StepRequest pendingStepRequest = null;
         int stackDepth = -1;
         Location stepLocation = null;
+        Disposable disposable = null;
     }
 }
