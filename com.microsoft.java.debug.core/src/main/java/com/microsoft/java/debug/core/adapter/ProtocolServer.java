@@ -77,16 +77,17 @@ public class ProtocolServer extends AbstractProtocolServer {
     @Override
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        this.debugAdapter.dispatchRequest(request).thenAccept((response) -> {
+        this.debugAdapter.dispatchRequest(request).thenCompose((response) -> {
+            CompletableFuture<Void> future = new CompletableFuture<>();
             if (response != null) {
                 sendResponse(response);
+                future.complete(null);
             } else {
                 logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
-                response = new Messages.Response(request.seq, request.command);
-                sendResponse(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        "The request dispatcher should not return null response."));
+                future.completeExceptionally(new DebugException("The request dispatcher should not return null response.",
+                    ErrorCode.UNKNOWN_FAILURE.getId()));
             }
+            return future;
         }).exceptionally((ex) -> {
             Messages.Response response = new Messages.Response(request.seq, request.command);
             if (ex instanceof CompletionException && ex.getCause() != null) {
@@ -99,12 +100,12 @@ public class ProtocolServer extends AbstractProtocolServer {
                 sendResponse(response);
             } else if (ex instanceof DebugException) {
                 sendResponse(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.parse(((DebugException) ex).getErrorCode()),
-                        ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+                    ErrorCode.parse(((DebugException) ex).getErrorCode()),
+                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             } else {
                 sendResponse(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+                    ErrorCode.UNKNOWN_FAILURE,
+                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             }
             return null;
         });
