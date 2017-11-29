@@ -31,6 +31,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean debuggerPathsAreUri = true;
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
+    private boolean supportsRunInTerminalRequest;
     private boolean isAttached = false;
     private String[] sourcePaths;
     private Charset debuggeeEncoding;
@@ -105,6 +106,16 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setClientPathsAreUri(boolean clientPathsAreUri) {
         this.clientPathsAreUri = clientPathsAreUri;
+    }
+
+    @Override
+    public void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest) {
+        this.supportsRunInTerminalRequest = supportsRunInTerminalRequest;
+    }
+
+    @Override
+    public boolean supportsRunInTerminalRequest() {
+        return supportsRunInTerminalRequest;
     }
 
     @Override
