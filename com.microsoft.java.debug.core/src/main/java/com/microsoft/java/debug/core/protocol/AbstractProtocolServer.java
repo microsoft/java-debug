@@ -150,11 +150,20 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
     public void sendRequest(Messages.Request request, long timeout, Consumer<Messages.Response> cb) {
         Timer timer = new Timer();
         Disposable[] disposable = new Disposable[1];
+        boolean[] executed = new boolean[]{false};
         disposable[0] = subject.filter(response -> response.request_seq == request.seq).subscribe((response) -> {
-            timer.cancel();
+            synchronized (executed) {
+                if (executed[0]) {
+                    return;
+                } else {
+                    executed[0] = true;
+                    timer.cancel();
+                }
+            }
             cb.accept(response);
             if (disposable[0] != null) {
                 disposable[0].dispose();
+                disposable[0] = null;
             }
         });
         sendMessage(request);
@@ -163,6 +172,16 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
                 timer.schedule(new TimerTask() {
                     @Override
                     public void run() {
+                        synchronized (executed) {
+                            if (executed[0]) {
+                                return;
+                            }
+                            executed[0] = true;
+                        }
+                        if (disposable[0] != null) {
+                            disposable[0].dispose();
+                            disposable[0] = null;
+                        }
                         cb.accept(new Messages.Response(request.seq, request.command, false, "timeout"));
                     }
                 }, timeout);
