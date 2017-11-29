@@ -11,7 +11,7 @@
 
 package com.microsoft.java.debug.core.protocol;
 
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
@@ -23,22 +23,20 @@ public interface IProtocolServer {
      *
      * @param request
      *            the request message.
-     * @param cb
-     *            the request call back function.
+     * @return a CompletableFuture.
      */
-    void sendRequest(Request request, Consumer<Response> cb);
+    CompletableFuture<Response> sendRequest(Request request);
 
     /**
-     * Send a request to the DA. And create a timeout error response to the callback if no response is received at the give time.
+     * Send a request to the DA. The future will complete exceptionally if no response is received at the give time.
      *
      * @param request
      *            the request message.
      * @param timeout
      *            the maximum time (in millis) to wait.
-     * @param cb
-     *            the request call back function.
+     * @return a CompletableFuture.
      */
-    void sendRequest(Request request, long timeout, Consumer<Response> cb);
+    CompletableFuture<Response> sendRequest(Request request, long timeout);
 
     /**
      * Send an event to the DA.

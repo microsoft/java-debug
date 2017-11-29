@@ -13,7 +13,7 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,8 +21,6 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
-import com.microsoft.java.debug.core.protocol.Messages.Request;
-import com.microsoft.java.debug.core.protocol.Messages.Response;
 
 public class ProtocolServer extends AbstractProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -62,15 +60,15 @@ public class ProtocolServer extends AbstractProtocolServer {
     }
 
     @Override
-    public void sendRequest(Request request, Consumer<Response> cb) {
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        super.sendRequest(request, cb);
+        return super.sendRequest(request);
     }
 
     @Override
-    public void sendRequest(Request request, long timeout, Consumer<Response> cb) {
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request, long timeout) {
         usageDataSession.recordRequest(request);
-        super.sendRequest(request, timeout, cb);
+        return super.sendRequest(request, timeout);
     }
 
     @Override

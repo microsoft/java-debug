@@ -25,8 +25,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -53,7 +54,7 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
     private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
 
-    private PublishSubject<Messages.Response> subject = PublishSubject.<Messages.Response>create();
+    private PublishSubject<Messages.Response> responseSubject = PublishSubject.<Messages.Response>create();
 
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
@@ -142,28 +143,20 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
     }
 
     @Override
-    public void sendRequest(Messages.Request request, Consumer<Messages.Response> cb) {
-        sendRequest(request, 0, cb);
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request) {
+        return sendRequest(request, 0);
     }
 
     @Override
-    public void sendRequest(Messages.Request request, long timeout, Consumer<Messages.Response> cb) {
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request, long timeout) {
+        CompletableFuture<Messages.Response> future = new CompletableFuture<>();
         Timer timer = new Timer();
         Disposable[] disposable = new Disposable[1];
-        boolean[] executed = new boolean[]{false};
-        disposable[0] = subject.filter(response -> response.request_seq == request.seq).subscribe((response) -> {
-            synchronized (executed) {
-                if (executed[0]) {
-                    return;
-                } else {
-                    executed[0] = true;
-                    timer.cancel();
-                }
-            }
-            cb.accept(response);
+        disposable[0] = responseSubject.filter(response -> response.request_seq == request.seq).take(1).subscribe((response) -> {
+            timer.cancel();
+            future.complete(response);
             if (disposable[0] != null) {
                 disposable[0].dispose();
-                disposable[0] = null;
             }
         });
         sendMessage(request);
@@ -172,23 +165,17 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
                 timer.schedule(new TimerTask() {
                     @Override
                     public void run() {
-                        synchronized (executed) {
-                            if (executed[0]) {
-                                return;
-                            }
-                            executed[0] = true;
-                        }
                         if (disposable[0] != null) {
                             disposable[0].dispose();
-                            disposable[0] = null;
                         }
-                        cb.accept(new Messages.Response(request.seq, request.command, false, "timeout"));
+                        future.completeExceptionally(new TimeoutException("timeout"));
                     }
                 }, timeout);
             } catch (IllegalStateException ex) {
                 // if timer or task has been cancelled, do nothing.
             }
         }
+        return future;
     }
 
     private void processData() {
@@ -214,7 +201,7 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
                     } else if (message.type.equals("response")) {
                         try {
                             Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
-                            subject.onNext(response);
+                            responseSubject.onNext(response);
                         } catch (Exception e) {
                             logger.log(Level.SEVERE, String.format("Handle response error: %s", e.toString()), e);
                         }
