@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,14 +39,13 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter((message) -> {
-            sendMessage(message);
-        }, context);
+        this.debugAdapter = new DebugAdapter(this, context);
     }
 
     /**
      * A while-loop to parse input data and send output data constantly.
      */
+    @Override
     public void run() {
         usageDataSession.reportStart();
         super.run();
@@ -54,28 +54,37 @@ public class ProtocolServer extends AbstractProtocolServer {
     }
 
     @Override
-    protected void sendMessage(Messages.ProtocolMessage message) {
-        super.sendMessage(message);
-        if (message instanceof Messages.Response) {
-            usageDataSession.recordResponse((Messages.Response) message);
-        } else if (message instanceof Messages.Request) {
-            usageDataSession.recordRequest((Messages.Request) message);
-        }
+    public void sendResponse(Messages.Response response) {
+        usageDataSession.recordResponse(response);
+        super.sendResponse(response);
     }
 
+    @Override
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request) {
+        usageDataSession.recordRequest(request);
+        return super.sendRequest(request);
+    }
+
+    @Override
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request, long timeout) {
+        usageDataSession.recordRequest(request);
+        return super.sendRequest(request, timeout);
+    }
+
+    @Override
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
         this.debugAdapter.dispatchRequest(request).whenComplete((response, ex) -> {
             if (response != null) {
-                sendMessage(response);
+                sendResponse(response);
             } else if (ex != null) {
                 logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", ex.toString()), ex);
-                sendMessage(AdapterUtils.setErrorResponse(response,
+                sendResponse(AdapterUtils.setErrorResponse(response,
                         ErrorCode.UNKNOWN_FAILURE,
                         ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             } else {
                 logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
-                sendMessage(AdapterUtils.setErrorResponse(response,
+                sendResponse(AdapterUtils.setErrorResponse(response,
                         ErrorCode.UNKNOWN_FAILURE,
                         "The request dispatcher should not return null response."));
             }

@@ -119,13 +119,13 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (thread != null) {
             try {
                 thread.suspend();
-                context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
+                context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
             } catch (VMDisconnectedException ex) {
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
             }
         } else {
             context.getDebugSession().suspend();
-            context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
         return CompletableFuture.completedFuture(response);
     }
