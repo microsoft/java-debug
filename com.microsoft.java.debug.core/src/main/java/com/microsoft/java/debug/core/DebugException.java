@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core;
 
 public class DebugException extends Exception {
     private static final long serialVersionUID = 1L;
+    private int errorCode;
 
     public DebugException() {
         super();
@@ -28,5 +29,24 @@ public class DebugException extends Exception {
 
     public DebugException(Throwable cause) {
         super(cause);
+    }
+
+    public DebugException(String message, int errorCode) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+
+    public DebugException(String message, Throwable cause, int errorCode) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
+
+    public DebugException(Throwable cause, int errorCode) {
+        super(cause);
+        this.errorCode = errorCode;
+    }
+
+    public int getErrorCode() {
+        return this.errorCode;
     }
 }

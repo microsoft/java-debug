@@ -53,6 +53,10 @@ public interface IDebugAdapterContext {
 
     void setClientPathsAreUri(boolean clientPathsAreUri);
 
+    void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest);
+
+    boolean supportsRunInTerminalRequest();
+
     boolean isAttached();
 
     void setAttached(boolean attached);
