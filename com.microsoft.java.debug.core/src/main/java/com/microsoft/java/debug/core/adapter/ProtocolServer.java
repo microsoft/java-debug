@@ -42,7 +42,7 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter(this, context);
+        debugAdapter = new DebugAdapter(this, context);
     }
 
     /**
@@ -77,22 +77,37 @@ public class ProtocolServer extends AbstractProtocolServer {
     @Override
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        this.debugAdapter.dispatchRequest(request).thenAccept((response, ex) -> {
+        debugAdapter.dispatchRequest(request).thenCompose((response) -> {
+            CompletableFuture<Void> future = new CompletableFuture<>();
             if (response != null) {
-                sendMessage(response);
-            } else if (ex != null) {
-                logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", ex.toString()), ex);
-                sendMessage(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+                sendResponse(response);
+                future.complete(null);
             } else {
                 logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
-                sendMessage(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        "The request dispatcher should not return null response."));
+                future.completeExceptionally(new DebugException("The request dispatcher should not return null response.",
+                    ErrorCode.UNKNOWN_FAILURE.getId()));
+            }
+            return future;
+        }).exceptionally((ex) -> {
+            Messages.Response response = new Messages.Response(request.seq, request.command);
+            if (ex instanceof CompletionException && ex.getCause() != null) {
+                ex = ex.getCause();
+            }
+
+            if (ex instanceof VMDisconnectedException) {
+                // mark it success to avoid reporting error on VSCode.
+                response.success = true;
+                sendResponse(response);
+            } else if (ex instanceof DebugException) {
+                sendResponse(AdapterUtils.setErrorResponse(response,
+                    ErrorCode.parse(((DebugException) ex).getErrorCode()),
+                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+            } else {
+                sendResponse(AdapterUtils.setErrorResponse(response,
+                    ErrorCode.UNKNOWN_FAILURE,
+                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             }
             return null;
         });
     }
-
 }
