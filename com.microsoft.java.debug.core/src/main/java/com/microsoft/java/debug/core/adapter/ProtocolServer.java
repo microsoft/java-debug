@@ -13,7 +13,6 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,7 +20,6 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
-import com.sun.jdi.VMDisconnectedException;
 
 public class ProtocolServer extends AbstractProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -67,36 +65,11 @@ public class ProtocolServer extends AbstractProtocolServer {
 
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        this.debugAdapter.dispatchRequest(request).whenComplete((response, ex) -> {
-            if (response != null) {
-                sendMessage(response);
-            } else {
-                response = new Messages.Response(request.seq, request.command);
-                if (ex != null) {
-                    if (ex instanceof CompletionException && ex.getCause() != null) {
-                        ex = ex.getCause();
-                    }
-
-                    if (ex instanceof VMDisconnectedException) {
-                        // mark it success to avoid reporting error on VSCode.
-                        response.success = true;
-                        sendMessage(response);
-                    } else {
-                        sendMessage(AdapterUtils.setErrorResponse(response,
-                                ErrorCode.UNKNOWN_FAILURE,
-                                ex.getMessage() != null ? ex.getMessage() : ex.toString()));
-                    }
-                } else {
-                    logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
-                    sendMessage(AdapterUtils.setErrorResponse(response,
-                            ErrorCode.UNKNOWN_FAILURE,
-                            "The request dispatcher should not return null response."));
-                }
-            }
-        }).whenComplete((r, e) -> {
+        debugAdapter.dispatchRequest(request).thenAccept(this::sendMessage).exceptionally(e -> {
             if (e != null) {
-                logger.log(Level.SEVERE, "Unexpected exception occurs when sending message to VSCode: %s" + e.getMessage());
+                logger.log(Level.SEVERE, "Unexpected exception occurs when processing message to VSCode: %s" + e.getMessage());
             }
+            return null;
         });
     }
 
