@@ -71,7 +71,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                         + "Debugger JVM version: %s\n"
                         + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
                     logger.warning(warnMessage);
-                    context.sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
+                    context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
                 }
             }
         } catch (IOException | IllegalConnectorArgumentsException e) {
@@ -89,7 +89,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
 
         // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
-        context.sendEvent(new Events.InitializedEvent());
+        context.getProtocolServer().sendEvent(new Events.InitializedEvent());
         return CompletableFuture.completedFuture(response);
     }
 

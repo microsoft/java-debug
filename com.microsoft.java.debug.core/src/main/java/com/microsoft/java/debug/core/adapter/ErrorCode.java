@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.util.Arrays;
+
 public enum ErrorCode {
     UNKNOWN_FAILURE(1000),
     UNRECOGNIZED_REQUEST_FAILURE(1001),
@@ -25,7 +27,8 @@ public enum ErrorCode {
     EVALUATE_FAILURE(1010),
     EMPTY_DEBUG_SESSION(1011),
     INVALID_ENCODING(1012),
-    VM_TERMINATED(1013);
+    VM_TERMINATED(1013),
+    LAUNCH_IN_TERMINAL_FAILURE(1014);
 
     private int id;
 
@@ -35,5 +38,23 @@ public enum ErrorCode {
 
     public int getId() {
         return id;
+    }
+
+    /**
+     * Get the corresponding ErrorCode type by the error code id.
+     * If the error code is not defined in the enum type, return ErrorCode.UNKNOWN_FAILURE.
+     * @param id
+     *             the error code id.
+     * @return the ErrorCode type.
+     */
+    public static ErrorCode parse(int id) {
+        ErrorCode[] found = Arrays.stream(ErrorCode.values()).filter(code -> {
+            return code.getId() == id;
+        }).toArray(ErrorCode[]::new);
+
+        if (found.length > 0) {
+            return found[0];
+        }
+        return ErrorCode.UNKNOWN_FAILURE;
     }
 }

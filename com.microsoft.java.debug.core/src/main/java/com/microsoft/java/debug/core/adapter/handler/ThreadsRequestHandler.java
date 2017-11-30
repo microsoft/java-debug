@@ -118,10 +118,10 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
             thread.suspend();
-            context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
         } else {
             context.getDebugSession().suspend();
-            context.sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
         return CompletableFuture.completedFuture(response);
     }
