@@ -34,6 +34,14 @@ public class Responses {
         }
     }
 
+    public static class RunInTerminalResponseBody extends ResponseBody {
+        public int processId;
+
+        public RunInTerminalResponseBody(int processId) {
+            this.processId = processId;
+        }
+    }
+
     public static class ErrorResponseBody extends ResponseBody {
         public Types.Message error;
 

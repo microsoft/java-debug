@@ -13,13 +13,17 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages;
+import com.sun.jdi.VMDisconnectedException;
 
 public class ProtocolServer extends AbstractProtocolServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -38,14 +42,13 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter((message) -> {
-            sendMessage(message);
-        }, context);
+        this.debugAdapter = new DebugAdapter(this, context);
     }
 
     /**
      * A while-loop to parse input data and send output data constantly.
      */
+    @Override
     public void run() {
         usageDataSession.reportStart();
         super.run();
@@ -54,31 +57,57 @@ public class ProtocolServer extends AbstractProtocolServer {
     }
 
     @Override
-    protected void sendMessage(Messages.ProtocolMessage message) {
-        super.sendMessage(message);
-        if (message instanceof Messages.Response) {
-            usageDataSession.recordResponse((Messages.Response) message);
-        } else if (message instanceof Messages.Request) {
-            usageDataSession.recordRequest((Messages.Request) message);
-        }
+    public void sendResponse(Messages.Response response) {
+        usageDataSession.recordResponse(response);
+        super.sendResponse(response);
     }
 
+    @Override
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request) {
+        usageDataSession.recordRequest(request);
+        return super.sendRequest(request);
+    }
+
+    @Override
+    public CompletableFuture<Messages.Response> sendRequest(Messages.Request request, long timeout) {
+        usageDataSession.recordRequest(request);
+        return super.sendRequest(request, timeout);
+    }
+
+    @Override
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        this.debugAdapter.dispatchRequest(request).whenComplete((response, ex) -> {
+        this.debugAdapter.dispatchRequest(request).thenCompose((response) -> {
+            CompletableFuture<Void> future = new CompletableFuture<>();
             if (response != null) {
-                sendMessage(response);
-            } else if (ex != null) {
-                logger.log(Level.SEVERE, String.format("DebugSession dispatch exception: %s", ex.toString()), ex);
-                sendMessage(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+                sendResponse(response);
+                future.complete(null);
             } else {
                 logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
-                sendMessage(AdapterUtils.setErrorResponse(response,
-                        ErrorCode.UNKNOWN_FAILURE,
-                        "The request dispatcher should not return null response."));
+                future.completeExceptionally(new DebugException("The request dispatcher should not return null response.",
+                    ErrorCode.UNKNOWN_FAILURE.getId()));
             }
+            return future;
+        }).exceptionally((ex) -> {
+            Messages.Response response = new Messages.Response(request.seq, request.command);
+            if (ex instanceof CompletionException && ex.getCause() != null) {
+                ex = ex.getCause();
+            }
+
+            if (ex instanceof VMDisconnectedException) {
+                // mark it success to avoid reporting error on VSCode.
+                response.success = true;
+                sendResponse(response);
+            } else if (ex instanceof DebugException) {
+                sendResponse(AdapterUtils.setErrorResponse(response,
+                    ErrorCode.parse(((DebugException) ex).getErrorCode()),
+                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+            } else {
+                sendResponse(AdapterUtils.setErrorResponse(response,
+                    ErrorCode.UNKNOWN_FAILURE,
+                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+            }
+            return null;
         });
     }
 

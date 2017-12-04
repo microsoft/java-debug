@@ -154,7 +154,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
             if (threadState.disposable != null) {
                 threadState.disposable.dispose();
             }
-            context.sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
             debugEvent.shouldResume = false;
         }
     }

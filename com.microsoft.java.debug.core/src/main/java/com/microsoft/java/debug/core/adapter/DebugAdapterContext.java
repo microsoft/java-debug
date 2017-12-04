@@ -14,26 +14,25 @@ package com.microsoft.java.debug.core.adapter;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
-import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
-import com.microsoft.java.debug.core.protocol.Messages;
+import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
     private IProviderContext providerContext;
-    private Consumer<Messages.ProtocolMessage> messageConsumer;
+    private IProtocolServer server;
 
     private IDebugSession debugSession;
     private boolean debuggerLinesStartAt1 = true;
     private boolean debuggerPathsAreUri = true;
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
+    private boolean supportsRunInTerminalRequest;
     private boolean isAttached = false;
     private String[] sourcePaths;
     private Charset debuggeeEncoding;
@@ -46,14 +45,14 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
-    public DebugAdapterContext(Consumer<Messages.ProtocolMessage> messageConsumer, IProviderContext providerContext) {
+    public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
         this.providerContext = providerContext;
-        this.messageConsumer = messageConsumer;
+        this.server = server;
     }
 
     @Override
-    public void sendEvent(DebugEvent event) {
-        messageConsumer.accept(new Messages.Event(event.type, event));
+    public IProtocolServer getProtocolServer() {
+        return server;
     }
 
     @Override
@@ -109,6 +108,16 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setClientPathsAreUri(boolean clientPathsAreUri) {
         this.clientPathsAreUri = clientPathsAreUri;
+    }
+
+    @Override
+    public void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest) {
+        this.supportsRunInTerminalRequest = supportsRunInTerminalRequest;
+    }
+
+    @Override
+    public boolean supportsRunInTerminalRequest() {
+        return supportsRunInTerminalRequest;
     }
 
     @Override

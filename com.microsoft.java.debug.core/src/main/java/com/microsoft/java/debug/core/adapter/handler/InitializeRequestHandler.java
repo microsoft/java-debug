@@ -42,6 +42,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
                     context.setClientPathsAreUri(false);
             }
         }
+        context.setSupportsRunInTerminalRequest(initializeArguments.supportsRunInTerminalRequest);
 
         Types.Capabilities caps = new Types.Capabilities();
         caps.supportsConfigurationDoneRequest = true;
