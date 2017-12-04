@@ -91,9 +91,12 @@ public class DebugSession implements IDebugSession {
         EventRequestManager manager = vm.eventRequestManager();
         ArrayList<ExceptionRequest> legacy = new ArrayList<>(manager.exceptionRequests());
         manager.deleteEventRequests(legacy);
-        ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
-        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-        request.enable();
+        // When no exception breakpoints are requested, no need to create an empty exception request.
+        if (notifyCaught || notifyUncaught) {
+            ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
+            request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+            request.enable();
+        }
     }
 
     @Override
