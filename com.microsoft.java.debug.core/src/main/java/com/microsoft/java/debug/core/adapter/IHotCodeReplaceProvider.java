@@ -11,17 +11,9 @@
 
 package com.microsoft.java.debug.core.adapter;
 
-import java.util.Map;
+public interface IHotCodeReplaceProvider extends IProvider {
 
-public interface IProvider {
-    /**
-     * Initialize this provider.
-     *
-     * @param debugContext
-     *            The associated debug context
-     * @param options
-     *            the options
-     */
-    default void initialize(IDebugAdapterContext debugContext, Map<String, Object> options) {
-    }
+    void addHotCodeReplaceListener(IHotCodeReplaceListener listener);
+
+    void removeHotCodeReplaceListener(IHotCodeReplaceListener listener);
 }

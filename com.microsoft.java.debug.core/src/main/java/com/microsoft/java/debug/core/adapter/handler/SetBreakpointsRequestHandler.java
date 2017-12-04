@@ -15,10 +15,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -26,6 +29,9 @@ import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IHotCodeReplaceListener;
+import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
+import com.microsoft.java.debug.core.adapter.IRedefineClassEvent;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -35,8 +41,15 @@ import com.microsoft.java.debug.core.protocol.Requests.SetBreakpointArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 
-public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
+public class SetBreakpointsRequestHandler implements IDebugRequestHandler, IHotCodeReplaceListener {
+
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
     private BreakpointManager manager = new BreakpointManager();
+
+    private IDebugAdapterContext context = null;
+
+    private boolean isInitialized = false;
 
     @Override
     public List<Command> getTargetCommands() {
@@ -45,6 +58,14 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+        synchronized (this) {
+            if (!isInitialized) {
+                IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+                hcrProvider.addHotCodeReplaceListener(this);
+                isInitialized = true;
+            }
+        }
+        this.context = context;
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
         }
@@ -135,4 +156,26 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         return breakpoints;
     }
 
+    @Override
+    public void redefineClasses(IRedefineClassEvent event) {
+        List<String> typenames = event.getClassNames();
+        if (typenames == null || typenames.isEmpty()) {
+            return;
+        }
+        IBreakpoint[] breakpoints = manager.getBreakpoints();
+
+        for (IBreakpoint breakpoint : breakpoints) {
+            if (typenames.contains(breakpoint.className())) {
+                try {
+                    breakpoint.close();
+                    breakpoint.install().thenAccept(bp -> {
+                        Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
+                        context.getProtocolServer().sendEvent(bpEvent);
+                    });
+                } catch (Exception e) {
+                    logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
+                }
+            }
+        }
+    }
 }

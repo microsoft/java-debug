@@ -74,6 +74,7 @@ public class Breakpoint implements IBreakpoint {
         subscriptions().forEach(subscription -> {
             subscription.dispose();
         });
+        requests.clear();
     }
 
     // IBreakpoint
