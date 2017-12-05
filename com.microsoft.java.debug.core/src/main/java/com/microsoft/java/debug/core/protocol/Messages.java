@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.core.adapter;
+package com.microsoft.java.debug.core.protocol;
 
 import com.google.gson.JsonObject;
 
@@ -40,6 +40,15 @@ public class Messages {
             this.command = cmd;
             this.arguments = arg;
         }
+
+        /**
+        * Constructor.
+        */
+        public Request(String cmd, JsonObject arg) {
+            super("request");
+            this.command = cmd;
+            this.arguments = arg;
+        }
     }
 
     public static class Response extends ProtocolMessage {
@@ -56,46 +65,55 @@ public class Messages {
         /**
          * Constructor.
          */
-        public Response(String msg) {
+        public Response(String message) {
             super("response");
             this.success = false;
-            this.message = msg;
-        }
-
-        /**
-         * Constructor.
-         */
-        public Response(boolean succ, String message) {
-            super("response");
-            this.success = succ;
             this.message = message;
         }
 
         /**
          * Constructor.
          */
-        public Response(Response m) {
+        public Response(boolean success, String message) {
             super("response");
-            this.seq = m.seq;
-            this.success = m.success;
-            this.message = m.message;
-            this.request_seq = m.request_seq;
-            this.command = m.command;
-            this.body = m.body;
+            this.success = success;
+            this.message = message;
         }
 
         /**
          * Constructor.
          */
-        public Response(int rseq, String cmd) {
+        public Response(Response response) {
             super("response");
-            this.request_seq = rseq;
-            this.command = cmd;
+            this.seq = response.seq;
+            this.success = response.success;
+            this.message = response.message;
+            this.request_seq = response.request_seq;
+            this.command = response.command;
+            this.body = response.body;
         }
 
-        public Response(int rseq, String cmd, boolean succ) {
-            this(rseq, cmd);
-            this.success = succ;
+        /**
+         * Constructor.
+         */
+        public Response(int requestSeq, String command) {
+            super("response");
+            this.request_seq = requestSeq;
+            this.command = command;
+        }
+
+        public Response(int requestSeq, String command, boolean success) {
+            this(requestSeq, command);
+            this.success = success;
+        }
+
+        /**
+         * Constructor.
+         */
+        public Response(int requestSeq, String command, boolean success, String message) {
+            this(requestSeq, command);
+            this.success = success;
+            this.message = message;
         }
     }
 

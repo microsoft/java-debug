@@ -13,18 +13,20 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.DebugEvent;
+import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
-import com.microsoft.java.debug.core.adapter.Events;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
@@ -44,18 +46,19 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
             // This is a global event handler to handle the JDI Event from Virtual Machine.
-            debugSession.eventHub().events().subscribe(debugEvent -> {
+            debugSession.getEventHub().events().subscribe(debugEvent -> {
                 handleDebugEvent(debugEvent, debugSession, context);
             });
             // configuration is done, and start debug session.
             debugSession.start();
+            return CompletableFuture.completedFuture(response);
         } else {
-            context.sendEventAsync(new Events.TerminatedEvent());
-            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");
+            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");
         }
     }
 
@@ -63,43 +66,47 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         Event event = debugEvent.event;
         boolean isImportantEvent = true;
         if (event instanceof VMStartEvent) {
-            // do nothing.
+            if (context.isVmStopOnEntry()) {
+                DebugUtility.stopOnEntry(debugSession, context.getMainClass()).thenAccept(threadId -> {
+                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("entry", threadId));
+                });
+            }
         } else if (event instanceof VMDeathEvent) {
             context.setVmTerminated();
-            context.sendEventAsync(new Events.ExitedEvent(0));
+            context.getProtocolServer().sendEvent(new Events.ExitedEvent(0));
         } else if (event instanceof VMDisconnectEvent) {
             context.setVmTerminated();
-            context.sendEventAsync(new Events.TerminatedEvent());
+            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
             // Terminate eventHub thread.
             try {
-                debugSession.eventHub().close();
+                debugSession.getEventHub().close();
             } catch (Exception e) {
                 // do nothing.
             }
         } else if (event instanceof ThreadStartEvent) {
             ThreadReference startThread = ((ThreadStartEvent) event).thread();
             Events.ThreadEvent threadEvent = new Events.ThreadEvent("started", startThread.uniqueID());
-            context.sendEventAsync(threadEvent);
+            context.getProtocolServer().sendEvent(threadEvent);
         } else if (event instanceof ThreadDeathEvent) {
             ThreadReference deathThread = ((ThreadDeathEvent) event).thread();
             Events.ThreadEvent threadDeathEvent = new Events.ThreadEvent("exited", deathThread.uniqueID());
-            context.sendEventAsync(threadDeathEvent);
+            context.getProtocolServer().sendEvent(threadDeathEvent);
         } else if (event instanceof BreakpointEvent) {
             if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
                 // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
                 // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
             } else {
                 ThreadReference bpThread = ((BreakpointEvent) event).thread();
-                context.sendEventAsync(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
             }
         } else if (event instanceof StepEvent) {
             ThreadReference stepThread = ((StepEvent) event).thread();
-            context.sendEventAsync(new Events.StoppedEvent("step", stepThread.uniqueID()));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", stepThread.uniqueID()));
             debugEvent.shouldResume = false;
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
-            context.sendEventAsync(new Events.StoppedEvent("exception", thread.uniqueID()));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {
             isImportantEvent = false;

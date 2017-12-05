@@ -71,19 +71,19 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public void terminate() {
-        if (vm.process().isAlive()) {
+        if (vm.process() == null || vm.process().isAlive()) {
             vm.exit(0);
         }
     }
 
     @Override
     public IBreakpoint createBreakpoint(String className, int lineNumber) {
-        return new Breakpoint(vm, this.eventHub(), className, lineNumber);
+        return new Breakpoint(vm, this.getEventHub(), className, lineNumber);
     }
 
     @Override
     public IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount) {
-        return new Breakpoint(vm, this.eventHub(), className, lineNumber, hitCount);
+        return new Breakpoint(vm, this.getEventHub(), className, lineNumber, hitCount);
     }
 
     @Override
@@ -91,9 +91,12 @@ public class DebugSession implements IDebugSession {
         EventRequestManager manager = vm.eventRequestManager();
         ArrayList<ExceptionRequest> legacy = new ArrayList<>(manager.exceptionRequests());
         manager.deleteEventRequests(legacy);
-        ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
-        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-        request.enable();
+        // When no exception breakpoints are requested, no need to create an empty exception request.
+        if (notifyCaught || notifyUncaught) {
+            ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
+            request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+            request.enable();
+        }
     }
 
     @Override
@@ -102,12 +105,17 @@ public class DebugSession implements IDebugSession {
     }
 
     @Override
-    public List<ThreadReference> allThreads() {
+    public List<ThreadReference> getAllThreads() {
         return vm.allThreads();
     }
 
     @Override
-    public IEventHub eventHub() {
+    public IEventHub getEventHub() {
         return eventHub;
+    }
+
+    @Override
+    public VirtualMachine getVM() {
+        return vm;
     }
 }

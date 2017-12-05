@@ -17,15 +17,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IWorkspaceRoot;
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -46,7 +42,7 @@ public class ResolveClasspathsHandler {
      * @return the class paths entries
      * @throws Exception when there are any errors during resolving class path
      */
-    public String[] resolveClasspaths(List<Object> arguments) throws Exception {
+    public String[][] resolveClasspaths(List<Object> arguments) throws Exception {
         try {
             return computeClassPath((String) arguments.get(0), (String) arguments.get(1));
         } catch (CoreException e) {
@@ -65,32 +61,36 @@ public class ResolveClasspathsHandler {
      *             CoreException
      */
     private static IJavaProject getJavaProjectFromName(String projectName) throws CoreException {
-        IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-        IProject project = root.getProject(projectName);
-        if (!project.exists()) {
+        IJavaProject javaProject = JdtUtils.getJavaProject(projectName);
+        if (javaProject == null) {
             throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID,
-                    String.format("Cannot find the project with name '%s'.", projectName)));
+                    String.format("The project '%s' is not a valid java project.", projectName)));
         }
-        if (!project.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID,
-                    String.format("The project '%s' does not have java nature enabled.", projectName)));
-        }
-        IJavaProject javaProject = JavaCore.create(project);
         return javaProject;
     }
 
     /**
      * Get java project from type.
      *
-     * @param typeFullyQualifiedName
+     * @param fullyQualifiedTypeName
      *            fully qualified name of type
      * @return java project
      * @throws CoreException
      *             CoreException
      */
-    private static List<IJavaProject> getJavaProjectFromType(String typeFullyQualifiedName) throws CoreException {
-        SearchPattern pattern = SearchPattern.createPattern(typeFullyQualifiedName, IJavaSearchConstants.TYPE,
-                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_EXACT_MATCH);
+    private static List<IJavaProject> getJavaProjectFromType(String fullyQualifiedTypeName) throws CoreException {
+        String[] splitItems = fullyQualifiedTypeName.split("/");
+        // If the main class name contains the module name, should trim the module info.
+        if (splitItems.length == 2) {
+            fullyQualifiedTypeName = splitItems[1];
+        }
+        final String moduleName = splitItems.length == 2 ? splitItems[0] : null;
+
+        SearchPattern pattern = SearchPattern.createPattern(
+                fullyQualifiedTypeName,
+                IJavaSearchConstants.TYPE,
+                IJavaSearchConstants.DECLARATIONS,
+                SearchPattern.R_EXACT_MATCH);
         IJavaSearchScope scope = SearchEngine.createWorkspaceScope();
         ArrayList<IJavaProject> projects = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
@@ -98,7 +98,10 @@ public class ResolveClasspathsHandler {
             public void acceptSearchMatch(SearchMatch match) {
                 Object element = match.getElement();
                 if (element instanceof IJavaElement) {
-                    projects.add(((IJavaElement) element).getJavaProject());
+                    IJavaProject project = ((IJavaElement) element).getJavaProject();
+                    if (moduleName == null || moduleName.equals(JdtUtils.getModuleName(project))) {
+                        projects.add(project);
+                    }
                 }
             }
         };
@@ -121,7 +124,7 @@ public class ResolveClasspathsHandler {
      * @throws CoreException
      *             CoreException
      */
-    private static String[] computeClassPath(String mainClass, String projectName) throws CoreException {
+    private static String[][] computeClassPath(String mainClass, String projectName) throws CoreException {
         IJavaProject project = null;
         // if type exists in multiple projects, debug configuration need provide
         // project name.
@@ -153,10 +156,18 @@ public class ResolveClasspathsHandler {
      * @throws CoreException
      *             CoreException
      */
-    private static String[] computeClassPath(IJavaProject javaProject) throws CoreException {
+    private static String[][] computeClassPath(IJavaProject javaProject) throws CoreException {
         if (javaProject == null) {
             throw new IllegalArgumentException("javaProject is null");
         }
-        return JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
+        String[][] result = new String[2][];
+        if (JavaRuntime.isModularProject(javaProject)) {
+            result[0] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
+            result[1] = new String[0];
+        } else {
+            result[0] = new String[0];
+            result[1] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
+        }
+        return result;
     }
 }

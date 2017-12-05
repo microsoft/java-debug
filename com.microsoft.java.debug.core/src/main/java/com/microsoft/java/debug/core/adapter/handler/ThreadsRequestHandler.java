@@ -14,25 +14,26 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
-import com.microsoft.java.debug.core.adapter.Events;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
-import com.microsoft.java.debug.core.adapter.Requests.ContinueArguments;
-import com.microsoft.java.debug.core.adapter.Requests.NextArguments;
-import com.microsoft.java.debug.core.adapter.Requests.PauseArguments;
-import com.microsoft.java.debug.core.adapter.Requests.StepInArguments;
-import com.microsoft.java.debug.core.adapter.Requests.StepOutArguments;
-import com.microsoft.java.debug.core.adapter.Requests.ThreadsArguments;
-import com.microsoft.java.debug.core.adapter.Responses;
-import com.microsoft.java.debug.core.adapter.Types;
+import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.ContinueArguments;
+import com.microsoft.java.debug.core.protocol.Requests.NextArguments;
+import com.microsoft.java.debug.core.protocol.Requests.PauseArguments;
+import com.microsoft.java.debug.core.protocol.Requests.StepInArguments;
+import com.microsoft.java.debug.core.protocol.Requests.StepOutArguments;
+import com.microsoft.java.debug.core.protocol.Requests.ThreadsArguments;
+import com.microsoft.java.debug.core.protocol.Responses;
+import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
@@ -45,92 +46,87 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
-            return;
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
         }
         switch (command) {
             case THREADS:
-                this.threads((ThreadsArguments) arguments, response, context);
-                break;
+                return this.threads((ThreadsArguments) arguments, response, context);
             case STEPIN:
-                this.stepIn((StepInArguments) arguments, response, context);
-                break;
+                return this.stepIn((StepInArguments) arguments, response, context);
             case STEPOUT:
-                this.stepOut((StepOutArguments) arguments, response, context);
-                break;
+                return this.stepOut((StepOutArguments) arguments, response, context);
             case NEXT:
-                this.next((NextArguments) arguments, response, context);
-                break;
+                return this.next((NextArguments) arguments, response, context);
             case PAUSE:
-                this.pause((PauseArguments) arguments, response, context);
-                break;
+                return this.pause((PauseArguments) arguments, response, context);
             case CONTINUE:
-                this.resume((ContinueArguments) arguments, response, context);
-                break;
+                return this.resume((ContinueArguments) arguments, response, context);
             default:
-                return;
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
+                        String.format("Unrecognized request: { _request: %s }", command.toString()));
         }
     }
 
-    private void threads(Requests.ThreadsArguments arguments, Response response, IDebugAdapterContext context) {
+    private CompletableFuture<Response> threads(Requests.ThreadsArguments arguments, Response response, IDebugAdapterContext context) {
         ArrayList<Types.Thread> threads = new ArrayList<>();
         try {
-            for (ThreadReference thread : context.getDebugSession().allThreads()) {
+            for (ThreadReference thread : context.getDebugSession().getAllThreads()) {
                 if (thread.isCollected()) {
                     continue;
                 }
                 Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
                 threads.add(clientThread);
             }
-        } catch (VMDisconnectedException | ObjectCollectedException ex) {
+        } catch (ObjectCollectedException ex) {
             // allThreads may throw VMDisconnectedException when VM terminates and thread.name() may throw ObjectCollectedException
             // when the thread is exiting.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
+        return CompletableFuture.completedFuture(response);
     }
 
-    private void stepIn(Requests.StepInArguments arguments, Response response, IDebugAdapterContext context) {
+    private CompletableFuture<Response> stepIn(Requests.StepInArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepInto(thread, context.getDebugSession().eventHub());
+            DebugUtility.stepInto(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
+        return CompletableFuture.completedFuture(response);
     }
 
-    private void stepOut(Requests.StepOutArguments arguments, Response response, IDebugAdapterContext context) {
+    private CompletableFuture<Response> stepOut(Requests.StepOutArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepOut(thread, context.getDebugSession().eventHub());
+            DebugUtility.stepOut(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
+        return CompletableFuture.completedFuture(response);
     }
 
-    private void next(Requests.NextArguments arguments, Response response, IDebugAdapterContext context) {
+    private CompletableFuture<Response> next(Requests.NextArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            DebugUtility.stepOver(thread, context.getDebugSession().eventHub());
+            DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
             checkThreadRunningAndRecycleIds(thread, context);
         }
+        return CompletableFuture.completedFuture(response);
     }
 
-    private void pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
+    private CompletableFuture<Response> pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            try {
-                thread.suspend();
-                context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId));
-            } catch (VMDisconnectedException ex) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
-            }
+            thread.suspend();
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
         } else {
             context.getDebugSession().suspend();
-            context.sendEventAsync(new Events.StoppedEvent("pause", arguments.threadId, true));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
+        return CompletableFuture.completedFuture(response);
     }
 
-    private void resume(Requests.ContinueArguments arguments, Response response, IDebugAdapterContext context) {
+    private CompletableFuture<Response> resume(Requests.ContinueArguments arguments, Response response, IDebugAdapterContext context) {
         boolean allThreadsContinued = true;
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         /**
@@ -147,6 +143,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getRecyclableIdPool().removeAllObjects();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
+        return CompletableFuture.completedFuture(response);
     }
 
     private void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {

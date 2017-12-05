@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -20,11 +21,11 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
-import com.microsoft.java.debug.core.adapter.Requests.SetExceptionBreakpointsArguments;
-import com.microsoft.java.debug.core.adapter.Types;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.SetExceptionBreakpointsArguments;
+import com.microsoft.java.debug.core.protocol.Types;
 
 public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandler {
 
@@ -34,10 +35,9 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
-            return;
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
         }
 
         String[] filters = ((SetExceptionBreakpointsArguments) arguments).filters;
@@ -46,8 +46,9 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
             boolean notifyUncaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME);
 
             context.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
+            return CompletableFuture.completedFuture(response);
         } catch (Exception ex) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
                     String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()));
         }
     }

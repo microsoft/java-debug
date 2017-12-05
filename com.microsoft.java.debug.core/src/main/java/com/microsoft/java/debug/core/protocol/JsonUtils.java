@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.core.adapter;
+package com.microsoft.java.debug.core.protocol;
 
 import java.lang.reflect.Type;
 
@@ -44,6 +44,10 @@ public class JsonUtils {
 
     public static String toJson(Object src, Type typeOfSrc) {
         return GSON.toJson(src, typeOfSrc);
+    }
+
+    public static JsonElement toJsonTree(Object src, Type typeOfSrc) {
+        return GSON.toJsonTree(src, typeOfSrc);
     }
 
     /**

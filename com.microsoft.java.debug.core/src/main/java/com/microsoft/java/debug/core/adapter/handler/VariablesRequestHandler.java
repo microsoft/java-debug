@@ -19,25 +19,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
-import com.microsoft.java.debug.core.adapter.Requests.Arguments;
-import com.microsoft.java.debug.core.adapter.Requests.Command;
-import com.microsoft.java.debug.core.adapter.Requests.VariablesArguments;
-import com.microsoft.java.debug.core.adapter.Responses;
-import com.microsoft.java.debug.core.adapter.Types;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
-import com.microsoft.java.debug.core.adapter.formatter.NumericFormatter;
-import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Requests.Arguments;
+import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.VariablesArguments;
+import com.microsoft.java.debug.core.protocol.Responses;
+import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ObjectReference;
@@ -53,22 +52,15 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
     }
 
     @Override
-    public void handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         IVariableFormatter variableFormatter = context.getVariableFormatter();
         VariablesArguments varArgs = (VariablesArguments) arguments;
 
+
+        boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
+
         Map<String, Object> options = variableFormatter.getDefaultOptions();
-        // This should be false by default(currently true for test).
-        // User will need to explicitly turn it on by configuring launch.json
-        boolean showStaticVariables = true;
-        // TODO: When vscode protocol support customize settings of value format, showFullyQualifiedNames should be one of the options.
-        boolean showFullyQualifiedNames = true;
-        if (varArgs.format != null && varArgs.format.hex) {
-            options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
-        }
-        if (showFullyQualifiedNames) {
-            options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, showFullyQualifiedNames);
-        }
+        VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex);
 
         List<Types.Variable> list = new ArrayList<>();
         Object container = context.getRecyclableIdPool().getObjectById(varArgs.variablesReference);
@@ -76,13 +68,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         // variable request will contain the right variablesReference.
         if (container == null) {
             response.body = new Responses.VariablesResponseBody(list);
-            return;
+            return CompletableFuture.completedFuture(response);
         }
 
         if (!(container instanceof VariableProxy)) {
-            AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                     String.format("VariablesRequest: Invalid variablesReference %d.", varArgs.variablesReference));
-            return;
         }
 
         VariableProxy containerNode = (VariableProxy) container;
@@ -99,9 +90,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     childrenList.addAll(VariableUtils.listStaticVariables(frame));
                 }
             } catch (AbsentInformationException e) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                         String.format("Failed to get variables. Reason: %s", e.toString()));
-                return;
             }
         } else {
             try {
@@ -113,9 +103,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
                 }
             } catch (AbsentInformationException e) {
-                AdapterUtils.setErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
                         String.format("Failed to get variables. Reason: %s", e.toString()));
-                return;
             }
         }
 
@@ -175,6 +164,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);
+        return CompletableFuture.completedFuture(response);
     }
 
     private Set<String> getDuplicateNames(Collection<String> list) {

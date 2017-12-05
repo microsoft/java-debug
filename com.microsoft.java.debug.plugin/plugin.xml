@@ -8,7 +8,7 @@
             <command id="vscode.java.resolveMainClass"/>
             <command id="vscode.java.buildWorkspace"/>
             <command id="vscode.java.fetchUsageData"/>
-            <command id="vscode.java.configLogLevel"/>
+            <command id="vscode.java.updateDebugSettings"/>
        </delegateCommandHandler>
    </extension>
 </plugin>

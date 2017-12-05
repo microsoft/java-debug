@@ -23,19 +23,18 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
@@ -58,9 +57,11 @@ import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.jdt.launching.sourcelookup.containers.JavaProjectSourceContainer;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
@@ -69,17 +70,20 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final String JDT_SCHEME = "jdt";
     private static final String PATH_SEPARATOR = "/";
+    private ISourceContainer[] sourceContainers = null;
 
-    private HashMap<String, Object> context = new HashMap<String, Object>();
-    private ISourceContainer[] sourceContainer = new ISourceContainer[0];
+    private HashMap<String, Object> options = new HashMap<String, Object>();
 
     @Override
-    public void initialize(Map<String, Object> props) {
+    public void initialize(IDebugSession debugSession, Map<String, Object> props) {
         if (props == null) {
             throw new IllegalArgumentException("argument is null");
         }
-        context.putAll(props);
-        sourceContainer = getSourceContainers();
+        options.putAll(props);
+        // During initialization, trigger a background job to load the source containers to improve the perf.
+        new Thread(() -> {
+            getSourceContainers();
+        }).start();
     }
 
     @Override
@@ -109,8 +113,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new String[0];
         }
 
-        // Currently the highest version the debugger supports is Java SE 8 Edition (JLS8).
-        final ASTParser parser = ASTParser.newParser(AST.JLS8);
+        // Currently the highest version the debugger supports is Java SE 9 Edition (JLS9).
+        final ASTParser parser = ASTParser.newParser(AST.JLS9);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
@@ -118,7 +122,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            Charset cs = (Charset) this.context.get(Constants.DEBUGGEE_ENCODING);
+            Charset cs = (Charset) this.options.get(Constants.DEBUGGEE_ENCODING);
             if (cs == null) {
                 cs = Charset.defaultCharset();
             }
@@ -138,11 +142,11 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * See the java doc for { @link ASTParser#setSource(char[]) },
              * the user need specify the compiler options explicitly.
              */
-            Map<String, String> options = JavaCore.getOptions();
-            options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
-            options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_1_8);
-            options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_1_8);
-            parser.setCompilerOptions(options);
+            Map<String, String> javaOptions = JavaCore.getOptions();
+            javaOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_9);
+            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_9);
+            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_9);
+            parser.setCompilerOptions(javaOptions);
             astUnit = (CompilationUnit) parser.createAST(null);
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
@@ -177,20 +181,10 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
     @Override
     public String getSourceFileURI(String fullyQualifiedName, String sourcePath) {
-        if (fullyQualifiedName == null) {
-            throw new IllegalArgumentException("fullyQualifiedName is null");
+        if (sourcePath == null) {
+            return null;
         }
-
-        return this.getSourceElement(fullyQualifiedName, sourcePath);
-
-        // Jdt Search Engine doesn't support searching anonymous class or local type directly.
-        // But because the inner class and anonymous class have the same java file as the enclosing type,
-        // search their enclosing type instead.
-        //        if (fullyQualifiedName.indexOf("$") >= 0) {
-        //            return searchDeclarationFileByFqn(AdapterUtils.parseEnclosingType(fullyQualifiedName));
-        //        } else {
-        //            return searchDeclarationFileByFqn(fullyQualifiedName);
-        //        }
+        return this.findSourceElement(fullyQualifiedName, sourcePath);
     }
 
     @Override
@@ -220,61 +214,48 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return source;
     }
 
-    private IJavaProject getJavaProjectFromName(String projectName) throws CoreException {
-        IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-        IProject project = root.getProject(projectName);
-        if (!project.exists()) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not an existing project."));
-        }
-        if (!project.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
-            throw new CoreException(new Status(IStatus.ERROR, JavaDebuggerServerPlugin.PLUGIN_ID, "Not a project with java nature."));
-        }
-        IJavaProject javaProject = JavaCore.create(project);
-        return javaProject;
-    }
-
     private String searchDeclarationFileByFqn(String fullyQualifiedName) {
-        String projectName = (String) context.get(Constants.PROJECTNAME);
-        try {
-            IJavaSearchScope searchScope = projectName != null
-                ? createSearchScope(getJavaProjectFromName(projectName))
-                : SearchEngine.createWorkspaceScope();
-            SearchPattern pattern = SearchPattern.createPattern(
+        String projectName = (String) options.get(Constants.PROJECTNAME);
+        IJavaProject project = JdtUtils.getJavaProject(projectName);
+        IJavaSearchScope searchScope = createSearchScope(project);
+        SearchPattern pattern = SearchPattern.createPattern(
                 fullyQualifiedName,
                 IJavaSearchConstants.TYPE,
                 IJavaSearchConstants.DECLARATIONS,
                 SearchPattern.R_EXACT_MATCH);
-            ArrayList<String> uris = new ArrayList<String>();
-            SearchRequestor requestor = new SearchRequestor() {
-                @Override
-                public void acceptSearchMatch(SearchMatch match) {
-                    Object element = match.getElement();
-                    if (element instanceof IType) {
-                        IType type = (IType) element;
-                        if (type.isBinary()) {
-                            try {
-                                // let the search engine to ignore those class files without attached source.
-                                if (type.getSource() != null) {
-                                    uris.add(getFileURI(type.getClassFile()));
-                                }
-                            } catch (JavaModelException e) {
-                                // ignore
+
+        ArrayList<String> uris = new ArrayList<String>();
+
+        SearchRequestor requestor = new SearchRequestor() {
+            @Override
+            public void acceptSearchMatch(SearchMatch match) {
+                Object element = match.getElement();
+                if (element instanceof IType) {
+                    IType type = (IType) element;
+                    if (type.isBinary()) {
+                        try {
+                            // let the search engine to ignore those class files without attached source.
+                            if (type.getSource() != null) {
+                                uris.add(getFileURI(type.getClassFile()));
                             }
-                        } else {
-                            uris.add(getFileURI(type.getResource()));
+                        } catch (JavaModelException e) {
+                            // ignore
                         }
+                    } else {
+                        uris.add(getFileURI(type.getResource()));
                     }
                 }
-            };
-            SearchEngine searchEngine = new SearchEngine();
+            }
+        };
+        SearchEngine searchEngine = new SearchEngine();
+        try {
             searchEngine.search(pattern, new SearchParticipant[] {
                     SearchEngine.getDefaultSearchParticipant()
                 }, searchScope, requestor, null /* progress monitor */);
-            return uris.size() == 0 ? null : uris.get(0);
-        } catch (CoreException e) {
-            logger.log(Level.SEVERE, String.format("Failed to parse java project: %s", e.toString()), e);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, String.format("Search engine failed: %s", e.toString()), e);
         }
-        return null;
+        return uris.size() == 0 ? null : uris.get(0);
     }
 
     private static String getFileURI(IClassFile classFile) {
@@ -344,26 +325,67 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return builder.toString();
     }
 
-    private ISourceContainer[] getSourceContainers() {
-        String projectName = (String) context.get(Constants.PROJECTNAME);
-        if (StringUtils.isNotBlank(projectName)) {
+    /**
+     * Compute the possible source containers that the debugging project could be associated with.
+     * And put the source containers parsed from the specified project's classpath entries first,
+     * then the source containers from the other projects at the same workspace.
+     */
+    private synchronized ISourceContainer[] getSourceContainers() {
+        if (sourceContainers != null) {
+            return sourceContainers;
+        }
+        Set<ISourceContainer> containers = new LinkedHashSet<>();
+        List<IProject> projects = new ArrayList<>();
+
+        String projectName = (String) options.get(Constants.PROJECTNAME);
+        IProject targetProject = JdtUtils.getProject(projectName);
+        if (targetProject != null) {
+            projects.add(targetProject);
+        }
+
+        List<IProject> workspaceProjects = Arrays.asList(ResourcesPlugin.getWorkspace().getRoot().getProjects());
+        projects.addAll(workspaceProjects.stream().filter((project) -> {
+            return !project.equals(targetProject);
+        }).collect(Collectors.toList()));
+
+        Set<IRuntimeClasspathEntry> calculated = new LinkedHashSet<>();
+        for (IProject project : projects) {
+            IJavaProject javaProject = JdtUtils.getJavaProject(project);
+            if (javaProject != null && project.exists()) {
+                // Add source containers from the dependencies.
+                containers.addAll(Arrays.asList(getSourceContainers(javaProject, calculated)));
+                // Add source containers from the project's source folder.
+                containers.add(new JavaProjectSourceContainer(javaProject));
+            }
+        }
+
+        sourceContainers = containers.toArray(new ISourceContainer[0]);
+        return sourceContainers;
+    }
+
+    private ISourceContainer[] getSourceContainers(IJavaProject project, Set<IRuntimeClasspathEntry> calculated) {
+        if (project != null && project.exists()) {
             try {
-                IJavaProject project = getJavaProjectFromName(projectName);
                 IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(project);
                 List<IRuntimeClasspathEntry> resolved = new ArrayList<>();
                 for (IRuntimeClasspathEntry entry : unresolved) {
-                    resolved.addAll(Arrays.asList(JavaRuntime.resolveRuntimeClasspathEntry(entry, project)));
+                    for (IRuntimeClasspathEntry resolvedEntry : JavaRuntime.resolveRuntimeClasspathEntry(entry, project)) {
+                        if (!calculated.contains(resolvedEntry)) {
+                            calculated.add(resolvedEntry);
+                            resolved.add(resolvedEntry);
+                        }
+                    }
                 }
                 return JavaRuntime.getSourceContainers(resolved.toArray(new IRuntimeClasspathEntry[0]));
             } catch (CoreException ex) {
-                // do nothing.
+             // do nothing.
             }
         }
         return new ISourceContainer[0];
     }
 
-    private String getSourceElement(String fqn, String sourcePath) {
-        for (ISourceContainer container : sourceContainer) {
+    private String findSourceElement(String fqn, String sourcePath) {
+        for (ISourceContainer container : getSourceContainers()) {
             try {
                 Object[] objects = container.findSourceElements(sourcePath);
                 if (objects.length > 0) {

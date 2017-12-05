@@ -11,6 +11,13 @@
 
 package com.microsoft.java.debug.core.adapter.formatter;
 
+import static com.microsoft.java.debug.core.adapter.formatter.StringObjectFormatter.MAX_STRING_LENGTH_OPTION;
+import static junit.framework.TestCase.assertNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,15 +30,9 @@ import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StringReference;
 import com.sun.jdi.Value;
 
-import static junit.framework.TestCase.assertNull;
-import static com.microsoft.java.debug.core.adapter.formatter.StringObjectFormatter.MAX_STRING_LENGTH_OPTION;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 public class StringObjectFormatterTest extends BaseJdiTestCase {
     protected StringObjectFormatter formatter;
+    @Override
     @Before
     public void setup() throws Exception {
         super.setup();
@@ -72,8 +73,8 @@ public class StringObjectFormatterTest extends BaseJdiTestCase {
         assertEquals("Should be able to format string type.", String.format("\"st...\" (id=%d)",
             ((ObjectReference) string).uniqueID()),
             formatter.toString(string, options));
-        assertTrue("Should be able to trim long string..",
-            formatter.toString(string, new HashMap<>()).contains("aaaaaaaaaaaaaaaaaaaaaaa...\""));
+        assertTrue("Should not trim long string by default",
+            formatter.toString(string, new HashMap<>()).contains(((StringReference) string).value()));
     }
 
     @Test

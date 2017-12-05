@@ -21,9 +21,9 @@ import java.util.logging.Logger;
 
 import com.google.gson.JsonElement;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.JsonUtils;
-import com.microsoft.java.debug.core.adapter.Messages.Request;
-import com.microsoft.java.debug.core.adapter.Messages.Response;
+import com.microsoft.java.debug.core.protocol.JsonUtils;
+import com.microsoft.java.debug.core.protocol.Messages.Request;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.sun.jdi.event.Event;
 
 public class UsageDataSession {
@@ -137,7 +137,9 @@ public class UsageDataSession {
         props.put("commandCount", JsonUtils.toJson(commandCountMap));
         props.put("breakpointCount", JsonUtils.toJson(breakpointCountMap));
         if (jdiEventSequenceEnabled) {
-            props.put("jdiEventSequence", JsonUtils.toJson(eventList));
+            synchronized (eventList) {
+                props.put("jdiEventSequence", JsonUtils.toJson(eventList));
+            }
         }
         usageDataLogger.log(Level.INFO, "session usage data summary", props);
     }
@@ -152,7 +154,9 @@ public class UsageDataSession {
                 Map<String, String> eventEntry = new HashMap<>();
                 eventEntry.put("timestamp", String.valueOf(System.currentTimeMillis()));
                 eventEntry.put("event", event.toString());
-                currentSession.eventList.add(JsonUtils.toJson(eventEntry));
+                synchronized (currentSession.eventList) {
+                    currentSession.eventList.add(JsonUtils.toJson(eventEntry));
+                }
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("Exception on recording event: %s.", e.toString()), e);

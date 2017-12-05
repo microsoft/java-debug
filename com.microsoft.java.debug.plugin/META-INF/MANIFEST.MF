@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Debug
 Bundle-SymbolicName: com.microsoft.java.debug.plugin;singleton:=true
-Bundle-Version: 0.2.0
+Bundle-Version: 0.4.0
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Bundle-Activator: com.microsoft.java.debug.plugin.internal.JavaDebuggerServerPlugin
@@ -19,7 +19,7 @@ Bundle-ClassPath: lib/gson-2.7.jar,
  .,
  lib/rxjava-2.1.1.jar,
  lib/reactive-streams-1.0.0.jar,
- lib/com.microsoft.java.debug.core-0.2.0.jar,
+ lib/com.microsoft.java.debug.core-0.4.0.jar,
  lib/commons-io-2.5.jar,
  lib/commons-lang3-3.6.jar
 

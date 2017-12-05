@@ -23,12 +23,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.adapter.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.microsoft.java.debug.core.protocol.Responses;
+import com.microsoft.java.debug.core.protocol.Types;
 
 public class AdapterUtils {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
@@ -168,7 +171,7 @@ public class AdapterUtils {
     }
 
     /**
-     * Generate an error response with the given error message.
+     * Populate the response body with the given error message, and mark the success flag to false. At last return the response object back.
      *
      * @param response
      *              the response object
@@ -176,15 +179,17 @@ public class AdapterUtils {
      *              the error code
      * @param errorMessage
      *              the error message
+     * @return the modified response object.
      */
-    public static void setErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
+    public static Response setErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
         response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
         response.message = errorMessage;
         response.success = false;
+        return response;
     }
 
     /**
-     * Generate an error response with the given exception.
+     * Populate the response body with the given exception, and mark the success flag to false. At last return the response object back.
      *
      * @param response
      *              the response object
@@ -192,12 +197,28 @@ public class AdapterUtils {
      *              the error code
      * @param e
      *              the exception
+     * @return the modified response object.
      */
-    public static void setErrorResponse(Response response, ErrorCode errorCode, Exception e) {
+    public static Response setErrorResponse(Response response, ErrorCode errorCode, Exception e) {
         String errorMessage = e.toString();
         response.body = new Responses.ErrorResponseBody(new Types.Message(errorCode.getId(), errorMessage));
         response.message = errorMessage;
         response.success = false;
+        return response;
+    }
+
+    /**
+     * Generate a CompletableFuture response with the given error message.
+     */
+    public static CompletableFuture<Response> createAsyncErrorResponse(Response response, ErrorCode errorCode, String errorMessage) {
+        return CompletableFuture.completedFuture(setErrorResponse(response, errorCode, errorMessage));
+    }
+
+    /**
+     * Generate a CompletableFuture response with the given exception.
+     */
+    public static CompletableFuture<Response> createAsyncErrorResponse(Response response, ErrorCode errorCode, Exception e) {
+        return CompletableFuture.completedFuture(setErrorResponse(response, errorCode, e));
     }
 
     /**

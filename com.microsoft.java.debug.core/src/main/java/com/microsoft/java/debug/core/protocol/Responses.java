@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.core.adapter;
+package com.microsoft.java.debug.core.protocol;
 
 import java.util.List;
 
@@ -31,6 +31,14 @@ public class Responses {
 
         public InitializeResponseBody(Types.Capabilities capabilities) {
             body = capabilities;
+        }
+    }
+
+    public static class RunInTerminalResponseBody extends ResponseBody {
+        public int processId;
+
+        public RunInTerminalResponseBody(int processId) {
+            this.processId = processId;
         }
     }
 

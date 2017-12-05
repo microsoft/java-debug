@@ -16,23 +16,10 @@ import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.protocol.IProtocolServer;
 
 public interface IDebugAdapterContext {
-    /**
-     * Send debug event synchronously.
-     *
-     * @param event
-     *            the debug event
-     */
-    void sendEvent(Events.DebugEvent event);
-
-    /**
-     * Send debug event asynchronously.
-     *
-     * @param event
-     *            the debug event
-     */
-    void sendEventAsync(Events.DebugEvent event);
+    IProtocolServer getProtocolServer();
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 
@@ -66,6 +53,10 @@ public interface IDebugAdapterContext {
 
     void setClientPathsAreUri(boolean clientPathsAreUri);
 
+    void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest);
+
+    boolean supportsRunInTerminalRequest();
+
     boolean isAttached();
 
     void setAttached(boolean attached);
@@ -95,4 +86,12 @@ public interface IDebugAdapterContext {
     void setVmTerminated();
 
     boolean isVmTerminated();
+
+    void setVmStopOnEntry(boolean stopOnEntry);
+
+    boolean isVmStopOnEntry();
+
+    void setMainClass(String mainClass);
+
+    String getMainClass();
 }

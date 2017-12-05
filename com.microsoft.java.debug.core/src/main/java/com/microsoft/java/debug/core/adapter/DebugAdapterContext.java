@@ -16,46 +16,46 @@ import java.util.Collections;
 import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.adapter.Events.DebugEvent;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
+import com.microsoft.java.debug.core.protocol.IProtocolServer;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
-    private DebugAdapter debugAdapter;
+    private IProviderContext providerContext;
+    private IProtocolServer server;
 
     private IDebugSession debugSession;
     private boolean debuggerLinesStartAt1 = true;
     private boolean debuggerPathsAreUri = true;
     private boolean clientLinesStartAt1 = true;
     private boolean clientPathsAreUri = false;
+    private boolean supportsRunInTerminalRequest;
     private boolean isAttached = false;
     private String[] sourcePaths;
     private Charset debuggeeEncoding;
     private transient boolean vmTerminated;
+    private boolean isVmStopOnEntry = false;
+    private String mainClass;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
-    public DebugAdapterContext(DebugAdapter debugAdapter) {
-        this.debugAdapter = debugAdapter;
+    public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
+        this.providerContext = providerContext;
+        this.server = server;
     }
 
     @Override
-    public void sendEvent(DebugEvent event) {
-        debugAdapter.sendEvent(event);
-    }
-
-    @Override
-    public void sendEventAsync(DebugEvent event) {
-        debugAdapter.sendEventLater(event);
+    public IProtocolServer getProtocolServer() {
+        return server;
     }
 
     @Override
     public <T extends IProvider> T getProvider(Class<T> clazz) {
-        return debugAdapter.getProvider(clazz);
+        return providerContext.getProvider(clazz);
     }
 
     @Override
@@ -106,6 +106,16 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setClientPathsAreUri(boolean clientPathsAreUri) {
         this.clientPathsAreUri = clientPathsAreUri;
+    }
+
+    @Override
+    public void setSupportsRunInTerminalRequest(boolean supportsRunInTerminalRequest) {
+        this.supportsRunInTerminalRequest = supportsRunInTerminalRequest;
+    }
+
+    @Override
+    public boolean supportsRunInTerminalRequest() {
+        return supportsRunInTerminalRequest;
     }
 
     @Override
@@ -181,5 +191,25 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public boolean isVmTerminated() {
         return vmTerminated;
+    }
+
+    @Override
+    public void setVmStopOnEntry(boolean stopOnEntry) {
+        isVmStopOnEntry = stopOnEntry;
+    }
+
+    @Override
+    public boolean isVmStopOnEntry() {
+        return isVmStopOnEntry;
+    }
+
+    @Override
+    public void setMainClass(String mainClass) {
+        this.mainClass = mainClass;
+    }
+
+    @Override
+    public String getMainClass() {
+        return this.mainClass;
     }
 }
