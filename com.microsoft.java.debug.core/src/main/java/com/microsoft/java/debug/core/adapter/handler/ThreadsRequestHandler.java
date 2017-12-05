@@ -79,7 +79,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
                 Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
                 threads.add(clientThread);
             }
-        } catch (VMDisconnectedException | ObjectCollectedException ex) {
+        } catch (ObjectCollectedException ex) {
             // allThreads may throw VMDisconnectedException when VM terminates and thread.name() may throw ObjectCollectedException
             // when the thread is exiting.
         }
@@ -117,12 +117,8 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private CompletableFuture<Response> pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
-            try {
-                thread.suspend();
-                context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
-            } catch (VMDisconnectedException ex) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.VM_TERMINATED, "Target VM is already terminated.");
-            }
+            thread.suspend();
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
         } else {
             context.getDebugSession().suspend();
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
