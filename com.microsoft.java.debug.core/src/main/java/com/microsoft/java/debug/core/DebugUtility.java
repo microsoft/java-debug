@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
@@ -37,7 +36,6 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
 import com.sun.jdi.event.MethodEntryEvent;
-import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.EventRequestManager;
 import com.sun.jdi.request.MethodEntryRequest;
@@ -192,67 +190,52 @@ public class DebugUtility {
     }
 
     /**
-     * Steps over newly pushed frames.
-     *
+     * Create a step over request on the specified thread.
      * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
-     * @return the new {@link Location} of the execution flow of the specified
-     *         thread.
+     *              the target thread.
+     * @param stepFilters
+     *              the step filters when stepping.
+     * @return the new step request.
      */
-    public static CompletableFuture<Location> stepOver(ThreadReference thread, IEventHub eventHub) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OVER);
+    public static StepRequest createStepOverRequest(ThreadReference thread, String[] stepFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OVER, stepFilters);
     }
 
     /**
-     * Steps into newly pushed frames.
-     *
+     * Create a step into request on the specified thread.
      * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
-     * @return the new {@link Location} of the execution flow of the specified
-     *         thread.
+     *              the target thread.
+     * @param stepFilters
+     *              the step filters when stepping.
+     * @return the new step request.
      */
-    public static CompletableFuture<Location> stepInto(ThreadReference thread, IEventHub eventHub) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_INTO);
+    public static StepRequest createStepIntoRequest(ThreadReference thread, String[] stepFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
     }
 
     /**
-     * Steps out of the current frame.
-     *
+     * Create a step out request on the specified thread.
      * @param thread
-     *            the target thread.
-     * @param eventHub
-     *            the {@link IEventHub} instance.
-     * @return the new {@link Location} of the execution flow of the specified
-     *         thread.
+     *              the target thread.
+     * @param stepFilters
+     *              the step filters when stepping.
+     * @return the new step request.
      */
-    public static CompletableFuture<Location> stepOut(ThreadReference thread, IEventHub eventHub) {
-        return DebugUtility.step(thread, eventHub, StepRequest.STEP_LINE, StepRequest.STEP_OUT);
+    public static StepRequest createStepOutRequest(ThreadReference thread, String[] stepFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OUT, stepFilters);
     }
 
-    private static CompletableFuture<Location> step(ThreadReference thread, IEventHub eventHub, int stepSize,
-            int stepDepth) {
-        CompletableFuture<Location> future = new CompletableFuture<>();
-
-        StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize,
-                stepDepth);
-
-        eventHub.stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1)
-                .subscribe(debugEvent -> {
-                    StepEvent event = (StepEvent) debugEvent.event;
-                    future.complete(event.location());
-                    deleteEventRequestSafely(thread.virtualMachine().eventRequestManager(), request);
-                });
+    private static StepRequest createStepRequest(ThreadReference thread, int stepSize, int stepDepth, String[] stepFilters) {
+        StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize, stepDepth);
+        if (stepFilters != null) {
+            for (String stepFilter : stepFilters) {
+                request.addClassExclusionFilter(stepFilter);
+            }
+        }
         request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         request.addCountFilter(1);
-        request.enable();
 
-        thread.resume();
-
-        return future;
+        return request;
     }
 
     /**

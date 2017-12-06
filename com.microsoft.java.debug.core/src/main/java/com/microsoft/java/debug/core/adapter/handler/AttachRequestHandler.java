@@ -51,6 +51,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         context.setAttached(true);
         context.setSourcePaths(attachArguments.sourcePaths);
         context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
+        context.setStepFilters(attachArguments.stepFilters);
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
