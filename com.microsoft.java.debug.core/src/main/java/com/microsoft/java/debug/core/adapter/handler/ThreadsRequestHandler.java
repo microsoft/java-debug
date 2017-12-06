@@ -27,10 +27,7 @@ import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.ContinueArguments;
-import com.microsoft.java.debug.core.protocol.Requests.NextArguments;
 import com.microsoft.java.debug.core.protocol.Requests.PauseArguments;
-import com.microsoft.java.debug.core.protocol.Requests.StepInArguments;
-import com.microsoft.java.debug.core.protocol.Requests.StepOutArguments;
 import com.microsoft.java.debug.core.protocol.Requests.ThreadsArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
@@ -42,7 +39,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
 
     @Override
     public List<Command> getTargetCommands() {
-        return Arrays.asList(Command.THREADS, Command.STEPIN, Command.STEPOUT, Command.NEXT, Command.PAUSE, Command.CONTINUE);
+        return Arrays.asList(Command.THREADS, Command.PAUSE, Command.CONTINUE);
     }
 
     @Override
@@ -50,15 +47,10 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
         }
+
         switch (command) {
             case THREADS:
                 return this.threads((ThreadsArguments) arguments, response, context);
-            case STEPIN:
-                return this.stepIn((StepInArguments) arguments, response, context);
-            case STEPOUT:
-                return this.stepOut((StepOutArguments) arguments, response, context);
-            case NEXT:
-                return this.next((NextArguments) arguments, response, context);
             case PAUSE:
                 return this.pause((PauseArguments) arguments, response, context);
             case CONTINUE:
@@ -84,33 +76,6 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             // when the thread is exiting.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
-        return CompletableFuture.completedFuture(response);
-    }
-
-    private CompletableFuture<Response> stepIn(Requests.StepInArguments arguments, Response response, IDebugAdapterContext context) {
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
-        if (thread != null) {
-            DebugUtility.stepInto(thread, context.getDebugSession().getEventHub());
-            checkThreadRunningAndRecycleIds(thread, context);
-        }
-        return CompletableFuture.completedFuture(response);
-    }
-
-    private CompletableFuture<Response> stepOut(Requests.StepOutArguments arguments, Response response, IDebugAdapterContext context) {
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
-        if (thread != null) {
-            DebugUtility.stepOut(thread, context.getDebugSession().getEventHub());
-            checkThreadRunningAndRecycleIds(thread, context);
-        }
-        return CompletableFuture.completedFuture(response);
-    }
-
-    private CompletableFuture<Response> next(Requests.NextArguments arguments, Response response, IDebugAdapterContext context) {
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
-        if (thread != null) {
-            DebugUtility.stepOver(thread, context.getDebugSession().getEventHub());
-            checkThreadRunningAndRecycleIds(thread, context);
-        }
         return CompletableFuture.completedFuture(response);
     }
 
@@ -146,7 +111,10 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {
+    /**
+     * Recycle the related ids owned by the specified thread.
+     */
+    public static void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {
         try {
             boolean allThreadsRunning = !DebugUtility.getAllThreadsSafely(context.getDebugSession()).stream()
                     .anyMatch(ThreadReference::isSuspended);
@@ -163,5 +131,4 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getRecyclableIdPool().removeObjectsByOwner(thread.uniqueID());
         }
     }
-
 }

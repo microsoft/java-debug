@@ -38,12 +38,20 @@ public class Requests {
         public boolean supportsRunInTerminalRequest;
     }
 
+    public static class StepFilters {
+        public String[] classNameFilters = new String[0];
+        public boolean skipSynthetics;
+        public boolean skipStaticInitializers;
+        public boolean skipConstructors;
+    }
+
     public static class LaunchBaseArguments extends Arguments {
         public String type;
         public String name;
         public String request;
         public String projectName;
         public String[] sourcePaths = new String[0];
+        public StepFilters stepFilters = new StepFilters();
     }
 
     public static enum CONSOLE {
@@ -197,17 +205,20 @@ public class Requests {
         public long threadId;
     }
 
-    public static class NextArguments extends Arguments {
+    public static class StepArguments extends Arguments {
         public long threadId;
     }
 
-    public static class StepInArguments extends Arguments {
-        public long threadId;
+    public static class NextArguments extends StepArguments {
+
+    }
+
+    public static class StepInArguments extends StepArguments {
         public int targetId;
     }
 
-    public static class StepOutArguments extends Arguments {
-        public long threadId;
+    public static class StepOutArguments extends StepArguments {
+
     }
 
     public static class PauseArguments extends Arguments {
