@@ -40,6 +40,7 @@ import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
@@ -58,6 +59,7 @@ import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLo
 import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.sourcelookup.containers.JavaProjectSourceContainer;
+import org.eclipse.jdt.launching.sourcelookup.containers.PackageFragmentRootSourceContainer;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -352,10 +354,23 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         for (IProject project : projects) {
             IJavaProject javaProject = JdtUtils.getJavaProject(project);
             if (javaProject != null && project.exists()) {
-                // Add source containers from the dependencies.
+                // Add source containers associated with the project's runtime classpath entries.
                 containers.addAll(Arrays.asList(getSourceContainers(javaProject, calculated)));
-                // Add source containers from the project's source folder.
+                // Add source containers associated with the project's source folders.
                 containers.add(new JavaProjectSourceContainer(javaProject));
+                // Due to a known jdt java 9 support bug https://bugs.eclipse.org/bugs/show_bug.cgi?id=525840,
+                // it would miss some JRE libraries source containers when the debugger is running on j2se-9 JDK.
+                // As a workaround, loop all of the package fragment roots contained in this project to complete the missed source containers.
+                try {
+                    IPackageFragmentRoot[] roots = javaProject.getPackageFragmentRoots();
+                    for (IPackageFragmentRoot root : roots) {
+                        if (root.getKind() == IPackageFragmentRoot.K_BINARY && root.getSourceAttachmentPath() != null) {
+                            containers.add(new PackageFragmentRootSourceContainer(root));
+                        }
+                    }
+                } catch (JavaModelException e) {
+                    // ignore.
+                }
             }
         }
 
