@@ -266,10 +266,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             @Override
             public void setSourceLocator(ISourceLocator arg0) {
             }
-
         };
     }
-
-
-
 }
