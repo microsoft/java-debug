@@ -42,7 +42,7 @@ public class ProtocolServer extends AbstractProtocolServer {
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
         super(input, output);
-        this.debugAdapter = new DebugAdapter(this, context);
+        debugAdapter = new DebugAdapter(this, context);
     }
 
     /**
@@ -77,7 +77,7 @@ public class ProtocolServer extends AbstractProtocolServer {
     @Override
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
-        this.debugAdapter.dispatchRequest(request).thenCompose((response) -> {
+        debugAdapter.dispatchRequest(request).thenCompose((response) -> {
             CompletableFuture<Void> future = new CompletableFuture<>();
             if (response != null) {
                 sendResponse(response);
@@ -110,5 +110,4 @@ public class ProtocolServer extends AbstractProtocolServer {
             return null;
         });
     }
-
 }
