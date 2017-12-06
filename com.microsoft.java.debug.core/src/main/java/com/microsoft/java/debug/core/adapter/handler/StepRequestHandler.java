@@ -69,7 +69,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 threadState.pendingStepType = command;
                 threadState.stackDepth = thread.frameCount();
                 threadState.stepLocation = getTopFrame(thread).location();
-                threadState.disposable = context.getDebugSession().getEventHub().events()
+                threadState.eventSubscription = context.getDebugSession().getEventHub().events()
                     .filter(debugEvent -> (debugEvent.event instanceof StepEvent && debugEvent.event.request().equals(threadState.pendingStepRequest))
                             || debugEvent.event instanceof BreakpointEvent)
                     .subscribe(debugEvent -> {
@@ -87,7 +87,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                             context.getStepFilters().classNameFilters);
                 }
                 threadState.pendingStepRequest.enable();
-                thread.resume();
+                DebugUtility.resumeThread(thread);
 
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
@@ -114,8 +114,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
             if (threadId == threadState.threadId && threadState.pendingStepRequest != null) {
                 DebugUtility.deleteEventRequestSafely(debugSession.getVM().eventRequestManager(), threadState.pendingStepRequest);
                 threadState.pendingStepRequest = null;
-                if (threadState.disposable != null) {
-                    threadState.disposable.dispose();
+                if (threadState.eventSubscription != null) {
+                    threadState.eventSubscription.dispose();
                 }
             }
         } else if (event instanceof StepEvent) {
@@ -151,8 +151,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     // ignore.
                 }
             }
-            if (threadState.disposable != null) {
-                threadState.disposable.dispose();
+            if (threadState.eventSubscription != null) {
+                threadState.eventSubscription.dispose();
             }
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
             debugEvent.shouldResume = false;
@@ -182,12 +182,9 @@ public class StepRequestHandler implements IDebugRequestHandler {
     }
 
     private boolean shouldFilterMethod(Method method, IDebugAdapterContext context) {
-        if ((context.getStepFilters().skipStaticInitializers && method.isStaticInitializer())
+        return (context.getStepFilters().skipStaticInitializers && method.isStaticInitializer())
                 || (context.getStepFilters().skipSynthetics && method.isSynthetic())
-                || (context.getStepFilters().skipConstructors && method.isConstructor())) {
-            return true;
-        }
-        return false;
+                || (context.getStepFilters().skipConstructors && method.isConstructor());
     }
 
     /**
@@ -236,6 +233,6 @@ public class StepRequestHandler implements IDebugRequestHandler {
         StepRequest pendingStepRequest = null;
         int stackDepth = -1;
         Location stepLocation = null;
-        Disposable disposable = null;
+        Disposable eventSubscription = null;
     }
 }
