@@ -29,9 +29,7 @@ import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.IHotCodeReplaceListener;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
-import com.microsoft.java.debug.core.adapter.IRedefineClassEvent;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -41,15 +39,13 @@ import com.microsoft.java.debug.core.protocol.Requests.SetBreakpointArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 
-public class SetBreakpointsRequestHandler implements IDebugRequestHandler, IHotCodeReplaceListener {
+public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private BreakpointManager manager = new BreakpointManager();
 
     private IDebugAdapterContext context = null;
-
-    private boolean isInitialized = false;
 
     @Override
     public List<Command> getTargetCommands() {
@@ -58,13 +54,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler, IHotC
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
-        synchronized (this) {
-            if (!isInitialized) {
-                IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-                hcrProvider.addHotCodeReplaceListener(this);
-                isInitialized = true;
-            }
-        }
         this.context = context;
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
@@ -98,6 +87,12 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler, IHotC
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
                         String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
         }
+
+        if (bpArguments.sourceModified) {
+            IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+            hcrProvider.completed().thenAccept((List<String> result) -> reinstallBreakpoints(result));
+        }
+
         try {
             List<Types.Breakpoint> res = new ArrayList<>();
             IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, bpArguments.breakpoints, context);
@@ -156,9 +151,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler, IHotC
         return breakpoints;
     }
 
-    @Override
-    public void redefineClasses(IRedefineClassEvent event) {
-        List<String> typenames = event.getClassNames();
+    private void reinstallBreakpoints(List<String> typenames) {
         if (typenames == null || typenames.isEmpty()) {
             return;
         }

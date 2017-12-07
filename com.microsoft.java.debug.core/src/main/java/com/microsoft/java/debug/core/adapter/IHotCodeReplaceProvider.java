@@ -11,9 +11,9 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 public interface IHotCodeReplaceProvider extends IProvider {
-
-    void addHotCodeReplaceListener(IHotCodeReplaceListener listener);
-
-    void removeHotCodeReplaceListener(IHotCodeReplaceListener listener);
+    CompletableFuture<List<String>> completed();
 }

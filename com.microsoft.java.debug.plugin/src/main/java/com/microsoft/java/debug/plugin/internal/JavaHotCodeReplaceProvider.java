@@ -25,6 +25,8 @@ package com.microsoft.java.debug.plugin.internal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,7 +51,6 @@ import org.eclipse.jdt.core.util.ISourceAttribute;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.IHotCodeReplaceListener;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 
@@ -63,8 +64,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private static final String CLASS_FILE_EXTENSION = "class"; //$NON-NLS-1$
 
-
-    private List<IHotCodeReplaceListener> listeners = new ArrayList<>();
+    private AtomicBoolean needHotCodeReplace = new AtomicBoolean(false);
 
     /**
      * Visitor for resource deltas.
@@ -244,28 +244,47 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     @Override
     public void resourceChanged(IResourceChangeEvent event) {
-        ChangedClassFilesVisitor visitor = getChangedClassFiles(event);
-        if (visitor != null) {
-            List<IResource> resources = visitor.getChangedClassFiles();
-            List<String> fullyQualifiedName = visitor.getQualifiedNamesList();
-            if (resources != null && !resources.isEmpty()) {
-                doHotCodeReplace(resources, fullyQualifiedName);
+        synchronized (needHotCodeReplace) {
+            needHotCodeReplace.set(true);
+        }
+
+        if (event.getType() == IResourceChangeEvent.POST_BUILD) {
+            ChangedClassFilesVisitor visitor = getChangedClassFiles(event);
+            if (visitor != null) {
+                List<IResource> resources = visitor.getChangedClassFiles();
+                List<String> fullyQualifiedName = visitor.getQualifiedNamesList();
+                if (resources != null && !resources.isEmpty()) {
+                    doHotCodeReplace(resources, fullyQualifiedName);
+                } else {
+                    synchronized (needHotCodeReplace) {
+                        needHotCodeReplace.set(false);
+                        needHotCodeReplace.notifyAll();
+                    }
+                }
             }
         }
     }
 
     @Override
-    public void addHotCodeReplaceListener(IHotCodeReplaceListener listener) {
-        listeners.add(listener);
-    }
-
-    @Override
-    public void removeHotCodeReplaceListener(IHotCodeReplaceListener listener) {
-        listeners.remove(listener);
+    public CompletableFuture<List<String>> completed() {
+        synchronized (needHotCodeReplace) {
+            try {
+                needHotCodeReplace.wait(100);
+                if (needHotCodeReplace.get()) {
+                    needHotCodeReplace.wait();
+                }
+            } catch (InterruptedException e) {
+                logger.log(Level.INFO, "The hotcode replace completion was interrupted by " + e.getMessage(), e);
+            }
+        }
+        return CompletableFuture.completedFuture(new ArrayList<String>());
     }
 
     private void doHotCodeReplace(List<IResource> resources, List<String> fullyQualifiedName) {
-        // TODO: Main logic
+        synchronized (needHotCodeReplace) {
+            needHotCodeReplace.set(false);
+            needHotCodeReplace.notifyAll();
+        }
     }
 
     /**
