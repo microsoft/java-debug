@@ -21,26 +21,17 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
@@ -56,10 +47,6 @@ import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
-import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
-import org.eclipse.jdt.launching.JavaRuntime;
-import org.eclipse.jdt.launching.sourcelookup.containers.JavaProjectSourceContainer;
-import org.eclipse.jdt.launching.sourcelookup.containers.PackageFragmentRootSourceContainer;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -186,7 +173,29 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         if (sourcePath == null) {
             return null;
         }
-        return this.findSourceElement(fullyQualifiedName, sourcePath);
+
+        Object sourceElement = JdtUtils.findSourceElement(sourcePath, getSourceContainers());
+        if (sourceElement instanceof IResource) {
+            return getFileURI((IResource) sourceElement);
+        } else if (sourceElement instanceof IClassFile) {
+            try {
+                IClassFile file = (IClassFile) sourceElement;
+                if (file.getBuffer() != null) {
+                    return getFileURI(file);
+                }
+            } catch (JavaModelException e) {
+                // do nothing.
+            }
+        }
+        return null;
+    }
+
+    private synchronized ISourceContainer[] getSourceContainers() {
+        if (sourceContainers == null) {
+            sourceContainers = JdtUtils.getSourceContainers((String) options.get(Constants.PROJECTNAME));
+        }
+
+        return sourceContainers;
     }
 
     @Override
@@ -327,97 +336,4 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return builder.toString();
     }
 
-    /**
-     * Compute the possible source containers that the debugging project could be associated with.
-     * And put the source containers parsed from the specified project's classpath entries first,
-     * then the source containers from the other projects at the same workspace.
-     */
-    private synchronized ISourceContainer[] getSourceContainers() {
-        if (sourceContainers != null) {
-            return sourceContainers;
-        }
-        Set<ISourceContainer> containers = new LinkedHashSet<>();
-        List<IProject> projects = new ArrayList<>();
-
-        String projectName = (String) options.get(Constants.PROJECTNAME);
-        IProject targetProject = JdtUtils.getProject(projectName);
-        if (targetProject != null) {
-            projects.add(targetProject);
-        }
-
-        List<IProject> workspaceProjects = Arrays.asList(ResourcesPlugin.getWorkspace().getRoot().getProjects());
-        projects.addAll(workspaceProjects.stream().filter((project) -> {
-            return !project.equals(targetProject);
-        }).collect(Collectors.toList()));
-
-        Set<IRuntimeClasspathEntry> calculated = new LinkedHashSet<>();
-        for (IProject project : projects) {
-            IJavaProject javaProject = JdtUtils.getJavaProject(project);
-            if (javaProject != null && project.exists()) {
-                // Add source containers associated with the project's runtime classpath entries.
-                containers.addAll(Arrays.asList(getSourceContainers(javaProject, calculated)));
-                // Add source containers associated with the project's source folders.
-                containers.add(new JavaProjectSourceContainer(javaProject));
-                // Due to a known jdt java 9 support bug https://bugs.eclipse.org/bugs/show_bug.cgi?id=525840,
-                // it would miss some JRE libraries source containers when the debugger is running on j2se-9 JDK.
-                // As a workaround, loop all of the package fragment roots contained in this project to complete the missed source containers.
-                try {
-                    IPackageFragmentRoot[] roots = javaProject.getPackageFragmentRoots();
-                    for (IPackageFragmentRoot root : roots) {
-                        if (root.getKind() == IPackageFragmentRoot.K_BINARY && root.getSourceAttachmentPath() != null) {
-                            containers.add(new PackageFragmentRootSourceContainer(root));
-                        }
-                    }
-                } catch (JavaModelException e) {
-                    // ignore.
-                }
-            }
-        }
-
-        sourceContainers = containers.toArray(new ISourceContainer[0]);
-        return sourceContainers;
-    }
-
-    private ISourceContainer[] getSourceContainers(IJavaProject project, Set<IRuntimeClasspathEntry> calculated) {
-        if (project != null && project.exists()) {
-            try {
-                IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(project);
-                List<IRuntimeClasspathEntry> resolved = new ArrayList<>();
-                for (IRuntimeClasspathEntry entry : unresolved) {
-                    for (IRuntimeClasspathEntry resolvedEntry : JavaRuntime.resolveRuntimeClasspathEntry(entry, project)) {
-                        if (!calculated.contains(resolvedEntry)) {
-                            calculated.add(resolvedEntry);
-                            resolved.add(resolvedEntry);
-                        }
-                    }
-                }
-                return JavaRuntime.getSourceContainers(resolved.toArray(new IRuntimeClasspathEntry[0]));
-            } catch (CoreException ex) {
-             // do nothing.
-            }
-        }
-        return new ISourceContainer[0];
-    }
-
-    private String findSourceElement(String fqn, String sourcePath) {
-        for (ISourceContainer container : getSourceContainers()) {
-            try {
-                Object[] objects = container.findSourceElements(sourcePath);
-                if (objects.length > 0) {
-                    if (objects[0] instanceof IResource) {
-                        IResource file =  (IResource) objects[0];
-                        return getFileURI(file);
-                    } else if (objects[0] instanceof IClassFile) {
-                        IClassFile file = (IClassFile) objects[0];
-                        if (file.getBuffer() != null) {
-                            return getFileURI(file);
-                        }
-                    }
-                }
-            } catch (CoreException e) {
-                // do nothing.
-            }
-        }
-        return null;
-    }
 }
