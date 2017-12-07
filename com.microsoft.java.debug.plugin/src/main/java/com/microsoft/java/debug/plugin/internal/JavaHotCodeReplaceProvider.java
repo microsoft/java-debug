@@ -240,6 +240,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     public void initialize(IDebugAdapterContext context, Map<String, Object> options) {
         // Listen to the built file events.
         ResourcesPlugin.getWorkspace().addResourceChangeListener(this, IResourceChangeEvent.POST_BUILD);
+
+        // TODO: Change IProvider interface for shutdown event
     }
 
     @Override
