@@ -268,7 +268,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     }
 
     @Override
-    public CompletableFuture<List<String>> completed() {
+    public CompletableFuture<List<String>> redefinedClasses() {
         synchronized (needHotCodeReplace) {
             try {
                 needHotCodeReplace.wait(100);
@@ -283,6 +283,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     }
 
     private void doHotCodeReplace(List<IResource> resources, List<String> fullyQualifiedName) {
+        // DODO: Add HCR logic
         synchronized (needHotCodeReplace) {
             needHotCodeReplace.set(false);
             needHotCodeReplace.notifyAll();

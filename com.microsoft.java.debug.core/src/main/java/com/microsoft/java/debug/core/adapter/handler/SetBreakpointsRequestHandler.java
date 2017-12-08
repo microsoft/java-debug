@@ -45,8 +45,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private BreakpointManager manager = new BreakpointManager();
 
-    private IDebugAdapterContext context = null;
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.SETBREAKPOINTS);
@@ -54,7 +52,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
-        this.context = context;
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
         }
@@ -90,7 +87,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         if (bpArguments.sourceModified) {
             IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-            hcrProvider.completed().thenAccept((List<String> result) -> reinstallBreakpoints(result));
+            hcrProvider.redefinedClasses().thenAccept((List<String> result) -> reinstallBreakpoints(context, result));
         }
 
         try {
@@ -151,11 +148,12 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         return breakpoints;
     }
 
-    private void reinstallBreakpoints(List<String> typenames) {
+    private void reinstallBreakpoints(IDebugAdapterContext context, List<String> typenames) {
         if (typenames == null || typenames.isEmpty()) {
             return;
         }
-        IBreakpoint[] breakpoints = manager.getBreakpoints();
+        // Avoid race condition here.
+        IBreakpoint[] breakpoints = manager.getBreakpoints().clone();
 
         for (IBreakpoint breakpoint : breakpoints) {
             if (typenames.contains(breakpoint.className())) {
