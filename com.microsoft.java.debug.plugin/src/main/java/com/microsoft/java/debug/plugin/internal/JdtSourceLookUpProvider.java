@@ -20,7 +20,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -31,21 +30,12 @@ import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.search.IJavaSearchConstants;
-import org.eclipse.jdt.core.search.IJavaSearchScope;
-import org.eclipse.jdt.core.search.SearchEngine;
-import org.eclipse.jdt.core.search.SearchMatch;
-import org.eclipse.jdt.core.search.SearchParticipant;
-import org.eclipse.jdt.core.search.SearchPattern;
-import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -225,50 +215,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return source;
     }
 
-    private String searchDeclarationFileByFqn(String fullyQualifiedName) {
-        String projectName = (String) options.get(Constants.PROJECTNAME);
-        IJavaProject project = JdtUtils.getJavaProject(projectName);
-        IJavaSearchScope searchScope = createSearchScope(project);
-        SearchPattern pattern = SearchPattern.createPattern(
-                fullyQualifiedName,
-                IJavaSearchConstants.TYPE,
-                IJavaSearchConstants.DECLARATIONS,
-                SearchPattern.R_EXACT_MATCH);
-
-        ArrayList<String> uris = new ArrayList<String>();
-
-        SearchRequestor requestor = new SearchRequestor() {
-            @Override
-            public void acceptSearchMatch(SearchMatch match) {
-                Object element = match.getElement();
-                if (element instanceof IType) {
-                    IType type = (IType) element;
-                    if (type.isBinary()) {
-                        try {
-                            // let the search engine to ignore those class files without attached source.
-                            if (type.getSource() != null) {
-                                uris.add(getFileURI(type.getClassFile()));
-                            }
-                        } catch (JavaModelException e) {
-                            // ignore
-                        }
-                    } else {
-                        uris.add(getFileURI(type.getResource()));
-                    }
-                }
-            }
-        };
-        SearchEngine searchEngine = new SearchEngine();
-        try {
-            searchEngine.search(pattern, new SearchParticipant[] {
-                    SearchEngine.getDefaultSearchParticipant()
-                }, searchScope, requestor, null /* progress monitor */);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, String.format("Search engine failed: %s", e.toString()), e);
-        }
-        return uris.size() == 0 ? null : uris.get(0);
-    }
-
     private static String getFileURI(IClassFile classFile) {
         String packageName = classFile.getParent().getElementName();
         String jarName = classFile.getParent().getParent().getElementName();
@@ -307,14 +253,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             // ignore
         }
         return null;
-    }
-
-    private static IJavaSearchScope createSearchScope(IJavaProject project) {
-        if (project == null) {
-            return SearchEngine.createWorkspaceScope();
-        }
-        return SearchEngine.createJavaSearchScope(new IJavaProject[] {project},
-                IJavaSearchScope.SOURCES | IJavaSearchScope.APPLICATION_LIBRARIES | IJavaSearchScope.SYSTEM_LIBRARIES);
     }
 
     private static String readFile(String filePath, Charset cs) {

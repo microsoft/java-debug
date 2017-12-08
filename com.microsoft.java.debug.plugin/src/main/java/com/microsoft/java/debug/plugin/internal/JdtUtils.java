@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -112,31 +111,29 @@ public class JdtUtils {
     }
 
     /**
-     * Compute the possible source containers that the current project could be associated with.
+     * Compute the possible source containers that the specified project could be associated with.
      * <p>
-     * If current project is specified, try to parse the source containers from current project's classpath entries first,
-     * then the other projects at the same workspace.
+     * If the project name is specified, it will put the source containers parsed from the specified project's
+     * classpath entries in the front of the result, then the other projects at the same workspace.
      * </p>
      * <p>
-     * Otherwise, loop every projects at the current workspace and combine the parsed source containers directly.
+     * Otherwise, just loop every projects at the current workspace and combine the parsed source containers directly.
      * </p>
-     * @param currentProject
-     *                  the current project name.
+     * @param projectName
+     *                  the project name.
      * @return the possible source container list.
      */
-    public static ISourceContainer[] getSourceContainers(String currentProject) {
+    public static ISourceContainer[] getSourceContainers(String projectName) {
         Set<ISourceContainer> containers = new LinkedHashSet<>();
         List<IProject> projects = new ArrayList<>();
 
-        IProject targetProject = JdtUtils.getProject(currentProject);
+        IProject targetProject = JdtUtils.getProject(projectName);
         if (targetProject != null) {
             projects.add(targetProject);
         }
 
         List<IProject> workspaceProjects = Arrays.asList(ResourcesPlugin.getWorkspace().getRoot().getProjects());
-        projects.addAll(workspaceProjects.stream().filter((project) -> {
-            return !project.equals(targetProject);
-        }).collect(Collectors.toList()));
+        projects.addAll(workspaceProjects);
 
         Set<IRuntimeClasspathEntry> calculated = new LinkedHashSet<>();
         for (IProject project : projects) {
@@ -153,42 +150,45 @@ public class JdtUtils {
     }
 
     private static ISourceContainer[] getSourceContainers(IJavaProject project, Set<IRuntimeClasspathEntry> calculated) {
-        if (project != null && project.exists()) {
-            try {
-                IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(project);
-                List<IRuntimeClasspathEntry> resolved = new ArrayList<>();
-                for (IRuntimeClasspathEntry entry : unresolved) {
-                    for (IRuntimeClasspathEntry resolvedEntry : JavaRuntime.resolveRuntimeClasspathEntry(entry, project)) {
-                        if (!calculated.contains(resolvedEntry)) {
-                            calculated.add(resolvedEntry);
-                            resolved.add(resolvedEntry);
-                        }
-                    }
-                }
-                Set<ISourceContainer> containers = new LinkedHashSet<>();
-                containers.addAll(Arrays.asList(
-                        JavaRuntime.getSourceContainers(resolved.toArray(new IRuntimeClasspathEntry[0]))));
-
-                // Due to a known jdt java 9 support bug https://bugs.eclipse.org/bugs/show_bug.cgi?id=525840,
-                // it would miss some JRE libraries source containers when the debugger is running on JDK9.
-                // As a workaround, recompute the possible source containers for JDK9 jrt-fs.jar libraries.
-                IRuntimeClasspathEntry jrtFs = resolved.stream().filter(entry -> {
-                    return entry.getType() == IRuntimeClasspathEntry.ARCHIVE && entry.getPath().lastSegment().equals("jrt-fs.jar");
-                }).findFirst().orElse(null);
-                if (jrtFs != null && project.isOpen()) {
-                    IPackageFragmentRoot[] allRoots = project.getPackageFragmentRoots();
-                    for (IPackageFragmentRoot root : allRoots) {
-                        if (root.getPath().equals(jrtFs.getPath()) && isSourceAttachmentEqual(root, jrtFs)) {
-                            containers.add(new PackageFragmentRootSourceContainer(root));
-                        }
-                    }
-                }
-
-                return containers.toArray(new ISourceContainer[0]);
-            } catch (CoreException ex) {
-             // do nothing.
-            }
+        if (project == null || !project.exists()) {
+            return new ISourceContainer[0];
         }
+
+        try {
+            IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(project);
+            List<IRuntimeClasspathEntry> resolved = new ArrayList<>();
+            for (IRuntimeClasspathEntry entry : unresolved) {
+                for (IRuntimeClasspathEntry resolvedEntry : JavaRuntime.resolveRuntimeClasspathEntry(entry, project)) {
+                    if (!calculated.contains(resolvedEntry)) {
+                        calculated.add(resolvedEntry);
+                        resolved.add(resolvedEntry);
+                    }
+                }
+            }
+            Set<ISourceContainer> containers = new LinkedHashSet<>();
+            containers.addAll(Arrays.asList(
+                    JavaRuntime.getSourceContainers(resolved.toArray(new IRuntimeClasspathEntry[0]))));
+
+            // Due to a known jdt java 9 support bug https://bugs.eclipse.org/bugs/show_bug.cgi?id=525840,
+            // it would miss some JRE libraries source containers when the debugger is running on JDK9.
+            // As a workaround, recompute the possible source containers for JDK9 jrt-fs.jar libraries.
+            IRuntimeClasspathEntry jrtFs = resolved.stream().filter(entry -> {
+                return entry.getType() == IRuntimeClasspathEntry.ARCHIVE && entry.getPath().lastSegment().equals("jrt-fs.jar");
+            }).findFirst().orElse(null);
+            if (jrtFs != null && project.isOpen()) {
+                IPackageFragmentRoot[] allRoots = project.getPackageFragmentRoots();
+                for (IPackageFragmentRoot root : allRoots) {
+                    if (root.getPath().equals(jrtFs.getPath()) && isSourceAttachmentEqual(root, jrtFs)) {
+                        containers.add(new PackageFragmentRootSourceContainer(root));
+                    }
+                }
+            }
+
+            return containers.toArray(new ISourceContainer[0]);
+        } catch (CoreException ex) {
+         // do nothing.
+        }
+
         return new ISourceContainer[0];
     }
 
