@@ -27,6 +27,7 @@ public class UsageDataStore {
     private static final String STACKTRACE_NAME = "stackTrace";
     private static final String SCOPE_NAME = "scope";
     private static final String TIMESTAMP_NAME = "timestamp";
+    private static final String USER_ERROR = "usererror";
 
     /**
      * Constructor.
@@ -86,6 +87,7 @@ public class UsageDataStore {
             errorEntry.put(DESCRIPTION_NAME, desc);
         }
         if (th != null) {
+            errorEntry.put(USER_ERROR, Boolean.toString(th instanceof UserErrorException));
             errorEntry.put(ERROR_MESSAGE_NAME, th.getMessage());
             errorEntry.put(STACKTRACE_NAME, JsonUtils.toJson(th.getStackTrace()));
         }
