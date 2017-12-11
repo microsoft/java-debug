@@ -16,7 +16,7 @@ public class UserErrorException extends DebugException {
     private static final long serialVersionUID = -6001456457602995764L;
 
     /**
-     * Create an user error exception indicates an user setting/operation is illegal by design.
+     * Create an user error exception indicates a user setting/operation is illegal by design.
      */
     public UserErrorException() {
         super();
@@ -24,7 +24,7 @@ public class UserErrorException extends DebugException {
 
 
     /**
-     * Create an user error exception indicates an user setting/operation is illegal by design.
+     * Create an user error exception indicates a user setting/operation is illegal by design.
      *
      * @param message the error message
      */
