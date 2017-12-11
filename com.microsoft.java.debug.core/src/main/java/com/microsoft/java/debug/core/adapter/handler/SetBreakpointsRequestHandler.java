@@ -89,17 +89,20 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             // The source uri sometimes is encoded by VSCode, the debugger will decode it to keep the uri consistent.
             IBreakpoint[] added = manager.setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
-                if (!processedBreakpoints.add(toAdds[i])) {
+                // check whether the breakpoint has already been processed, otherwise the same breakpoint might be installed more than once.
+                // if class name is null, then this breakpoint is not valid, we doesn't need to install it or update hit count for it.
+                if (processedBreakpoints.contains(toAdds[i]) || added[i].className() == null) {
                     res.add(this.convertDebuggerBreakpointToClient(added[i], context));
                     continue;
                 }
+                processedBreakpoints.add(toAdds[i]);
                 // For newly added breakpoint, should install it to debuggee first.
-                if (toAdds[i] == added[i] && added[i].className() != null) {
+                if (toAdds[i] == added[i]) {
                     added[i].install().thenAccept(bp -> {
                         Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
                         context.getProtocolServer().sendEvent(bpEvent);
                     });
-                } else if (toAdds[i].hitCount() != added[i].hitCount() && added[i].className() != null) {
+                } else if (toAdds[i].hitCount() != added[i].hitCount()) {
                     // Update hitCount condition.
                     added[i].setHitCount(toAdds[i].hitCount());
                 }
@@ -117,7 +120,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private Types.Breakpoint convertDebuggerBreakpointToClient(IBreakpoint breakpoint, IDebugAdapterContext context) {
         int id = (int) breakpoint.getProperty("id");
         boolean verified = breakpoint.getProperty("verified") != null && (boolean) breakpoint.getProperty("verified");
-        int lineNumber = AdapterUtils.convertLineNumber(breakpoint.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
+        int lineNumber = breakpoint.className() == null ? -1
+            : AdapterUtils.convertLineNumber(breakpoint.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         return new Types.Breakpoint(id, verified, lineNumber, "");
     }
 
