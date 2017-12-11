@@ -127,6 +127,8 @@ public class JdtUtils {
         Set<ISourceContainer> containers = new LinkedHashSet<>();
         List<IProject> projects = new ArrayList<>();
 
+        // If the project name is specified, firstly compute the source containers from the specified project's
+        // classpath entries so that they can be placed in the front of the result.
         IProject targetProject = JdtUtils.getProject(projectName);
         if (targetProject != null) {
             projects.add(targetProject);
@@ -137,7 +139,7 @@ public class JdtUtils {
 
         Set<IRuntimeClasspathEntry> calculated = new LinkedHashSet<>();
 
-        projects.stream().map(project -> JdtUtils.getJavaProject(project))
+        projects.stream().distinct().map(project -> JdtUtils.getJavaProject(project))
             .filter(javaProject -> javaProject != null && javaProject.exists())
             .forEach(javaProject -> {
                 // Add source containers associated with the project's runtime classpath entries.
