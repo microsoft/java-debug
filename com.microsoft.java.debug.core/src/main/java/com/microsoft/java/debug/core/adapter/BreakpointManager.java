@@ -14,8 +14,10 @@ package com.microsoft.java.debug.core.adapter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -88,7 +90,7 @@ public class BreakpointManager {
         }
 
         // Compute the breakpoints that are newly added.
-        List<IBreakpoint> toAdd = new ArrayList<>();
+        Set<IBreakpoint> toAdd = new HashSet<>();
         List<Integer> visitedLineNumbers = new ArrayList<>();
         for (IBreakpoint breakpoint : breakpoints) {
             IBreakpoint existed = breakpointMap.get(String.valueOf(breakpoint.lineNumber()));
@@ -170,8 +172,8 @@ public class BreakpointManager {
      * Cleanup all breakpoints and reset the breakpoint id counter.
      */
     public void reset() {
-        this.sourceToBreakpoints.clear();
-        this.breakpoints.clear();
-        this.nextBreakpointId.set(1);
+        sourceToBreakpoints.clear();
+        breakpoints.clear();
+        nextBreakpointId.set(1);
     }
 }

@@ -13,7 +13,11 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.io.FilenameUtils;
@@ -80,10 +84,15 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         try {
             List<Types.Breakpoint> res = new ArrayList<>();
             IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, bpArguments.breakpoints, context);
+            Set<IBreakpoint> processedBreakpoints = new HashSet<>();
             // See the VSCode bug https://github.com/Microsoft/vscode/issues/36471.
             // The source uri sometimes is encoded by VSCode, the debugger will decode it to keep the uri consistent.
             IBreakpoint[] added = manager.setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
+                if (!processedBreakpoints.add(toAdds[i])) {
+                    res.add(this.convertDebuggerBreakpointToClient(added[i], context));
+                    continue;
+                }
                 // For newly added breakpoint, should install it to debuggee first.
                 if (toAdds[i] == added[i] && added[i].className() != null) {
                     added[i].install().thenAccept(bp -> {
@@ -120,6 +129,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
         String[] fqns = sourceProvider.getFullyQualifiedName(sourceFile, lines, null);
         IBreakpoint[] breakpoints = new IBreakpoint[lines.length];
+        Map<Integer, IBreakpoint> duplicateBP = new HashMap<>();
         for (int i = 0; i < lines.length; i++) {
             int hitCount = 0;
             try {
@@ -127,9 +137,14 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             } catch (NumberFormatException e) {
                 hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
             }
-            breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount);
-            if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(fqns[i])) {
-                breakpoints[i].putProperty("verified", true);
+            if (duplicateBP.containsKey(lines[i])) {
+                breakpoints[i] = duplicateBP.get(lines[i]);
+            } else {
+                breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount);
+                if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(fqns[i])) {
+                    breakpoints[i].putProperty("verified", true);
+                }
+                duplicateBP.put(lines[i], breakpoints[i]);
             }
         }
         return breakpoints;
