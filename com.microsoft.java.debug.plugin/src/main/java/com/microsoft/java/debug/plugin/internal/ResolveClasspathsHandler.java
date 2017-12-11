@@ -142,7 +142,7 @@ public class ResolveClasspathsHandler {
             project = projects.get(0);
 
             if (projects.size() > 1) {
-                // when mainClass is located in
+                // when mainClass is located in multiple projects, use the first one and give a warning message.
                 logger.warning(String.format("Main class '%s' isn't unique in the workspace"
                         + ", use project %s for default, please specify projectName in launch.json if you want to use other project.",
                         mainClass, project.getProject().getName()));
