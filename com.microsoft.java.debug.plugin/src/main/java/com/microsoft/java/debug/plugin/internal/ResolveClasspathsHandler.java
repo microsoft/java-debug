@@ -45,7 +45,7 @@ public class ResolveClasspathsHandler {
      * @param arguments
      *            a list contains the main class name and project name
      * @return the class paths entries
-     * @throws Exception
+     * @throws DebugException
      *             when there are any errors during resolving class path
      */
     public String[][] resolveClasspaths(List<Object> arguments) throws DebugException {
@@ -55,11 +55,9 @@ public class ResolveClasspathsHandler {
     /**
      * Get java project from name.
      *
-     * @param projectName
-     *            project name
+     * @param projectName project name
      * @return java project
-     * @throws CoreException
-     *             CoreException
+     * @throws DebugException when the project is not found or invalid.
      */
     private static IJavaProject getJavaProjectFromName(String projectName) throws DebugException {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
@@ -77,11 +75,9 @@ public class ResolveClasspathsHandler {
     /**
      * Get java project from type.
      *
-     * @param fullyQualifiedTypeName
-     *            fully qualified name of type
-     * @return java project
-     * @throws CoreException
-     *             CoreException
+     * @param fullyQualifiedTypeName the fully qualified name of type
+     * @return a list of java projects contains specified class name.
+     * @throws DebugException when there is anything error when searching the projects for specified class name.
      */
     private static List<IJavaProject> getJavaProjectFromType(String fullyQualifiedTypeName) throws DebugException {
         String[] splitItems = fullyQualifiedTypeName.split("/");
@@ -129,8 +125,7 @@ public class ResolveClasspathsHandler {
      * @param projectName
      *            project name
      * @return class path
-     * @throws CoreException
-     *             CoreException
+     * @throws DebugException when there is any error finding the class path.
      */
     private static String[][] computeClassPath(String mainClass, String projectName) throws DebugException {
         IJavaProject project = null;
@@ -163,8 +158,7 @@ public class ResolveClasspathsHandler {
      * @param javaProject
      *            java project
      * @return class path
-     * @throws CoreException
-     *             CoreException
+     * @throws DebugException when there is any error finding the class path.
      */
     private static String[][] computeClassPath(IJavaProject javaProject) throws DebugException {
         if (javaProject == null) {
