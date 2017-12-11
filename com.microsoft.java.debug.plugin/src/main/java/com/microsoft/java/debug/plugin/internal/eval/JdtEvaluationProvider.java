@@ -59,8 +59,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 if (StringUtils.isBlank(projectName)) {
                     // TODO: get project from stackframe
                     logger.severe("Cannot evaluate when project is not specified.");
-                    completableFuture
-                    .completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
+                    completableFuture.completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
+                    return completableFuture;
                 } else {
                     for (IProject proj : ResourcesPlugin.getWorkspace().getRoot().getProjects()) {
                         try {
