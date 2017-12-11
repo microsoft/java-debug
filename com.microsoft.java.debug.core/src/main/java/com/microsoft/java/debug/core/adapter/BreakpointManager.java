@@ -172,8 +172,8 @@ public class BreakpointManager {
      * Cleanup all breakpoints and reset the breakpoint id counter.
      */
     public void reset() {
-        sourceToBreakpoints.clear();
-        breakpoints.clear();
-        nextBreakpointId.set(1);
+        this.sourceToBreakpoints.clear();
+        this.breakpoints.clear();
+        this.nextBreakpointId.set(1);
     }
 }
