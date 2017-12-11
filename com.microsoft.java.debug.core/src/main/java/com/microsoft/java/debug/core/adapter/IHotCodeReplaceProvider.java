@@ -15,5 +15,5 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface IHotCodeReplaceProvider extends IProvider {
-    CompletableFuture<List<String>> redefinedClasses();
+    CompletableFuture<List<String>> redefineClasses();
 }

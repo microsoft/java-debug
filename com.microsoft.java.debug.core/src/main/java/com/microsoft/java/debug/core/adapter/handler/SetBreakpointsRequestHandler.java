@@ -87,7 +87,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         if (bpArguments.sourceModified) {
             IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-            hcrProvider.redefinedClasses().thenAccept((List<String> result) -> reinstallBreakpoints(context, result));
+            hcrProvider.redefineClasses().thenAcceptAsync((List<String> result) -> reinstallBreakpoints(context, result));
         }
 
         try {
@@ -152,8 +152,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         if (typenames == null || typenames.isEmpty()) {
             return;
         }
-        // Avoid race condition here.
-        IBreakpoint[] breakpoints = manager.getBreakpoints().clone();
+        IBreakpoint[] breakpoints = manager.getBreakpoints();
 
         for (IBreakpoint breakpoint : breakpoints) {
             if (typenames.contains(breakpoint.className())) {

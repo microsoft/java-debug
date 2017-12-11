@@ -268,18 +268,20 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     }
 
     @Override
-    public CompletableFuture<List<String>> redefinedClasses() {
-        synchronized (needHotCodeReplace) {
-            try {
-                needHotCodeReplace.wait(100);
-                if (needHotCodeReplace.get()) {
-                    needHotCodeReplace.wait();
+    public CompletableFuture<List<String>> redefineClasses() {
+        return CompletableFuture.supplyAsync(() -> {
+            synchronized (needHotCodeReplace) {
+                try {
+                    needHotCodeReplace.wait(100);
+                    if (needHotCodeReplace.get()) {
+                        needHotCodeReplace.wait();
+                    }
+                } catch (InterruptedException e) {
+                    logger.log(Level.INFO, "The hotcode replace completion was interrupted by " + e.getMessage(), e);
                 }
-            } catch (InterruptedException e) {
-                logger.log(Level.INFO, "The hotcode replace completion was interrupted by " + e.getMessage(), e);
             }
-        }
-        return CompletableFuture.completedFuture(new ArrayList<String>());
+            return new ArrayList<String>();
+        });
     }
 
     private void doHotCodeReplace(List<IResource> resources, List<String> fullyQualifiedName) {
