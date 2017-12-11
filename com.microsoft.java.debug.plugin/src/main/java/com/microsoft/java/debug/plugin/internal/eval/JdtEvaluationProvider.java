@@ -45,33 +45,37 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
 public class JdtEvaluationProvider implements IEvaluationProvider {
-    private static final String DEFAULT_PROJECT_NAME = "jdt.ls-java-project";
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private IJavaProject project;
     private ILaunch launch;
     private JDIDebugTarget debugTarget;
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
 
-
     @Override
-    public CompletableFuture<Value> eval(String projectName, String code, StackFrame sf) {
+    public CompletableFuture<Value> evaluate(String projectName, String code, StackFrame sf) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         if (debugTarget == null) {
             if (project == null) {
-                projectName = StringUtils.isBlank(projectName) ? DEFAULT_PROJECT_NAME : projectName;
-                for (IProject proj : ResourcesPlugin.getWorkspace().getRoot().getProjects()) {
-                    try {
-                        if (proj.getName().equals(projectName)) {
-                            if (!proj.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
-                                completableFuture.completeExceptionally(
-                                    new IllegalStateException(String.format("Project %s is not a java project.", projectName)));
-                                return completableFuture;
+                if (StringUtils.isBlank(projectName)) {
+                    // TODO: get project from stackframe
+                    logger.severe("Cannot evaluate when project is not specified.");
+                    completableFuture
+                    .completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
+                } else {
+                    for (IProject proj : ResourcesPlugin.getWorkspace().getRoot().getProjects()) {
+                        try {
+                            if (proj.getName().equals(projectName)) {
+                                if (!proj.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
+                                    completableFuture.completeExceptionally(
+                                            new IllegalStateException(String.format("Project %s is not a java project.", projectName)));
+                                    return completableFuture;
+                                }
+                                project = JavaCore.create(proj);
+                                break;
                             }
-                            project = JavaCore.create(proj);
-                            break;
+                        } catch (CoreException e) {
+                            logger.severe(String.format("Cannot initialize project: %s", e.toString()));
                         }
-                    } catch (CoreException e) {
-                        logger.severe(String.format("Cannot initialize project: %s", e.toString()));
                     }
                 }
             }
@@ -81,10 +85,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 return completableFuture;
             }
             if (launch == null) {
-                launch = createLaunch(project);
+                launch = createILaunchMock(project);
             }
         }
-
 
         ThreadReference thread = sf.thread();
         if (debugTarget == null) {
@@ -115,14 +118,14 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                         Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
                                 : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
                         completableFuture.completeExceptionally(ex);
-                    } else {
-                        try {
-                            // we need to read fValue from the result Value instance implements by JDT
-                            Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
-                            completableFuture.complete(value);
-                        } catch (IllegalArgumentException | IllegalAccessException ex) {
-                            completableFuture.completeExceptionally(ex);
-                        }
+                        return;
+                    }
+                    try {
+                        // we need to read fValue from the result Value instance implements by JDT
+                        Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
+                        completableFuture.complete(value);
+                    } catch (IllegalArgumentException | IllegalAccessException ex) {
+                        completableFuture.completeExceptionally(ex);
                     }
                 }, 0, false);
             }
@@ -139,8 +142,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     private JDIThread getJDIThread(ThreadReference thread) {
         synchronized (threadMap) {
-            return threadMap.computeIfAbsent(thread, threadKey -> new JDIThread(debugTarget, thread)
-            );
+            return threadMap.computeIfAbsent(thread, threadKey -> new JDIThread(debugTarget, thread));
         }
 
     }
@@ -164,7 +166,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
-    private static ILaunch createLaunch(IJavaProject project) {
+    private static ILaunch createILaunchMock(IJavaProject project) {
         return new ILaunch() {
             private AbstractSourceLookupDirector locator;
 

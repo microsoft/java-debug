@@ -11,7 +11,6 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
-import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,12 +26,6 @@ public final class LogUtils {
      * @param level the logger level for java debugger.
      */
     public static void initialize(Level level) {
-        for (Handler handle : logger.getHandlers()) {
-            logger.removeHandler(handle);
-        }
-        for (Handler handle : usageDataLogger.getHandlers()) {
-            usageDataLogger.removeHandler(handle);
-        }
         logger.addHandler(new JdtLogHandler());
         logger.addHandler(new UsageDataLogHandler(Level.SEVERE));
         usageDataLogger.addHandler(new UsageDataLogHandler(Level.ALL));

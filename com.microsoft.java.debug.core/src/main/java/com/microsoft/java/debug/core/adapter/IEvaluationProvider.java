@@ -21,9 +21,6 @@ import com.sun.jdi.Value;
  * An evaluation engine performs an evaluation of a code snippet or expression
  * in a specified thread of a debug target. An evaluation engine is associated
  * with a specific debug target and Java project on creation.
- *
- * @see IEvaluationListener
- * @since 4.0
  */
 public interface IEvaluationProvider extends IProvider {
     /**
@@ -42,12 +39,12 @@ public interface IEvaluationProvider extends IProvider {
      * @param sf The stack frame of the evaluation task
      * @return the evaluation result
      */
-    CompletableFuture<Value> eval(String projectName, String expression, StackFrame sf);
+    CompletableFuture<Value> evaluate(String projectName, String expression, StackFrame sf);
 
 
     /**
      * Cancel ongoing evaluation tasks on specified thread.
-     * @param thread the jdi thread
+     * @param thread the JDI thread reference where the evaluation task is executing at
      */
     void cancelEvaluation(ThreadReference thread);
 
