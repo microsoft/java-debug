@@ -61,21 +61,20 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                     logger.severe("Cannot evaluate when project is not specified.");
                     completableFuture.completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
                     return completableFuture;
-                } else {
-                    for (IProject proj : ResourcesPlugin.getWorkspace().getRoot().getProjects()) {
-                        try {
-                            if (proj.getName().equals(projectName)) {
-                                if (!proj.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
-                                    completableFuture.completeExceptionally(
-                                            new IllegalStateException(String.format("Project %s is not a java project.", projectName)));
-                                    return completableFuture;
-                                }
-                                project = JavaCore.create(proj);
-                                break;
+                }
+                for (IProject proj : ResourcesPlugin.getWorkspace().getRoot().getProjects()) {
+                    try {
+                        if (proj.getName().equals(projectName)) {
+                            if (!proj.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
+                                completableFuture.completeExceptionally(
+                                        new IllegalStateException(String.format("Project %s is not a java project.", projectName)));
+                                return completableFuture;
                             }
-                        } catch (CoreException e) {
-                            logger.severe(String.format("Cannot initialize project: %s", e.toString()));
+                            project = JavaCore.create(proj);
+                            break;
                         }
+                    } catch (CoreException e) {
+                        logger.severe(String.format("Cannot initialize project: %s", e.toString()));
                     }
                 }
             }
