@@ -16,8 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import com.microsoft.AmbientContext;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
-import com.microsoft.java.debug.core.trace.AmbientContext;
 
 public class UsageDataStore {
     private ConcurrentLinkedQueue<Object> queue;

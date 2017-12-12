@@ -9,7 +9,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package com.microsoft.java.debug.core.trace;
+package com.microsoft;
 
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class AmbientContext extends ConcurrentHashMap<String, Object> {
     public static final String AMBCTX_ID = AmbientContext.class.getSimpleName() + "Id";
-    static InheritableThreadLocal<AmbientContext> callContext = new InheritableThreadLocal<AmbientContext>() {
+    static InheritableThreadLocal<AmbientContext> inheritableThreadLocal = new InheritableThreadLocal<AmbientContext>() {
         @Override
         protected AmbientContext initialValue() {
             return null;
@@ -58,7 +58,7 @@ public class AmbientContext extends ConcurrentHashMap<String, Object> {
     }
 
     public static void removeAmbientContext() {
-        callContext.remove();
+        inheritableThreadLocal.remove();
     }
 
     /**
@@ -66,12 +66,12 @@ public class AmbientContext extends ConcurrentHashMap<String, Object> {
      */
     public static AmbientContext initializeAmbientContext(AmbientContext rawContext) {
         AmbientContext context = (rawContext != null) ? rawContext : new AmbientContext();
-        callContext.set(context);
+        inheritableThreadLocal.set(context);
         return context;
     }
 
     public static AmbientContext tryGetCurrentContext() {
-        return callContext.get();
+        return inheritableThreadLocal.get();
     }
 
     /**
