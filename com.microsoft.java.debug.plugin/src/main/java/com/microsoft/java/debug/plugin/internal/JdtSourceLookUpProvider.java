@@ -40,9 +40,9 @@ import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLo
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
-import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
+import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
@@ -54,7 +54,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private HashMap<String, Object> options = new HashMap<String, Object>();
 
     @Override
-    public void initialize(IDebugSession debugSession, Map<String, Object> props) {
+    public void initialize(IDebugAdapterContext context, Map<String, Object> props) {
         if (props == null) {
             throw new IllegalArgumentException("argument is null");
         }
