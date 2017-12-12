@@ -11,17 +11,9 @@
 
 package com.microsoft.java.debug.core.adapter;
 
-import java.util.Map;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-public interface IProvider {
-    /**
-     * Initialize this provider.
-     *
-     * @param debugContext
-     *            The associated debug context
-     * @param options
-     *            the options
-     */
-    default void initialize(IDebugAdapterContext debugContext, Map<String, Object> options) {
-    }
+public interface IHotCodeReplaceProvider extends IProvider {
+    CompletableFuture<List<String>> redefineClasses();
 }
