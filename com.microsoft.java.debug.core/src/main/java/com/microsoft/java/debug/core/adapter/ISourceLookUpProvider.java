@@ -18,6 +18,15 @@ public interface ISourceLookUpProvider extends IProvider {
 
     String[] getFullyQualifiedName(String uri, int[] lines, int[] columns) throws DebugException;
 
+    /**
+     * Given a fully qualified class name and source file path, search the associated disk source file.
+     *
+     * @param fullyQualifiedName
+     *                  the fully qualified class name (e.g. com.microsoft.java.debug.core.adapter.ISourceLookUpProvider).
+     * @param sourcePath
+     *                  the qualified source file path (e.g. com\microsoft\java\debug\core\adapter\ISourceLookupProvider.java).
+     * @return the associated source file uri.
+     */
     String getSourceFileURI(String fullyQualifiedName, String sourcePath);
 
     String getSourceContents(String uri);
