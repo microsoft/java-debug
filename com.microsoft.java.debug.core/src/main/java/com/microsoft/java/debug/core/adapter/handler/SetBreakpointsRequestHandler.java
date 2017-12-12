@@ -45,6 +45,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private BreakpointManager manager = new BreakpointManager();
 
+    private boolean isHcrInitialized = false;
+
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.SETBREAKPOINTS);
@@ -52,6 +54,16 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+        // TODO: This part logic should be part of post launching handler.
+        //       Add post launch logic and move the reinstall breakpoints logic there.
+        if (!isHcrInitialized) {
+            IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+            hcrProvider.redefineClasses((typenames) -> {
+                this.reinstallBreakpoints(context, typenames);
+            });
+            isHcrInitialized = true;
+        }
+
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
         }
@@ -83,11 +95,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         if (StringUtils.isBlank(sourcePath)) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
                         String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
-        }
-
-        if (bpArguments.sourceModified) {
-            IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-            hcrProvider.redefineClasses().thenAcceptAsync((List<String> result) -> reinstallBreakpoints(context, result));
         }
 
         try {

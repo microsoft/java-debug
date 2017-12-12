@@ -23,13 +23,16 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceChangeEvent;
@@ -45,14 +48,30 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaModelMarker;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.util.IClassFileReader;
 import org.eclipse.jdt.core.util.ISourceAttribute;
+import org.eclipse.jdt.internal.core.util.Util;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.DebugUtility;
+import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.StackFrameUtility;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
+import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+import com.sun.jdi.ArrayType;
+import com.sun.jdi.ClassNotLoadedException;
+import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.ReferenceType;
+import com.sun.jdi.StackFrame;
+import com.sun.jdi.ThreadReference;
+import com.sun.jdi.Type;
+import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.request.StepRequest;
 
 /**
  * The hot code replace provider listens for changes to class files and notifies
@@ -64,7 +83,13 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private static final String CLASS_FILE_EXTENSION = "class"; //$NON-NLS-1$
 
-    private AtomicBoolean needHotCodeReplace = new AtomicBoolean(false);
+    private IDebugSession currentDebugSession;
+
+    private IDebugAdapterContext context;
+
+    private Map<ThreadReference, List<StackFrame>> threadFrameMap = new HashMap<>();
+
+    private Consumer<List<String>> consumer;
 
     /**
      * Visitor for resource deltas.
@@ -240,16 +265,14 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     public void initialize(IDebugAdapterContext context, Map<String, Object> options) {
         // Listen to the built file events.
         ResourcesPlugin.getWorkspace().addResourceChangeListener(this, IResourceChangeEvent.POST_BUILD);
+        this.context = context;
+        currentDebugSession = context.getDebugSession();
 
         // TODO: Change IProvider interface for shutdown event
     }
 
     @Override
     public void resourceChanged(IResourceChangeEvent event) {
-        synchronized (needHotCodeReplace) {
-            needHotCodeReplace.set(true);
-        }
-
         if (event.getType() == IResourceChangeEvent.POST_BUILD) {
             ChangedClassFilesVisitor visitor = getChangedClassFiles(event);
             if (visitor != null) {
@@ -257,39 +280,369 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
                 List<String> fullyQualifiedName = visitor.getQualifiedNamesList();
                 if (resources != null && !resources.isEmpty()) {
                     doHotCodeReplace(resources, fullyQualifiedName);
-                } else {
-                    synchronized (needHotCodeReplace) {
-                        needHotCodeReplace.set(false);
-                        needHotCodeReplace.notifyAll();
-                    }
                 }
             }
         }
     }
 
     @Override
-    public CompletableFuture<List<String>> redefineClasses() {
-        return CompletableFuture.supplyAsync(() -> {
-            synchronized (needHotCodeReplace) {
-                try {
-                    needHotCodeReplace.wait(100);
-                    if (needHotCodeReplace.get()) {
-                        needHotCodeReplace.wait();
-                    }
-                } catch (InterruptedException e) {
-                    logger.log(Level.INFO, "The hotcode replace completion was interrupted by " + e.getMessage(), e);
-                }
-            }
-            return new ArrayList<String>();
-        });
+    public void redefineClasses(Consumer<List<String>> consumer) {
+        this.consumer = consumer;
     }
 
-    private void doHotCodeReplace(List<IResource> resources, List<String> fullyQualifiedName) {
-        // DODO: Add HCR logic
-        synchronized (needHotCodeReplace) {
-            needHotCodeReplace.set(false);
-            needHotCodeReplace.notifyAll();
+    private void doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
+        if (context == null || currentDebugSession == null) {
+            return;
         }
+
+        if (resourcesToReplace == null || qualifiedNamesToReplace == null || qualifiedNamesToReplace.isEmpty()
+                || resourcesToReplace.isEmpty()) {
+            return;
+        }
+
+        filterNotLoadedTypes(resourcesToReplace, qualifiedNamesToReplace);
+        if (qualifiedNamesToReplace.isEmpty()) {
+            return;
+            // If none of the changed types are loaded, do nothing.
+        }
+
+        // Not supported scenario:
+        if (!currentDebugSession.getVM().canRedefineClasses()) {
+            return;
+        }
+
+        try {
+            List<ThreadReference> poppedThreads = new ArrayList<>();
+            boolean framesPopped = false;
+            if (this.currentDebugSession.getVM().canPopFrames()) {
+                try {
+                    attemptPopFrames(resourcesToReplace, qualifiedNamesToReplace, poppedThreads);
+                    framesPopped = true; // No exception occurred
+                } catch (DebugException e) {
+                    logger.log(Level.WARNING, "Failed to pop frames " + e.getMessage(), e);
+                }
+            }
+
+            redefineTypesJDK(resourcesToReplace, qualifiedNamesToReplace);
+            if (this.consumer != null) {
+                this.consumer.accept(qualifiedNamesToReplace);
+            }
+
+            if (containsObsoleteMethods()) {
+                context.getProtocolServer().sendEvent(new HotCodeReplaceEvent("JVM contains obsolete methods"));
+            }
+
+            if (currentDebugSession.getVM().canPopFrames() && framesPopped) {
+                attemptStepIn(poppedThreads);
+            } else {
+                attemptDropToFrame(resourcesToReplace, qualifiedNamesToReplace);
+            }
+        } catch (DebugException e) {
+            logger.log(Level.SEVERE, "Failed to compolete hot code replace: " + e.getMessage(), e);
+        }
+
+        threadFrameMap.clear();
+    }
+
+    private void filterNotLoadedTypes(List<IResource> resources, List<String> qualifiedNames) {
+        for (int i = 0, numElements = qualifiedNames.size(); i < numElements; i++) {
+            String name = qualifiedNames.get(i);
+            List<ReferenceType> list = getjdiClassesByName(name);
+            if (list.isEmpty()) {
+                // If no classes with the given name are loaded in the VM, don't
+                // waste
+                // cycles trying to replace.
+                qualifiedNames.remove(i);
+                resources.remove(i);
+                // Decrement the index and number of elements to compensate for
+                // item removal
+                i--;
+                numElements--;
+            }
+        }
+    }
+
+    /**
+     * Returns VirtualMachine.classesByName(String), logging any JDI exceptions.
+     *
+     * @see com.sun.jdi.VirtualMachine
+     */
+    private List<ReferenceType> getjdiClassesByName(String className) {
+        VirtualMachine vm = this.currentDebugSession.getVM();
+        if (vm != null) {
+            return vm.classesByName(className);
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Looks for the deepest affected stack frames in the stack and forces pop
+     * affected frames. Does this for all of the active stack frames in the session.
+     */
+    protected void attemptPopFrames(List<IResource> resources, List<String> replacedClassNames,
+            List<ThreadReference> poppedThreads) throws DebugException {
+        List<StackFrame> popFrames = getAffectedFrames(currentDebugSession.getAllThreads(), replacedClassNames);
+
+        for (StackFrame popFrame : popFrames) {
+            try {
+                popStackFrame(popFrame);
+                poppedThreads.add(popFrame.thread());
+            } catch (DebugException de) {
+                poppedThreads.remove(popFrame.thread());
+            }
+        }
+    }
+
+    /**
+     * Performs a "step into" operation on the given threads.
+     */
+    protected void attemptStepIn(List<ThreadReference> threads) {
+        for (ThreadReference thread : threads) {
+            stepIntoThread(thread);
+        }
+    }
+
+    /**
+     * Looks for the deepest affected stack frame in the stack and forces a drop to
+     * frame. Does this for all of the active stack frames in the target.
+     */
+    protected void attemptDropToFrame(List<IResource> resources, List<String> replacedClassNames)
+            throws DebugException {
+        List<StackFrame> dropFrames = getAffectedFrames(currentDebugSession.getAllThreads(), replacedClassNames);
+
+        // All threads that want to drop to frame are able. Proceed with the
+        // drop
+        for (StackFrame dropFrame : dropFrames) {
+            dropToStackFrame(dropFrame);
+        }
+    }
+
+    /**
+     * Returns a list of frames which should be popped in the given threads.
+     */
+    protected List<StackFrame> getAffectedFrames(List<ThreadReference> threads, List<String> replacedClassNames)
+            throws DebugException {
+        List<StackFrame> popFrames = new ArrayList<>();
+        for (ThreadReference thread : threads) {
+            if (thread.isSuspended()) {
+                StackFrame affectedFrame = getAffectedFrame(thread, replacedClassNames);
+                if (affectedFrame == null) {
+                    // No frame to drop to in this thread
+                    continue;
+                }
+                if (supportsDropToFrame(thread, affectedFrame)) {
+                    popFrames.add(affectedFrame);
+                }
+            }
+        }
+        return popFrames;
+    }
+
+    /**
+     * Returns the stack frame that should be dropped to in the given thread after a
+     * hot code replace. This is calculated by determining if the threads contain
+     * stack frames that reside in one of the given replaced class names. If
+     * possible, only stack frames whose methods were directly affected (and not
+     * simply all frames in affected types) will be returned.
+     */
+    protected StackFrame getAffectedFrame(ThreadReference thread, List<String> replacedClassNames)
+            throws DebugException {
+        List<StackFrame> frames = getStackFrames(thread, false);
+        StackFrame affectedFrame = null;
+        for (int i = 0; i < frames.size(); i++) {
+            StackFrame frame = frames.get(i);
+            if (containsChangedType(frame, replacedClassNames)) {
+                if (supportsDropToFrame(thread, frame)) {
+                    affectedFrame = frame;
+                    break;
+                }
+                // The frame we wanted to drop to cannot be popped.
+                // Set the affected frame to the next lowest pop-able
+                // frame on the stack.
+                int j = i;
+                while (j > 0) {
+                    j--;
+                    frame = frames.get(j);
+                    if (supportsDropToFrame(thread, frame)) {
+                        affectedFrame = frame;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        return affectedFrame;
+    }
+
+    protected boolean containsChangedType(StackFrame frame, List<String> replacedClassNames) throws DebugException {
+        String declaringTypeName = getDeclaringTypeName(frame);
+        // Check if the frame's declaring type was changed
+        if (replacedClassNames.contains(declaringTypeName)) {
+            return true;
+        }
+        // Check if one of the frame's declaring type's inner classes have
+        // changed
+        for (String className : replacedClassNames) {
+            int index = className.indexOf('$');
+            if (index > -1 && declaringTypeName.equals(className.substring(0, index))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String getDeclaringTypeName(StackFrame frame) throws DebugException {
+        return getGenericName(StackFrameUtility.getDeclaringType(frame));
+    }
+
+    private String getGenericName(ReferenceType type) throws DebugException {
+        if (type instanceof ArrayType) {
+            try {
+                Type componentType;
+                componentType = ((ArrayType) type).componentType();
+                if (componentType instanceof ReferenceType) {
+                    return getGenericName((ReferenceType) componentType) + "[]"; //$NON-NLS-1$
+                }
+                return type.name();
+            } catch (ClassNotLoadedException e) {
+                // we cannot create the generic name using the component type,
+                // just try to create one with the information
+            }
+        }
+        String signature = type.signature();
+        StringBuffer res = new StringBuffer(getTypeName(signature));
+        String genericSignature = type.genericSignature();
+        if (genericSignature != null) {
+            String[] typeParameters = Signature.getTypeParameters(genericSignature);
+            if (typeParameters.length > 0) {
+                res.append('<').append(Signature.getTypeVariable(typeParameters[0]));
+                for (int i = 1; i < typeParameters.length; i++) {
+                    res.append(',').append(Signature.getTypeVariable(typeParameters[i]));
+                }
+                res.append('>');
+            }
+        }
+        return res.toString();
+    }
+
+    private String getTypeName(String genericTypeSignature) {
+        int arrayDimension = 0;
+        while (genericTypeSignature.charAt(arrayDimension) == '[') {
+            arrayDimension++;
+        }
+        int parameterStart = genericTypeSignature.indexOf('<');
+        StringBuffer name = new StringBuffer();
+        if (parameterStart < 0) {
+            name.append(genericTypeSignature.substring(arrayDimension + 1, genericTypeSignature.length() - 1)
+                    .replace('/', '.'));
+        } else {
+            if (parameterStart != 0) {
+                name.append(genericTypeSignature.substring(arrayDimension + 1, parameterStart).replace('/', '.'));
+            }
+            try {
+                String sig = Signature.toString(genericTypeSignature)
+                        .substring(Math.max(parameterStart - 1, 0) - arrayDimension);
+                name.append(sig.replace('/', '.'));
+            } catch (IllegalArgumentException iae) {
+                // do nothing
+                name.append(genericTypeSignature);
+            }
+        }
+        for (int i = 0; i < arrayDimension; i++) {
+            name.append("[]"); //$NON-NLS-1$
+        }
+        return name.toString();
+    }
+
+    private boolean supportsDropToFrame(ThreadReference thread, StackFrame frame) {
+        List<StackFrame> frames = getStackFrames(thread, false);
+        for (int i = 0; i < frames.size(); i++) {
+            if (StackFrameUtility.isNative(frames.get(i))) {
+                return false;
+            }
+            if (frames.get(i) == frame) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected void popStackFrame(StackFrame frame) throws DebugException {
+        if (frame != null) {
+            ThreadReference thread = frame.thread();
+            List<StackFrame> frames = getStackFrames(thread, false);
+            int desiredSize = frames.indexOf(frame);
+            while (desiredSize >= 0) {
+                StackFrameUtility.pop(frames.get(0));
+                frames = getStackFrames(thread, true);
+                desiredSize--;
+            }
+        }
+    }
+
+    protected void dropToStackFrame(StackFrame frame) throws DebugException {
+        // Pop the drop frame and all frames above it
+        popStackFrame(frame);
+        stepIntoThread(frame.thread());
+    }
+
+    private void redefineTypesJDK(List<IResource> resources, List<String> qualifiedNames) throws DebugException {
+        Map<ReferenceType, byte[]> typesToBytes = getTypesToBytes(resources, qualifiedNames);
+        try {
+            currentDebugSession.getVM().redefineClasses(typesToBytes);
+        } catch (UnsupportedOperationException | NoClassDefFoundError | VerifyError | ClassFormatError
+                | ClassCircularityError e) {
+            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(e.getMessage()));
+            throw new DebugException("Failed to redefine classes: " + e.getMessage());
+        }
+    }
+
+    private void stepIntoThread(ThreadReference thread) {
+        StepRequest request = DebugUtility.createStepIntoRequest(thread,
+                this.context.getStepFilters().classNameFilters);
+        currentDebugSession.getEventHub().stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request()))
+                .take(1).subscribe(debugEvent -> {
+                    debugEvent.shouldResume = false;
+                    // Have to send to events to keep the UI sync with the step in operations:
+                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
+                    context.getProtocolServer().sendEvent(new Events.ContinuedEvent(thread.uniqueID()));
+                });
+        request.enable();
+        thread.resume();
+    }
+
+    /**
+     * Returns a mapping of class files to the bytes that make up those class files.
+     *
+     * @param resources
+     *            the classfiles
+     * @param qualifiedNames
+     *            the fully qualified type names corresponding to the classfiles.
+     *            The typeNames correspond to the resources on a one-to-one basis.
+     * @return a mapping of class files to bytes key: class file value: the bytes
+     *         which make up that classfile
+     */
+    private Map<ReferenceType, byte[]> getTypesToBytes(List<IResource> resources, List<String> qualifiedNames) {
+        Map<ReferenceType, byte[]> typesToBytes = new HashMap<>(resources.size());
+        Iterator<IResource> resourceIter = resources.iterator();
+        Iterator<String> nameIter = qualifiedNames.iterator();
+        IResource resource;
+        String name;
+        while (resourceIter.hasNext()) {
+            resource = resourceIter.next();
+            name = nameIter.next();
+            List<ReferenceType> classes = getjdiClassesByName(name);
+            byte[] bytes = null;
+            try {
+                bytes = Util.getResourceContentsAsByteArray((IFile) resource);
+            } catch (CoreException e) {
+                continue;
+            }
+            for (ReferenceType type : classes) {
+                typesToBytes.put(type, bytes);
+            }
+        }
+        return typesToBytes;
     }
 
     /**
@@ -342,5 +695,38 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
         }
         return null;
+    }
+
+    private boolean containsObsoleteMethods() throws DebugException {
+        List<ThreadReference> threads = currentDebugSession.getAllThreads();
+        for (ThreadReference thread : threads) {
+            if (!thread.isSuspended()) {
+                continue;
+            }
+            List<StackFrame> frames = getStackFrames(thread, false);
+            if (frames == null || frames.isEmpty()) {
+                continue;
+            }
+            for (StackFrame frame : frames) {
+                if (StackFrameUtility.isObsolete(frame)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private List<StackFrame> getStackFrames(ThreadReference thread, boolean refresh) {
+        List<StackFrame> result = null;
+        result = threadFrameMap.get(thread);
+        if (result == null || refresh) {
+            try {
+                result = thread.frames();
+            } catch (IncompatibleThreadStateException e) {
+                logger.log(Level.SEVERE, "Failed to get stack frames: " + e.getMessage(), e);
+            }
+            threadFrameMap.put(thread, result);
+        }
+        return result;
     }
 }

@@ -12,8 +12,8 @@
 package com.microsoft.java.debug.core.adapter;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public interface IHotCodeReplaceProvider extends IProvider {
-    CompletableFuture<List<String>> redefineClasses();
+    void redefineClasses(Consumer<List<String>> consumer);
 }
