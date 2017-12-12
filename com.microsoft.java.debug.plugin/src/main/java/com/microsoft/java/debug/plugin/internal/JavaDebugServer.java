@@ -21,9 +21,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.microsoft.AmbientContext;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.ProtocolServer;
-import com.microsoft.java.debug.core.trace.AmbientContext;
 
 public class JavaDebugServer implements IDebugServer {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
