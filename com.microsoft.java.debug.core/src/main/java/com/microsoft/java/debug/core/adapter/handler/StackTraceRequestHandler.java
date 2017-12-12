@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.io.File;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -123,7 +124,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         } catch (AbsentInformationException e) {
             String enclosingType = AdapterUtils.parseEnclosingType(fullyQualifiedName);
             sourceName = enclosingType.substring(enclosingType.lastIndexOf('.') + 1) + ".java";
-            relativeSourcePath = enclosingType.replace('.', '/') + ".java";
+            relativeSourcePath = enclosingType.replace('.', File.separatorChar) + ".java";
         }
 
         final String finalRelativeSourcePath = relativeSourcePath;
