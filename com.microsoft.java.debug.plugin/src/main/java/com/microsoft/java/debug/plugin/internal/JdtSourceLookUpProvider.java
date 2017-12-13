@@ -151,9 +151,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 astUnit.accept(locator);
                 // When the final valid line location is same as the original line, that represents it's a valid breakpoint.
                 // Add location type check to avoid breakpoint on method/field which will never be hit in current implementation.
-                if (locator.getLocationType() == ValidBreakpointLocationLocator.LOCATION_LINE) {                    
+                if (locator.getLocationType() == ValidBreakpointLocationLocator.LOCATION_LINE) {
                     // update lines to the next line which is valid for breakpoint
-                    lines[i] = locator.getLineLocation();                    
+                    lines[i] = locator.getLineLocation();
                     fqns[i] = locator.getFullyQualifiedTypeName();
                 }
             }
