@@ -29,6 +29,7 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.protocol.Events;
@@ -90,7 +91,8 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         sourceProvider.initialize(context.getDebugSession(), options);
         IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
         evaluationProvider.initialize(context.getDebugSession(), options);
-
+        IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+        hcrProvider.initialize(context, options);
         // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
         context.getProtocolServer().sendEvent(new Events.InitializedEvent());
