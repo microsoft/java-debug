@@ -69,10 +69,10 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     return CompletableFuture.completedFuture(response);
                 }
 
-                Map<Long, StackFrame[]> cache = context.getThreadStackFrameMap();
+                Map<Long, StackFrame[]> threadStackFrameMap = context.getThreadStackFrameMap();
                 StackFrame[] frames = new StackFrame[0];
-                synchronized (cache) {
-                    frames = cache.compute(thread.uniqueID(), (k, v) -> {
+                synchronized (threadStackFrameMap) {
+                    frames = threadStackFrameMap.compute(thread.uniqueID(), (k, v) -> {
                             try {
                                 return thread.frames().toArray(new StackFrame[0]);
                             } catch (IncompatibleThreadStateException e) {
