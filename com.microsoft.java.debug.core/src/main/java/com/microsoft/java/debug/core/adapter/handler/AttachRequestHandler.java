@@ -87,6 +87,8 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         }
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
         sourceProvider.initialize(context.getDebugSession(), options);
+        IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
+        evaluationProvider.initialize(context.getDebugSession(), options);
 
         // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).

@@ -42,6 +42,7 @@ import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
@@ -75,7 +76,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
-                || (ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths))) {
+                || ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths)) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                        String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
         }
@@ -113,6 +114,8 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     options.put(Constants.PROJECTNAME, launchArguments.projectName);
                 }
                 sourceProvider.initialize(context.getDebugSession(), options);
+                IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
+                evaluationProvider.initialize(context.getDebugSession(), options);
 
                 // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
                 // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
@@ -305,7 +308,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         List<String> launchCmds = new ArrayList<>();
         launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
-        launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", (serverMode ? "y" : "n"), address));
+        launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
         if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
             launchCmds.addAll(parseArguments(launchArguments.vmArgs));
         }
@@ -337,7 +340,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
      * @return the arguments array.
      */
     private static List<String> parseArguments(String cmdStr) {
-        List<String> list = new ArrayList<String>();
+        List<String> list = new ArrayList<>();
         // The legal arguments are
         // 1. token starting with something other than quote " and followed by zero or more non-space characters
         // 2. a quote " followed by whatever, until another quote "

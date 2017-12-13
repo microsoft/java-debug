@@ -34,12 +34,11 @@ public interface IEvaluationProvider extends IProvider {
      * Evaluate the expression at the given project and thread and stack frame depth, the promise is to be resolved/rejected when
      * the evaluation finishes.
      *
-     * @param projectName The java project which provides resolve class used in the expression
      * @param expression The expression to be evaluated
      * @param sf The stack frame of the evaluation task
      * @return the evaluation result
      */
-    CompletableFuture<Value> evaluate(String projectName, String expression, StackFrame sf);
+    CompletableFuture<Value> evaluate(String expression, StackFrame sf);
 
 
     /**
