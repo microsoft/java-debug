@@ -338,7 +338,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
                 attemptDropToFrame(resourcesToReplace, qualifiedNamesToReplace);
             }
         } catch (DebugException e) {
-            logger.log(Level.SEVERE, "Failed to compolete hot code replace: " + e.getMessage(), e);
+            logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
         }
 
         threadFrameMap.clear();
@@ -717,16 +717,13 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     }
 
     private List<StackFrame> getStackFrames(ThreadReference thread, boolean refresh) {
-        List<StackFrame> result = null;
-        result = threadFrameMap.get(thread);
-        if (result == null || refresh) {
+        return threadFrameMap.compute(thread, (key, oldValue) -> {
             try {
-                result = thread.frames();
+                return oldValue == null || refresh ? key.frames() : oldValue;
             } catch (IncompatibleThreadStateException e) {
                 logger.log(Level.SEVERE, "Failed to get stack frames: " + e.getMessage(), e);
+                return oldValue;
             }
-            threadFrameMap.put(thread, result);
-        }
-        return result;
+        });
     }
 }
