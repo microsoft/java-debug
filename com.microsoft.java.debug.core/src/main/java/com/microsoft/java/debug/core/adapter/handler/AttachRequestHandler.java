@@ -88,9 +88,9 @@ public class AttachRequestHandler implements IDebugRequestHandler {
             options.put(Constants.PROJECTNAME, attachArguments.projectName);
         }
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        sourceProvider.initialize(context.getDebugSession(), options);
+        sourceProvider.initialize(context, options);
         IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
-        evaluationProvider.initialize(context.getDebugSession(), options);
+        evaluationProvider.initialize(context, options);
         IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
         hcrProvider.initialize(context, options);
         // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests

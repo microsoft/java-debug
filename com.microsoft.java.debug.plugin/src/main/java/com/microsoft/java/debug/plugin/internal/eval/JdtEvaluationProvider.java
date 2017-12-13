@@ -36,8 +36,8 @@ import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.Constants;
+import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
 import com.sun.jdi.StackFrame;
@@ -54,7 +54,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private HashMap<String, Object> options = new HashMap<>();
 
     @Override
-    public void initialize(IDebugSession debugSession, Map<String, Object> props) {
+    public void initialize(IDebugAdapterContext context, Map<String, Object> props) {
         if (props == null) {
             throw new IllegalArgumentException("argument is null");
         }

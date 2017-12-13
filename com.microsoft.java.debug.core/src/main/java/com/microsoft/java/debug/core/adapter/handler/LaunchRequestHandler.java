@@ -114,9 +114,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 if (launchArguments.projectName != null) {
                     options.put(Constants.PROJECTNAME, launchArguments.projectName);
                 }
-                sourceProvider.initialize(context.getDebugSession(), options);
+                sourceProvider.initialize(context, options);
                 IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
-                evaluationProvider.initialize(context.getDebugSession(), options);
+                evaluationProvider.initialize(context, options);
                 IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
                 hcrProvider.initialize(context, options);
 
