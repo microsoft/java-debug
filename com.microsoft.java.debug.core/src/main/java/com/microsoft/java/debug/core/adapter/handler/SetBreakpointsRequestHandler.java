@@ -103,7 +103,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             IBreakpoint[] added = manager.setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
                 // check whether the breakpoint has already been processed, otherwise the same breakpoint might be installed more than once.
-                // if class name is null, then this breakpoint is not valid, we doesn't need to install it or update hit count for it.
+                // if class name is null, then this breakpoint is not valid, we don't need to install it or update hit count for it.
                 if (processedBreakpoints.contains(toAdds[i]) || added[i].className() == null) {
                     res.add(this.convertDebuggerBreakpointToClient(added[i], context));
                     continue;
