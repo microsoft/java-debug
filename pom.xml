@@ -2,8 +2,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.microsoft.java</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>java-debug-parent</artifactId>
     <name>${base.name} :: Parent</name>
+    <description>The Java Debug Server is an implementation of Visual Studio Code (VSCode) Debug Protocol. It can be used in Visual Studio Code to debug Java programs.</description>
+    <url>https://github.com/Microsoft/java-debug</url>
     <version>0.4.0</version>
     <packaging>pom</packaging>
     <properties>
@@ -11,6 +13,49 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <tycho-version>1.0.0</tycho-version>
     </properties>
+
+    <licenses>
+        <license>
+            <name>Eclipse Public License 1.0</name>
+            <url>https://github.com/Microsoft/java-debug/blob/master/LICENSE.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>akaroml</id>
+            <name>Rome Li</name>
+            <email>roml@microsoft.com</email>
+        </developer>
+        <developer>
+            <id>testforstephen</id>
+            <name>Jinbo Wang</name>
+            <email>jinbwan@microsoft.com</email>
+        </developer>
+        <developer>
+            <id>andxu</id>
+            <name>Andy Xu</name>
+            <email>andxu@microsoft.com</email>
+        </developer>
+        <developer>
+            <id>yaohaizh</id>
+            <name>Yaohai Zheng</name>
+            <email>yaozheng@microsoft.com</email>
+        </developer>
+    </developers>
+
+    <organization>
+        <name>Microsoft</name>
+        <url>https://www.microsoft.com</url>
+    </organization>
+
+    <scm>
+        <connection>scm:git:git://github.com/Microsoft/java-debug.git</connection>
+        <developerConnection>scm:git:ssh://github.com:Microsoft/java-debug.git</developerConnection>
+        <url>https://github.com/Microsoft/java-debug/tree/master</url>
+    </scm>
+
     <modules>
         <module>com.microsoft.java.debug.core</module>
         <module>com.microsoft.java.debug.plugin</module>
