@@ -214,7 +214,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public String getMainClass() {
-        return mainClass;
+        return this.mainClass;
     }
 
     @Override

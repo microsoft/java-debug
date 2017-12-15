@@ -343,7 +343,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
      * @return the arguments array.
      */
     private static List<String> parseArguments(String cmdStr) {
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         // The legal arguments are
         // 1. token starting with something other than quote " and followed by zero or more non-space characters
         // 2. a quote " followed by whatever, until another quote "
