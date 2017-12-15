@@ -14,7 +14,7 @@ package com.microsoft.java.debug.core.adapter;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
-public interface IStackFrameManager {
+public interface ILockableStackFrameManager {
     /**
      * Get a jdi stackframe from jdi thread.
      *
@@ -22,7 +22,7 @@ public interface IStackFrameManager {
      * @param depth the depth of stackframe
      * @return the stackframe at the specified depth
      */
-    StackFrame getStackFrame(ThreadReference thread, int depth);
+    DisposableReentrantLock<StackFrame> getLockedStackFrame(ThreadReference thread, int depth);
 
 
     /**

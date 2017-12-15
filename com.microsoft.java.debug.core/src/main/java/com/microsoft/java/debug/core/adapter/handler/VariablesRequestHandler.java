@@ -24,14 +24,13 @@ import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.DisposableReentrantLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.IDisposable;
-import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
-import com.microsoft.java.debug.core.adapter.IStackFrameManager;
+import com.microsoft.java.debug.core.adapter.ILockableStackFrameManager;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
-import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
@@ -83,12 +82,13 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList;
-        IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-        IStackFrameManager stackFrameManager = context.getStackFrameManager();
-        if (containerNode.getProxiedVariable() instanceof StackFrameProxy) {
-            StackFrameProxy proxy = (StackFrameProxy) containerNode.getProxiedVariable();
-            try (IDisposable lock  = engine.acquireEvaluationLock(proxy.getThread())) {
-                StackFrame frame = stackFrameManager.getStackFrame(proxy.getThread(), proxy.getDepth());
+        ILockableStackFrameManager stackFrameManager = context.getStackFrameManager();
+        if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
+            StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
+
+            try (DisposableReentrantLock<StackFrame> lockedStackFrame =
+                    stackFrameManager.getLockedStackFrame(stackFrameReference.getThread(), stackFrameReference.getDepth())) {
+                StackFrame frame = lockedStackFrame.getUnderlyingObject();
                 childrenList = VariableUtils.listLocalVariables(frame);
                 Variable thisVariable = VariableUtils.getThisVariable(frame);
                 if (thisVariable != null) {

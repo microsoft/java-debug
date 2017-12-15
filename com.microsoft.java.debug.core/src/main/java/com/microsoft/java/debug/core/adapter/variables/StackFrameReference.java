@@ -13,22 +13,23 @@ package com.microsoft.java.debug.core.adapter.variables;
 
 import com.sun.jdi.ThreadReference;
 
-public class StackFrameProxy {
+public class StackFrameReference {
     private final int depth;
     private final int hash;
     private final ThreadReference thread;
 
     /**
-     * Create a wrapper of JDI stackframe to keep only the owning thread and the depth.
+     * Create a wrapper of JDI stackframe to keep the immutable properties of a stackframe, IStackFrameManager will use
+     * these properties to construct a jdi stackframe.
      *
      * @param thread the jdi thread.
      * @param depth
      *            the index of this stackframe inside all frames inside one stopped
      *            thread
      */
-    public StackFrameProxy(ThreadReference thread, int depth) {
+    public StackFrameReference(ThreadReference thread, int depth) {
         if (thread == null) {
-            throw new NullPointerException("'thread' should not be null for StackFrameProxy");
+            throw new NullPointerException("'thread' should not be null for StackFrameReference");
         }
 
         if (depth < 0) {
@@ -64,7 +65,7 @@ public class StackFrameProxy {
         if (this == obj) {
             return true;
         }
-        StackFrameProxy sf = (StackFrameProxy) obj;
+        StackFrameReference sf = (StackFrameReference) obj;
         return thread.equals(sf.thread) && depth == sf.depth;
     }
 

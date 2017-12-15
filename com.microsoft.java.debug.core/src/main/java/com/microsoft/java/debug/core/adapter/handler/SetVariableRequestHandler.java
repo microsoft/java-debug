@@ -21,13 +21,12 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.DisposableReentrantLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.IDisposable;
-import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
-import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -96,13 +95,13 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         }
 
         Object containerObj = ((VariableProxy) container).getProxiedVariable();
-        IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
         try {
-            if (containerObj instanceof StackFrameProxy) {
-                StackFrameProxy stackFrameProxy = (StackFrameProxy) containerObj;
-                try (IDisposable closeable = engine.acquireEvaluationLock(stackFrameProxy.getThread())) {
+            if (containerObj instanceof StackFrameReference) {
+                StackFrameReference stackFrameReference = (StackFrameReference) containerObj;
+                try (DisposableReentrantLock<StackFrame> lockedStackFrame = context.getStackFrameManager()
+                        .getLockedStackFrame(stackFrameReference.getThread(), stackFrameReference.getDepth())) {
                     newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value, showStaticVariables,
-                            context.getStackFrameManager().getStackFrame(stackFrameProxy.getThread(), stackFrameProxy.getDepth()), options);
+                            lockedStackFrame.getUnderlyingObject(), options);
                 }
             } else if (containerObj instanceof ObjectReference) {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value, (ObjectReference) containerObj, options);

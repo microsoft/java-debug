@@ -89,6 +89,7 @@ public class ProtocolServer extends AbstractProtocolServer {
             }
             return future;
         }).exceptionally((ex) -> {
+            ex.printStackTrace();
             Messages.Response response = new Messages.Response(request.seq, request.command);
             if (ex instanceof CompletionException && ex.getCause() != null) {
                 ex = ex.getCause();

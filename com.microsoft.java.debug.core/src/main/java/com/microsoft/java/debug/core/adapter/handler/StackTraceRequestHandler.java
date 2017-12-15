@@ -27,7 +27,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
-import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -72,7 +72,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                         ? totalFrames - stacktraceArgs.startFrame
                         : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
                 for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
-                    StackFrameProxy stackframe = new StackFrameProxy(thread, i);
+                    StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(),
                             stackframe);
                     result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context));

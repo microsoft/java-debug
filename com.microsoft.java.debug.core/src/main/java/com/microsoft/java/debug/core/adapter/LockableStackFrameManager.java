@@ -9,26 +9,32 @@
  *     Microsoft Corporation - initial API and implementation
  *******************************************************************************/
 
-
 package com.microsoft.java.debug.core.adapter;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
-public class DefaultStackFrameManager implements IStackFrameManager {
+public class LockableStackFrameManager implements ILockableStackFrameManager {
     private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
+    private Map<Long, ReentrantLock> locks = new HashMap<>();
 
     @Override
-    public StackFrame getStackFrame(ThreadReference thread, int depth) {
-        synchronized (threadStackFrameMap) {
-            StackFrame[] frames = threadStackFrameMap.get(thread.uniqueID());
-            return frames == null || frames.length < depth ? null : frames[depth];
+    public DisposableReentrantLock<StackFrame> getLockedStackFrame(ThreadReference thread, int depth) {
+        ReentrantLock lock = locks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLock());
+        lock.lock();
+        StackFrame sf = getStackFrame(thread, depth);
+        if (sf == null) {
+            lock.unlock();
+            return null;
         }
+        return new DisposableReentrantLock<>(sf, lock);
+
     }
 
     @Override
@@ -41,6 +47,13 @@ public class DefaultStackFrameManager implements IStackFrameManager {
                     return new StackFrame[0];
                 }
             });
+        }
+    }
+
+    private StackFrame getStackFrame(ThreadReference thread, int depth) {
+        synchronized (threadStackFrameMap) {
+            StackFrame[] frames = threadStackFrameMap.get(thread.uniqueID());
+            return frames == null || frames.length < depth ? null : frames[depth];
         }
     }
 }

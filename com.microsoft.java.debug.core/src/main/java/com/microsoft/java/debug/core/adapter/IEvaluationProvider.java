@@ -49,11 +49,4 @@ public interface IEvaluationProvider extends IProvider {
      */
     void cleanEvaluateStates(ThreadReference thread);
 
-    /**
-     * Acquire an evaluation lock on the jdi thread.
-     * @param thread the jdi thread
-     * @return the lock object
-     */
-    IDisposable acquireEvaluationLock(ThreadReference thread);
-
 }

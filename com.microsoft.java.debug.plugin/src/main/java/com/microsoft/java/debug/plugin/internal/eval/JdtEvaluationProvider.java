@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
@@ -41,7 +40,6 @@ import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.IDisposable;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
 import com.sun.jdi.ClassType;
@@ -58,7 +56,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
 
     private HashMap<String, Object> options = new HashMap<>();
-    private Map<Long, ReentrantLockDisposable> disposableLocks = new HashMap<>();
+
     private IDebugAdapterContext context;
 
     public JdtEvaluationProvider() {
@@ -71,13 +69,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
         options.putAll(props);
         this.context = context;
-    }
-
-    @Override
-    public IDisposable acquireEvaluationLock(ThreadReference thread) {
-        ReentrantLockDisposable lock = disposableLocks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLockDisposable());
-        lock.lock();
-        return lock;
     }
 
     @Override
@@ -113,53 +104,36 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             };
         }
 
-        new Thread(() -> {
-            JDIThread jdiThread = getMockJDIThread(thread);
-            JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
-            if (stackframe == null) {
-                logger.severe("Cannot evaluate because the stackframe is not available.");
-                completableFuture.completeExceptionally(
-                        new IllegalStateException("Cannot evaluate because the stackframe is not available."));
-                return;
-            }
-            IDisposable lock = acquireEvaluationLock(thread);
-            try  {
-                ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-                ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
-                engine.evaluateExpression(ie, stackframe, evaluateResult -> {
-                    if (evaluateResult == null || evaluateResult.hasErrors()) {
-                        Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
-                                : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
-                        completableFuture.completeExceptionally(ex);
-                        return;
-                    }
-                    try {
-                        // we need to read fValue from the result Value instance implements by JDT
-                        Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
-                        completableFuture.complete(value);
-                    } catch (IllegalArgumentException | IllegalAccessException ex) {
-                        completableFuture.completeExceptionally(ex);
-                    }
-                }, 0, false);
-
-            } catch (Exception ex) {
-                completableFuture.completeExceptionally(ex);
-            }
-            completableFuture.whenComplete((result, error) -> {
-                synchronized (lock) {
-                    lock.notifyAll();
+        JDIThread jdiThread = getMockJDIThread(thread);
+        JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
+        if (stackframe == null) {
+            logger.severe("Cannot evaluate because the stackframe is not available.");
+            completableFuture.completeExceptionally(
+                    new IllegalStateException("Cannot evaluate because the stackframe is not available."));
+            return completableFuture;
+        }
+        try  {
+            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
+            engine.evaluateExpression(ie, stackframe, evaluateResult -> {
+                if (evaluateResult == null || evaluateResult.hasErrors()) {
+                    Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
+                            : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
+                    completableFuture.completeExceptionally(ex);
+                    return;
                 }
-            });
-            synchronized (lock) {
                 try {
-                    lock.wait();
-                    lock.close();
-                } catch (Exception e) {
-                    logger.log(Level.SEVERE, String.format("Cannot release lock for evalution.", e.toString()), e);
+                    // we need to read fValue from the result Value instance implements by JDT
+                    Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
+                    completableFuture.complete(value);
+                } catch (IllegalArgumentException | IllegalAccessException ex) {
+                    completableFuture.completeExceptionally(ex);
                 }
-            }
-        }).start();
+            }, 0, false);
 
+        } catch (Exception ex) {
+            completableFuture.completeExceptionally(ex);
+        }
         return completableFuture;
     }
 
