@@ -12,7 +12,6 @@
 package com.microsoft.java.debug.core.adapter;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
 
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
@@ -55,6 +54,6 @@ public interface IEvaluationProvider extends IProvider {
      * @param thread the jdi thread
      * @return the lock object
      */
-    Lock acquireEvaluationLock(ThreadReference thread);
+    IDisposable acquireEvaluationLock(ThreadReference thread);
 
 }

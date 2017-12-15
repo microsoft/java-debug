@@ -15,8 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,8 +41,8 @@ import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
+import com.microsoft.java.debug.core.adapter.IDisposable;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
-import com.microsoft.java.debug.core.adapter.IStackFrameProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
 import com.sun.jdi.ClassType;
 import com.sun.jdi.Method;
@@ -60,11 +58,10 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
 
     private HashMap<String, Object> options = new HashMap<>();
-    private Map<Long, Lock> locks = new HashMap<>();
-    private IStackFrameProvider stackFrameProvider;
+    private Map<Long, IDisposable> disposableLocks = new HashMap<>();
+    private IDebugAdapterContext context;
 
-    public JdtEvaluationProvider(IStackFrameProvider stackFrameProvider) {
-        this.stackFrameProvider = stackFrameProvider;
+    public JdtEvaluationProvider() {
     }
 
     @Override
@@ -73,13 +70,12 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             throw new IllegalArgumentException("argument is null");
         }
         options.putAll(props);
+        this.context = context;
     }
 
     @Override
-    public Lock acquireEvaluationLock(ThreadReference thread) {
-        Lock lock = locks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLock());
-        lock.lock();
-        return lock;
+    public IDisposable acquireEvaluationLock(ThreadReference thread) {
+        return disposableLocks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLockDisposable());
     }
 
     @Override
@@ -124,8 +120,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                         new IllegalStateException("Cannot evaluate because the stackframe is not available."));
                 return;
             }
-            Lock lock = acquireEvaluationLock(thread);
-            try {
+            IDisposable lock = acquireEvaluationLock(thread);
+            try  {
                 ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
                 ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
                 engine.evaluateExpression(ie, stackframe, evaluateResult -> {
@@ -155,7 +151,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             synchronized (lock) {
                 try {
                     lock.wait();
-                    lock.unlock();
+                    lock.close();
                 } catch (Exception e) {
                     logger.log(Level.SEVERE, String.format("Cannot release lock for evalution.", e.toString()), e);
                 }
@@ -182,7 +178,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 protected Value invokeMethod(ClassType receiverClass, ObjectReference receiverObject, Method method,
                         List<? extends Value> args, boolean invokeNonvirtual) throws DebugException {
                     Value value = super.invokeMethod(receiverClass, receiverObject, method, args, invokeNonvirtual);
-                    stackFrameProvider.getStackFrames(thread, true);
+                    context.getStackFrameManager().refreshStackFrames(thread);
                     return value;
                 }
             });

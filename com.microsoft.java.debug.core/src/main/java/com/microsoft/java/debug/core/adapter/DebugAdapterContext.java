@@ -13,7 +13,6 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
@@ -21,12 +20,10 @@ import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
-import com.sun.jdi.StackFrame;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
-    private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
     private IProviderContext providerContext;
     private IProtocolServer server;
 
@@ -47,6 +44,8 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
+
+    private IStackFrameManager stackFrameManager = new DefaultStackFrameManager();
 
     public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
         this.providerContext = providerContext;
@@ -179,11 +178,6 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
-    public Map<Long, StackFrame[]> getThreadStackFrameMap() {
-        return threadStackFrameMap;
-    }
-
-    @Override
     public void setDebuggeeEncoding(Charset encoding) {
         debuggeeEncoding = encoding;
     }
@@ -231,5 +225,10 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public StepFilters getStepFilters() {
         return stepFilters;
+    }
+
+    @Override
+    public IStackFrameManager getStackFrameManager() {
+        return stackFrameManager;
     }
 }

@@ -18,7 +18,6 @@ import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
-import com.sun.jdi.StackFrame;
 
 public interface IDebugAdapterContext {
     IProtocolServer getProtocolServer();
@@ -101,5 +100,5 @@ public interface IDebugAdapterContext {
 
     StepFilters getStepFilters();
 
-    Map<Long, StackFrame[]> getThreadStackFrameMap();
+    IStackFrameManager getStackFrameManager();
 }

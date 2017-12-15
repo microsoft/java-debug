@@ -45,7 +45,6 @@ import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
-import com.microsoft.java.debug.core.adapter.IStackFrameProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
@@ -120,8 +119,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 evaluationProvider.initialize(context, options);
                 IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
                 hcrProvider.initialize(context, options);
-                IStackFrameProvider stackFrameProvider = context.getProvider(IStackFrameProvider.class);
-                stackFrameProvider.initialize(context, options);
 
                 // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
                 // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
@@ -346,7 +343,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
      * @return the arguments array.
      */
     private static List<String> parseArguments(String cmdStr) {
-        List<String> list = new ArrayList<String>();
+        List<String> list = new ArrayList<>();
         // The legal arguments are
         // 1. token starting with something other than quote " and followed by zero or more non-space characters
         // 2. a quote " followed by whatever, until another quote "

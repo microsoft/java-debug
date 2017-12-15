@@ -26,7 +26,6 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
-import com.microsoft.java.debug.core.adapter.IStackFrameProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -67,9 +66,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-
-                IStackFrameProvider stackFrameProvider = context.getProvider(IStackFrameProvider.class);
-                StackFrame[] frames = stackFrameProvider.getStackFrames(thread, true);
+                StackFrame[] frames = context.getStackFrameManager().refreshStackFrames(thread);
 
                 int count  = stacktraceArgs.levels == 0
                         ? totalFrames - stacktraceArgs.startFrame

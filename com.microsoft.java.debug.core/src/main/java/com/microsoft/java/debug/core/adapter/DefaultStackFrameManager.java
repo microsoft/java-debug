@@ -10,23 +10,18 @@
  *******************************************************************************/
 
 
-package com.microsoft.java.debug.plugin.internal;
+package com.microsoft.java.debug.core.adapter;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
-import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.IStackFrameProvider;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
-public class DefaultStackFrameProvider implements IStackFrameProvider {
-    private Map<Long, StackFrame[]> threadStackFrameMap;
-
-    @Override
-    public void initialize(IDebugAdapterContext debugContext, Map<String, Object> options) {
-        threadStackFrameMap = debugContext.getThreadStackFrameMap();
-    }
+public class DefaultStackFrameManager implements IStackFrameManager {
+    private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
 
     @Override
     public StackFrame getStackFrame(ThreadReference thread, int depth) {
@@ -37,17 +32,13 @@ public class DefaultStackFrameProvider implements IStackFrameProvider {
     }
 
     @Override
-    public StackFrame[] getStackFrames(ThreadReference thread, boolean forceUpdate) {
+    public StackFrame[] refreshStackFrames(ThreadReference thread) {
         synchronized (threadStackFrameMap) {
             return threadStackFrameMap.compute(thread.uniqueID(), (key, old) -> {
-                if (forceUpdate || old == null) {
-                    try {
-                        return thread.frames().toArray(new StackFrame[0]);
-                    } catch (IncompatibleThreadStateException e) {
-                        return new StackFrame[0];
-                    }
-                } else {
-                    return old;
+                try {
+                    return thread.frames().toArray(new StackFrame[0]);
+                } catch (IncompatibleThreadStateException e) {
+                    return new StackFrame[0];
                 }
             });
         }
