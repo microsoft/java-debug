@@ -61,7 +61,6 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
         int totalFrames = 0;
         if (thread != null) {
-
             try {
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
@@ -81,14 +80,11 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                             stackframe);
                     result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context));
                 }
-
-
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates
-
                 // TODO: should record a error log here.
             }
         }
