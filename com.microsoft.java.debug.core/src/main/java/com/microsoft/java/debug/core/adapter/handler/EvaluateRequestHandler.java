@@ -70,21 +70,21 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             if (value instanceof VoidValue) {
                 response.body = new Responses.EvaluateResponseBody(value.toString(), 0, "<void>", 0);
                 return response;
-            } else {
-                long threadId = stackFrameProxy.getThread().uniqueID();
-                if (value instanceof ObjectReference) {
-                    VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
-                    int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
-                    int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
-                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), referenceId,
-                            variableFormatter.typeToString(value == null ? null : value.type(), options), indexedVariableId);
-                } else {
-                    // for primitive value
-                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), 0,
-                            variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
-                }
-                return response;
             }
+            long threadId = stackFrameProxy.getThread().uniqueID();
+            if (value instanceof ObjectReference) {
+                VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
+                int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
+                int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
+                response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), referenceId,
+                        variableFormatter.typeToString(value == null ? null : value.type(), options), indexedVariableId);
+
+            } else {
+                // for primitive value
+                response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), 0,
+                            variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
+            }
+            return response;
         });
     }
 }
