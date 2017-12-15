@@ -47,13 +47,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         EvaluateArguments evalArguments = (EvaluateArguments) arguments;
-        if (StringUtils.isBlank(evalArguments.expression)) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                    "EvaluateRequest: property 'expression' is missing, null, or empty");
-        }
-
         final boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
-
         Map<String, Object> options = context.getVariableFormatter().getDefaultOptions();
         VariableUtils.applyFormatterOptions(options, evalArguments.format != null && evalArguments.format.hex);
         String expression = evalArguments.expression;
