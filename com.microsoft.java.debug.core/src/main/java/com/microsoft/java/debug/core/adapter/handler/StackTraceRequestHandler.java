@@ -16,7 +16,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -27,6 +26,7 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.IStackFrameProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -69,28 +69,17 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     return CompletableFuture.completedFuture(response);
                 }
 
-                Map<Long, StackFrame[]> threadStackFrameMap = context.getThreadStackFrameMap();
-                StackFrame[] frames = new StackFrame[0];
-                synchronized (threadStackFrameMap) {
-                    frames = threadStackFrameMap.compute(thread.uniqueID(), (k, v) -> {
-                            try {
-                                return thread.frames().toArray(new StackFrame[0]);
-                            } catch (IncompatibleThreadStateException e) {
-                                return new StackFrame[0];
-                            }
-                        }
-                    );
-
-                }
+                IStackFrameProvider stackFrameProvider = context.getProvider(IStackFrameProvider.class);
+                StackFrame[] frames = stackFrameProvider.getStackFrames(thread, true);
 
                 int count  = stacktraceArgs.levels == 0
                         ? totalFrames - stacktraceArgs.startFrame
                         : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
                 for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
-                    StackFrameProxy stackframe = new StackFrameProxy(frames[i].thread(), i, context.getThreadStackFrameMap());
-                    int frameId = context.getRecyclableIdPool().addObject(stackframe.thread().uniqueID(),
+                    StackFrameProxy stackframe = new StackFrameProxy(thread, i);
+                    int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(),
                             stackframe);
-                    result.add(convertDebuggerStackFrameToClient(stackframe, frameId, context));
+                    result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context));
                 }
 
 

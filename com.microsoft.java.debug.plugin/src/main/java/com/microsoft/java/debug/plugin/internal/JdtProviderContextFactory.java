@@ -15,6 +15,7 @@ import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.IProviderContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.IStackFrameProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.adapter.ProviderContext;
 import com.microsoft.java.debug.plugin.internal.eval.JdtEvaluationProvider;
@@ -32,7 +33,9 @@ public abstract class JdtProviderContextFactory {
         context.registerProvider(ISourceLookUpProvider.class, new JdtSourceLookUpProvider());
         context.registerProvider(IVirtualMachineManagerProvider.class, new JdtVirtualMachineManagerProvider());
         context.registerProvider(IHotCodeReplaceProvider.class, new JavaHotCodeReplaceProvider());
-        context.registerProvider(IEvaluationProvider.class, new JdtEvaluationProvider());
+        IStackFrameProvider stackFrameProvider = new DefaultStackFrameProvider();
+        context.registerProvider(IStackFrameProvider.class, stackFrameProvider);
+        context.registerProvider(IEvaluationProvider.class, new JdtEvaluationProvider(stackFrameProvider));
 
         return context;
     }

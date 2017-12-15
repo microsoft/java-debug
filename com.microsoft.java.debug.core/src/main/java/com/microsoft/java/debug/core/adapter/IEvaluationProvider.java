@@ -12,8 +12,8 @@
 package com.microsoft.java.debug.core.adapter;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
 
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -34,11 +34,12 @@ public interface IEvaluationProvider extends IProvider {
      * Evaluate the expression at the given project and thread and stack frame depth, the promise is to be resolved/rejected when
      * the evaluation finishes.
      *
-     * @param expression The expression to be evaluated
-     * @param sf The stack frame of the evaluation task
-     * @return the evaluation result
+     * @param code The expression to be evaluated
+     * @param thread The jdi thread to the expression will be executed at
+     * @param depth The depth of stackframe of the stopped thread
+     * @return the evaluation result future
      */
-    CompletableFuture<Value> evaluate(String expression, StackFrame sf);
+    CompletableFuture<Value> evaluate(String code, ThreadReference thread, int depth);
 
 
     /**
@@ -46,5 +47,7 @@ public interface IEvaluationProvider extends IProvider {
      * @param thread the JDI thread reference where the evaluation task is executing at
      */
     void cancelEvaluation(ThreadReference thread);
+
+    Lock acquireEvaluationLock(ThreadReference thread);
 
 }

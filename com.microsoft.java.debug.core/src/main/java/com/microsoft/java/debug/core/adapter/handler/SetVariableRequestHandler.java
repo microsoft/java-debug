@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -24,6 +25,8 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.IStackFrameProvider;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -94,41 +97,50 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         }
 
         Object containerObj = ((VariableProxy) container).getProxiedVariable();
+        IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
+        Lock lock = null;
         try {
-            if (containerObj instanceof StackFrameProxy) {
-                StackFrameProxy stackFrameProxy = (StackFrameProxy) containerObj;
-                newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value,
-                     showStaticVariables,  stackFrameProxy, options);
+            try {
+                if (containerObj instanceof StackFrameProxy) {
+                    StackFrameProxy stackFrameProxy = (StackFrameProxy) containerObj;
+                    lock = engine.acquireEvaluationLock(stackFrameProxy.getThread());
+                    IStackFrameProvider stackFrameProvider = context.getProvider(IStackFrameProvider.class);
+                    newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value, showStaticVariables,
+                            stackFrameProvider.getStackFrame(stackFrameProxy.getThread(), stackFrameProxy.getDepth()), options);
 
-            } else if (containerObj instanceof ObjectReference) {
-                newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value,
-                        (ObjectReference) containerObj, options);
-            } else {
+                } else if (containerObj instanceof ObjectReference) {
+                    newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value, (ObjectReference) containerObj, options);
+                } else {
+                    return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+                            String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference));
+                }
+            } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
+                    | UnsupportedOperationException | ClassNotLoadedException e) {
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                        String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference));
+                        String.format("Failed to set variable. Reason: %s", e.toString()));
             }
-        } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
-                | UnsupportedOperationException | ClassNotLoadedException e) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                    String.format("Failed to set variable. Reason: %s", e.toString()));
-        }
-        int referenceId = 0;
-        if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
-            long threadId = ((VariableProxy) container).getThreadId();
-            String scopeName = ((VariableProxy) container).getScope();
-            VariableProxy varProxy = new VariableProxy(threadId, scopeName, newValue);
-            referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
-        }
+            int referenceId = 0;
+            if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
+                long threadId = ((VariableProxy) container).getThreadId();
+                String scopeName = ((VariableProxy) container).getScope();
+                VariableProxy varProxy = new VariableProxy(threadId, scopeName, newValue);
+                referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
+            }
 
-        int indexedVariables = 0;
-        if (newValue instanceof ArrayReference) {
-            indexedVariables = ((ArrayReference) newValue).length();
+            int indexedVariables = 0;
+            if (newValue instanceof ArrayReference) {
+                indexedVariables = ((ArrayReference) newValue).length();
+            }
+            response.body = new Responses.SetVariablesResponseBody(
+                    context.getVariableFormatter().typeToString(newValue == null ? null : newValue.type(), options), // type
+                    context.getVariableFormatter().valueToString(newValue, options), // value,
+                    referenceId, indexedVariables);
+            return CompletableFuture.completedFuture(response);
+        } finally {
+            if (lock != null) {
+                lock.unlock();
+            }
         }
-        response.body = new Responses.SetVariablesResponseBody(
-                context.getVariableFormatter().typeToString(newValue == null ? null : newValue.type(), options), // type
-                context.getVariableFormatter().valueToString(newValue, options), // value,
-                referenceId, indexedVariables);
-        return CompletableFuture.completedFuture(response);
     }
 
     private Value handleSetValueForObject(String name, String belongToClass, String valueString,

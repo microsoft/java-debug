@@ -26,6 +26,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.ScopesArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
+import com.sun.jdi.ThreadReference;
 
 public class ScopesRequestHandler implements IDebugRequestHandler {
 
@@ -38,13 +39,14 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         ScopesArguments scopesArgs = (ScopesArguments) arguments;
         List<Types.Scope> scopes = new ArrayList<>();
-        StackFrameProxy stackFrame = (StackFrameProxy) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
-        if (stackFrame == null) {
+        StackFrameProxy stackFrameProxy = (StackFrameProxy) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
+        if (stackFrameProxy == null) {
             response.body = new Responses.ScopesResponseBody(scopes);
             return CompletableFuture.completedFuture(response);
         }
-        VariableProxy localScope = new VariableProxy(stackFrame.thread().uniqueID(), "Local", stackFrame);
-        int localScopeId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(), localScope);
+        ThreadReference thread = stackFrameProxy.getThread();
+        VariableProxy localScope = new VariableProxy(thread.uniqueID(), "Local", stackFrameProxy);
+        int localScopeId = context.getRecyclableIdPool().addObject(thread.uniqueID(), localScope);
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 
         response.body = new Responses.ScopesResponseBody(scopes);

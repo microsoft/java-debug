@@ -71,12 +71,12 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         }
         IVariableFormatter variableFormatter = context.getVariableFormatter();
         IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-        CompletableFuture<Value> evaluateResult = engine.evaluate(expression, stackFrameProxy);
+        CompletableFuture<Value> evaluateResult = engine.evaluate(expression, stackFrameProxy.getThread(), stackFrameProxy.getDepth());
         return evaluateResult.thenApply(value -> {
             if (value instanceof VoidValue) {
                 response.body = new Responses.EvaluateResponseBody(value.toString(), 0, "<void>", 0);
             } else {
-                long threadId = stackFrameProxy.thread().uniqueID();
+                long threadId = stackFrameProxy.getThread().uniqueID();
                 if (value instanceof ObjectReference) {
                     VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
                     int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
