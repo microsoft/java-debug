@@ -58,7 +58,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         //       Add post launch logic and move the reinstall breakpoints logic there.
         if (!isHcrInitialized) {
             IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-            hcrProvider.redefineClasses((typenames) -> {
+            hcrProvider.onClassRedefined((typenames) -> {
                 this.reinstallBreakpoints(context, typenames);
             });
             isHcrInitialized = true;

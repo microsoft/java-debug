@@ -89,12 +89,12 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private Map<ThreadReference, List<StackFrame>> threadFrameMap = new HashMap<>();
 
-    private Consumer<List<String>> consumer;
+    private List<Consumer<List<String>>> consumers = new ArrayList<Consumer<List<String>>>();
 
     /**
      * Visitor for resource deltas.
      */
-    protected ChangedClassFilesVisitor classFilesVisitor = new ChangedClassFilesVisitor();
+    private ChangedClassFilesVisitor classFilesVisitor = new ChangedClassFilesVisitor();
 
     /**
      * A visitor which collects changed class files.
@@ -103,12 +103,12 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         /**
          * The collection of changed class files.
          */
-        protected List<IResource> changedFiles = null;
+        private List<IResource> changedFiles = null;
 
         /**
          * Collection of qualified type names, corresponding to class files.
          */
-        protected List<String> fullyQualifiedNames = null;
+        private List<String> fullyQualifiedNames = null;
 
         /**
          * Answers whether children should be visited.
@@ -286,8 +286,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     }
 
     @Override
-    public void redefineClasses(Consumer<List<String>> consumer) {
-        this.consumer = consumer;
+    public void onClassRedefined(Consumer<List<String>> consumer) {
+        this.consumers.add(consumer);
     }
 
     private void doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
@@ -324,8 +324,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
 
             redefineTypesJDK(resourcesToReplace, qualifiedNamesToReplace);
-            if (this.consumer != null) {
-                this.consumer.accept(qualifiedNamesToReplace);
+            for (Consumer<List<String>> consumer : consumers) {
+                consumer.accept(qualifiedNamesToReplace);
             }
 
             if (containsObsoleteMethods()) {
@@ -347,7 +347,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     private void filterNotLoadedTypes(List<IResource> resources, List<String> qualifiedNames) {
         for (int i = 0, numElements = qualifiedNames.size(); i < numElements; i++) {
             String name = qualifiedNames.get(i);
-            List<ReferenceType> list = getjdiClassesByName(name);
+            List<ReferenceType> list = getJdiClassesByName(name);
             if (list.isEmpty()) {
                 // If no classes with the given name are loaded in the VM, don't
                 // waste
@@ -367,7 +367,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
      *
      * @see com.sun.jdi.VirtualMachine
      */
-    private List<ReferenceType> getjdiClassesByName(String className) {
+    private List<ReferenceType> getJdiClassesByName(String className) {
         VirtualMachine vm = this.currentDebugSession.getVM();
         if (vm != null) {
             return vm.classesByName(className);
@@ -379,7 +379,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
      * Looks for the deepest affected stack frames in the stack and forces pop
      * affected frames. Does this for all of the active stack frames in the session.
      */
-    protected void attemptPopFrames(List<IResource> resources, List<String> replacedClassNames,
+    private void attemptPopFrames(List<IResource> resources, List<String> replacedClassNames,
             List<ThreadReference> poppedThreads) throws DebugException {
         List<StackFrame> popFrames = getAffectedFrames(currentDebugSession.getAllThreads(), replacedClassNames);
 
@@ -396,7 +396,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     /**
      * Performs a "step into" operation on the given threads.
      */
-    protected void attemptStepIn(List<ThreadReference> threads) {
+    private void attemptStepIn(List<ThreadReference> threads) {
         for (ThreadReference thread : threads) {
             stepIntoThread(thread);
         }
@@ -406,7 +406,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
      * Looks for the deepest affected stack frame in the stack and forces a drop to
      * frame. Does this for all of the active stack frames in the target.
      */
-    protected void attemptDropToFrame(List<IResource> resources, List<String> replacedClassNames)
+    private void attemptDropToFrame(List<IResource> resources, List<String> replacedClassNames)
             throws DebugException {
         List<StackFrame> dropFrames = getAffectedFrames(currentDebugSession.getAllThreads(), replacedClassNames);
 
@@ -420,7 +420,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     /**
      * Returns a list of frames which should be popped in the given threads.
      */
-    protected List<StackFrame> getAffectedFrames(List<ThreadReference> threads, List<String> replacedClassNames)
+    private List<StackFrame> getAffectedFrames(List<ThreadReference> threads, List<String> replacedClassNames)
             throws DebugException {
         List<StackFrame> popFrames = new ArrayList<>();
         for (ThreadReference thread : threads) {
@@ -445,7 +445,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
      * possible, only stack frames whose methods were directly affected (and not
      * simply all frames in affected types) will be returned.
      */
-    protected StackFrame getAffectedFrame(ThreadReference thread, List<String> replacedClassNames)
+    private StackFrame getAffectedFrame(ThreadReference thread, List<String> replacedClassNames)
             throws DebugException {
         List<StackFrame> frames = getStackFrames(thread, false);
         StackFrame affectedFrame = null;
@@ -474,7 +474,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         return affectedFrame;
     }
 
-    protected boolean containsChangedType(StackFrame frame, List<String> replacedClassNames) throws DebugException {
+    private boolean containsChangedType(StackFrame frame, List<String> replacedClassNames) throws DebugException {
         String declaringTypeName = getDeclaringTypeName(frame);
         // Check if the frame's declaring type was changed
         if (replacedClassNames.contains(declaringTypeName)) {
@@ -631,7 +631,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         while (resourceIter.hasNext()) {
             resource = resourceIter.next();
             name = nameIter.next();
-            List<ReferenceType> classes = getjdiClassesByName(name);
+            List<ReferenceType> classes = getJdiClassesByName(name);
             byte[] bytes = null;
             try {
                 bytes = Util.getResourceContentsAsByteArray((IFile) resource);

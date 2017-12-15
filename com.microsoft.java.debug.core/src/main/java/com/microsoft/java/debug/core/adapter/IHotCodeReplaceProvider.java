@@ -15,5 +15,5 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public interface IHotCodeReplaceProvider extends IProvider {
-    void redefineClasses(Consumer<List<String>> consumer);
+    void onClassRedefined(Consumer<List<String>> consumer);
 }
