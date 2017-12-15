@@ -75,6 +75,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         return evaluateResult.thenApply(value -> {
             if (value instanceof VoidValue) {
                 response.body = new Responses.EvaluateResponseBody(value.toString(), 0, "<void>", 0);
+                return response;
             } else {
                 long threadId = stackFrameProxy.getThread().uniqueID();
                 if (value instanceof ObjectReference) {
@@ -88,8 +89,8 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), 0,
                             variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
                 }
+                return response;
             }
-            return response;
         });
     }
 }
