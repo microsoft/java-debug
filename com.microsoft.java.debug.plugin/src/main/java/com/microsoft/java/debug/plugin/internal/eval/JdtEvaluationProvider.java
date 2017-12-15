@@ -12,7 +12,6 @@
 package com.microsoft.java.debug.plugin.internal.eval;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
@@ -42,9 +41,6 @@ import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
-import com.sun.jdi.ClassType;
-import com.sun.jdi.Method;
-import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -78,7 +74,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         if (debugTarget == null) {
             if (project == null) {
                 if (StringUtils.isBlank(projectName)) {
-                    // TODO: get project from stackframe
                     logger.severe("Cannot evaluate when project is not specified.");
                     completableFuture.completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
                     return completableFuture;
@@ -151,11 +146,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         synchronized (threadMap) {
             return threadMap.computeIfAbsent(thread, threadKey -> new JDIThread(debugTarget, thread) {
                 @Override
-                protected Value invokeMethod(ClassType receiverClass, ObjectReference receiverObject, Method method,
-                        List<? extends Value> args, boolean invokeNonvirtual) throws DebugException {
-                    Value value = super.invokeMethod(receiverClass, receiverObject, method, args, invokeNonvirtual);
+                protected synchronized void invokeComplete(int restoreTimeout) {
+                    super.invokeComplete(restoreTimeout);
                     context.getStackFrameManager().refreshStackFrames(thread);
-                    return value;
                 }
             });
         }
