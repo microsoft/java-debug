@@ -43,11 +43,18 @@ public interface IEvaluationProvider extends IProvider {
 
 
     /**
-     * Cancel ongoing evaluation tasks on specified thread.
+     * Call this method when the thread is to be resumed by user, it will first cancel ongoing evaluation tasks on specified thread and
+     * ensure the inner states is cleaned.
+     *
      * @param thread the JDI thread reference where the evaluation task is executing at
      */
-    void cancelEvaluation(ThreadReference thread);
+    void cleanEvaluateStates(ThreadReference thread);
 
+    /**
+     * Acquire an evaluation lock on the jdi thread.
+     * @param thread the jdi thread
+     * @return the lock object
+     */
     Lock acquireEvaluationLock(ThreadReference thread);
 
 }

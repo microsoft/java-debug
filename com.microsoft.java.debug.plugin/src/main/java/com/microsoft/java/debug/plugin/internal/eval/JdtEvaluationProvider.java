@@ -196,15 +196,18 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     @Override
-    public void cancelEvaluation(ThreadReference thread) {
+    public void cleanEvaluateStates(ThreadReference thread) {
         if (debugTarget != null) {
-            JDIThread jdiThread = getMockJDIThread(thread);
-            if (jdiThread != null) {
-                try {
-                    jdiThread.terminateEvaluation();
-                } catch (DebugException e) {
-                    logger.warning(String.format("Error stopping evalutoin on thread %d: %s", thread.uniqueID(),
-                            e.toString()));
+            synchronized (threadMap) {
+                JDIThread jdiThread = threadMap.get(thread);
+                if (jdiThread != null) {
+                    try {
+                        jdiThread.terminateEvaluation();
+                    } catch (DebugException e) {
+                        logger.warning(String.format("Error stopping evalutoin on thread %d: %s", thread.uniqueID(),
+                                e.toString()));
+                    }
+                    threadMap.remove(thread);
                 }
             }
         }
