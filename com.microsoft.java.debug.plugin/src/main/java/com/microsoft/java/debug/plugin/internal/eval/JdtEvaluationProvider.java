@@ -58,7 +58,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
 
     private HashMap<String, Object> options = new HashMap<>();
-    private Map<Long, IDisposable> disposableLocks = new HashMap<>();
+    private Map<Long, ReentrantLockDisposable> disposableLocks = new HashMap<>();
     private IDebugAdapterContext context;
 
     public JdtEvaluationProvider() {
@@ -75,7 +75,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     @Override
     public IDisposable acquireEvaluationLock(ThreadReference thread) {
-        return disposableLocks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLockDisposable());
+        ReentrantLockDisposable lock = disposableLocks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLockDisposable());
+        lock.lock();
+        return lock;
     }
 
     @Override

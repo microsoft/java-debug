@@ -21,6 +21,9 @@ class ReentrantLockDisposable implements IDisposable {
 
     ReentrantLockDisposable() {
         lock =  new ReentrantLock();
+    }
+
+    void lock() {
         lock.lock();
     }
 
