@@ -19,6 +19,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.xml.ws.Response;
+
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
@@ -40,12 +42,15 @@ import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.sun.tools.classfile.Dependencies;
 
 public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
+    private Map<Command, List<Command>> commandDependencies = new HashMap<>();
+    private Map<Command, CompletableFuture<Messages.Response>> lastResponses = new HashMap<>();
 
     /**
      * Constructor.
@@ -64,13 +69,28 @@ public class DebugAdapter implements IDebugAdapter {
         response.success = true;
 
         Command command = Command.parse(request.command);
+        List<Command> commandDependencies = getCommandDependencies(command);
+
+        // START WIP
+        CompletableFuture.allOf(commandDependencies.stream().map(cmd -> getLastResponse(cmd)).toArray());
+        for (Command cmd : commandDependencies) {
+            setLastResponse(command, getLastResponse(cmd).thenCompose(res -> processRequest(request, response)));
+        }
+
+        return null;
+        // END WIP
+    }
+
+    private CompletableFuture<Messages.Response> processRequest(Messages.Request request, Messages.Response response) {
+        Command command = Command.parse(request.command);
         Arguments cmdArgs = JsonUtils.fromJson(request.arguments, command.getArgumentType());
+        List<IDebugRequestHandler> handlers = requestHandlers.get(command);
 
         if (debugContext.isVmTerminated()) {
             // the operation is meaningless
             return CompletableFuture.completedFuture(response);
         }
-        List<IDebugRequestHandler> handlers = requestHandlers.get(command);
+
         if (handlers != null && !handlers.isEmpty()) {
             CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
             for (IDebugRequestHandler handler : handlers) {
@@ -79,11 +99,11 @@ public class DebugAdapter implements IDebugAdapter {
                 });
             }
             return future;
-        } else {
-            final String errorMessage = String.format("Unrecognized request: { _request: %s }", request.command);
-            logger.log(Level.SEVERE, errorMessage);
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE, errorMessage);
         }
+
+        final String errorMessage = String.format("Unrecognized request: { _request: %s }", request.command);
+        logger.log(Level.SEVERE, errorMessage);
+        return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE, errorMessage);
     }
 
     private void initialize() {
@@ -104,6 +124,8 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new VariablesRequestHandler());
         registerHandler(new SetVariableRequestHandler());
         registerHandler(new EvaluateRequestHandler());
+
+        addCommandDependency(Command.EVALUATE, Command.VARIABLES);
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
@@ -115,5 +137,24 @@ public class DebugAdapter implements IDebugAdapter {
             }
             handlerList.add(handler);
         }
+    }
+
+    private void addCommandDependency(Command command, Command dependency) {
+        List<Command> dependencies = commandDependencies.computeIfAbsent(command, key -> new ArrayList());
+        if (!dependencies.contains(dependency)) {
+            dependencies.add(dependency);
+        }
+    }
+
+    private List<Command> getCommandDependencies(Command command) {
+        return commandDependencies.computeIfAbsent(command, key -> new ArrayList());
+    }
+
+    private CompletableFuture<Messages.Response> getLastResponse(Command command) {
+        return lastResponses.computeIfAbsent(command, key -> CompletableFuture.completedFuture(new Messages.Response()));
+    }
+
+    private void setLastResponse(Command command, CompletableFuture<Messages.Response> response) {
+        lastResponses.put(command, response);
     }
 }
