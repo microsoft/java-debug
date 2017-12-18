@@ -23,11 +23,11 @@ import org.apache.commons.lang3.StringUtils;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.DisposableLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
-import com.microsoft.java.debug.core.adapter.LockedObject;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -39,7 +39,6 @@ import com.microsoft.java.debug.core.protocol.Requests.EvaluateArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ObjectReference;
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.Value;
 import com.sun.jdi.VoidValue;
 
@@ -73,15 +72,14 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         CompletableFuture<Response> completableFuture = new CompletableFuture<>();
 
         IVariableFormatter variableFormatter = context.getVariableFormatter();
+
+        DisposableLock lock = context.getStackFrameManager().acquireThreadLock(stackFrameReference.getThread());
+        completableFuture.whenComplete((res, er) -> {
+            synchronized (lock) {
+                lock.notifyAll();
+            }
+        });
         IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-        LockedObject<StackFrame>  disposableStackFrame =
-                context.getStackFrameManager().acquireStackFrame(stackFrameReference);
-        if (disposableStackFrame == null) {
-            AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
-                    "Failed to evaluate. Reason: Cannot evaluate because the stackframe cannot be initialized.");
-            completableFuture.complete(response);
-            return completableFuture;
-        }
         CompletableFuture<Value> evaluateResult  = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth());
         evaluateResult.whenComplete((value, error) -> {
             if (error != null) {
@@ -96,7 +94,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             }
             long threadId = stackFrameReference.getThread().uniqueID();
             if (value instanceof ObjectReference) {
-                VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
+                VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
                 int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
                 int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
                 response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), referenceId,
@@ -109,20 +107,14 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
             completableFuture.complete(response);
         });
-        completableFuture.whenComplete((res, er) -> {
-            synchronized (disposableStackFrame) {
-                disposableStackFrame.notifyAll();
-            }
-        });
-        synchronized (disposableStackFrame) {
+        synchronized (lock) {
             try {
-                disposableStackFrame.wait();
-                disposableStackFrame.close();
+                lock.wait();
+                lock.close();
             } catch (Exception e) {
                 logger.log(Level.SEVERE, String.format("Cannot release lock for evalution.", e.toString()), e);
             }
         }
-
         return completableFuture;
     }
 }

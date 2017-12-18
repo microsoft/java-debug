@@ -24,11 +24,11 @@ import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.DisposableLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IStackFrameManager;
-import com.microsoft.java.debug.core.adapter.LockedObject;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
@@ -83,93 +83,97 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList;
         IStackFrameManager stackFrameManager = context.getStackFrameManager();
-        if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
-            StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
-
-            try (LockedObject<StackFrame> lockedStackFrame =
-                    stackFrameManager.acquireStackFrame(stackFrameReference)) {
-                StackFrame frame = lockedStackFrame.getObject();
-                childrenList = VariableUtils.listLocalVariables(frame);
-                Variable thisVariable = VariableUtils.getThisVariable(frame);
-                if (thisVariable != null) {
-                    childrenList.add(thisVariable);
+        try (DisposableLock lock = stackFrameManager.acquireThreadLock(containerNode.getThread())) {
+            if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
+                StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
+                StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
+                if (frame == null) {
+                    return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                            String.format("Invalid stackframe id %d to get variables.", varArgs.variablesReference));
                 }
-                if (showStaticVariables && frame.location().method().isStatic()) {
-                    childrenList.addAll(VariableUtils.listStaticVariables(frame));
-                }
-            } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                    String.format("Failed to get variables. Reason: %s", e.toString()));
-            }
-        } else {
-            try {
-                ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
-                if (varArgs.count > 0) {
-                    childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
-                } else {
-                    childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
-                }
-            } catch (AbsentInformationException e) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                    String.format("Failed to get variables. Reason: %s", e.toString()));
-            }
-        }
-
-        // Find variable name duplicates
-        Set<String> duplicateNames = getDuplicateNames(childrenList.stream().map(var -> var.name).collect(Collectors.toList()));
-        Map<Variable, String> variableNameMap = new HashMap<>();
-        if (!duplicateNames.isEmpty()) {
-            Map<String, List<Variable>> duplicateVars = childrenList.stream()
-                    .filter(var -> duplicateNames.contains(var.name)).collect(Collectors.groupingBy(var -> var.name, Collectors.toList()));
-
-            duplicateVars.forEach((k, duplicateVariables) -> {
-                Set<String> declarationTypeNames = new HashSet<>();
-                boolean declarationTypeNameConflict = false;
-                // try use type formatter to resolve name conflict
-                for (Variable javaVariable : duplicateVariables) {
-                    Type declarationType = javaVariable.getDeclaringType();
-                    if (declarationType != null) {
-                        String declarationTypeName = variableFormatter.typeToString(declarationType, options);
-                        String compositeName = String.format("%s (%s)", javaVariable.name, declarationTypeName);
-                        if (!declarationTypeNames.add(compositeName)) {
-                            declarationTypeNameConflict = true;
-                            break;
-                        }
-                        variableNameMap.put(javaVariable, compositeName);
+                try {
+                    childrenList = VariableUtils.listLocalVariables(frame);
+                    Variable thisVariable = VariableUtils.getThisVariable(frame);
+                    if (thisVariable != null) {
+                        childrenList.add(thisVariable);
                     }
+                    if (showStaticVariables && frame.location().method().isStatic()) {
+                        childrenList.addAll(VariableUtils.listStaticVariables(frame));
+                    }
+                } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
+                    return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                        String.format("Failed to get variables. Reason: %s", e.toString()));
                 }
-                // If there are duplicate names on declaration types, use fully qualified name
-                if (declarationTypeNameConflict) {
+            } else {
+                try {
+                    ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
+                    if (varArgs.count > 0) {
+                        childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
+                    } else {
+                        childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
+                    }
+                } catch (AbsentInformationException e) {
+                    return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                        String.format("Failed to get variables. Reason: %s", e.toString()));
+                }
+            }
+
+            // Find variable name duplicates
+            Set<String> duplicateNames = getDuplicateNames(childrenList.stream().map(var -> var.name).collect(Collectors.toList()));
+            Map<Variable, String> variableNameMap = new HashMap<>();
+            if (!duplicateNames.isEmpty()) {
+                Map<String, List<Variable>> duplicateVars = childrenList.stream()
+                        .filter(var -> duplicateNames.contains(var.name)).collect(Collectors.groupingBy(var -> var.name, Collectors.toList()));
+
+                duplicateVars.forEach((k, duplicateVariables) -> {
+                    Set<String> declarationTypeNames = new HashSet<>();
+                    boolean declarationTypeNameConflict = false;
+                    // try use type formatter to resolve name conflict
                     for (Variable javaVariable : duplicateVariables) {
                         Type declarationType = javaVariable.getDeclaringType();
                         if (declarationType != null) {
-                            variableNameMap.put(javaVariable, String.format("%s (%s)", javaVariable.name, declarationType.name()));
+                            String declarationTypeName = variableFormatter.typeToString(declarationType, options);
+                            String compositeName = String.format("%s (%s)", javaVariable.name, declarationTypeName);
+                            if (!declarationTypeNames.add(compositeName)) {
+                                declarationTypeNameConflict = true;
+                                break;
+                            }
+                            variableNameMap.put(javaVariable, compositeName);
                         }
                     }
+                    // If there are duplicate names on declaration types, use fully qualified name
+                    if (declarationTypeNameConflict) {
+                        for (Variable javaVariable : duplicateVariables) {
+                            Type declarationType = javaVariable.getDeclaringType();
+                            if (declarationType != null) {
+                                variableNameMap.put(javaVariable, String.format("%s (%s)", javaVariable.name, declarationType.name()));
+                            }
+                        }
+                    }
+                });
+            }
+            for (Variable javaVariable : childrenList) {
+                Value value = javaVariable.value;
+                String name = javaVariable.name;
+                if (variableNameMap.containsKey(javaVariable)) {
+                    name = variableNameMap.get(javaVariable);
                 }
-            });
+                int referenceId = 0;
+                if (value instanceof ObjectReference && VariableUtils.hasChildren(value, showStaticVariables)) {
+                    VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
+                    referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
+                }
+                Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
+                        variableFormatter.typeToString(value == null ? null : value.type(), options),
+                        referenceId, null);
+                if (javaVariable.value instanceof ArrayReference) {
+                    typedVariables.indexedVariables = ((ArrayReference) javaVariable.value).length();
+                }
+                list.add(typedVariables);
+            }
+            response.body = new Responses.VariablesResponseBody(list);
+            return CompletableFuture.completedFuture(response);
         }
-        for (Variable javaVariable : childrenList) {
-            Value value = javaVariable.value;
-            String name = javaVariable.name;
-            if (variableNameMap.containsKey(javaVariable)) {
-                name = variableNameMap.get(javaVariable);
-            }
-            int referenceId = 0;
-            if (value instanceof ObjectReference && VariableUtils.hasChildren(value, showStaticVariables)) {
-                VariableProxy varProxy = new VariableProxy(containerNode.getThreadId(), containerNode.getScope(), value);
-                referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
-            }
-            Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
-                    variableFormatter.typeToString(value == null ? null : value.type(), options),
-                    referenceId, null);
-            if (javaVariable.value instanceof ArrayReference) {
-                typedVariables.indexedVariables = ((ArrayReference) javaVariable.value).length();
-            }
-            list.add(typedVariables);
-        }
-        response.body = new Responses.VariablesResponseBody(list);
-        return CompletableFuture.completedFuture(response);
     }
 
     private Set<String> getDuplicateNames(Collection<String> list) {

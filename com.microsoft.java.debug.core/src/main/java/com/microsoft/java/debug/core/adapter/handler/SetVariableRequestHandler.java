@@ -21,10 +21,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.DisposableLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.LockedObject;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -85,52 +85,52 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
                     "Failed to set variable. Reason: Cannot set value because the thread is resumed.");
         }
 
-        String name = setVarArguments.name;
-        Value newValue = null;
-        String belongToClass = null;
+        try (DisposableLock lock = context.getStackFrameManager().acquireThreadLock(((VariableProxy) container).getThread())) {
+            String name = setVarArguments.name;
+            Value newValue = null;
+            String belongToClass = null;
 
-        if (setVarArguments.name.contains("(")) {
-            name = setVarArguments.name.replaceFirst(PATTERN, "$1");
-            belongToClass = setVarArguments.name.replaceFirst(PATTERN, "$2");
-        }
-
-        Object containerObj = ((VariableProxy) container).getProxiedVariable();
-        try {
-            if (containerObj instanceof StackFrameReference) {
-                StackFrameReference stackFrameReference = (StackFrameReference) containerObj;
-                try (LockedObject<StackFrame> lockedStackFrame = context.getStackFrameManager()
-                        .acquireStackFrame(stackFrameReference)) {
-                    newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value, showStaticVariables,
-                            lockedStackFrame.getObject(), options);
-                }
-            } else if (containerObj instanceof ObjectReference) {
-                newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value, (ObjectReference) containerObj, options);
-            } else {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                        String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference));
+            if (setVarArguments.name.contains("(")) {
+                name = setVarArguments.name.replaceFirst(PATTERN, "$1");
+                belongToClass = setVarArguments.name.replaceFirst(PATTERN, "$2");
             }
-        } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
-                | UnsupportedOperationException | ClassNotLoadedException e) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                    String.format("Failed to set variable. Reason: %s", e.toString()));
-        }
-        int referenceId = 0;
-        if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
-            long threadId = ((VariableProxy) container).getThreadId();
-            String scopeName = ((VariableProxy) container).getScope();
-            VariableProxy varProxy = new VariableProxy(threadId, scopeName, newValue);
-            referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
-        }
 
-        int indexedVariables = 0;
-        if (newValue instanceof ArrayReference) {
-            indexedVariables = ((ArrayReference) newValue).length();
+            try {
+                Object containerObj = ((VariableProxy) container).getProxiedVariable();
+                if (containerObj instanceof StackFrameReference) {
+                    StackFrameReference stackFrameReference = (StackFrameReference) containerObj;
+                    StackFrame sf = context.getStackFrameManager().getStackFrame(stackFrameReference);
+                    newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value,
+                            showStaticVariables, sf, options);
+                } else if (containerObj instanceof ObjectReference) {
+                    newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value, (ObjectReference) containerObj, options);
+                } else {
+                    return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+                            String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference));
+                }
+            } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
+                    | UnsupportedOperationException | ClassNotLoadedException e) {
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
+                        String.format("Failed to set variable. Reason: %s", e.toString()));
+            }
+            int referenceId = 0;
+            if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
+                long threadId = ((VariableProxy) container).getThreadId();
+                String scopeName = ((VariableProxy) container).getScope();
+                VariableProxy varProxy = new VariableProxy(((VariableProxy) container).getThread(), scopeName, newValue);
+                referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
+            }
+
+            int indexedVariables = 0;
+            if (newValue instanceof ArrayReference) {
+                indexedVariables = ((ArrayReference) newValue).length();
+            }
+            response.body = new Responses.SetVariablesResponseBody(
+                    context.getVariableFormatter().typeToString(newValue == null ? null : newValue.type(), options), // type
+                    context.getVariableFormatter().valueToString(newValue, options), // value,
+                    referenceId, indexedVariables);
+            return CompletableFuture.completedFuture(response);
         }
-        response.body = new Responses.SetVariablesResponseBody(
-                context.getVariableFormatter().typeToString(newValue == null ? null : newValue.type(), options), // type
-                context.getVariableFormatter().valueToString(newValue, options), // value,
-                referenceId, indexedVariables);
-        return CompletableFuture.completedFuture(response);
     }
 
     private Value handleSetValueForObject(String name, String belongToClass, String valueString,

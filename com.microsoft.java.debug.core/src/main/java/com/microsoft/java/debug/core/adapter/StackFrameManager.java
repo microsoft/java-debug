@@ -25,22 +25,21 @@ public class StackFrameManager implements IStackFrameManager {
     private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
     private Map<Long, ReentrantLock> locks = Collections.synchronizedMap(new HashMap<>());
 
+
+
     @Override
-    public LockedObject<StackFrame> acquireStackFrame(ThreadReference thread, int depth) {
-        ReentrantLock lock = locks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLock());
-        lock.lock();
+    public StackFrame getStackFrame(StackFrameReference ref) {
+        ThreadReference thread = ref.getThread();
+        int depth = ref.getDepth();
         StackFrame[] frames = threadStackFrameMap.get(thread.uniqueID());
-        StackFrame sf = frames == null || frames.length < depth ? null : frames[depth];
-        if (sf == null) {
-            lock.unlock();
-            return null;
-        }
-        return new LockedObject<>(sf, lock);
+        return frames == null || frames.length < depth ? null : frames[depth];
     }
 
     @Override
-    public LockedObject<StackFrame> acquireStackFrame(StackFrameReference ref) {
-        return acquireStackFrame(ref.getThread(), ref.getDepth());
+    public DisposableLock acquireThreadLock(ThreadReference thread) {
+        ReentrantLock lock = locks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLock());
+        lock.lock();
+        return new DisposableLock(lock);
     }
 
     @Override

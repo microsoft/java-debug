@@ -13,44 +13,29 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.util.concurrent.locks.ReentrantLock;
 
-public class LockedObject<T> implements IDisposable {
-    private T object;
+public class DisposableLock implements IDisposable {
     private ReentrantLock lock;
 
     /**
-     * Create a disposable lock together with a underlying object.
+     * Create a disposable lock object.
      *
-     * @param object the underlying object
      * @param lock the lock
      */
-    public LockedObject(T object, ReentrantLock lock) {
+    public DisposableLock(ReentrantLock lock) {
         if (lock == null) {
             throw new IllegalArgumentException("Null lock is illegal for LockedObject.");
         }
 
-        if (object == null) {
-            throw new IllegalArgumentException("Null object is illegal for LockedObject.");
-        }
-
-        this.object = object;
         this.lock = lock;
     }
 
     @Override
     public void close() {
-        if (object != null) {
-            object = null;
-        }
-
         if (lock != null) {
             if (lock.isLocked()) {
                 lock.unlock();
             }
             lock = null;
         }
-    }
-
-    public T getObject() {
-        return object;
     }
 }

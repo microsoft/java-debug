@@ -17,27 +17,21 @@ import com.sun.jdi.ThreadReference;
 
 public interface IStackFrameManager {
     /**
-     * Acquire a stackframe from stack frame manager, for the same thread, only one of the
-     * stack frame is available concurrently, the next acquireStackFrame will block until the previous
-     * <code>LockedObject</code> is released.
-     *
-     * @param thread the jdi thread
-     * @param depth the depth of stackframe
-     * @return the stackframe at the specified depth
-     */
-    LockedObject<StackFrame> acquireStackFrame(ThreadReference thread, int depth);
-
-
-    /**
-     * Acquire a stackframe from stack frame manager, for the same thread, only one of the
-     * stack frame is available concurrently, the next acquireStackFrame will block until the previous
-     * <code>LockedObject</code> is released.
+     * Get a jdi stack frame from stack frame reference.
      *
      * @param ref the stackframe reference
+     * @return the jdi stackframe
      */
-    LockedObject<StackFrame> acquireStackFrame(StackFrameReference ref);
+    StackFrame getStackFrame(StackFrameReference ref);
 
-
+    /**
+     * Acquire a lock on the specified thread, this method will block if there is already a lock on the thread util
+     * the lock is released.
+     *
+     * @param thread the jdi thread
+     * @return the lock on the thread
+     */
+    DisposableLock acquireThreadLock(ThreadReference thread);
 
     /**
      * Refresh all stackframes from jdi thread.

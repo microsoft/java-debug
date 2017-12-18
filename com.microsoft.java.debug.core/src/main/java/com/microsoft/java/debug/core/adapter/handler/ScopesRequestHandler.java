@@ -16,9 +16,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.microsoft.java.debug.core.adapter.DisposableLock;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.LockedObject;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -27,7 +27,6 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.ScopesArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
 public class ScopesRequestHandler implements IDebugRequestHandler {
@@ -46,10 +45,9 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
             response.body = new Responses.ScopesResponseBody(scopes);
             return CompletableFuture.completedFuture(response);
         }
-        try (LockedObject<StackFrame> disposableStackFrame = context.getStackFrameManager()
-                .acquireStackFrame(stackFrameReference)) {
+        try (DisposableLock lock = context.getStackFrameManager().acquireThreadLock(stackFrameReference.getThread())) {
             ThreadReference thread = stackFrameReference.getThread();
-            VariableProxy localScope = new VariableProxy(thread.uniqueID(), "Local", stackFrameReference);
+            VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference);
             int localScopeId = context.getRecyclableIdPool().addObject(thread.uniqueID(), localScope);
             scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 
