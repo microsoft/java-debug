@@ -100,5 +100,5 @@ public interface IDebugAdapterContext {
 
     StepFilters getStepFilters();
 
-    ILockableStackFrameManager getStackFrameManager();
+    IStackFrameManager getStackFrameManager();
 }

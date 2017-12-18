@@ -148,7 +148,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 @Override
                 protected synchronized void invokeComplete(int restoreTimeout) {
                     super.invokeComplete(restoreTimeout);
-                    context.getStackFrameManager().refreshStackFrames(thread);
+                    context.getStackFrameManager().reloadStackFrames(thread);
                 }
             });
         }
@@ -161,7 +161,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     @Override
-    public void cleanEvaluateStates(ThreadReference thread) {
+    public void clearState(ThreadReference thread) {
         if (debugTarget != null) {
             synchronized (threadMap) {
                 JDIThread jdiThread = threadMap.get(thread);

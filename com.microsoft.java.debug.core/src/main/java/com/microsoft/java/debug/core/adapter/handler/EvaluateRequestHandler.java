@@ -23,11 +23,11 @@ import org.apache.commons.lang3.StringUtils;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.DisposableReentrantLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.LockedObject;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -71,61 +71,58 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         }
 
         CompletableFuture<Response> completableFuture = new CompletableFuture<>();
-        // new thread to unsure that the logic to acquire locker and release locker will be executed in this thread
-        new Thread(() -> {
 
-            IVariableFormatter variableFormatter = context.getVariableFormatter();
-            IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-            DisposableReentrantLock<StackFrame>  disposableStackFrame =
-                    context.getStackFrameManager().getLockedStackFrame(stackFrameReference.getThread(), stackFrameReference.getDepth());
-            if (disposableStackFrame == null) {
-                AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
-                        "Failed to evaluate. Reason: Cannot evaluate because the stackframe cannot be initialized.");
+        IVariableFormatter variableFormatter = context.getVariableFormatter();
+        IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
+        LockedObject<StackFrame>  disposableStackFrame =
+                context.getStackFrameManager().acquireStackFrame(stackFrameReference);
+        if (disposableStackFrame == null) {
+            AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
+                    "Failed to evaluate. Reason: Cannot evaluate because the stackframe cannot be initialized.");
+            completableFuture.complete(response);
+            return completableFuture;
+        }
+        CompletableFuture<Value> evaluateResult  = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth());
+        evaluateResult.whenComplete((value, error) -> {
+            if (error != null) {
+                completableFuture.completeExceptionally(error);
+                return;
+            }
+
+            if (value instanceof VoidValue) {
+                response.body = new Responses.EvaluateResponseBody(value.toString(), 0, "<void>", 0);
                 completableFuture.complete(response);
                 return;
             }
-            CompletableFuture<Value> evaluateResult  = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth());
-            evaluateResult.whenComplete((value, error) -> {
-                if (error != null) {
-                    completableFuture.completeExceptionally(error);
-                    return;
-                }
-
-                if (value instanceof VoidValue) {
-                    response.body = new Responses.EvaluateResponseBody(value.toString(), 0, "<void>", 0);
-                    completableFuture.complete(response);
-                    return;
-                }
-                long threadId = stackFrameReference.getThread().uniqueID();
-                if (value instanceof ObjectReference) {
-                    VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
-                    int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
-                    int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
-                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), referenceId,
-                            variableFormatter.typeToString(value == null ? null : value.type(), options), indexedVariableId);
-
-                } else {
-                    // for primitive value
-                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), 0,
-                                variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
-                }
+            long threadId = stackFrameReference.getThread().uniqueID();
+            if (value instanceof ObjectReference) {
+                VariableProxy varProxy = new VariableProxy(threadId, "eval", value);
+                int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
+                int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
+                response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), referenceId,
+                        variableFormatter.typeToString(value == null ? null : value.type(), options), indexedVariableId);
                 completableFuture.complete(response);
-            });
-            completableFuture.whenComplete((res, er) -> {
-                synchronized (disposableStackFrame) {
-                    disposableStackFrame.notifyAll();
-                }
-            });
-            synchronized (disposableStackFrame) {
-                try {
-                    disposableStackFrame.wait();
-                    disposableStackFrame.close();
-                } catch (Exception e) {
-                    logger.log(Level.SEVERE, String.format("Cannot release lock for evalution.", e.toString()), e);
-                }
+                return;
             }
+            // for primitive value
+            response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), 0,
+                        variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
+            completableFuture.complete(response);
+        });
+        completableFuture.whenComplete((res, er) -> {
+            synchronized (disposableStackFrame) {
+                disposableStackFrame.notifyAll();
+            }
+        });
+        synchronized (disposableStackFrame) {
+            try {
+                disposableStackFrame.wait();
+                disposableStackFrame.close();
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, String.format("Cannot release lock for evalution.", e.toString()), e);
+            }
+        }
 
-        }).start();
         return completableFuture;
     }
 }

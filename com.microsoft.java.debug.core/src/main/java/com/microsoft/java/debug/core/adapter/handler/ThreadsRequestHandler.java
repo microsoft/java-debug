@@ -118,7 +118,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     public static void checkThreadRunningAndRecycleIds(ThreadReference thread, IDebugAdapterContext context) {
         try {
             IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-            engine.cleanEvaluateStates(thread);
+            engine.clearState(thread);
             boolean allThreadsRunning = !DebugUtility.getAllThreadsSafely(context.getDebugSession()).stream()
                     .anyMatch(ThreadReference::isSuspended);
             if (allThreadsRunning) {

@@ -11,18 +11,32 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
-public interface ILockableStackFrameManager {
+public interface IStackFrameManager {
     /**
-     * Get a jdi stackframe from jdi thread.
+     * Acquire a stackframe from stack frame manager, for the same thread, only one of the
+     * stack frame is available concurrently, the next acquireStackFrame will block until the previous
+     * <code>LockedObject</code> is released.
      *
      * @param thread the jdi thread
      * @param depth the depth of stackframe
      * @return the stackframe at the specified depth
      */
-    DisposableReentrantLock<StackFrame> getLockedStackFrame(ThreadReference thread, int depth);
+    LockedObject<StackFrame> acquireStackFrame(ThreadReference thread, int depth);
+
+
+    /**
+     * Acquire a stackframe from stack frame manager, for the same thread, only one of the
+     * stack frame is available concurrently, the next acquireStackFrame will block until the previous
+     * <code>LockedObject</code> is released.
+     *
+     * @param ref the stackframe reference
+     */
+    LockedObject<StackFrame> acquireStackFrame(StackFrameReference ref);
+
 
 
     /**
@@ -31,5 +45,5 @@ public interface ILockableStackFrameManager {
      * @param thread the jdi thread
      * @return all the stackframes in the specified thread
      */
-    StackFrame[] refreshStackFrames(ThreadReference thread);
+    StackFrame[] reloadStackFrames(ThreadReference thread);
 }

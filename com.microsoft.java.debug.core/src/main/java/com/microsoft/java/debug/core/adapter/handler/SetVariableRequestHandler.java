@@ -21,10 +21,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.DisposableReentrantLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.LockedObject;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -98,10 +98,10 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         try {
             if (containerObj instanceof StackFrameReference) {
                 StackFrameReference stackFrameReference = (StackFrameReference) containerObj;
-                try (DisposableReentrantLock<StackFrame> lockedStackFrame = context.getStackFrameManager()
-                        .getLockedStackFrame(stackFrameReference.getThread(), stackFrameReference.getDepth())) {
+                try (LockedObject<StackFrame> lockedStackFrame = context.getStackFrameManager()
+                        .acquireStackFrame(stackFrameReference)) {
                     newValue = handleSetValueForStackFrame(name, belongToClass, setVarArguments.value, showStaticVariables,
-                            lockedStackFrame.getUnderlyingObject(), options);
+                            lockedStackFrame.getObject(), options);
                 }
             } else if (containerObj instanceof ObjectReference) {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value, (ObjectReference) containerObj, options);

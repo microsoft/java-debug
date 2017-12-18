@@ -16,44 +16,41 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
-public class LockableStackFrameManager implements ILockableStackFrameManager {
+public class StackFrameManager implements IStackFrameManager {
     private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
-    private Map<Long, ReentrantLock> locks = new HashMap<>();
+    private Map<Long, ReentrantLock> locks = Collections.synchronizedMap(new HashMap<>());
 
     @Override
-    public DisposableReentrantLock<StackFrame> getLockedStackFrame(ThreadReference thread, int depth) {
+    public LockedObject<StackFrame> acquireStackFrame(ThreadReference thread, int depth) {
         ReentrantLock lock = locks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLock());
         lock.lock();
-        StackFrame sf = getStackFrame(thread, depth);
+        StackFrame[] frames = threadStackFrameMap.get(thread.uniqueID());
+        StackFrame sf = frames == null || frames.length < depth ? null : frames[depth];
         if (sf == null) {
             lock.unlock();
             return null;
         }
-        return new DisposableReentrantLock<>(sf, lock);
-
+        return new LockedObject<>(sf, lock);
     }
 
     @Override
-    public StackFrame[] refreshStackFrames(ThreadReference thread) {
-        synchronized (threadStackFrameMap) {
-            return threadStackFrameMap.compute(thread.uniqueID(), (key, old) -> {
-                try {
-                    return thread.frames().toArray(new StackFrame[0]);
-                } catch (IncompatibleThreadStateException e) {
-                    return new StackFrame[0];
-                }
-            });
-        }
+    public LockedObject<StackFrame> acquireStackFrame(StackFrameReference ref) {
+        return acquireStackFrame(ref.getThread(), ref.getDepth());
     }
 
-    private StackFrame getStackFrame(ThreadReference thread, int depth) {
-        synchronized (threadStackFrameMap) {
-            StackFrame[] frames = threadStackFrameMap.get(thread.uniqueID());
-            return frames == null || frames.length < depth ? null : frames[depth];
-        }
+    @Override
+    public StackFrame[] reloadStackFrames(ThreadReference thread) {
+        return threadStackFrameMap.compute(thread.uniqueID(), (key, old) -> {
+            try {
+                return thread.frames().toArray(new StackFrame[0]);
+            } catch (IncompatibleThreadStateException e) {
+                return new StackFrame[0];
+            }
+        });
     }
 }

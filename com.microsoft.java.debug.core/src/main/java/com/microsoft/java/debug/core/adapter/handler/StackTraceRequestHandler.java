@@ -66,7 +66,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-                StackFrame[] frames = context.getStackFrameManager().refreshStackFrames(thread);
+                StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread);
 
                 int count  = stacktraceArgs.levels == 0
                         ? totalFrames - stacktraceArgs.startFrame

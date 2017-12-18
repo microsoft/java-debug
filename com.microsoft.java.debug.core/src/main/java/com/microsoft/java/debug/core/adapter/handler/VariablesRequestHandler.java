@@ -24,11 +24,11 @@ import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.DisposableReentrantLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.ILockableStackFrameManager;
+import com.microsoft.java.debug.core.adapter.IStackFrameManager;
+import com.microsoft.java.debug.core.adapter.LockedObject;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
@@ -82,13 +82,13 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList;
-        ILockableStackFrameManager stackFrameManager = context.getStackFrameManager();
+        IStackFrameManager stackFrameManager = context.getStackFrameManager();
         if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
             StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
 
-            try (DisposableReentrantLock<StackFrame> lockedStackFrame =
-                    stackFrameManager.getLockedStackFrame(stackFrameReference.getThread(), stackFrameReference.getDepth())) {
-                StackFrame frame = lockedStackFrame.getUnderlyingObject();
+            try (LockedObject<StackFrame> lockedStackFrame =
+                    stackFrameManager.acquireStackFrame(stackFrameReference)) {
+                StackFrame frame = lockedStackFrame.getObject();
                 childrenList = VariableUtils.listLocalVariables(frame);
                 Variable thisVariable = VariableUtils.getThisVariable(frame);
                 if (thisVariable != null) {

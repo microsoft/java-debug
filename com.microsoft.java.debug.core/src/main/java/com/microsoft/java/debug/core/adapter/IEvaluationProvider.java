@@ -33,12 +33,12 @@ public interface IEvaluationProvider extends IProvider {
      * Evaluate the expression at the given project and thread and stack frame depth, the promise is to be resolved/rejected when
      * the evaluation finishes.
      *
-     * @param code The expression to be evaluated
+     * @param expression The expression to be evaluated
      * @param thread The jdi thread to the expression will be executed at
      * @param depth The depth of stackframe of the stopped thread
      * @return the evaluation result future
      */
-    CompletableFuture<Value> evaluate(String code, ThreadReference thread, int depth);
+    CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth);
 
 
     /**
@@ -47,6 +47,6 @@ public interface IEvaluationProvider extends IProvider {
      *
      * @param thread the JDI thread reference where the evaluation task is executing at
      */
-    void cleanEvaluateStates(ThreadReference thread);
+    void clearState(ThreadReference thread);
 
 }

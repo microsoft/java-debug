@@ -45,7 +45,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
-    private ILockableStackFrameManager stackFrameManager = new LockableStackFrameManager();
+    private IStackFrameManager stackFrameManager = new StackFrameManager();
 
     public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
         this.providerContext = providerContext;
@@ -228,7 +228,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
-    public ILockableStackFrameManager getStackFrameManager() {
+    public IStackFrameManager getStackFrameManager() {
         return stackFrameManager;
     }
 }
