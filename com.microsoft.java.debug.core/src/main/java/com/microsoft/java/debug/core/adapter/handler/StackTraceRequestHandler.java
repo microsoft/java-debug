@@ -71,7 +71,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
 
                 int count  = stacktraceArgs.levels == 0
                         ? totalFrames - stacktraceArgs.startFrame
-                        : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
+                            : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
                 for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(),

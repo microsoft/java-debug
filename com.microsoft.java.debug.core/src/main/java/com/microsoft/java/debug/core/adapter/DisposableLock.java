@@ -23,7 +23,7 @@ public class DisposableLock implements IDisposable {
      */
     public DisposableLock(ReentrantLock lock) {
         if (lock == null) {
-            throw new IllegalArgumentException("Null lock is illegal for LockedObject.");
+            throw new IllegalArgumentException("Null lock is illegal for DisposableLock.");
         }
 
         this.lock = lock;

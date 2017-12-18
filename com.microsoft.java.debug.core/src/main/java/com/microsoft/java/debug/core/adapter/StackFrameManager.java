@@ -25,8 +25,6 @@ public class StackFrameManager implements IStackFrameManager {
     private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
     private Map<Long, ReentrantLock> locks = Collections.synchronizedMap(new HashMap<>());
 
-
-
     @Override
     public StackFrame getStackFrame(StackFrameReference ref) {
         ThreadReference thread = ref.getThread();
