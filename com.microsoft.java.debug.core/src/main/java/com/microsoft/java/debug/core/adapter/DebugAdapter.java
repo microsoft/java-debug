@@ -16,8 +16,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
@@ -67,17 +69,24 @@ public class DebugAdapter implements IDebugAdapter {
 
         Command command = Command.parse(request.command);
         List<Command> dependencies = getCommandDependencies(command);
+        CompletableFuture<Object> aggregatedDependencyFuture = new CompletableFuture<>();
+        if (dependencies.size() == 0) {
+            aggregatedDependencyFuture.complete(null);
+        } else {
+            AtomicInteger unresolvedFutureCount = new AtomicInteger(dependencies.size());
+            for (CompletableFuture<Messages.Response> result : getFutures(dependencies)) {
+                result.whenComplete((res, err) -> {
+                    if (unresolvedFutureCount.decrementAndGet() == 0) {
+                        aggregatedDependencyFuture.complete(null);
+                    }
+                });
+            }
+        }
 
-        getLastResults(dependencies)
+        CompletableFuture<Messages.Response> thisFuture = aggregatedDependencyFuture.thenCompose(o -> processRequest(request, response));
+        setFuture(command, thisFuture);
 
-        CompletableFuture<Messages.Response> thisResponse = CompletableFuture
-            .allOf(getLastResults(dependencies))
-            .thenCompose((Void v) -> {
-                return processRequest(request, response);
-            });
-
-        setLastResult(command, thisResponse);
-        return thisResponse;
+        return thisFuture;
     }
 
     private CompletableFuture<Messages.Response> processRequest(Messages.Request request, Messages.Response response) {
@@ -149,15 +158,15 @@ public class DebugAdapter implements IDebugAdapter {
         return commandDependencies.computeIfAbsent(command, key -> new ArrayList());
     }
 
-    private CompletableFuture<Messages.Response> getLastResult(Command command) {
+    private CompletableFuture<Messages.Response> getFuture(Command command) {
         return lastResponses.computeIfAbsent(command, key -> CompletableFuture.completedFuture(new Messages.Response()));
     }
 
-    private List<CompletableFuture<Messages.Response>> getLastResults(List<Command> commands) {
-        return new ArrayList(commands.stream().map(cmd -> getLastResult(cmd)).toArray(CompletableFuture[]::new));
+    private List<CompletableFuture<Messages.Response>> getFutures(List<Command> commands) {
+        return commands.stream().map(cmd -> getFuture(cmd)).collect(Collectors.toList());
     }
 
-    private void setLastResult(Command command, CompletableFuture<Messages.Response> response) {
+    private void setFuture(Command command, CompletableFuture<Messages.Response> response) {
         lastResponses.put(command, response);
     }
 }
