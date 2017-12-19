@@ -24,6 +24,7 @@ public final class DebugSettings {
     public boolean showStaticVariables = true;
     public boolean showQualifiedNames = false;
     public boolean showHex = false;
+    public boolean enableHotCodeReplace = false;
     public String logLevel;
 
     public static DebugSettings getCurrent() {
