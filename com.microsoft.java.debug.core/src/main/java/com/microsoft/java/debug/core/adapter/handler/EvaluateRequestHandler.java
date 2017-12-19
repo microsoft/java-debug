@@ -25,7 +25,6 @@ import org.apache.commons.lang3.StringUtils;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.DisposableLock;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -72,7 +71,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         }
 
         CompletableFuture<Response> completableFuture = CompletableFuture.supplyAsync(() -> {
-            try (DisposableLock lock = context.getStackFrameManager().acquireThreadLock(stackFrameReference.getThread())) {
+            try {
                 IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
                 Value value = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth()).get();
                 IVariableFormatter variableFormatter = context.getVariableFormatter();

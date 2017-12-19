@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import com.microsoft.java.debug.core.adapter.DisposableLock;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
@@ -45,14 +44,12 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
             response.body = new Responses.ScopesResponseBody(scopes);
             return CompletableFuture.completedFuture(response);
         }
-        try (DisposableLock lock = context.getStackFrameManager().acquireThreadLock(stackFrameReference.getThread())) {
-            ThreadReference thread = stackFrameReference.getThread();
-            VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference);
-            int localScopeId = context.getRecyclableIdPool().addObject(thread.uniqueID(), localScope);
-            scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
+        ThreadReference thread = stackFrameReference.getThread();
+        VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference);
+        int localScopeId = context.getRecyclableIdPool().addObject(thread.uniqueID(), localScope);
+        scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 
-            response.body = new Responses.ScopesResponseBody(scopes);
-            return CompletableFuture.completedFuture(response);
-        }
+        response.body = new Responses.ScopesResponseBody(scopes);
+        return CompletableFuture.completedFuture(response);
     }
 }

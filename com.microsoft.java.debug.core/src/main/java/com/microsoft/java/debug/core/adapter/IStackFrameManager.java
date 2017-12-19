@@ -25,15 +25,6 @@ public interface IStackFrameManager {
     StackFrame getStackFrame(StackFrameReference ref);
 
     /**
-     * Acquire a lock on the specified thread, this method will block if there is already a lock on the thread util
-     * the lock is released.
-     *
-     * @param thread the jdi thread
-     * @return the lock on the thread
-     */
-    DisposableLock acquireThreadLock(ThreadReference thread);
-
-    /**
      * Refresh all stackframes from jdi thread.
      *
      * @param thread the jdi thread

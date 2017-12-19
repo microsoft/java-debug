@@ -14,7 +14,6 @@ package com.microsoft.java.debug.core.adapter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.sun.jdi.IncompatibleThreadStateException;
@@ -23,7 +22,6 @@ import com.sun.jdi.ThreadReference;
 
 public class StackFrameManager implements IStackFrameManager {
     private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
-    private Map<Long, ReentrantLock> locks = Collections.synchronizedMap(new HashMap<>());
 
     @Override
     public StackFrame getStackFrame(StackFrameReference ref) {
@@ -31,13 +29,6 @@ public class StackFrameManager implements IStackFrameManager {
         int depth = ref.getDepth();
         StackFrame[] frames = threadStackFrameMap.get(thread.uniqueID());
         return frames == null || frames.length < depth ? null : frames[depth];
-    }
-
-    @Override
-    public DisposableLock acquireThreadLock(ThreadReference thread) {
-        ReentrantLock lock = locks.computeIfAbsent(thread.uniqueID(), t -> new ReentrantLock());
-        lock.lock();
-        return new DisposableLock(lock);
     }
 
     @Override

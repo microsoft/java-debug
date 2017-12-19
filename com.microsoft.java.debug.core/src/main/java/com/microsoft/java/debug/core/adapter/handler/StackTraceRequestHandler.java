@@ -23,7 +23,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.DisposableLock;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
@@ -61,7 +60,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
         int totalFrames = 0;
         if (thread != null) {
-            try (DisposableLock lock = context.getStackFrameManager().acquireThreadLock(thread)) {
+            try {
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
