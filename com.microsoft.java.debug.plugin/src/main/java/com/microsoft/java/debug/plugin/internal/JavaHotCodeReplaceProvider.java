@@ -56,6 +56,7 @@ import org.eclipse.jdt.internal.core.util.Util;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.StackFrameUtility;
@@ -289,8 +290,10 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     @Override
     public void initialize(IDebugAdapterContext context, Map<String, Object> options) {
-        // Listen to the built file events.
-        ResourcesPlugin.getWorkspace().addResourceChangeListener(this, IResourceChangeEvent.POST_BUILD);
+        if (DebugSettings.getCurrent().enableHotCodeReplace) {
+            // Listen to the built file events.
+            ResourcesPlugin.getWorkspace().addResourceChangeListener(this, IResourceChangeEvent.POST_BUILD);
+        }
         this.context = context;
         currentDebugSession = context.getDebugSession();
 
