@@ -68,7 +68,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     @Override
-    public CompletableFuture<Value> evaluate(String code, ThreadReference thread, int depth) {
+    public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         String projectName = (String) options.get(Constants.PROJECTNAME);
         if (debugTarget == null) {
@@ -109,7 +109,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
         try  {
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
+            ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
             engine.evaluateExpression(ie, stackframe, evaluateResult -> {
                 if (evaluateResult == null || evaluateResult.hasErrors()) {
                     Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()

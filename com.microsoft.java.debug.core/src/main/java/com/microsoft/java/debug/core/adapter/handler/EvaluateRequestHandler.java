@@ -70,7 +70,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
         }
 
-        CompletableFuture<Response> completableFuture = CompletableFuture.supplyAsync(() -> {
+        return CompletableFuture.supplyAsync(() -> {
             try {
                 IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
                 Value value = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth()).get();
@@ -104,6 +104,5 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 throw new CompletionException(cause);
             }
         });
-        return completableFuture;
     }
 }
