@@ -18,8 +18,6 @@ import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
@@ -27,10 +25,10 @@ import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.debug.core.model.ISourceLocator;
+import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
 import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
 import org.eclipse.jdt.internal.debug.core.model.JDIDebugTarget;
 import org.eclipse.jdt.internal.debug.core.model.JDIStackFrame;
@@ -39,8 +37,10 @@ import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.adapter.Constants;
+import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
-import com.sun.jdi.StackFrame;
+import com.microsoft.java.debug.plugin.internal.JdtUtils;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -51,32 +51,34 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private JDIDebugTarget debugTarget;
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
 
+    private HashMap<String, Object> options = new HashMap<>();
+
+    private IDebugAdapterContext context;
+
+    public JdtEvaluationProvider() {
+    }
+
     @Override
-    public CompletableFuture<Value> evaluate(String projectName, String code, StackFrame sf) {
+    public void initialize(IDebugAdapterContext context, Map<String, Object> props) {
+        if (props == null) {
+            throw new IllegalArgumentException("argument is null");
+        }
+        options.putAll(props);
+        this.context = context;
+    }
+
+    @Override
+    public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
+        String projectName = (String) options.get(Constants.PROJECTNAME);
         if (debugTarget == null) {
             if (project == null) {
                 if (StringUtils.isBlank(projectName)) {
-                    // TODO: get project from stackframe
                     logger.severe("Cannot evaluate when project is not specified.");
                     completableFuture.completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
                     return completableFuture;
                 }
-                for (IProject proj : ResourcesPlugin.getWorkspace().getRoot().getProjects()) {
-                    try {
-                        if (proj.getName().equals(projectName)) {
-                            if (!proj.isNatureEnabled("org.eclipse.jdt.core.javanature")) {
-                                completableFuture.completeExceptionally(
-                                        new IllegalStateException(String.format("Project %s is not a java project.", projectName)));
-                                return completableFuture;
-                            }
-                            project = JavaCore.create(proj);
-                            break;
-                        }
-                    } catch (CoreException e) {
-                        logger.severe(String.format("Cannot initialize project: %s", e.toString()));
-                    }
-                }
+                project = JdtUtils.getJavaProject(projectName);
             }
 
             if (project == null) {
@@ -88,7 +90,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
         }
 
-        ThreadReference thread = sf.thread();
         if (debugTarget == null) {
             debugTarget = new JDIDebugTarget(launch, thread.virtualMachine(), "", false, false, null, false) {
                 @Override
@@ -97,37 +98,33 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 }
             };
         }
-        try {
-            JDIThread jdiThread = getJDIThread(thread);
 
-            synchronized (jdiThread) {
-                if (jdiThread.isPerformingEvaluation()) {
-                    jdiThread.wait();
+        JDIThread jdiThread = getMockJDIThread(thread);
+        JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
+        if (stackframe == null) {
+            logger.severe("Cannot evaluate because the stackframe is not available.");
+            completableFuture.completeExceptionally(
+                    new IllegalStateException("Cannot evaluate because the stackframe is not available."));
+            return completableFuture;
+        }
+        try  {
+            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
+            engine.evaluateExpression(ie, stackframe, evaluateResult -> {
+                if (evaluateResult == null || evaluateResult.hasErrors()) {
+                    Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
+                            : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
+                    completableFuture.completeExceptionally(ex);
+                    return;
                 }
-
-                ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-                JDIStackFrame stackframe = createStackFrame(sf);
-
-                ICompiledExpression ie = engine.getCompiledExpression(code, stackframe);
-                engine.evaluateExpression(ie, stackframe, evaluateResult -> {
-                    synchronized (jdiThread) {
-                        jdiThread.notify();
-                    }
-                    if (evaluateResult == null || evaluateResult.hasErrors()) {
-                        Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
-                                : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
-                        completableFuture.completeExceptionally(ex);
-                        return;
-                    }
-                    try {
-                        // we need to read fValue from the result Value instance implements by JDT
-                        Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
-                        completableFuture.complete(value);
-                    } catch (IllegalArgumentException | IllegalAccessException ex) {
-                        completableFuture.completeExceptionally(ex);
-                    }
-                }, 0, false);
-            }
+                try {
+                    // we need to read fValue from the result Value instance implements by JDT
+                    Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
+                    completableFuture.complete(value);
+                } catch (IllegalArgumentException | IllegalAccessException ex) {
+                    completableFuture.completeExceptionally(ex);
+                }
+            }, 0, false);
 
         } catch (Exception ex) {
             completableFuture.completeExceptionally(ex);
@@ -135,31 +132,47 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         return completableFuture;
     }
 
-    private JDIStackFrame createStackFrame(StackFrame sf) {
-        return new JDIStackFrame(getJDIThread(sf.thread()), sf, 0);
+    private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
+        try {
+            IStackFrame[] jdiStackFrames = thread.getStackFrames();
+            return jdiStackFrames.length > depth ? (JDIStackFrame) jdiStackFrames[depth] : null;
+        } catch (DebugException e) {
+            return null;
+        }
+
     }
 
-    private JDIThread getJDIThread(ThreadReference thread) {
+    private JDIThread getMockJDIThread(ThreadReference thread) {
         synchronized (threadMap) {
-            return threadMap.computeIfAbsent(thread, threadKey -> new JDIThread(debugTarget, thread));
+            return threadMap.computeIfAbsent(thread, threadKey -> new JDIThread(debugTarget, thread) {
+                @Override
+                protected synchronized void invokeComplete(int restoreTimeout) {
+                    super.invokeComplete(restoreTimeout);
+                    context.getStackFrameManager().reloadStackFrames(thread);
+                }
+            });
         }
 
     }
 
     @Override
     public boolean isInEvaluation(ThreadReference thread) {
-        return debugTarget != null && getJDIThread(thread).isPerformingEvaluation();
+        return debugTarget != null && getMockJDIThread(thread).isPerformingEvaluation();
     }
 
     @Override
-    public void cancelEvaluation(ThreadReference thread) {
+    public void clearState(ThreadReference thread) {
         if (debugTarget != null) {
-            JDIThread jdiThread = getJDIThread(thread);
-            if (jdiThread != null) {
-                try {
-                    jdiThread.terminateEvaluation();
-                } catch (DebugException e) {
-                    logger.warning(String.format("Error stopping evalutoin on thread %d: %s", thread.uniqueID(), e.toString()));
+            synchronized (threadMap) {
+                JDIThread jdiThread = threadMap.get(thread);
+                if (jdiThread != null) {
+                    try {
+                        jdiThread.terminateEvaluation();
+                    } catch (DebugException e) {
+                        logger.warning(String.format("Error stopping evalutoin on thread %d: %s", thread.uniqueID(),
+                                e.toString()));
+                    }
+                    threadMap.remove(thread);
                 }
             }
         }
@@ -239,7 +252,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 locator = new JavaSourceLookupDirector();
 
                 try {
-                    locator.setSourceContainers(new ProjectSourceContainer(project.getProject(), true).getSourceContainers());
+                    locator.setSourceContainers(
+                            new ProjectSourceContainer(project.getProject(), true).getSourceContainers());
                 } catch (CoreException e) {
                     logger.severe(String.format("Cannot initialize JavaSourceLookupDirector: %s", e.toString()));
                 }

@@ -27,7 +27,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -66,23 +66,20 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-                List<StackFrame> stackFrames = stacktraceArgs.levels == 0
-                        ? thread.frames(stacktraceArgs.startFrame, totalFrames - stacktraceArgs.startFrame)
-                        : thread.frames(stacktraceArgs.startFrame,
-                        Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels));
-                for (int i = 0; i < stackFrames.size(); i++) {
-                    StackFrame stackFrame = stackFrames.get(i);
-                    int frameId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(),
-                            new JdiObjectProxy<>(stackFrame));
-                    Types.StackFrame clientStackFrame = convertDebuggerStackFrameToClient(stackFrame, frameId, context);
-                    result.add(clientStackFrame);
+                StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread);
+
+                int count = stacktraceArgs.levels == 0 ? totalFrames - stacktraceArgs.startFrame
+                        : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
+                for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
+                    StackFrameReference stackframe = new StackFrameReference(thread, i);
+                    int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
+                    result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates
-
                 // TODO: should record a error log here.
             }
         }

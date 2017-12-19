@@ -42,6 +42,7 @@ import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
@@ -76,7 +77,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
-                || (ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths))) {
+                || ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths)) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
                        String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
         }
@@ -114,6 +115,8 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     options.put(Constants.PROJECTNAME, launchArguments.projectName);
                 }
                 sourceProvider.initialize(context, options);
+                IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
+                evaluationProvider.initialize(context, options);
                 IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
                 hcrProvider.initialize(context, options);
 
@@ -308,7 +311,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         List<String> launchCmds = new ArrayList<>();
         launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
-        launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", (serverMode ? "y" : "n"), address));
+        launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
         if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
             launchCmds.addAll(parseArguments(launchArguments.vmArgs));
         }

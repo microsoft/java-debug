@@ -27,7 +27,9 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IStackFrameManager;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
@@ -39,6 +41,8 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
+import com.sun.jdi.InternalException;
+import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
@@ -55,7 +59,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         IVariableFormatter variableFormatter = context.getVariableFormatter();
         VariablesArguments varArgs = (VariablesArguments) arguments;
-
 
         boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
 
@@ -78,9 +81,15 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList;
-        if (containerNode.getProxiedVariable() instanceof StackFrame) {
+        IStackFrameManager stackFrameManager = context.getStackFrameManager();
+        if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
+            StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
+            StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
+            if (frame == null) {
+                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
+                        String.format("Invalid stackframe id %d to get variables.", varArgs.variablesReference));
+            }
             try {
-                StackFrame frame = (StackFrame) containerNode.getProxiedVariable();
                 childrenList = VariableUtils.listLocalVariables(frame);
                 Variable thisVariable = VariableUtils.getThisVariable(frame);
                 if (thisVariable != null) {
@@ -89,14 +98,13 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 if (showStaticVariables && frame.location().method().isStatic()) {
                     childrenList.addAll(VariableUtils.listStaticVariables(frame));
                 }
-            } catch (AbsentInformationException e) {
+            } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                        String.format("Failed to get variables. Reason: %s", e.toString()));
+                    String.format("Failed to get variables. Reason: %s", e.toString()));
             }
         } else {
             try {
                 ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
-
                 if (varArgs.count > 0) {
                     childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
                 } else {
@@ -104,19 +112,16 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 }
             } catch (AbsentInformationException e) {
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                        String.format("Failed to get variables. Reason: %s", e.toString()));
+                    String.format("Failed to get variables. Reason: %s", e.toString()));
             }
         }
 
         // Find variable name duplicates
-        Set<String> duplicateNames = getDuplicateNames(childrenList.stream().map(var -> var.name)
-                .collect(Collectors.toList()));
+        Set<String> duplicateNames = getDuplicateNames(childrenList.stream().map(var -> var.name).collect(Collectors.toList()));
         Map<Variable, String> variableNameMap = new HashMap<>();
         if (!duplicateNames.isEmpty()) {
-            Map<String, List<Variable>> duplicateVars =
-                    childrenList.stream()
-                            .filter(var -> duplicateNames.contains(var.name))
-                            .collect(Collectors.groupingBy(var -> var.name, Collectors.toList()));
+            Map<String, List<Variable>> duplicateVars = childrenList.stream()
+                    .filter(var -> duplicateNames.contains(var.name)).collect(Collectors.groupingBy(var -> var.name, Collectors.toList()));
 
             duplicateVars.forEach((k, duplicateVariables) -> {
                 Set<String> declarationTypeNames = new HashSet<>();
@@ -153,11 +158,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
             int referenceId = 0;
             if (value instanceof ObjectReference && VariableUtils.hasChildren(value, showStaticVariables)) {
-                VariableProxy varProxy = new VariableProxy(containerNode.getThreadId(), containerNode.getScope(), value);
+                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
-                    variableFormatter.typeToString(value == null ? null : value.type(), options), referenceId, null);
+                    variableFormatter.typeToString(value == null ? null : value.type(), options),
+                    referenceId, null);
             if (javaVariable.value instanceof ArrayReference) {
                 typedVariables.indexedVariables = ((ArrayReference) javaVariable.value).length();
             }

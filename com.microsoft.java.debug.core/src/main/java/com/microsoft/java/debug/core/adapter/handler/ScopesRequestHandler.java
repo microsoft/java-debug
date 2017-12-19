@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.variables.JdiObjectProxy;
+import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -26,7 +26,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.ScopesArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
-import com.sun.jdi.StackFrame;
+import com.sun.jdi.ThreadReference;
 
 public class ScopesRequestHandler implements IDebugRequestHandler {
 
@@ -39,18 +39,17 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         ScopesArguments scopesArgs = (ScopesArguments) arguments;
         List<Types.Scope> scopes = new ArrayList<>();
-        JdiObjectProxy<StackFrame> stackFrameProxy = (JdiObjectProxy<StackFrame>) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
-        if (stackFrameProxy == null) {
+        StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(scopesArgs.frameId);
+        if (stackFrameReference == null) {
             response.body = new Responses.ScopesResponseBody(scopes);
             return CompletableFuture.completedFuture(response);
         }
-        StackFrame stackFrame = stackFrameProxy.getProxiedObject();
-        VariableProxy localScope = new VariableProxy(stackFrame.thread().uniqueID(), "Local", stackFrame);
-        int localScopeId = context.getRecyclableIdPool().addObject(stackFrame.thread().uniqueID(), localScope);
+        ThreadReference thread = stackFrameReference.getThread();
+        VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference);
+        int localScopeId = context.getRecyclableIdPool().addObject(thread.uniqueID(), localScope);
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 
         response.body = new Responses.ScopesResponseBody(scopes);
         return CompletableFuture.completedFuture(response);
     }
-
 }
