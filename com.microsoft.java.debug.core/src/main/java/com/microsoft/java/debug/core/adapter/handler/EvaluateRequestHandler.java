@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -69,52 +71,40 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
         }
 
-        CompletableFuture<Response> completableFuture = new CompletableFuture<>();
-
-        IVariableFormatter variableFormatter = context.getVariableFormatter();
-
-        DisposableLock lock = context.getStackFrameManager().acquireThreadLock(stackFrameReference.getThread());
-        completableFuture.whenComplete((res, er) -> {
-            synchronized (lock) {
-                lock.notifyAll();
-            }
-        });
-        IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-        CompletableFuture<Value> evaluateResult  = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth());
-        evaluateResult.whenComplete((value, error) -> {
-            if (error != null) {
-                completableFuture.completeExceptionally(error);
-                return;
-            }
-
-            if (value instanceof VoidValue) {
-                response.body = new Responses.EvaluateResponseBody(value.toString(), 0, "<void>", 0);
-                completableFuture.complete(response);
-                return;
-            }
-            long threadId = stackFrameReference.getThread().uniqueID();
-            if (value instanceof ObjectReference) {
-                VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
-                int referenceId = VariableUtils.hasChildren(value, showStaticVariables) ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
-                int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
-                response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), referenceId,
-                        variableFormatter.typeToString(value == null ? null : value.type(), options), indexedVariableId);
-                completableFuture.complete(response);
-                return;
-            }
-            // for primitive value
-            response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), 0,
+        CompletableFuture<Response> completableFuture = CompletableFuture.supplyAsync(() -> {
+            try (DisposableLock lock = context.getStackFrameManager().acquireThreadLock(stackFrameReference.getThread())) {
+                IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
+                Value value = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth()).get();
+                IVariableFormatter variableFormatter = context.getVariableFormatter();
+                if (value instanceof VoidValue) {
+                    response.body = new Responses.EvaluateResponseBody(value.toString(), 0, "<void>", 0);
+                    return response;
+                }
+                long threadId = stackFrameReference.getThread().uniqueID();
+                if (value instanceof ObjectReference) {
+                    VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
+                    int referenceId = VariableUtils.hasChildren(value, showStaticVariables)
+                            ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
+                    int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
+                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options),
+                            referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
+                            indexedVariableId);
+                    return response;
+                }
+                // for primitive value
+                response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options), 0,
                         variableFormatter.typeToString(value == null ? null : value.type(), options), 0);
-            completableFuture.complete(response);
-        });
-        synchronized (lock) {
-            try {
-                lock.wait();
-                lock.close();
-            } catch (Exception e) {
-                logger.log(Level.SEVERE, String.format("Cannot release lock for evalution.", e.toString()), e);
+                return response;
+            } catch (InterruptedException | ExecutionException e) {
+                Throwable cause = e;
+                if (e instanceof ExecutionException && e.getCause() != null) {
+                    cause = e.getCause();
+                }
+                // TODO: distinguish user error of wrong expression(eg: compilation error)
+                logger.log(Level.WARNING, String.format("Cannot evalution expression because of %s.", cause.toString()), cause);
+                throw new CompletionException(cause);
             }
-        }
+        });
         return completableFuture;
     }
 }
