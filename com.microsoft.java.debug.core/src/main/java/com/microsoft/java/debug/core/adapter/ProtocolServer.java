@@ -108,6 +108,6 @@ public class ProtocolServer extends AbstractProtocolServer {
                     ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             }
             return null;
-        });
+        }).join();
     }
 }
