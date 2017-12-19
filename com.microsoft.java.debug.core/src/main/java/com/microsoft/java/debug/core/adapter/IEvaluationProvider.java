@@ -13,7 +13,6 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.util.concurrent.CompletableFuture;
 
-import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -34,18 +33,20 @@ public interface IEvaluationProvider extends IProvider {
      * Evaluate the expression at the given project and thread and stack frame depth, the promise is to be resolved/rejected when
      * the evaluation finishes.
      *
-     * @param projectName The java project which provides resolve class used in the expression
      * @param expression The expression to be evaluated
-     * @param sf The stack frame of the evaluation task
-     * @return the evaluation result
+     * @param thread The jdi thread to the expression will be executed at
+     * @param depth The depth of stackframe of the stopped thread
+     * @return the evaluation result future
      */
-    CompletableFuture<Value> evaluate(String projectName, String expression, StackFrame sf);
+    CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth);
 
 
     /**
-     * Cancel ongoing evaluation tasks on specified thread.
+     * Call this method when the thread is to be resumed by user, it will first cancel ongoing evaluation tasks on specified thread and
+     * ensure the inner states is cleaned.
+     *
      * @param thread the JDI thread reference where the evaluation task is executing at
      */
-    void cancelEvaluation(ThreadReference thread);
+    void clearState(ThreadReference thread);
 
 }

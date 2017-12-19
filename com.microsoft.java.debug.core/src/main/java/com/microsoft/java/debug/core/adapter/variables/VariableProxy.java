@@ -13,31 +13,33 @@ package com.microsoft.java.debug.core.adapter.variables;
 
 import java.util.Objects;
 
+import com.sun.jdi.ThreadReference;
+
 public class VariableProxy {
-    private final long threadId;
+    private final ThreadReference thread;
     private final String scopeName;
     private Object variable;
     private int hashCode;
 
     /**
-     * Create a variable proxy.
-     * @param threadId
-     *              the context thread id
+     * Create a variable reference.
+     *
+     * @param thread the jdi thread
      * @param scopeName
      *              the scope name
      * @param variable
      *              the variable object
      */
-    public VariableProxy(long threadId, String scopeName, Object variable) {
-        this.threadId = threadId;
+    public VariableProxy(ThreadReference thread, String scopeName, Object variable) {
+        this.thread = thread;
         this.scopeName = scopeName;
         this.variable = variable;
-        this.hashCode = (int) (threadId & scopeName.hashCode() & variable.hashCode());
+        hashCode = thread.hashCode() & scopeName.hashCode() & variable.hashCode();
     }
 
     @Override
     public String toString() {
-        return String.format("%s %s", String.valueOf(this.variable), this.scopeName);
+        return String.format("%s %s", String.valueOf(variable), scopeName);
     }
 
     @Override
@@ -56,15 +58,19 @@ public class VariableProxy {
                 && Objects.equals(this.getProxiedVariable(), other.getProxiedVariable());
     }
 
+    public ThreadReference getThread() {
+        return thread;
+    }
+
     public long getThreadId() {
-        return this.threadId;
+        return thread.uniqueID();
     }
 
     public String getScope() {
-        return this.scopeName;
+        return scopeName;
     }
 
     public Object getProxiedVariable() {
-        return this.variable;
+        return variable;
     }
 }

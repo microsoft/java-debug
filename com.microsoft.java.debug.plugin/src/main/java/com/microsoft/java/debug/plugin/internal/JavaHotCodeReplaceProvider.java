@@ -56,6 +56,7 @@ import org.eclipse.jdt.internal.core.util.Util;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.StackFrameUtility;
@@ -248,23 +249,51 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         }
     }
 
+    /**
+     * Hot code replace event type.
+     */
+    enum EventType {
+        ERROR(-1),
+
+        WARNING(-2),
+
+        STARTING(1),
+
+        END(2);
+
+        private int value;
+
+        private EventType(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return this.value;
+        }
+    }
+
     class HotCodeReplaceEvent extends DebugEvent {
+
+        public EventType eventType;
 
         public String message;
 
         /**
          * Constructor.
          */
-        public HotCodeReplaceEvent(String message) {
+        public HotCodeReplaceEvent(EventType eventType, String message) {
             super("hotCodeReplace");
+            this.eventType = eventType;
             this.message = message;
         }
     }
 
     @Override
     public void initialize(IDebugAdapterContext context, Map<String, Object> options) {
-        // Listen to the built file events.
-        ResourcesPlugin.getWorkspace().addResourceChangeListener(this, IResourceChangeEvent.POST_BUILD);
+        if (DebugSettings.getCurrent().enableHotCodeReplace) {
+            // Listen to the built file events.
+            ResourcesPlugin.getWorkspace().addResourceChangeListener(this, IResourceChangeEvent.POST_BUILD);
+        }
         this.context = context;
         currentDebugSession = context.getDebugSession();
 
@@ -311,6 +340,9 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             return;
         }
 
+        context.getProtocolServer()
+                .sendEvent(new HotCodeReplaceEvent(EventType.STARTING, "Start hot code replacement procedure..."));
+
         try {
             List<ThreadReference> poppedThreads = new ArrayList<>();
             boolean framesPopped = false;
@@ -329,7 +361,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
 
             if (containsObsoleteMethods()) {
-                context.getProtocolServer().sendEvent(new HotCodeReplaceEvent("JVM contains obsolete methods"));
+                context.getProtocolServer()
+                        .sendEvent(new HotCodeReplaceEvent(EventType.ERROR, "JVM contains obsolete methods"));
             }
 
             if (currentDebugSession.getVM().canPopFrames() && framesPopped) {
@@ -339,6 +372,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
         } catch (DebugException e) {
             logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
+        } finally {
+            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(EventType.END, "Completed hot code replace"));
         }
 
         threadFrameMap.clear();
@@ -592,7 +627,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             currentDebugSession.getVM().redefineClasses(typesToBytes);
         } catch (UnsupportedOperationException | NoClassDefFoundError | VerifyError | ClassFormatError
                 | ClassCircularityError e) {
-            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(e.getMessage()));
+            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(EventType.ERROR, e.getMessage()));
             throw new DebugException("Failed to redefine classes: " + e.getMessage());
         }
     }
