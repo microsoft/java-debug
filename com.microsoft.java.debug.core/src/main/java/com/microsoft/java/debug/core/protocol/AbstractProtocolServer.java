@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
 public abstract class AbstractProtocolServer implements IProtocolServer {
@@ -55,13 +56,16 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
 
     private PublishSubject<Messages.Response> responseSubject = PublishSubject.<Messages.Response>create();
+    private PublishSubject<Messages.Request> requestSubject = PublishSubject.<Messages.Request>create();
 
     /**
-     * Constructs a protocol server instance based on the given input stream and output stream.
+     * Constructs a protocol server instance based on the given input stream and
+     * output stream.
+     *
      * @param input
-     *              the input stream
+     *            the input stream
      * @param output
-     *              the output stream
+     *            the output stream
      */
     public AbstractProtocolServer(InputStream input, OutputStream output) {
         this.reader = new BufferedReader(new InputStreamReader(input, PROTOCOL_ENCODING));
@@ -74,6 +78,14 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
      * A while-loop to parse input data and send output data constantly.
      */
     public void run() {
+        requestSubject.observeOn(Schedulers.single()).subscribe(request -> {
+            try {
+                this.dispatchRequest(request);
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
+            }
+        });
+
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
@@ -91,7 +103,8 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
     }
 
     /**
-     * Sets terminateSession flag to true. And the dispatcher loop will be terminated after current dispatching operation finishes.
+     * Sets terminateSession flag to true. And the dispatcher loop will be
+     * terminated after current dispatching operation finishes.
      */
     public void stop() {
         this.terminateSession = true;
@@ -99,8 +112,9 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
 
     /**
      * Send a request/response/event to the DA.
+     *
      * @param message
-     *              the message.
+     *            the message.
      */
     private void sendMessage(Messages.ProtocolMessage message) {
         message.seq = this.sequenceNumber.getAndIncrement();
@@ -152,13 +166,18 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
         CompletableFuture<Messages.Response> future = new CompletableFuture<>();
         Timer timer = new Timer();
         Disposable[] disposable = new Disposable[1];
-        disposable[0] = responseSubject.filter(response -> response.request_seq == request.seq).take(1).subscribe((response) -> {
-            timer.cancel();
-            future.complete(response);
-            if (disposable[0] != null) {
-                disposable[0].dispose();
-            }
-        });
+        disposable[0] = responseSubject.filter(response -> response.request_seq == request.seq).take(1)
+                .observeOn(Schedulers.newThread()).subscribe((response) -> {
+                    try {
+                        timer.cancel();
+                        future.complete(response);
+                        if (disposable[0] != null) {
+                            disposable[0].dispose();
+                        }
+                    } catch (Exception e) {
+                        logger.log(Level.SEVERE, String.format("Handle response error: %s", e.toString()), e);
+                    }
+                });
         sendMessage(request);
         if (timeout > 0) {
             try {
@@ -181,7 +200,8 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
     private void processData() {
         while (true) {
             /**
-             * In vscode debug protocol, the content length represents the message's byte length with utf8 format.
+             * In vscode debug protocol, the content length represents the
+             * message's byte length with utf8 format.
              */
             if (this.contentLength >= 0) {
                 if (this.rawData.length() >= this.contentLength) {
@@ -193,34 +213,30 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
                     logger.fine(String.format("\n[%s]\n%s", message.type, messageData));
 
                     if (message.type.equals("request")) {
-                        try {
-                            this.dispatchRequest(JsonUtils.fromJson(messageData, Messages.Request.class));
-                        } catch (Exception e) {
-                            logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
-                        }
+                        Messages.Request request = JsonUtils.fromJson(messageData, Messages.Request.class);
+                        requestSubject.onNext(request);
                     } else if (message.type.equals("response")) {
-                        try {
-                            Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
-                            responseSubject.onNext(response);
-                        } catch (Exception e) {
-                            logger.log(Level.SEVERE, String.format("Handle response error: %s", e.toString()), e);
-                        }
+                        Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
+                        responseSubject.onNext(response);
                     }
+
                     continue;
                 }
-            } else {
-                String rawMessage = this.rawData.getString(PROTOCOL_ENCODING);
-                int idx = rawMessage.indexOf(TWO_CRLF);
-                if (idx != -1) {
-                    Matcher matcher = CONTENT_LENGTH_MATCHER.matcher(rawMessage);
-                    if (matcher.find()) {
-                        this.contentLength = Integer.parseInt(matcher.group(1));
-                        int headerByteLength = rawMessage.substring(0, idx + TWO_CRLF.length()).getBytes(PROTOCOL_ENCODING).length;
-                        this.rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
-                        continue;
-                    }
+            }
+
+            String rawMessage = this.rawData.getString(PROTOCOL_ENCODING);
+            int idx = rawMessage.indexOf(TWO_CRLF);
+            if (idx != -1) {
+                Matcher matcher = CONTENT_LENGTH_MATCHER.matcher(rawMessage);
+                if (matcher.find()) {
+                    this.contentLength = Integer.parseInt(matcher.group(1));
+                    int headerByteLength = rawMessage.substring(0, idx + TWO_CRLF.length())
+                            .getBytes(PROTOCOL_ENCODING).length;
+                    this.rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
+                    continue;
                 }
             }
+
             break;
         }
     }
