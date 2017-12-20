@@ -208,16 +208,20 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
                     byte[] buf = this.rawData.removeFirst(this.contentLength);
                     this.contentLength = -1;
                     String messageData = new String(buf, PROTOCOL_ENCODING);
-                    Messages.ProtocolMessage message = JsonUtils.fromJson(messageData, Messages.ProtocolMessage.class);
+                    try {
+                        Messages.ProtocolMessage message = JsonUtils.fromJson(messageData, Messages.ProtocolMessage.class);
 
-                    logger.fine(String.format("\n[%s]\n%s", message.type, messageData));
+                        logger.fine(String.format("\n[%s]\n%s", message.type, messageData));
 
-                    if (message.type.equals("request")) {
-                        Messages.Request request = JsonUtils.fromJson(messageData, Messages.Request.class);
-                        requestSubject.onNext(request);
-                    } else if (message.type.equals("response")) {
-                        Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
-                        responseSubject.onNext(response);
+                        if (message.type.equals("request")) {
+                            Messages.Request request = JsonUtils.fromJson(messageData, Messages.Request.class);
+                            requestSubject.onNext(request);
+                        } else if (message.type.equals("response")) {
+                            Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
+                            responseSubject.onNext(response);
+                        }
+                    } catch (Exception ex) {
+                        logger.log(Level.SEVERE, String.format("Error parsing message: %s", ex.toString()), ex);
                     }
 
                     continue;
