@@ -72,20 +72,20 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
         this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
         this.contentLength = -1;
         this.rawData = new ByteBuffer();
-    }
 
-    /**
-     * A while-loop to parse input data and send output data constantly.
-     */
-    public void run() {
-        requestSubject.observeOn(Schedulers.single()).subscribe(request -> {
+        requestSubject.observeOn(Schedulers.newThread()).subscribe(request -> {
             try {
                 this.dispatchRequest(request);
             } catch (Exception e) {
                 logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
             }
         });
+    }
 
+    /**
+     * A while-loop to parse input data and send output data constantly.
+     */
+    public void run() {
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
