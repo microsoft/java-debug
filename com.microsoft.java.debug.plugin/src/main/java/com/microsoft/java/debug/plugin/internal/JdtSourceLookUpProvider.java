@@ -51,7 +51,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final String PATH_SEPARATOR = "/";
     private ISourceContainer[] sourceContainers = null;
 
-    private HashMap<String, Object> options = new HashMap<String, Object>();
+    private HashMap<String, Object> options = new HashMap<>();
 
     @Override
     public void initialize(IDebugAdapterContext context, Map<String, Object> props) {
@@ -73,7 +73,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     /**
      * For a given source file and a list of line locations, return the fully
      * qualified names of the type of the line location. If the line location points
-     * an empty line or invalid line, it returns a null fully qualified name.
+     * an empty line or invalid line, it will update the value into next valid line in array argument lines
      */
     @Override
     public String[] getFullyQualifiedName(String uri, int[] lines, int[] columns) throws DebugException {
@@ -101,7 +101,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            Charset cs = (Charset) this.options.get(Constants.DEBUGGEE_ENCODING);
+            Charset cs = (Charset) options.get(Constants.DEBUGGEE_ENCODING);
             if (cs == null) {
                 cs = Charset.defaultCharset();
             }
