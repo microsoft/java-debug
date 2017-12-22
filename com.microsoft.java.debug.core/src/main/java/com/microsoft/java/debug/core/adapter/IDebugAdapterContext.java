@@ -99,4 +99,6 @@ public interface IDebugAdapterContext {
     void setStepFilters(StepFilters stepFilters);
 
     StepFilters getStepFilters();
+
+    IStackFrameManager getStackFrameManager();
 }

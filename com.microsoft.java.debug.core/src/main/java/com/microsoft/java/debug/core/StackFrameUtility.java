@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core;
 
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 
@@ -27,15 +28,13 @@ public final class StackFrameUtility {
      *
      * @param frame
      *            the StackFrame will be popped
-     * @return true if succeeded
      */
-    public static boolean pop(StackFrame frame) {
+    public static void pop(StackFrame frame) throws DebugException {
         try {
             frame.thread().popFrames(frame);
-        } catch (IncompatibleThreadStateException e) {
-            return false;
+        } catch (IncompatibleThreadStateException | InvalidStackFrameException e) {
+            throw new DebugException(e.getMessage(), e);
         }
-        return true;
     }
 
     public static String getName(StackFrame frame) {
