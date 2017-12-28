@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.microsoft.AmbientContext;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.ProtocolServer;
 
@@ -31,6 +32,7 @@ public class JavaDebugServer implements IDebugServer {
     private ServerSocket serverSocket = null;
     private boolean isStarted = false;
     private ExecutorService executor = null;
+    private AmbientContext context = AmbientContext.currentContext();
 
     private JavaDebugServer() {
         try {
@@ -130,6 +132,9 @@ public class JavaDebugServer implements IDebugServer {
             @Override
             public void run() {
                 try {
+                    // assign new AmbientContext for recycled thread.
+                    AmbientContext.removeAmbientContext();
+                    AmbientContext.initializeAmbientContext(context.createBranch());
                     ProtocolServer protocolServer = new ProtocolServer(connection.getInputStream(), connection.getOutputStream(),
                             JdtProviderContextFactory.createProviderContext());
                     // protocol server will dispatch request and send response in a while-loop.

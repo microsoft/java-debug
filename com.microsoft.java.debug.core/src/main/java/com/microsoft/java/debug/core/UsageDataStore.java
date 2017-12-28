@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import com.microsoft.AmbientContext;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 
 public class UsageDataStore {
@@ -27,6 +28,7 @@ public class UsageDataStore {
     private static final String STACKTRACE_NAME = "stackTrace";
     private static final String SCOPE_NAME = "scope";
     private static final String TIMESTAMP_NAME = "timestamp";
+    private static final String CORRELATION_ID_NAME = "correlationId";
 
     /**
      * Constructor.
@@ -69,6 +71,7 @@ public class UsageDataStore {
         if (props != null) {
             sessionEntry.putAll(props);
         }
+        attachCorrelationId(sessionEntry);
         enqueue(sessionEntry);
     }
 
@@ -89,6 +92,7 @@ public class UsageDataStore {
             errorEntry.put(ERROR_MESSAGE_NAME, th.getMessage());
             errorEntry.put(STACKTRACE_NAME, JsonUtils.toJson(th.getStackTrace()));
         }
+        attachCorrelationId(errorEntry);
         enqueue(errorEntry);
     }
 
@@ -99,6 +103,13 @@ public class UsageDataStore {
         if (entry != null) {
             entry.put(TIMESTAMP_NAME, Instant.now().toString());
             queue.add(entry);
+        }
+    }
+
+    private void attachCorrelationId(Map<String, String> props) {
+        AmbientContext context = AmbientContext.tryGetCurrentContext();
+        if (context != null) {
+            props.put(CORRELATION_ID_NAME, context.getId());
         }
     }
 }

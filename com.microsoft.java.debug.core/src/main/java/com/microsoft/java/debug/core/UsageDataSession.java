@@ -20,6 +20,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.google.gson.JsonElement;
+import com.microsoft.AmbientContext;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
@@ -30,7 +31,7 @@ public class UsageDataSession {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
-    private static final ThreadLocal<UsageDataSession> threadLocal = new InheritableThreadLocal<>();
+    private static final String AMBIENT_CONTEXT_USAGE_DATA_SESSION = "UsageDataSession";
 
     private final String sessionGuid = UUID.randomUUID().toString();
     private boolean jdiEventSequenceEnabled = false;
@@ -41,12 +42,23 @@ public class UsageDataSession {
     private Map<Integer, RequestEvent> requestEventMap = new HashMap<>();
     private List<String> eventList = new ArrayList<>();
 
+    /**
+     * Get GUID of debug session.
+     */
     public static String getSessionGuid() {
-        return threadLocal.get() == null ? "" : threadLocal.get().sessionGuid;
+        AmbientContext context = AmbientContext.tryGetCurrentContext();
+        return context != null && context.get(AMBIENT_CONTEXT_USAGE_DATA_SESSION) != null
+                ? ((UsageDataSession) context.get(AMBIENT_CONTEXT_USAGE_DATA_SESSION)).sessionGuid : "";
     }
 
+    /**
+     * Constructor.
+     */
     public UsageDataSession() {
-        threadLocal.set(this);
+        AmbientContext context = AmbientContext.tryGetCurrentContext();
+        if (context != null) {
+            context.put(AMBIENT_CONTEXT_USAGE_DATA_SESSION, this);
+        }
     }
 
     class RequestEvent {
@@ -149,7 +161,7 @@ public class UsageDataSession {
      */
     public static void recordEvent(Event event) {
         try {
-            UsageDataSession currentSession = threadLocal.get();
+            UsageDataSession currentSession = (UsageDataSession) AmbientContext.currentContext().get(AMBIENT_CONTEXT_USAGE_DATA_SESSION);
             if (currentSession != null) {
                 Map<String, String> eventEntry = new HashMap<>();
                 eventEntry.put("timestamp", String.valueOf(System.currentTimeMillis()));
@@ -168,7 +180,7 @@ public class UsageDataSession {
      */
     public static void enableJdiEventSequence() {
         try {
-            UsageDataSession currentSession = threadLocal.get();
+            UsageDataSession currentSession = (UsageDataSession) AmbientContext.currentContext().get(AMBIENT_CONTEXT_USAGE_DATA_SESSION);
             if (currentSession != null) {
                 currentSession.jdiEventSequenceEnabled = true;
             }
