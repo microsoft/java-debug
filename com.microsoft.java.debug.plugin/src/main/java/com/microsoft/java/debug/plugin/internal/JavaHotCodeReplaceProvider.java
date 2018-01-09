@@ -99,6 +99,10 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private PublishSubject<HotCodeReplaceEvent> eventSubject = PublishSubject.<HotCodeReplaceEvent>create();
 
+    private List<IResource> deltaResources = new ArrayList();
+
+    private List<String> deltaClassNames = new ArrayList();
+
     /**
      * Visitor for resource deltas.
      */
@@ -274,10 +278,12 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             ChangedClassFilesVisitor visitor = getChangedClassFiles(event);
             if (visitor != null) {
                 List<IResource> resources = visitor.getChangedClassFiles();
-                List<String> fullyQualifiedName = visitor.getQualifiedNamesList();
-                if (resources != null && !resources.isEmpty()) {
-                    doHotCodeReplace(resources, fullyQualifiedName);
+                List<String> classNames = visitor.getQualifiedNamesList();
+                synchronized (this) {
+                    deltaResources.addAll(resources);
+                    deltaClassNames.addAll(classNames);
                 }
+                publishEvent(HotCodeReplaceEvent.EventType.BUILD_COMPLETE, "Build completed.");
             }
         }
     }
@@ -291,8 +297,12 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     public CompletableFuture<List<String>> redefineClasses() {
         return CompletableFuture.supplyAsync(() -> {
             List<String> classNames = new ArrayList();
-
-            // TODO: fill the class name collection by calling doHotCodeReplace
+            synchronized (this) {
+                classNames.addAll(deltaClassNames);
+                doHotCodeReplace(deltaResources, deltaClassNames);
+                deltaResources.clear();
+                deltaClassNames.clear();
+            }
             return classNames;
         });
     }

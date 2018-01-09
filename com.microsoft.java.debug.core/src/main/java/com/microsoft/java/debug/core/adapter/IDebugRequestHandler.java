@@ -22,6 +22,9 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 public interface IDebugRequestHandler {
     List<Requests.Command> getTargetCommands();
 
+    default void initialize(IDebugAdapterContext context) {
+    }
+
     CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context);
 
 }

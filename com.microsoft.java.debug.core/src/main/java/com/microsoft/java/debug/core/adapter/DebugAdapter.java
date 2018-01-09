@@ -24,6 +24,7 @@ import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.HotCodeReplaceHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
@@ -104,6 +105,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new VariablesRequestHandler());
         registerHandler(new SetVariableRequestHandler());
         registerHandler(new EvaluateRequestHandler());
+        registerHandler(new HotCodeReplaceHandler());
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
@@ -113,6 +115,7 @@ public class DebugAdapter implements IDebugAdapter {
                 handlerList = new ArrayList<>();
                 requestHandlers.put(command, handlerList);
             }
+            handler.initialize(debugContext);
             handlerList.add(handler);
         }
     }

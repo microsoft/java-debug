@@ -255,6 +255,10 @@ public class Requests {
         public ValueFormat format;
     }
 
+    public static class RedefineClassesArguments extends Arguments {
+
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -277,6 +281,7 @@ public class Requests {
         SETFUNCTIONBREAKPOINTS("setFunctionBreakpoints", SetFunctionBreakpointsArguments.class),
         EVALUATE("evaluate", EvaluateArguments.class),
         RUNINTERMINAL("runInTerminal", RunInTerminalRequestArguments.class),
+        REDEFINECLASSES("redefineClasses", RedefineClassesArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;
