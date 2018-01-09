@@ -97,7 +97,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private List<Consumer<List<String>>> consumers = new ArrayList<Consumer<List<String>>>();
 
-    private PublishSubject<HotCodeReplaceEvent> eventSubject = new PublishSubject<HotCodeReplaceEvent>();
+    private PublishSubject<HotCodeReplaceEvent> eventSubject = PublishSubject.<HotCodeReplaceEvent>create();
 
     /**
      * Visitor for resource deltas.
@@ -298,8 +298,12 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     }
 
     @Override
-    public Observable<HotCodeReplaceEvent> getEventhub() {
+    public Observable<HotCodeReplaceEvent> getEventHub() {
         return eventSubject;
+    }
+
+    private void publishEvent(HotCodeReplaceEvent.EventType type, String message) {
+        eventSubject.onNext(new HotCodeReplaceEvent(type, message));
     }
 
     private void doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
@@ -323,8 +327,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             return;
         }
 
-        context.getProtocolServer()
-                .sendEvent(new HotCodeReplaceEvent(EventType.STARTING, "Start hot code replacement procedure..."));
+        publishEvent(HotCodeReplaceEvent.EventType.STARTING, "Start hot code replacement procedure...");
 
         try {
             List<ThreadReference> poppedThreads = new ArrayList<>();
@@ -344,8 +347,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
 
             if (containsObsoleteMethods()) {
-                context.getProtocolServer()
-                        .sendEvent(new HotCodeReplaceEvent(EventType.ERROR, "JVM contains obsolete methods"));
+                publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM contains obsolete methods");
             }
 
             if (currentDebugSession.getVM().canPopFrames() && framesPopped) {
@@ -356,7 +358,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         } catch (DebugException e) {
             logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
         } finally {
-            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(EventType.END, "Completed hot code replace"));
+            publishEvent(HotCodeReplaceEvent.EventType.END, "Completed hot code replace");
         }
 
         threadFrameMap.clear();
@@ -610,7 +612,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             currentDebugSession.getVM().redefineClasses(typesToBytes);
         } catch (UnsupportedOperationException | NoClassDefFoundError | VerifyError | ClassFormatError
                 | ClassCircularityError e) {
-            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(EventType.ERROR, e.getMessage()));
+            publishEvent(HotCodeReplaceEvent.EventType.ERROR, e.getMessage());
             throw new DebugException("Failed to redefine classes: " + e.getMessage());
         }
     }
