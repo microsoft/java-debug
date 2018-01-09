@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -60,10 +61,11 @@ import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.StackFrameUtility;
+import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.protocol.Events;
-import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
+
 import com.sun.jdi.ArrayType;
 import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.IncompatibleThreadStateException;
@@ -73,6 +75,9 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Type;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.StepRequest;
+
+import io.reactivex.Observable;
+import io.reactivex.subjects.PublishSubject;
 
 /**
  * The hot code replace provider listens for changes to class files and notifies
@@ -91,6 +96,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     private Map<ThreadReference, List<StackFrame>> threadFrameMap = new HashMap<>();
 
     private List<Consumer<List<String>>> consumers = new ArrayList<Consumer<List<String>>>();
+
+    private PublishSubject<HotCodeReplaceEvent> eventSubject = PublishSubject.<HotCodeReplaceEvent>create();
 
     /**
      * Visitor for resource deltas.
@@ -249,45 +256,6 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         }
     }
 
-    /**
-     * Hot code replace event type.
-     */
-    enum EventType {
-        ERROR(-1),
-
-        WARNING(-2),
-
-        STARTING(1),
-
-        END(2);
-
-        private int value;
-
-        private EventType(int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return this.value;
-        }
-    }
-
-    class HotCodeReplaceEvent extends DebugEvent {
-
-        public EventType eventType;
-
-        public String message;
-
-        /**
-         * Constructor.
-         */
-        public HotCodeReplaceEvent(EventType eventType, String message) {
-            super("hotCodeReplace");
-            this.eventType = eventType;
-            this.message = message;
-        }
-    }
-
     @Override
     public void initialize(IDebugAdapterContext context, Map<String, Object> options) {
         if (DebugSettings.getCurrent().enableHotCodeReplace) {
@@ -319,6 +287,25 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         this.consumers.add(consumer);
     }
 
+    @Override
+    public CompletableFuture<List<String>> redefineClasses() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<String> classNames = new ArrayList();
+
+            // TODO: fill the class name collection by calling doHotCodeReplace
+            return classNames;
+        });
+    }
+
+    @Override
+    public Observable<HotCodeReplaceEvent> getEventHub() {
+        return eventSubject;
+    }
+
+    private void publishEvent(HotCodeReplaceEvent.EventType type, String message) {
+        eventSubject.onNext(new HotCodeReplaceEvent(type, message));
+    }
+
     private void doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
         if (context == null || currentDebugSession == null) {
             return;
@@ -340,8 +327,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             return;
         }
 
-        context.getProtocolServer()
-                .sendEvent(new HotCodeReplaceEvent(EventType.STARTING, "Start hot code replacement procedure..."));
+        publishEvent(HotCodeReplaceEvent.EventType.STARTING, "Start hot code replacement procedure...");
 
         try {
             List<ThreadReference> poppedThreads = new ArrayList<>();
@@ -361,8 +347,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
 
             if (containsObsoleteMethods()) {
-                context.getProtocolServer()
-                        .sendEvent(new HotCodeReplaceEvent(EventType.ERROR, "JVM contains obsolete methods"));
+                publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM contains obsolete methods");
             }
 
             if (currentDebugSession.getVM().canPopFrames() && framesPopped) {
@@ -373,7 +358,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         } catch (DebugException e) {
             logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
         } finally {
-            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(EventType.END, "Completed hot code replace"));
+            publishEvent(HotCodeReplaceEvent.EventType.END, "Completed hot code replace");
         }
 
         threadFrameMap.clear();
@@ -627,7 +612,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             currentDebugSession.getVM().redefineClasses(typesToBytes);
         } catch (UnsupportedOperationException | NoClassDefFoundError | VerifyError | ClassFormatError
                 | ClassCircularityError e) {
-            context.getProtocolServer().sendEvent(new HotCodeReplaceEvent(EventType.ERROR, e.getMessage()));
+            publishEvent(HotCodeReplaceEvent.EventType.ERROR, e.getMessage());
             throw new DebugException("Failed to redefine classes: " + e.getMessage());
         }
     }
