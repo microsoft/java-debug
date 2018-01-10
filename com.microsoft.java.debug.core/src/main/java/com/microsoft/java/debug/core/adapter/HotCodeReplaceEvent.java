@@ -39,9 +39,16 @@ public class HotCodeReplaceEvent {
 
     private String message;
 
+    private Object data;
+
     public HotCodeReplaceEvent(EventType eventType, String message) {
         this.eventType = eventType;
         this.message = message;
+    }
+
+    public HotCodeReplaceEvent(EventType eventType, String message, Object data) {
+        this(eventType, message);
+        this.data = data;
     }
 
     public EventType getEventType() {
@@ -50,5 +57,9 @@ public class HotCodeReplaceEvent {
 
     public String getMessage() {
         return message;
+    }
+
+    public Object getData() {
+        return data;
     }
 }
