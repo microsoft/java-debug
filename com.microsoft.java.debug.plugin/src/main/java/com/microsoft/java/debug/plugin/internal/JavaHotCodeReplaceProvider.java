@@ -316,6 +316,10 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         eventSubject.onNext(new HotCodeReplaceEvent(type, message));
     }
 
+    private void publishEvent(HotCodeReplaceEvent.EventType type, String message, Object data) {
+        eventSubject.onNext(new HotCodeReplaceEvent(type, message, data));
+    }
+
     private void doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
         if (context == null || currentDebugSession == null) {
             return;
@@ -368,7 +372,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         } catch (DebugException e) {
             logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
         } finally {
-            publishEvent(HotCodeReplaceEvent.EventType.END, "Completed hot code replace");
+            publishEvent(HotCodeReplaceEvent.EventType.END, "Completed hot code replace", qualifiedNamesToReplace);
         }
 
         threadFrameMap.clear();

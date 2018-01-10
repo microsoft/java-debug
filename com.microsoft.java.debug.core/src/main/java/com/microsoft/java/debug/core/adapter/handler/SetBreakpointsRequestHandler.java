@@ -58,7 +58,12 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         provider.getEventHub()
             .filter(event -> event.getEventType() == EventType.END)
             .subscribe(event -> {
-                reinstallBreakpoints(context, null);
+                try {
+                    List<String> classNames = (List<String>) event.getData();
+                    reinstallBreakpoints(context, classNames);
+                } catch (Exception e) {
+                    logger.severe(e.toString());
+                }
             });
     }
 
