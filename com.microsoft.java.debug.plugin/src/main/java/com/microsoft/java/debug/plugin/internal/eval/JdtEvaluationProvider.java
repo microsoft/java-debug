@@ -11,13 +11,18 @@
 
 package com.microsoft.java.debug.plugin.internal.eval;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
@@ -41,6 +46,7 @@ import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
+import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -70,15 +76,11 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     @Override
     public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
-        String projectName = (String) options.get(Constants.PROJECTNAME);
+
         if (debugTarget == null) {
+            String projectName = (String) options.get(Constants.PROJECTNAME);
             if (project == null) {
-                if (StringUtils.isBlank(projectName)) {
-                    logger.severe("Cannot evaluate when project is not specified.");
-                    completableFuture.completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
-                    return completableFuture;
-                }
-                project = JdtUtils.getJavaProject(projectName);
+                project = calculateJavaProject(projectName, thread, depth);
             }
 
             if (project == null) {
@@ -98,8 +100,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 }
             };
         }
-
         JDIThread jdiThread = getMockJDIThread(thread);
+
         JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
         if (stackframe == null) {
             logger.severe("Cannot evaluate because the stackframe is not available.");
@@ -107,6 +109,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                     new IllegalStateException("Cannot evaluate because the stackframe is not available."));
             return completableFuture;
         }
+
         try  {
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
             ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
@@ -131,6 +134,37 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
         return completableFuture;
     }
+
+    private IJavaProject calculateJavaProject(String projectName, ThreadReference thread, int depth) {
+        if (StringUtils.isBlank(projectName)) {
+            try {
+                StackFrame sf = thread.frame(depth);
+                String typeName = sf.location().method().declaringType().name();
+
+                // check whether the project is the only java project in workspace
+                IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
+                List<IJavaProject> projects = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
+                    try {
+                        return p.findType(typeName) != null && p.hasBuildState();
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                    return false;
+                }).collect(Collectors.toList());
+
+                if (projects.size() == 1) {
+                    return projects.get(0);
+                }
+            } catch (Exception ex) {
+                // ignore
+            }
+
+            logger.severe("Cannot evaluate when project is not specified.");
+            throw new IllegalStateException("Please specify projectName in launch.json.");
+        }
+        return JdtUtils.getJavaProject(projectName);
+    }
+
 
     private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
         try {
