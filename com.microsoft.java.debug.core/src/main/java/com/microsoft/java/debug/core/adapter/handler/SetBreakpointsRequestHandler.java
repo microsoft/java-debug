@@ -31,6 +31,7 @@ import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
+import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent.EventType;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
@@ -49,25 +50,29 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private BreakpointManager manager = new BreakpointManager();
 
-    private boolean isHcrInitialized = false;
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.SETBREAKPOINTS);
     }
 
     @Override
-    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
-        // TODO: This part logic should be part of post launching handler.
-        //       Add post launch logic and move the reinstall breakpoints logic there.
-        if (!isHcrInitialized) {
-            IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-            hcrProvider.onClassRedefined((typenames) -> {
-                this.reinstallBreakpoints(context, typenames);
+    public void initialize(IDebugAdapterContext context) {
+        IDebugRequestHandler.super.initialize(context);
+        IHotCodeReplaceProvider provider = context.getProvider(IHotCodeReplaceProvider.class);
+        provider.getEventHub()
+            .filter(event -> event.getEventType() == EventType.END)
+            .subscribe(event -> {
+                try {
+                    List<String> classNames = (List<String>) event.getData();
+                    reinstallBreakpoints(context, classNames);
+                } catch (Exception e) {
+                    logger.severe(e.toString());
+                }
             });
-            isHcrInitialized = true;
-        }
+    }
 
+    @Override
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
         }

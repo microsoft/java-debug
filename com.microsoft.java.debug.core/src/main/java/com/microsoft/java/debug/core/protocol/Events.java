@@ -176,4 +176,22 @@ public class Events {
             this.breakpoint = breakpoint;
         }
     }
+
+    public static class HotCodeReplaceEvent extends DebugEvent {
+        public enum ChangeType {
+            ERROR, WARNING, STARTING, END, BUILD_COMPLETE
+        }
+
+        public ChangeType changeType;
+        public String message;
+
+        /**
+         * Constructor.
+         */
+        public HotCodeReplaceEvent(ChangeType changeType, String message) {
+            super("hotcodereplace");
+            this.changeType = changeType;
+            this.message = message;
+        }
+    }
 }
