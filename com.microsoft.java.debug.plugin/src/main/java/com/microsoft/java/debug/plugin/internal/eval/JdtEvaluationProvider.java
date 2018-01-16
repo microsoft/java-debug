@@ -13,8 +13,10 @@ package com.microsoft.java.debug.plugin.internal.eval;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -34,6 +36,7 @@ import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
 import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
 import org.eclipse.jdt.internal.debug.core.model.JDIDebugTarget;
 import org.eclipse.jdt.internal.debug.core.model.JDIStackFrame;
@@ -61,6 +64,10 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     private IDebugAdapterContext context;
 
+    private List<IJavaProject> possibleProjects;
+
+    private Set<String> visitedClassNames = new HashSet<>();
+
     public JdtEvaluationProvider() {
     }
 
@@ -80,7 +87,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         if (debugTarget == null) {
             String projectName = (String) options.get(Constants.PROJECTNAME);
             if (project == null) {
-                project = calculateJavaProject(projectName, thread, depth);
+                initializeJavaProject(projectName, thread, depth);
             }
 
             if (project == null) {
@@ -135,34 +142,88 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         return completableFuture;
     }
 
-    private IJavaProject calculateJavaProject(String projectName, ThreadReference thread, int depth) {
-        if (StringUtils.isBlank(projectName)) {
+    /**
+     * Prepare a list of possible java projects in workspace which contains the main class.
+     * @param projectName the possible project name specified by launch.json
+     * @param mainclass the main class specified by launch.json for finding possible projects
+     */
+    private void initializePossibleProjects(String projectName, String mainclass) {
+
+        IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
+        List<IJavaProject> projects = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
             try {
-                StackFrame sf = thread.frame(depth);
-                String typeName = sf.location().method().declaringType().name();
-
-                // check whether the project is the only java project in workspace
-                IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-                List<IJavaProject> projects = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
-                    try {
-                        return p.findType(typeName) != null && p.hasBuildState();
-                    } catch (Exception e) {
-                        // ignore
-                    }
-                    return false;
-                }).collect(Collectors.toList());
-
-                if (projects.size() == 1) {
-                    return projects.get(0);
-                }
-            } catch (Exception ex) {
+                return p != null && p.hasBuildState();
+            } catch (Exception e) {
                 // ignore
             }
+            return false;
+        }).collect(Collectors.toList());
 
-            logger.severe("Cannot evaluate when project is not specified.");
-            throw new IllegalStateException("Please specify projectName in launch.json.");
+
+        if (projects.size() > 1 && StringUtils.isNotBlank(mainclass)) {
+            projects = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
+                try {
+                    return p.findType(mainclass) != null;
+                } catch (JavaModelException e) {
+                 // ignore
+                }
+                return false;
+            }).collect(Collectors.toList());
+            visitedClassNames.add(mainclass);
         }
-        return JdtUtils.getJavaProject(projectName);
+
+        if (projects.size() == 1) {
+            project =  projects.get(0);
+        }
+
+        possibleProjects = projects;
+    }
+
+    private void initializeJavaProject(String projectName, ThreadReference thread, int depth) {
+        if (possibleProjects == null) {
+            initializePossibleProjects((String) options.get(Constants.PROJECTNAME), (String) options.get(Constants.MAINCLASS));
+            if (project != null) {
+                return;
+            }
+        }
+
+        if (possibleProjects.size() == 0) {
+            logger.severe("No project is available for evaluation.");
+            throw new IllegalStateException("No project is available for evaluation.");
+        }
+
+        try {
+            StackFrame sf = thread.frame(depth);
+            String typeName = sf.location().method().declaringType().name();
+            // check whether the project is the only java project in workspace
+            List<IJavaProject> validProjects = visitedClassNames.contains(typeName) ? possibleProjects
+                    : possibleProjects.stream().filter(p -> {
+                        try {
+                            return !visitedClassNames.contains(typeName) && p.findType(typeName) != null;
+                        } catch (Exception e) {
+                            // ignore
+                        }
+                        return false;
+                    }).collect(Collectors.toList());
+            visitedClassNames.add(typeName);
+            if (validProjects.size() == 1) {
+                project = validProjects.get(0);
+            } else if (validProjects.size() == 0) {
+                logger.severe("No project is available for evaluation.");
+                throw new IllegalStateException("No project is available for evaluation, .");
+            } else {
+                // narrow down projects
+                possibleProjects = validProjects;
+                logger.severe("Multiple projects are valid for evaluation.");
+                throw new IllegalStateException("Multiple projects are found, please specify projectName in launch.json.");
+            }
+
+        } catch (Exception ex) {
+            // ignore
+        }
+
+        logger.severe("Cannot evaluate when project is not specified.");
+        throw new IllegalStateException("Please specify projectName in launch.json.");
     }
 
 

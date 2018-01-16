@@ -14,4 +14,5 @@ package com.microsoft.java.debug.core.adapter;
 public final class Constants {
     public static final String PROJECTNAME = "projectName";
     public static final String DEBUGGEE_ENCODING = "debuggeeEncoding";
+    public static final String MAINCLASS = "mainClass";
 }

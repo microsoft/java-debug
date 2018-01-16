@@ -108,12 +108,16 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         return launch(launchArguments, response, context).thenCompose(res -> {
             if (res.success) {
-                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+
                 Map<String, Object> options = new HashMap<>();
                 options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
                 if (launchArguments.projectName != null) {
                     options.put(Constants.PROJECTNAME, launchArguments.projectName);
                 }
+                if (launchArguments.mainClass != null) {
+                    options.put(Constants.MAINCLASS, launchArguments.mainClass);
+                }
+                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
                 sourceProvider.initialize(context, options);
                 IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
                 evaluationProvider.initialize(context, options);
@@ -336,7 +340,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     }
 
     /**
-     * Parses the given command line into separate arguments that can be passed
+     * Parses the given command line i`nto separate arguments that can be passed
      * to <code>Runtime.getRuntime().exec(cmdArray)</code>.
      *
      * @param args command line as a single string.
