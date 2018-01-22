@@ -99,9 +99,9 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private PublishSubject<HotCodeReplaceEvent> eventSubject = PublishSubject.<HotCodeReplaceEvent>create();
 
-    private List<IResource> deltaResources = new ArrayList();
+    private List<IResource> deltaResources = new ArrayList<>();
 
-    private List<String> deltaClassNames = new ArrayList();
+    private List<String> deltaClassNames = new ArrayList<>();
 
     /**
      * Visitor for resource deltas.
@@ -296,7 +296,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     @Override
     public CompletableFuture<List<String>> redefineClasses() {
         return CompletableFuture.supplyAsync(() -> {
-            List<String> classNames = new ArrayList();
+            List<String> classNames = new ArrayList<>();
             synchronized (this) {
                 classNames.addAll(deltaClassNames);
                 doHotCodeReplace(deltaResources, deltaClassNames);
@@ -737,7 +737,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             if (!thread.isSuspended()) {
                 continue;
             }
-            List<StackFrame> frames = getStackFrames(thread, false);
+            List<StackFrame> frames = getStackFrames(thread, true);
             if (frames == null || frames.isEmpty()) {
                 continue;
             }
