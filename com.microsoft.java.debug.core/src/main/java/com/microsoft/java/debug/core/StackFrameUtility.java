@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.InvalidStackFrameException;
+import com.sun.jdi.NativeMethodException;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 
@@ -32,8 +33,14 @@ public final class StackFrameUtility {
     public static void pop(StackFrame frame) throws DebugException {
         try {
             frame.thread().popFrames(frame);
-        } catch (IncompatibleThreadStateException | InvalidStackFrameException e) {
-            throw new DebugException(e.getMessage(), e);
+        } catch (IncompatibleThreadStateException e) {
+            throw new DebugException(String.format("%s occurred popping stack frame.", e.getMessage()), e);
+        } catch (InvalidStackFrameException e) {
+            throw new DebugException("Cannot pop up the top stack farme.", e);
+        } catch (NativeMethodException e) {
+            throw new DebugException("Cannot pop up the stack frame because it is not valid for a native method.", e);
+        } catch (RuntimeException e) {
+            throw new DebugException(String.format("Runtime exception happened: %s", e.getMessage()), e);
         }
     }
 
