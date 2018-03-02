@@ -73,6 +73,7 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Type;
+import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.StepRequest;
 
@@ -402,9 +403,13 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
      * @see com.sun.jdi.VirtualMachine
      */
     private List<ReferenceType> getJdiClassesByName(String className) {
-        VirtualMachine vm = this.currentDebugSession.getVM();
-        if (vm != null) {
-            return vm.classesByName(className);
+        try {
+            VirtualMachine vm = this.currentDebugSession.getVM();
+            if (vm != null) {
+                return vm.classesByName(className);
+            }
+        } catch (VMDisconnectedException ex) {
+            // Ignore this exception since it will happen when the VM is still running.
         }
         return Collections.emptyList();
     }
