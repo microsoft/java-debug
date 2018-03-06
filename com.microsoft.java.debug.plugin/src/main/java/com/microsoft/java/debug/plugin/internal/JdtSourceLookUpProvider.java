@@ -51,7 +51,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final String PATH_SEPARATOR = "/";
     private ISourceContainer[] sourceContainers = null;
 
-    private HashMap<String, Object> options = new HashMap<>();
+    private HashMap<String, Object> options = new HashMap<String, Object>();
 
     @Override
     public void initialize(IDebugAdapterContext context, Map<String, Object> props) {
@@ -73,7 +73,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     /**
      * For a given source file and a list of line locations, return the fully
      * qualified names of the type of the line location. If the line location points
-     * an empty line or invalid line, it will update the value into next valid line in array argument lines
+     * an empty line or invalid line, it returns a null fully qualified name.
      */
     @Override
     public String[] getFullyQualifiedName(String uri, int[] lines, int[] columns) throws DebugException {
@@ -101,7 +101,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            Charset cs = (Charset) options.get(Constants.DEBUGGEE_ENCODING);
+            Charset cs = (Charset) this.options.get(Constants.DEBUGGEE_ENCODING);
             if (cs == null) {
                 cs = Charset.defaultCharset();
             }
@@ -151,9 +151,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 astUnit.accept(locator);
                 // When the final valid line location is same as the original line, that represents it's a valid breakpoint.
                 // Add location type check to avoid breakpoint on method/field which will never be hit in current implementation.
-                if (locator.getLocationType() == ValidBreakpointLocationLocator.LOCATION_LINE) {
-                    // update lines to the next line which is valid for breakpoint
-                    lines[i] = locator.getLineLocation();
+                if (lines[i] == locator.getLineLocation() && locator.getLocationType() == ValidBreakpointLocationLocator.LOCATION_LINE) {
                     fqns[i] = locator.getFullyQualifiedTypeName();
                 }
             }
