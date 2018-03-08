@@ -101,4 +101,8 @@ public interface IDebugAdapterContext {
     StepFilters getStepFilters();
 
     IStackFrameManager getStackFrameManager();
+
+    BreakpointManager getBreakpointManager();
+
+    void setBreakpointManager(BreakpointManager manager);
 }

@@ -28,6 +28,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private IProtocolServer server;
 
     private IDebugSession debugSession;
+    private BreakpointManager breakPointManager;
     private boolean debuggerLinesStartAt1 = true;
     private boolean debuggerPathsAreUri = true;
     private boolean clientLinesStartAt1 = true;
@@ -230,5 +231,16 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IStackFrameManager getStackFrameManager() {
         return stackFrameManager;
+    }
+
+    @Override
+    public BreakpointManager getBreakpointManager() {
+        return breakPointManager;
+    }
+
+    @Override
+    public void setBreakpointManager(BreakpointManager manager) {
+        breakPointManager = manager;
+
     }
 }

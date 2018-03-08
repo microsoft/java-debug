@@ -213,6 +213,7 @@ public class Types {
     public static class Capabilities {
         public boolean supportsConfigurationDoneRequest;
         public boolean supportsHitConditionalBreakpoints;
+        public boolean supportsConditionalBreakpoints;
         public boolean supportsEvaluateForHovers;
         public boolean supportsSetVariable;
         public boolean supportsRestartRequest;

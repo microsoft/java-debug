@@ -47,6 +47,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         Types.Capabilities caps = new Types.Capabilities();
         caps.supportsConfigurationDoneRequest = true;
         caps.supportsHitConditionalBreakpoints = true;
+        caps.supportsConditionalBreakpoints = true;
         caps.supportsSetVariable = true;
         caps.supportTerminateDebuggee = true;
         Types.ExceptionBreakpointFilter[] exceptionFilters = {

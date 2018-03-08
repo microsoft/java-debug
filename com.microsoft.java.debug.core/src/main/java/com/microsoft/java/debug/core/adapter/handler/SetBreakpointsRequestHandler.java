@@ -54,6 +54,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     @Override
     public void initialize(IDebugAdapterContext context) {
         IDebugRequestHandler.super.initialize(context);
+        context.setBreakpointManager(manager);
         IHotCodeReplaceProvider provider = context.getProvider(IHotCodeReplaceProvider.class);
         provider.getEventHub()
             .filter(event -> event.getEventType() == EventType.END)
@@ -152,7 +153,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             } catch (NumberFormatException e) {
                 hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
             }
-            breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount);
+            breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount, sourceBreakpoints[i].condition);
             if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(fqns[i])) {
                 breakpoints[i].putProperty("verified", true);
             }
