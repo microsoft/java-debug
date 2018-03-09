@@ -28,10 +28,6 @@ public interface IDebugSession {
     void terminate();
 
     // breakpoints
-    IBreakpoint createBreakpoint(String className, int lineNumber);
-
-    IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount);
-
     IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition);
 
     void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught);
