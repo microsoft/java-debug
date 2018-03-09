@@ -23,7 +23,6 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -32,7 +31,6 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.ExceptionEvent;
-import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.event.ThreadDeathEvent;
 import com.sun.jdi.event.ThreadStartEvent;
 import com.sun.jdi.event.VMDeathEvent;
@@ -93,18 +91,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             Events.ThreadEvent threadDeathEvent = new Events.ThreadEvent("exited", deathThread.uniqueID());
             context.getProtocolServer().sendEvent(threadDeathEvent);
         } else if (event instanceof BreakpointEvent) {
-            if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
-                // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
-                // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
-            } else {
-                ThreadReference bpThread = ((BreakpointEvent) event).thread();
-                IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-                if (engine.isInEvaluation(bpThread)) {
-                    return;
-                }
-                context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
-                debugEvent.shouldResume = false;
-            }
+            // ignore since SetBreakpointsRequestHandler has already handled
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
