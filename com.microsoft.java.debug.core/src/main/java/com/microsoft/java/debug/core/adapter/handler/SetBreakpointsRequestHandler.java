@@ -76,7 +76,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     logger.severe(e.toString());
                 }
             });
-
     }
 
     @Override
