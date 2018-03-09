@@ -174,15 +174,14 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                             try {
                                 value = engine.evaluate(conditionalBP.getCondition(), bpThread, 0).get();
                                 if (value instanceof PrimitiveValue) {
-                                    boolean pass = ((PrimitiveValue) value).booleanValue();
-                                    if (!pass) {
+                                    boolean evaluationResultAsBool = ((PrimitiveValue) value).booleanValue();
+                                    if (!evaluationResultAsBool) {
                                         debugEvent.eventSet.resume();
                                         return;
                                     }
                                 }
                             } catch (InterruptedException | ExecutionException e) {
-                                // break when the condition evaluation fails
-                                e.printStackTrace();
+                                // TODO: notify user about evaluation failure
                             }
                             context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
 
