@@ -75,8 +75,13 @@ public class EventHub implements IEventHub {
                         DebugEvent dbgEvent = new DebugEvent();
                         dbgEvent.event = event;
                         dbgEvent.eventSet = set;
-                        subject.onNext(dbgEvent);
-                        shouldResume &= dbgEvent.shouldResume;
+//                        if (event instanceof BreakpointEvent) {
+//                            shouldResume = true;
+//                        }
+//                        else {
+                            subject.onNext(dbgEvent);
+                            shouldResume &= dbgEvent.shouldResume;
+//                        }
                     }
 
                     if (shouldResume) {

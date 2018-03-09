@@ -25,7 +25,6 @@ import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.debug.core.model.ISourceLocator;
-import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
 import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
@@ -66,6 +65,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         options.putAll(props);
         this.context = context;
     }
+    private long timeDuration1 = 0;
+    private long timeDuration2 = 0;
 
     @Override
     public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
@@ -109,8 +110,15 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
         try  {
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            long startTime = System.nanoTime();
+
             ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
+            long endTime = System.nanoTime();
+            timeDuration1+= (endTime - startTime) / 1000000;
+
             engine.evaluateExpression(ie, stackframe, evaluateResult -> {
+
+                timeDuration2 += (System.nanoTime() - endTime) / 1000000;
                 if (evaluateResult == null || evaluateResult.hasErrors()) {
                     Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
                             : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
@@ -134,9 +142,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
         try {
-            IStackFrame[] jdiStackFrames = thread.getStackFrames();
-            return jdiStackFrames.length > depth ? (JDIStackFrame) jdiStackFrames[depth] : null;
-        } catch (DebugException e) {
+            return new JDIStackFrame(thread, thread.getUnderlyingThread().frame(0), 0);
+        } catch (Exception e) {
             return null;
         }
 

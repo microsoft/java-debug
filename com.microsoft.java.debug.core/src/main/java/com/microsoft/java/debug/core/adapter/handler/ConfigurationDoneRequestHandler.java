@@ -17,9 +17,11 @@ import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.DebugUtility;
+import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -28,7 +30,10 @@ import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.sun.jdi.Location;
+import com.sun.jdi.PrimitiveValue;
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.Value;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.ExceptionEvent;
@@ -40,7 +45,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.event.VMStartEvent;
 
 public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
-
+    private BreakpointManager manager = new BreakpointManager();
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.CONFIGURATIONDONE);
@@ -62,7 +67,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Failed to launch debug session, the debugger will exit.");
         }
     }
-
+    private long timeDuration = 0;
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context) {
         Event event = debugEvent.event;
         boolean isImportantEvent = true;
@@ -102,6 +107,38 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 if (engine.isInEvaluation(bpThread)) {
                     return;
                 }
+                IBreakpoint []bps = context.getBreakpointManager().getBreakpoints();
+                try {
+
+                    Location loc = ((BreakpointEvent) event).location();
+                    for (IBreakpoint  bp : bps) {
+                        if (bp.lineNumber() == loc.lineNumber() &&
+                                bp.requests().contains(((BreakpointEvent) event).request())
+                                ) {
+//                            long startTime = System.nanoTime();
+//                            timeDuration++;
+//                            if (timeDuration< 100) {
+//                                debugEvent.shouldResume = true;
+//                              return;
+//                            }
+
+                            Value value = engine.evaluate(bp.condition(), bpThread, 0).get();
+                            if (value instanceof PrimitiveValue) {
+                                 boolean  pass = ((PrimitiveValue)value).booleanValue();
+                                 if (!pass) {
+                                     debugEvent.shouldResume = true;
+                                     return;
+                                 }
+                            }
+                            System.out.println(value.toString());
+                        }
+                    }
+
+                } catch (Exception e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+
                 context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 debugEvent.shouldResume = false;
             }

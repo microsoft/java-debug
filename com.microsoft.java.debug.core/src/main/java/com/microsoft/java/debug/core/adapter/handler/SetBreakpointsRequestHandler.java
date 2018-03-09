@@ -54,6 +54,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     @Override
     public void initialize(IDebugAdapterContext context) {
         IDebugRequestHandler.super.initialize(context);
+        context.setBreakpointManager(manager);
         IHotCodeReplaceProvider provider = context.getProvider(IHotCodeReplaceProvider.class);
         provider.getEventHub()
             .filter(event -> event.getEventType() == EventType.END)
