@@ -91,10 +91,10 @@ public class BreakpointManager {
         List<IBreakpoint> toAdd = new ArrayList<>();
         List<Integer> visitedLineNumbers = new ArrayList<>();
         for (IBreakpoint breakpoint : breakpoints) {
-            IBreakpoint existed = breakpointMap.get(String.valueOf(breakpoint.lineNumber()));
+            IBreakpoint existed = breakpointMap.get(String.valueOf(breakpoint.getLineNumber()));
             if (existed != null) {
                 result.add(existed);
-                visitedLineNumbers.add(existed.lineNumber());
+                visitedLineNumbers.add(existed.getLineNumber());
                 continue;
             } else {
                 result.add(breakpoint);
@@ -105,7 +105,7 @@ public class BreakpointManager {
         // Compute the breakpoints that are no longer listed.
         List<IBreakpoint> toRemove = new ArrayList<>();
         for (IBreakpoint breakpoint : breakpointMap.values()) {
-            if (!visitedLineNumbers.contains(breakpoint.lineNumber())) {
+            if (!visitedLineNumbers.contains(breakpoint.getLineNumber())) {
                 toRemove.add(breakpoint);
             }
         }
@@ -123,7 +123,7 @@ public class BreakpointManager {
             for (IBreakpoint breakpoint : breakpoints) {
                 breakpoint.putProperty("id", this.nextBreakpointId.getAndIncrement());
                 this.breakpoints.add(breakpoint);
-                breakpointMap.put(String.valueOf(breakpoint.lineNumber()), breakpoint);
+                breakpointMap.put(String.valueOf(breakpoint.getLineNumber()), breakpoint);
             }
         }
     }
@@ -143,7 +143,7 @@ public class BreakpointManager {
                     // Destroy the breakpoint on the debugee VM.
                     breakpoint.close();
                     this.breakpoints.remove(breakpoint);
-                    breakpointMap.remove(String.valueOf(breakpoint.lineNumber()));
+                    breakpointMap.remove(String.valueOf(breakpoint.getLineNumber()));
                 } catch (Exception e) {
                     logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
                 }
