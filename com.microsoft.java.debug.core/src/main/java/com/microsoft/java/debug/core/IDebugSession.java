@@ -30,8 +30,6 @@ public interface IDebugSession {
     // breakpoints
     IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition);
 
-    IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition);
-
     void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught);
 
     // TODO: createFunctionBreakpoint
