@@ -16,9 +16,9 @@ import java.util.concurrent.CompletableFuture;
 public interface IBreakpoint extends IDebugResource {
     String className();
 
-    int lineNumber();
+    int getLineNumber();
 
-    int hitCount();
+    int getHitCount();
 
     void setHitCount(int hitCount);
 
@@ -27,4 +27,6 @@ public interface IBreakpoint extends IDebugResource {
     void putProperty(Object key, Object value);
 
     Object getProperty(Object key);
+
+    String getCondition();
 }
