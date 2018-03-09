@@ -115,9 +115,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                         Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
                         context.getProtocolServer().sendEvent(bpEvent);
                     });
-                } else if (toAdds[i].hitCount() != added[i].hitCount() && added[i].className() != null) {
+                } else if (toAdds[i].getHitCount() != added[i].getHitCount() && added[i].className() != null) {
                     // Update hitCount condition.
-                    added[i].setHitCount(toAdds[i].hitCount());
+                    added[i].setHitCount(toAdds[i].getHitCount());
                 }
                 res.add(this.convertDebuggerBreakpointToClient(added[i], context));
             }
@@ -133,7 +133,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private Types.Breakpoint convertDebuggerBreakpointToClient(IBreakpoint breakpoint, IDebugAdapterContext context) {
         int id = (int) breakpoint.getProperty("id");
         boolean verified = breakpoint.getProperty("verified") != null && (boolean) breakpoint.getProperty("verified");
-        int lineNumber = AdapterUtils.convertLineNumber(breakpoint.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
+        int lineNumber = AdapterUtils.convertLineNumber(breakpoint.getLineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         return new Types.Breakpoint(id, verified, lineNumber, "");
     }
 

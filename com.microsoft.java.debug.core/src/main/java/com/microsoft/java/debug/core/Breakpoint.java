@@ -91,12 +91,12 @@ public class Breakpoint implements IBreakpoint {
     }
 
     @Override
-    public int lineNumber() {
+    public int getLineNumber() {
         return lineNumber;
     }
 
     @Override
-    public String condition() {
+    public String getCondition() {
         return condition;
     }
 
@@ -107,11 +107,11 @@ public class Breakpoint implements IBreakpoint {
         }
 
         IBreakpoint breakpoint = (IBreakpoint) obj;
-        return Objects.equals(this.className(), breakpoint.className()) && this.lineNumber() == breakpoint.lineNumber();
+        return Objects.equals(this.className(), breakpoint.className()) && this.getLineNumber() == breakpoint.getLineNumber();
     }
 
     @Override
-    public int hitCount() {
+    public int getHitCount() {
         return hitCount;
     }
 
