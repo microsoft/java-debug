@@ -157,10 +157,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private void registerBreakpointHandler(IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
-            debugSession.getEventHub().events().subscribe(debugEvent -> {
-                if (!(debugEvent.event instanceof BreakpointEvent)) {
-                    return;
-                }
+            debugSession.getEventHub().events().filter(debugEvent -> debugEvent.event instanceof BreakpointEvent).subscribe(debugEvent -> {
                 Event event = debugEvent.event;
                 if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
                     // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
