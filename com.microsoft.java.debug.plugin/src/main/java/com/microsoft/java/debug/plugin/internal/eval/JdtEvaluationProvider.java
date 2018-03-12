@@ -78,8 +78,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             throw new IllegalArgumentException("breakpoint is not a conditional breakpoint.");
         }
 
-        CompletableFuture<Value> failureFuture = new CompletableFuture<>();
-
+        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         try  {
             ensureDebugTarget(thread.virtualMachine());
             JDIThread jdiThread = getMockJDIThread(thread);
@@ -89,17 +88,18 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             ICompiledExpression ie = (ICompiledExpression) breakpointExpressionMap
                     .computeIfAbsent(breakpoint, bp -> engine.getCompiledExpression(bp.getCondition(), stackframe));
 
-            return internalEvaluate(engine, ie, stackframe);
+            internalEvaluate(engine, ie, stackframe, completableFuture);
+            return completableFuture;
         } catch (Exception ex) {
-            failureFuture.completeExceptionally(ex);
+            completableFuture.completeExceptionally(ex);
+            return completableFuture;
         }
-        return failureFuture;
+
     }
 
     @Override
     public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
-        CompletableFuture<Value> failureFuture = new CompletableFuture<>();
-
+        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         try  {
             ensureDebugTarget(thread.virtualMachine());
             JDIThread jdiThread = getMockJDIThread(thread);
@@ -111,11 +111,12 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
             ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
 
-            return internalEvaluate(engine, ie, stackframe);
+            internalEvaluate(engine, ie, stackframe, completableFuture);
+            return completableFuture;
         } catch (Exception ex) {
-            failureFuture.completeExceptionally(ex);
+            completableFuture.completeExceptionally(ex);
+            return completableFuture;
         }
-        return failureFuture;
     }
 
     private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
@@ -141,8 +142,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     }
 
-    private CompletableFuture<Value> internalEvaluate(ASTEvaluationEngine engine, ICompiledExpression compiledExpression, IJavaStackFrame stackframe) {
-        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
+    private void internalEvaluate(ASTEvaluationEngine engine, ICompiledExpression compiledExpression,
+            IJavaStackFrame stackframe, CompletableFuture<Value> completableFuture) {
         try  {
             engine.evaluateExpression(compiledExpression, stackframe, evaluateResult -> {
                 if (evaluateResult == null || evaluateResult.hasErrors()) {
@@ -162,7 +163,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         } catch (Exception ex) {
             completableFuture.completeExceptionally(ex);
         }
-        return completableFuture;
     }
 
     @Override
@@ -188,27 +188,25 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
-    private boolean ensureDebugTarget(VirtualMachine vm) {
-        String projectName = (String) options.get(Constants.PROJECTNAME);
+    private void ensureDebugTarget(VirtualMachine vm) {
         if (debugTarget == null) {
+            String projectName = (String) options.get(Constants.PROJECTNAME);
             if (project == null) {
                 if (StringUtils.isBlank(projectName)) {
                     logger.severe("Cannot evaluate when project is not specified.");
                     throw new IllegalStateException("Please specify projectName in launch.json.");
                 }
-                project = JdtUtils.getJavaProject(projectName);
+                IJavaProject javaProject = JdtUtils.getJavaProject(projectName);
+                if (javaProject == null) {
+                    throw new IllegalStateException(String.format("Project %s cannot be found.", projectName));
+                }
+                project = javaProject;
             }
 
-            if (project == null) {
-                new IllegalStateException(String.format("Project %s cannot be found.", projectName));
-                return false;
-            }
             if (launch == null) {
                 launch = createILaunchMock(project);
             }
-        }
 
-        if (debugTarget == null) {
             debugTarget = new JDIDebugTarget(launch, vm, "", false, false, null, false) {
                 @Override
                 protected synchronized void initialize() {
@@ -216,7 +214,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 }
             };
         }
-        return true;
     }
 
     private static ILaunch createILaunchMock(IJavaProject project) {
