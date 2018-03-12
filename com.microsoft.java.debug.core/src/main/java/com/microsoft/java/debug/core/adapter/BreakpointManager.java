@@ -32,7 +32,7 @@ public class BreakpointManager {
     private HashMap<String, HashMap<String, IBreakpoint>> sourceToBreakpoints;
     private AtomicInteger nextBreakpointId = new AtomicInteger(1);
     // BreakpointManager is the owner class of the breakpoint to compiled expression map, it will remove
-    // the breakpoint from this map if the breakpoint is removed or changing its condition
+    // the breakpoint from this map if the breakpoint is removed or its condition is changed
     private Map<IBreakpoint, Object> breakpointExpressionMap = new HashMap<>();
 
     /**
