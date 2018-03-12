@@ -29,4 +29,6 @@ public interface IBreakpoint extends IDebugResource {
     Object getProperty(Object key);
 
     String getCondition();
+
+    void setCondition(String condition);
 }
