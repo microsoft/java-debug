@@ -175,7 +175,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     // find the breakpoint related to this breakpoint event
                     IBreakpoint conditionalBP = Arrays.asList(manager.getBreakpoints()).stream().filter(bp -> StringUtils.isNotBlank(bp.getCondition())
                             && bp.requests().contains(((BreakpointEvent) event).request())
-                            ).findFirst().get();
+                            ).findFirst().orElse(null);
                     if (conditionalBP != null) {
                         CompletableFuture.runAsync(() -> {
                             engine.evaluateForBreakpoint(conditionalBP, bpThread, manager.getBreakpointExpressionMap()).whenComplete((value, ex) -> {
@@ -193,6 +193,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                 }
                                 if (resume) {
                                     debugEvent.eventSet.resume();
+                                    // since the evaluation result is false, clear the evaluation environment caused by above evaluation.
+                                    engine.clearState(bpThread);
                                 } else {
                                     context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                                 }
