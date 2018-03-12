@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,12 +25,14 @@ import org.apache.commons.lang3.StringUtils;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent.EventType;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.protocol.Events;
@@ -39,12 +42,20 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.SetBreakpointArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
+import com.sun.jdi.PrimitiveValue;
+import com.sun.jdi.ThreadReference;
+import com.sun.jdi.Value;
+import com.sun.jdi.event.BreakpointEvent;
+import com.sun.jdi.event.Event;
+import com.sun.jdi.event.StepEvent;
 
 public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private BreakpointManager manager = new BreakpointManager();
+
+    private boolean registered = false;
 
     @Override
     public List<Command> getTargetCommands() {
@@ -71,6 +82,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
+        }
+
+        if (!registered) {
+            registered = true;
+            registerBreakpointHandler(context);
         }
 
         SetBreakpointArguments bpArguments = (SetBreakpointArguments) arguments;
@@ -127,6 +143,55 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             return AdapterUtils.createAsyncErrorResponse(response,
                     ErrorCode.SET_BREAKPOINT_FAILURE,
                     String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()));
+        }
+    }
+
+    private void registerBreakpointHandler(IDebugAdapterContext context) {
+        IDebugSession debugSession = context.getDebugSession();
+        if (debugSession != null) {
+            debugSession.getEventHub().events().subscribe(debugEvent -> {
+                if (!(debugEvent.event instanceof BreakpointEvent)) {
+                    return;
+                }
+                Event event = debugEvent.event;
+                if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
+                    // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
+                    // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
+                } else {
+                    ThreadReference bpThread = ((BreakpointEvent) event).thread();
+                    IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
+                    if (engine.isInEvaluation(bpThread)) {
+                        return;
+                    }
+
+                    // find the breakpoint related to this breakpoint event
+                    IBreakpoint conditionalBP = Arrays.asList(manager.getBreakpoints()).stream().filter(bp -> StringUtils.isNotBlank(bp.getCondition())
+                            && bp.requests().contains(((BreakpointEvent) event).request())
+                            ).findFirst().get();
+                    if (conditionalBP != null) {
+                        CompletableFuture.runAsync(() -> {
+                            Value value;
+                            try {
+                                value = engine.evaluate(conditionalBP.getCondition(), bpThread, 0).get();
+                                if (value instanceof PrimitiveValue) {
+                                    boolean evaluationResultAsBool = ((PrimitiveValue) value).booleanValue();
+                                    if (!evaluationResultAsBool) {
+                                        debugEvent.eventSet.resume();
+                                        return;
+                                    }
+                                }
+                            } catch (InterruptedException | ExecutionException e) {
+                                // TODO: notify user about evaluation failure
+                            }
+                            context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+
+                        });
+                    } else {
+                        context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                    }
+                    debugEvent.shouldResume = false;
+                }
+            });
         }
     }
 
