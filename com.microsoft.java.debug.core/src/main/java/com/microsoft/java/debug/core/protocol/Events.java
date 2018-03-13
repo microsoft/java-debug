@@ -43,7 +43,7 @@ public class Events {
             super("stopped");
             this.reason = reason;
             this.threadId = threadId;
-            this.allThreadsStopped = false;
+            allThreadsStopped = false;
         }
 
         /**
@@ -98,7 +98,7 @@ public class Events {
 
         public ExitedEvent(int code) {
             super("exited");
-            this.exitCode = code;
+            exitCode = code;
         }
     }
 
@@ -196,19 +196,19 @@ public class Events {
     }
 
     public static class UserNotificationEvent extends DebugEvent {
-        public enum NotifyType {
-            ERROR, WARNING
+        public enum Type {
+            ERROR, WARNING, INFORMATION
         }
 
-        public NotifyType notifyType;
+        public Type type;
         public String message;
 
         /**
          * Constructor.
          */
-        public UserNotificationEvent(NotifyType notifyType, String message) {
+        public UserNotificationEvent(Type type, String message) {
             super("usernotification");
-            this.notifyType = notifyType;
+            this.type = type;
             this.message = message;
         }
     }
