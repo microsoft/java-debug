@@ -176,8 +176,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     if (conditionalBP != null) {
                         CompletableFuture.runAsync(() -> {
                             engine.evaluateForBreakpoint(conditionalBP, bpThread, manager.getBreakpointExpressionMap()).whenComplete((value, ex) -> {
-                                // TODO, notify user when error is raised.
                                 boolean resume = false;
+                                boolean resultNotBoolean = false;
                                 if (value != null && ex == null) {
                                     if (value instanceof BooleanValue) {
                                         resume = !((BooleanValue) value).booleanValue();
@@ -186,6 +186,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                         // get boolean value from java.lang.Boolean object
                                         Field field = ((ReferenceType) ((ObjectReference) value).type()).fieldByName("value");
                                         resume = !((BooleanValue) ((ObjectReference) value).getValue(field)).booleanValue();
+                                    } else {
+                                        resultNotBoolean = true;
                                     }
                                 }
                                 if (resume) {
@@ -194,6 +196,16 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                     engine.clearState(bpThread);
                                 } else {
                                     context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                                    if (ex != null) {
+                                        context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
+                                                Events.UserNotificationEvent.NotifyType.ERROR,
+                                                String.format("Breakpoint condition '%s' error: %s", conditionalBP.getCondition(), ex.getMessage())));
+                                    } else if (value == null || resultNotBoolean) {
+                                        context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
+                                                Events.UserNotificationEvent.NotifyType.WARNING,
+                                                String.format("Result of breakpoint condition '%s' is not a boolean, please correct your expression.",
+                                                        conditionalBP.getCondition())));
+                                    }
                                 }
                             });
 
