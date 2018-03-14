@@ -171,7 +171,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private void findJavaProjectByStackFrame(ThreadReference thread, int depth) {
         if (possibleProjects == null) {
             // initial possible projects by main class (projects contains this main class)
-            initializePossibleProjects((String) options.get(Constants.MAINCLASS));
+            initializePossibleProjects((String) options.get(Constants.MAIN_CLASS));
             if (project != null) {
                 return;
             }
@@ -289,7 +289,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private void ensureDebugTarget(VirtualMachine vm, ThreadReference thread, int depth) {
         if (debugTarget == null) {
             if (project == null) {
-                String projectName = (String) options.get(Constants.PROJECTNAME);
+                String projectName = (String) options.get(Constants.PROJECT_NAME);
                 if (StringUtils.isBlank(projectName)) {
                     findJavaProjectByStackFrame(thread, depth);
                 } else {

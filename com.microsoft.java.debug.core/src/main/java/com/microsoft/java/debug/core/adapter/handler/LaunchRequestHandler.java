@@ -112,10 +112,10 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 Map<String, Object> options = new HashMap<>();
                 options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
                 if (launchArguments.projectName != null) {
-                    options.put(Constants.PROJECTNAME, launchArguments.projectName);
+                    options.put(Constants.PROJECT_NAME, launchArguments.projectName);
                 }
                 if (launchArguments.mainClass != null) {
-                    options.put(Constants.MAINCLASS, launchArguments.mainClass);
+                    options.put(Constants.MAIN_CLASS, launchArguments.mainClass);
                 }
                 ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
                 sourceProvider.initialize(context, options);
