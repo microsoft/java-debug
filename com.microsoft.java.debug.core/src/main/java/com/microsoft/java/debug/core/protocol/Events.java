@@ -196,19 +196,19 @@ public class Events {
     }
 
     public static class UserNotificationEvent extends DebugEvent {
-        public enum NotifyType {
+        public enum NOtificationType {
             ERROR, WARNING, INFORMATION
         }
 
-        public NotifyType notifyType;
+        public NOtificationType notificationType;
         public String message;
 
         /**
          * Constructor.
          */
-        public UserNotificationEvent(NotifyType notifyType, String message) {
+        public UserNotificationEvent(NOtificationType notifyType, String message) {
             super("usernotification");
-            this.notifyType = notifyType;
+            this.notificationType = notifyType;
             this.message = message;
         }
     }
