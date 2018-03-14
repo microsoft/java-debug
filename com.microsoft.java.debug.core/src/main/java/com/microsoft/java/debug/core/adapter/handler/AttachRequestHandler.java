@@ -85,7 +85,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         Map<String, Object> options = new HashMap<>();
         options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
         if (attachArguments.projectName != null) {
-            options.put(Constants.PROJECTNAME, attachArguments.projectName);
+            options.put(Constants.PROJECT_NAME, attachArguments.projectName);
         }
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
         sourceProvider.initialize(context, options);
