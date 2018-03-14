@@ -108,12 +108,16 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         return launch(launchArguments, response, context).thenCompose(res -> {
             if (res.success) {
-                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+
                 Map<String, Object> options = new HashMap<>();
                 options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
                 if (launchArguments.projectName != null) {
                     options.put(Constants.PROJECTNAME, launchArguments.projectName);
                 }
+                if (launchArguments.mainClass != null) {
+                    options.put(Constants.MAINCLASS, launchArguments.mainClass);
+                }
+                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
                 sourceProvider.initialize(context, options);
                 IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
                 evaluationProvider.initialize(context, options);
