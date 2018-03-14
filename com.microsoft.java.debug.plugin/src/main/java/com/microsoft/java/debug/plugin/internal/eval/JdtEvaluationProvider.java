@@ -65,7 +65,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private HashMap<String, Object> options = new HashMap<>();
     private IDebugAdapterContext context;
 
-    private List<IJavaProject> possibleProjects;
+    private List<IJavaProject> projectCandidates;
 
     private Set<String> visitedClassNames = new HashSet<>();
 
@@ -133,11 +133,11 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     /**
-     * Prepare a list of possible java projects in workspace which contains the main class.
+     * Prepare a list of java project candidates in workspace which contains the main class.
      *
-     * @param mainclass the main class specified by launch.json for finding possible projects
+     * @param mainclass the main class specified by launch.json for finding project candidates
      */
-    private void initializePossibleProjects(String mainclass) {
+    private void initializeProjectCandidates(String mainclass) {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
         List<IJavaProject> projects = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
             try {
@@ -165,19 +165,19 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             project =  projects.get(0);
         }
 
-        possibleProjects = projects;
+        projectCandidates = projects;
     }
 
     private void findJavaProjectByStackFrame(ThreadReference thread, int depth) {
-        if (possibleProjects == null) {
-            // initial possible projects by main class (projects contains this main class)
-            initializePossibleProjects((String) options.get(Constants.MAIN_CLASS));
+        if (projectCandidates == null) {
+            // initial candidate projects by main class (projects contains this main class)
+            initializeProjectCandidates((String) options.get(Constants.MAIN_CLASS));
             if (project != null) {
                 return;
             }
         }
 
-        if (possibleProjects.size() == 0) {
+        if (projectCandidates.size() == 0) {
             logger.severe("No project is available for evaluation.");
             throw new IllegalStateException("No project is available for evaluation.");
         }
@@ -185,9 +185,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         try {
             StackFrame sf = thread.frame(depth);
             String typeName = sf.location().method().declaringType().name();
-            // narrow down possible projects by current class
-            List<IJavaProject> validProjects = visitedClassNames.contains(typeName) ? possibleProjects
-                    : possibleProjects.stream().filter(p -> {
+            // narrow down candidate projects by current class
+            List<IJavaProject> validProjects = visitedClassNames.contains(typeName) ? projectCandidates
+                    : projectCandidates.stream().filter(p -> {
                         try {
                             return !visitedClassNames.contains(typeName) && p.findType(typeName) != null;
                         } catch (Exception e) {
@@ -203,7 +203,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 throw new IllegalStateException("No project is available for evaluation, .");
             } else {
                 // narrow down projects
-                possibleProjects = validProjects;
+                projectCandidates = validProjects;
                 logger.severe("Multiple projects are valid for evaluation.");
                 throw new IllegalStateException("Multiple projects are found, please specify projectName in launch.json.");
             }
@@ -212,7 +212,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             // ignore
         }
 
-        logger.severe("Cannot evaluate when project is not specified.");
+        logger.severe("Cannot evaluate when the project is not specified.");
         throw new IllegalStateException("Please specify projectName in launch.json.");
     }
 
