@@ -198,11 +198,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                     context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                                     if (ex != null) {
                                         context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
-                                                Events.UserNotificationEvent.NotifyType.ERROR,
+                                                Events.UserNotificationEvent.NotificationType.ERROR,
                                                 String.format("Breakpoint condition '%s' error: %s", conditionalBP.getCondition(), ex.getMessage())));
                                     } else if (value == null || resultNotBoolean) {
                                         context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
-                                                Events.UserNotificationEvent.NotifyType.WARNING,
+                                                Events.UserNotificationEvent.NotificationType.WARNING,
                                                 String.format("Result of breakpoint condition '%s' is not a boolean, please correct your expression.",
                                                         conditionalBP.getCondition())));
                                     }

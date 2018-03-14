@@ -183,7 +183,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
     private synchronized ISourceContainer[] getSourceContainers() {
         if (sourceContainers == null) {
-            sourceContainers = JdtUtils.getSourceContainers((String) options.get(Constants.PROJECTNAME));
+            sourceContainers = JdtUtils.getSourceContainers((String) options.get(Constants.PROJECT_NAME));
         }
 
         return sourceContainers;
