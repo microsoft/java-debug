@@ -29,6 +29,7 @@ import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
 import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
 import org.eclipse.jdt.internal.debug.core.model.JDIDebugTarget;
 import org.eclipse.jdt.internal.debug.core.model.JDIStackFrame;
@@ -37,12 +38,14 @@ import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
+import com.sun.jdi.VirtualMachine;
 
 public class JdtEvaluationProvider implements IEvaluationProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -50,9 +53,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private ILaunch launch;
     private JDIDebugTarget debugTarget;
     private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
-
     private HashMap<String, Object> options = new HashMap<>();
-
     private IDebugAdapterContext context;
 
     public JdtEvaluationProvider() {
@@ -68,68 +69,54 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     @Override
-    public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
+    public CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap) {
+        if (breakpoint == null) {
+            throw new IllegalArgumentException("breakpoint is null.");
+        }
+
+        if (StringUtils.isBlank(breakpoint.getCondition())) {
+            throw new IllegalArgumentException("breakpoint is not a conditional breakpoint.");
+        }
+
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
-        String projectName = (String) options.get(Constants.PROJECTNAME);
-        if (debugTarget == null) {
-            if (project == null) {
-                if (StringUtils.isBlank(projectName)) {
-                    logger.severe("Cannot evaluate when project is not specified.");
-                    completableFuture.completeExceptionally(new IllegalStateException("Please specify projectName in launch.json."));
-                    return completableFuture;
-                }
-                project = JdtUtils.getJavaProject(projectName);
-            }
-
-            if (project == null) {
-                completableFuture.completeExceptionally(new IllegalStateException(String.format("Project %s cannot be found.", projectName)));
-                return completableFuture;
-            }
-            if (launch == null) {
-                launch = createILaunchMock(project);
-            }
-        }
-
-        if (debugTarget == null) {
-            debugTarget = new JDIDebugTarget(launch, thread.virtualMachine(), "", false, false, null, false) {
-                @Override
-                protected synchronized void initialize() {
-                    // use empty initialize intentionally to avoid to register jdi event listener
-                }
-            };
-        }
-
-        JDIThread jdiThread = getMockJDIThread(thread);
-        JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
-        if (stackframe == null) {
-            logger.severe("Cannot evaluate because the stackframe is not available.");
-            completableFuture.completeExceptionally(
-                    new IllegalStateException("Cannot evaluate because the stackframe is not available."));
-            return completableFuture;
-        }
         try  {
-            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
-            engine.evaluateExpression(ie, stackframe, evaluateResult -> {
-                if (evaluateResult == null || evaluateResult.hasErrors()) {
-                    Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
-                            : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
-                    completableFuture.completeExceptionally(ex);
-                    return;
-                }
-                try {
-                    // we need to read fValue from the result Value instance implements by JDT
-                    Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
-                    completableFuture.complete(value);
-                } catch (IllegalArgumentException | IllegalAccessException ex) {
-                    completableFuture.completeExceptionally(ex);
-                }
-            }, 0, false);
+            ensureDebugTarget(thread.virtualMachine());
+            JDIThread jdiThread = getMockJDIThread(thread);
+            JDIStackFrame stackframe = (JDIStackFrame) jdiThread.getTopStackFrame();
 
+            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            ICompiledExpression ie = (ICompiledExpression) breakpointExpressionMap
+                    .computeIfAbsent(breakpoint, bp -> engine.getCompiledExpression(bp.getCondition(), stackframe));
+
+            internalEvaluate(engine, ie, stackframe, completableFuture);
+            return completableFuture;
         } catch (Exception ex) {
             completableFuture.completeExceptionally(ex);
+            return completableFuture;
         }
-        return completableFuture;
+
+    }
+
+    @Override
+    public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
+        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
+        try  {
+            ensureDebugTarget(thread.virtualMachine());
+            JDIThread jdiThread = getMockJDIThread(thread);
+            JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
+            if (stackframe == null) {
+                logger.severe("Cannot evaluate because the stackframe is not available.");
+                throw new IllegalStateException("Cannot evaluate because the stackframe is not available.");
+            }
+            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
+
+            internalEvaluate(engine, ie, stackframe, completableFuture);
+            return completableFuture;
+        } catch (Exception ex) {
+            completableFuture.completeExceptionally(ex);
+            return completableFuture;
+        }
     }
 
     private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
@@ -155,6 +142,29 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     }
 
+    private void internalEvaluate(ASTEvaluationEngine engine, ICompiledExpression compiledExpression,
+            IJavaStackFrame stackframe, CompletableFuture<Value> completableFuture) {
+        try  {
+            engine.evaluateExpression(compiledExpression, stackframe, evaluateResult -> {
+                if (evaluateResult == null || evaluateResult.hasErrors()) {
+                    Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
+                            : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
+                    completableFuture.completeExceptionally(ex);
+                    return;
+                }
+                try {
+                    // we need to read fValue from the result Value instance implements by JDT
+                    Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
+                    completableFuture.complete(value);
+                } catch (IllegalArgumentException | IllegalAccessException ex) {
+                    completableFuture.completeExceptionally(ex);
+                }
+            }, 0, false);
+        } catch (Exception ex) {
+            completableFuture.completeExceptionally(ex);
+        }
+    }
+
     @Override
     public boolean isInEvaluation(ThreadReference thread) {
         return debugTarget != null && getMockJDIThread(thread).isPerformingEvaluation();
@@ -175,6 +185,34 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                     threadMap.remove(thread);
                 }
             }
+        }
+    }
+
+    private void ensureDebugTarget(VirtualMachine vm) {
+        if (debugTarget == null) {
+            String projectName = (String) options.get(Constants.PROJECTNAME);
+            if (project == null) {
+                if (StringUtils.isBlank(projectName)) {
+                    logger.severe("Cannot evaluate when project is not specified.");
+                    throw new IllegalStateException("Please specify projectName in launch.json.");
+                }
+                IJavaProject javaProject = JdtUtils.getJavaProject(projectName);
+                if (javaProject == null) {
+                    throw new IllegalStateException(String.format("Project %s cannot be found.", projectName));
+                }
+                project = javaProject;
+            }
+
+            if (launch == null) {
+                launch = createILaunchMock(project);
+            }
+
+            debugTarget = new JDIDebugTarget(launch, vm, "", false, false, null, false) {
+                @Override
+                protected synchronized void initialize() {
+                    // use empty initialize intentionally to avoid to register jdi event listener
+                }
+            };
         }
     }
 

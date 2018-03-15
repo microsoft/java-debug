@@ -128,6 +128,11 @@ public class Breakpoint implements IBreakpoint {
     }
 
     @Override
+    public void setCondition(String condition) {
+        this.condition = condition;
+    }
+
+    @Override
     public CompletableFuture<IBreakpoint> install() {
         // It's possible that different class loaders create new class with the same name.
         // Here to listen to future class prepare events to handle such case.

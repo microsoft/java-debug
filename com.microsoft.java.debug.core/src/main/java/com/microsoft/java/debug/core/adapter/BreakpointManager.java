@@ -31,6 +31,9 @@ public class BreakpointManager {
     private List<IBreakpoint> breakpoints;
     private HashMap<String, HashMap<String, IBreakpoint>> sourceToBreakpoints;
     private AtomicInteger nextBreakpointId = new AtomicInteger(1);
+    // BreakpointManager is the owner class of the breakpoint to compiled expression map, it will remove
+    // the breakpoint from this map if the breakpoint is removed or its condition is changed
+    private Map<IBreakpoint, Object> breakpointExpressionMap = new HashMap<>();
 
     /**
      * Constructor.
@@ -77,6 +80,7 @@ public class BreakpointManager {
                 } catch (Exception e) {
                     logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
                 }
+                breakpointExpressionMap.remove(bp);
                 this.breakpoints.remove(bp);
             }
             this.sourceToBreakpoints.put(source, null);
@@ -143,6 +147,7 @@ public class BreakpointManager {
                     // Destroy the breakpoint on the debugee VM.
                     breakpoint.close();
                     this.breakpoints.remove(breakpoint);
+                    breakpointExpressionMap.remove(breakpoint);
                     breakpointMap.remove(String.valueOf(breakpoint.getLineNumber()));
                 } catch (Exception e) {
                     logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
@@ -164,6 +169,28 @@ public class BreakpointManager {
             return new IBreakpoint[0];
         }
         return breakpointMap.values().toArray(new IBreakpoint[0]);
+    }
+
+
+    /**
+     * Get the compiled expression map with breakpoint, it will be used in JdtEvaluationProvider#evaluateForBreakpoint for storing
+     * the compiled expression when the first time this conditional breakpoint is hit.
+     *
+     * @return the compiled expression map
+     */
+    public Map<IBreakpoint, Object> getBreakpointExpressionMap() {
+        return breakpointExpressionMap;
+    }
+
+    /**
+     *  Update the condition for the specified breakpoint, and clear the compiled expression for the breakpoint.
+     *
+     * @param breakpoint the conditional breakpoint
+     * @param newCondition the new condition to be used.
+     */
+    public void updateConditionCompiledExpression(IBreakpoint breakpoint, String newCondition) {
+        breakpoint.setCondition(newCondition);
+        breakpointExpressionMap.remove(breakpoint);
     }
 
     /**

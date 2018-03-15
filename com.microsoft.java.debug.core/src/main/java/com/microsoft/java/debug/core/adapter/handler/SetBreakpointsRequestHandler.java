@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,9 +41,11 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.SetBreakpointArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
-import com.sun.jdi.PrimitiveValue;
+import com.sun.jdi.BooleanValue;
+import com.sun.jdi.Field;
+import com.sun.jdi.ObjectReference;
+import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
-import com.sun.jdi.Value;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.StepEvent;
@@ -131,9 +132,16 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                         Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
                         context.getProtocolServer().sendEvent(bpEvent);
                     });
-                } else if (toAdds[i].getHitCount() != added[i].getHitCount() && added[i].className() != null) {
-                    // Update hitCount condition.
-                    added[i].setHitCount(toAdds[i].getHitCount());
+                } else if (added[i].className() != null) {
+                    if (toAdds[i].getHitCount() != added[i].getHitCount()) {
+                        // Update hitCount condition.
+                        added[i].setHitCount(toAdds[i].getHitCount());
+                    }
+
+                    if (!StringUtils.equals(toAdds[i].getCondition(), added[i].getCondition())) {
+                        manager.updateConditionCompiledExpression(added[i], toAdds[i].getCondition());
+                    }
+
                 }
                 res.add(this.convertDebuggerBreakpointToClient(added[i], context));
             }
@@ -149,10 +157,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private void registerBreakpointHandler(IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
-            debugSession.getEventHub().events().subscribe(debugEvent -> {
-                if (!(debugEvent.event instanceof BreakpointEvent)) {
-                    return;
-                }
+            debugSession.getEventHub().events().filter(debugEvent -> debugEvent.event instanceof BreakpointEvent).subscribe(debugEvent -> {
                 Event event = debugEvent.event;
                 if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
                     // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
@@ -167,23 +172,30 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     // find the breakpoint related to this breakpoint event
                     IBreakpoint conditionalBP = Arrays.asList(manager.getBreakpoints()).stream().filter(bp -> StringUtils.isNotBlank(bp.getCondition())
                             && bp.requests().contains(((BreakpointEvent) event).request())
-                            ).findFirst().get();
+                            ).findFirst().orElse(null);
                     if (conditionalBP != null) {
                         CompletableFuture.runAsync(() -> {
-                            Value value;
-                            try {
-                                value = engine.evaluate(conditionalBP.getCondition(), bpThread, 0).get();
-                                if (value instanceof PrimitiveValue) {
-                                    boolean evaluationResultAsBool = ((PrimitiveValue) value).booleanValue();
-                                    if (!evaluationResultAsBool) {
-                                        debugEvent.eventSet.resume();
-                                        return;
+                            engine.evaluateForBreakpoint(conditionalBP, bpThread, manager.getBreakpointExpressionMap()).whenComplete((value, ex) -> {
+                                // TODO, notify user when error is raised.
+                                boolean resume = false;
+                                if (value != null && ex == null) {
+                                    if (value instanceof BooleanValue) {
+                                        resume = !((BooleanValue) value).booleanValue();
+                                    } else if (value instanceof ObjectReference
+                                            && ((ObjectReference) value).type().name().equals("java.lang.Boolean")) {
+                                        // get boolean value from java.lang.Boolean object
+                                        Field field = ((ReferenceType) ((ObjectReference) value).type()).fieldByName("value");
+                                        resume = !((BooleanValue) ((ObjectReference) value).getValue(field)).booleanValue();
                                     }
                                 }
-                            } catch (InterruptedException | ExecutionException e) {
-                                // TODO: notify user about evaluation failure
-                            }
-                            context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                                if (resume) {
+                                    debugEvent.eventSet.resume();
+                                    // since the evaluation result is false, clear the evaluation environment caused by above evaluation.
+                                    engine.clearState(bpThread);
+                                } else {
+                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                                }
+                            });
 
                         });
                     } else {
