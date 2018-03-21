@@ -259,6 +259,10 @@ public class Requests {
 
     }
 
+    public static class RestartFrameArguments extends Arguments {
+        public int frameId;
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -271,6 +275,7 @@ public class Requests {
         STEPOUT("stepOut", StepOutArguments.class),
         PAUSE("pause", PauseArguments.class),
         STACKTRACE("stackTrace", StackTraceArguments.class),
+        RESTARTFRAME("restartFrame", RestartFrameArguments.class),
         SCOPES("scopes", ScopesArguments.class),
         VARIABLES("variables", VariablesArguments.class),
         SETVARIABLE("setVariable", SetVariableArguments.class),
