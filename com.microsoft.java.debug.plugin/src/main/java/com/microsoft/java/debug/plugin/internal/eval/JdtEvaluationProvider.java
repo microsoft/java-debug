@@ -210,11 +210,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
 
         } catch (Exception ex) {
-            // ignore
+            logger.severe("Cannot evaluate when the project is not specified.");
+            throw new IllegalStateException("Please specify projectName in launch.json.");
         }
-
-        logger.severe("Cannot evaluate when the project is not specified.");
-        throw new IllegalStateException("Please specify projectName in launch.json.");
     }
 
 
