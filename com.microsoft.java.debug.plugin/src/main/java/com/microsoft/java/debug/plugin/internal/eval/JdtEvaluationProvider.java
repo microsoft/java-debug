@@ -95,7 +95,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         try  {
             ensureDebugTarget(thread.virtualMachine(), thread, 0);
             JDIThread jdiThread = getMockJDIThread(thread);
-            JDIStackFrame stackframe = (JDIStackFrame) jdiThread.getTopStackFrame();
+            JDIStackFrame stackframe = new JDIStackFrame(jdiThread, thread.frame(0), 0);
 
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
             ICompiledExpression ie = (ICompiledExpression) breakpointExpressionMap
