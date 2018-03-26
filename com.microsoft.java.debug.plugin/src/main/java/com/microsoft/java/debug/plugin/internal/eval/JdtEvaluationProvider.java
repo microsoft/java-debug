@@ -181,12 +181,13 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             logger.severe("No project is available for evaluation.");
             throw new IllegalStateException("No project is available for evaluation.");
         }
+        List<IJavaProject> validProjects;
 
         try {
             StackFrame sf = thread.frame(depth);
             String typeName = sf.location().method().declaringType().name();
             // narrow down candidate projects by current class
-            List<IJavaProject> validProjects = visitedClassNames.contains(typeName) ? projectCandidates
+            validProjects = visitedClassNames.contains(typeName) ? projectCandidates
                     : projectCandidates.stream().filter(p -> {
                         try {
                             return p.findType(typeName) != null;
@@ -196,23 +197,26 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                         return false;
                     }).collect(Collectors.toList());
             visitedClassNames.add(typeName);
-            if (validProjects.size() == 1) {
-                project = validProjects.get(0);
-                return;
-            } else if (validProjects.size() == 0) {
-                logger.severe("No project is available for evaluation.");
-                throw new IllegalStateException("No project is available for evaluation, .");
-            } else {
-                // narrow down projects
-                projectCandidates = validProjects;
-                logger.severe("Multiple projects are valid for evaluation.");
-                throw new IllegalStateException("Multiple projects are found, please specify projectName in launch.json.");
-            }
-
         } catch (Exception ex) {
             logger.severe("Cannot evaluate when the project is not specified.");
             throw new IllegalStateException("Please specify projectName in launch.json.");
         }
+
+        if (validProjects.size() == 1) {
+            project = validProjects.get(0);
+            return;
+        }
+
+        if (validProjects.size() == 0) {
+            logger.severe("No project is available for evaluation.");
+            throw new IllegalStateException("No project is available for evaluation, .");
+        } else {
+            // narrow down projects
+            projectCandidates = validProjects;
+            logger.severe("Multiple projects are valid for evaluation.");
+            throw new IllegalStateException("Multiple projects are found, please specify projectName in launch.json.");
+        }
+
     }
 
 
