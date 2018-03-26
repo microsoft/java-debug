@@ -189,7 +189,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             List<IJavaProject> validProjects = visitedClassNames.contains(typeName) ? projectCandidates
                     : projectCandidates.stream().filter(p -> {
                         try {
-                            return !visitedClassNames.contains(typeName) && p.findType(typeName) != null;
+                            return p.findType(typeName) != null;
                         } catch (Exception e) {
                             // ignore
                         }
@@ -198,6 +198,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             visitedClassNames.add(typeName);
             if (validProjects.size() == 1) {
                 project = validProjects.get(0);
+                return;
             } else if (validProjects.size() == 0) {
                 logger.severe("No project is available for evaluation.");
                 throw new IllegalStateException("No project is available for evaluation, .");
