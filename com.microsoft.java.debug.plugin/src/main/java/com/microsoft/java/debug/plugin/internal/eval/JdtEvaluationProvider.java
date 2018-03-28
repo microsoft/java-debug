@@ -36,7 +36,6 @@ import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
 import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
 import org.eclipse.jdt.internal.debug.core.model.JDIDebugTarget;
@@ -164,8 +163,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                      }
                      return false;
                  }).collect(Collectors.toList());
-         visitedClassNames.add(className);
-     }
+        visitedClassNames.add(className);
+    }
 
     private IJavaProject findJavaProjectByStackFrame(ThreadReference thread, int depth) {
         if (projectCandidates == null) {
