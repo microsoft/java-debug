@@ -139,7 +139,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
      */
     private void initializeProjectCandidates(String mainclass) {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-        List<IJavaProject> projects = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
+        projectCandidates = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
             try {
                 return p != null && p.hasBuildState();
             } catch (Exception e) {
@@ -149,72 +149,57 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }).collect(Collectors.toList());
 
 
-        if (projects.size() > 1 && StringUtils.isNotBlank(mainclass)) {
-            projects = Arrays.stream(root.getProjects()).map(JdtUtils::getJavaProject).filter(p -> {
-                try {
-                    return p.findType(mainclass) != null;
-                } catch (JavaModelException e) {
-                 // ignore
-                }
-                return false;
-            }).collect(Collectors.toList());
-            visitedClassNames.add(mainclass);
+        if (StringUtils.isNotBlank(mainclass)) {
+            filterProjectCandidatesByClass(mainclass);
         }
-
-        if (projects.size() == 1) {
-            project =  projects.get(0);
-        }
-
-        projectCandidates = projects;
     }
 
-    private void findJavaProjectByStackFrame(ThreadReference thread, int depth) {
+    private void filterProjectCandidatesByClass(String className) {
+        projectCandidates = visitedClassNames.contains(className) ? projectCandidates
+                 : projectCandidates.stream().filter(p -> {
+                     try {
+                         return p.findType(className) != null;
+                     } catch (Exception e) {
+                         // ignore
+                     }
+                     return false;
+                 }).collect(Collectors.toList());
+         visitedClassNames.add(className);
+     }
+
+    private IJavaProject findJavaProjectByStackFrame(ThreadReference thread, int depth) {
         if (projectCandidates == null) {
             // initial candidate projects by main class (projects contains this main class)
             initializeProjectCandidates((String) options.get(Constants.MAIN_CLASS));
-            if (project != null) {
-                return;
-            }
         }
 
         if (projectCandidates.size() == 0) {
             logger.severe("No project is available for evaluation.");
-            throw new IllegalStateException("No project is available for evaluation.");
+            throw new IllegalStateException("Cannot evaluate, please specify projectName in launch.json.");
         }
-        List<IJavaProject> validProjects;
+
 
         try {
             StackFrame sf = thread.frame(depth);
             String typeName = sf.location().method().declaringType().name();
             // narrow down candidate projects by current class
-            validProjects = visitedClassNames.contains(typeName) ? projectCandidates
-                    : projectCandidates.stream().filter(p -> {
-                        try {
-                            return p.findType(typeName) != null;
-                        } catch (Exception e) {
-                            // ignore
-                        }
-                        return false;
-                    }).collect(Collectors.toList());
-            visitedClassNames.add(typeName);
+            filterProjectCandidatesByClass(typeName);
         } catch (Exception ex) {
-            logger.severe("Cannot evaluate when the project is not specified.");
-            throw new IllegalStateException("Please specify projectName in launch.json.");
+            logger.severe("Cannot evaluate when the project is not specified, due to exception: " + ex.getMessage());
+            throw new IllegalStateException("Cannot evaluate, please specify projectName in launch.json.");
         }
 
-        if (validProjects.size() == 1) {
-            project = validProjects.get(0);
-            return;
+        if (projectCandidates.size() == 1) {
+            return projectCandidates.get(0);
         }
 
-        if (validProjects.size() == 0) {
+        if (projectCandidates.size() == 0) {
             logger.severe("No project is available for evaluation.");
-            throw new IllegalStateException("No project is available for evaluation, .");
+            throw new IllegalStateException("Cannot evaluate, please specify projectName in launch.json.");
         } else {
             // narrow down projects
-            projectCandidates = validProjects;
             logger.severe("Multiple projects are valid for evaluation.");
-            throw new IllegalStateException("Multiple projects are found, please specify projectName in launch.json.");
+            throw new IllegalStateException("Cannot evaluate, please specify projectName in launch.json.");
         }
 
     }
@@ -294,7 +279,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             if (project == null) {
                 String projectName = (String) options.get(Constants.PROJECT_NAME);
                 if (StringUtils.isBlank(projectName)) {
-                    findJavaProjectByStackFrame(thread, depth);
+                    project = findJavaProjectByStackFrame(thread, depth);
                 } else {
                     IJavaProject javaProject = JdtUtils.getJavaProject(projectName);
                     if (javaProject == null) {
