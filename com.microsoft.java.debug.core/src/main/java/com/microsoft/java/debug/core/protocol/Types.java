@@ -215,6 +215,7 @@ public class Types {
         public boolean supportsHitConditionalBreakpoints;
         public boolean supportsConditionalBreakpoints;
         public boolean supportsEvaluateForHovers;
+        public boolean supportsRestartFrame;
         public boolean supportsSetVariable;
         public boolean supportsRestartRequest;
         public boolean supportTerminateDebuggee;

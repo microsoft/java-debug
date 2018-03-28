@@ -27,6 +27,7 @@ import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.HotCodeReplaceHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.RestartFrameHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetBreakpointsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetExceptionBreakpointsRequestHandler;
@@ -106,6 +107,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new SetVariableRequestHandler());
         registerHandler(new EvaluateRequestHandler());
         registerHandler(new HotCodeReplaceHandler());
+        registerHandler(new RestartFrameHandler());
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
