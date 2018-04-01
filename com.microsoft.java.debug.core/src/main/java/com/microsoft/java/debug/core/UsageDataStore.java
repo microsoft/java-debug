@@ -40,7 +40,7 @@ public class UsageDataStore {
     }
 
     /**
-     * Fetch all pending user data records
+     * Fetch all pending user data records.
      * @return List of user data Object.
      */
     public synchronized Object[] fetchAll() {
