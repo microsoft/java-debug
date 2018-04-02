@@ -56,7 +56,7 @@ public class DebugUtility {
 
     /**
      * Launch a debuggee in suspend mode.
-     * @see {@link #launch(VirtualMachineManager, String, String, String, String, String)}
+     * @see #launch(VirtualMachineManager, String, String, String, String, String)
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
             String mainClass,
