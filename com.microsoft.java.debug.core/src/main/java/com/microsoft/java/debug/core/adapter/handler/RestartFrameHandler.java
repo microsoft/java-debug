@@ -66,7 +66,6 @@ public class RestartFrameHandler implements IDebugRequestHandler {
             return CompletableFuture.completedFuture(response);
         } else {
             context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(NotificationType.ERROR, "Current stack frame doesn't support restart."));
-            context.getProtocolServer().sendEvent(new Events.StoppedEvent("restartframe", stackFrameReference.getThread().uniqueID()));
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.RESTARTFRAME_FAILURE, "Failed to restart the selected stack frame.");
         }
     }
@@ -102,7 +101,7 @@ public class RestartFrameHandler implements IDebugRequestHandler {
         context.getDebugSession().getEventHub().stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1).subscribe(debugEvent -> {
             debugEvent.shouldResume = false;
             // Have to send two events to keep the UI sync with the step in operations:
-            context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("restartframe", thread.uniqueID()));
             context.getProtocolServer().sendEvent(new Events.ContinuedEvent(thread.uniqueID()));
         });
         request.enable();
