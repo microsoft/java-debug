@@ -30,14 +30,21 @@ import org.eclipse.jdt.core.IModuleDescription;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.sourcelookup.containers.JavaProjectSourceContainer;
 import org.eclipse.jdt.launching.sourcelookup.containers.PackageFragmentRootSourceContainer;
 
+import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.StackFrameUtility;
 import com.sun.jdi.AbsentInformationException;
+import com.sun.jdi.ArrayType;
+import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.Location;
+import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
+import com.sun.jdi.Type;
 
 public class JdtUtils {
 
@@ -259,5 +266,74 @@ public class JdtUtils {
             // When the compiled .class file doesn't contain debug source information, return null.
         }
         return null;
+    }
+
+    /**
+     * Given a stack frame, get the fully qualified type name that associated with the frame.
+     * @param frame the stack frame
+     * @return the fully qualified type name
+     * @throws DebugException debug exception
+     */
+    public static String getDeclaringTypeName(StackFrame frame) throws DebugException {
+        return getGenericName(StackFrameUtility.getDeclaringType(frame));
+    }
+
+    private static String getGenericName(ReferenceType type) throws DebugException {
+        if (type instanceof ArrayType) {
+            try {
+                Type componentType;
+                componentType = ((ArrayType) type).componentType();
+                if (componentType instanceof ReferenceType) {
+                    return getGenericName((ReferenceType) componentType) + "[]"; //$NON-NLS-1$
+                }
+                return type.name();
+            } catch (ClassNotLoadedException e) {
+                // we cannot create the generic name using the component type,
+                // just try to create one with the information
+            }
+        }
+        String signature = type.signature();
+        StringBuffer res = new StringBuffer(getTypeName(signature));
+        String genericSignature = type.genericSignature();
+        if (genericSignature != null) {
+            String[] typeParameters = Signature.getTypeParameters(genericSignature);
+            if (typeParameters.length > 0) {
+                res.append('<').append(Signature.getTypeVariable(typeParameters[0]));
+                for (int i = 1; i < typeParameters.length; i++) {
+                    res.append(',').append(Signature.getTypeVariable(typeParameters[i]));
+                }
+                res.append('>');
+            }
+        }
+        return res.toString();
+    }
+
+    private static String getTypeName(String genericTypeSignature) {
+        int arrayDimension = 0;
+        while (genericTypeSignature.charAt(arrayDimension) == '[') {
+            arrayDimension++;
+        }
+        int parameterStart = genericTypeSignature.indexOf('<');
+        StringBuffer name = new StringBuffer();
+        if (parameterStart < 0) {
+            name.append(genericTypeSignature.substring(arrayDimension + 1, genericTypeSignature.length() - 1)
+                    .replace('/', '.'));
+        } else {
+            if (parameterStart != 0) {
+                name.append(genericTypeSignature.substring(arrayDimension + 1, parameterStart).replace('/', '.'));
+            }
+            try {
+                String sig = Signature.toString(genericTypeSignature)
+                        .substring(Math.max(parameterStart - 1, 0) - arrayDimension);
+                name.append(sig.replace('/', '.'));
+            } catch (IllegalArgumentException iae) {
+                // do nothing
+                name.append(genericTypeSignature);
+            }
+        }
+        for (int i = 0; i < arrayDimension; i++) {
+            name.append("[]"); //$NON-NLS-1$
+        }
+        return name.toString();
     }
 }

@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
+import com.microsoft.java.debug.core.adapter.ICompletionsProvider;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.IProviderContext;
@@ -33,6 +34,7 @@ public abstract class JdtProviderContextFactory {
         context.registerProvider(IVirtualMachineManagerProvider.class, new JdtVirtualMachineManagerProvider());
         context.registerProvider(IHotCodeReplaceProvider.class, new JavaHotCodeReplaceProvider());
         context.registerProvider(IEvaluationProvider.class, new JdtEvaluationProvider());
+        context.registerProvider(ICompletionsProvider.class, new CompletionsProvider());
 
         return context;
     }
