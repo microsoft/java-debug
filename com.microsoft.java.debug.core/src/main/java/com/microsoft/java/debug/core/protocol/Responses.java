@@ -172,6 +172,21 @@ public class Responses {
         }
     }
 
+    public static class CompletionsResponseBody extends ResponseBody {
+        public Types.CompletionItem[] targets;
+
+        /**
+         * Constructor.
+         */
+        public CompletionsResponseBody(List<Types.CompletionItem> items) {
+            if (items == null) {
+                targets = new Types.CompletionItem[0];
+            } else {
+                targets = items.toArray(new Types.CompletionItem[0]);
+            }
+        }
+    }
+
     public static class SetBreakpointsResponseBody extends ResponseBody {
         public Types.Breakpoint[] breakpoints;
 

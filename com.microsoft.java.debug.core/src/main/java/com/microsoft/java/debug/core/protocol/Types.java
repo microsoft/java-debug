@@ -190,6 +190,23 @@ public class Types {
         }
     }
 
+    public static class CompletionItem {
+        public String label;
+        public String text;
+        public String type;
+
+        public int start;
+        public int number;
+
+        public CompletionItem() {
+        }
+
+        public CompletionItem(String label, String text) {
+            this.label = label;
+            this.text = text;
+        }
+    }
+
     public static class ExceptionBreakpointFilter {
         public static final String UNCAUGHT_EXCEPTION_FILTER_NAME = "uncaught";
         public static final String CAUGHT_EXCEPTION_FILTER_NAME = "caught";
@@ -215,6 +232,7 @@ public class Types {
         public boolean supportsHitConditionalBreakpoints;
         public boolean supportsConditionalBreakpoints;
         public boolean supportsEvaluateForHovers;
+        public boolean supportsCompletionsRequest;
         public boolean supportsRestartFrame;
         public boolean supportsSetVariable;
         public boolean supportsRestartRequest;

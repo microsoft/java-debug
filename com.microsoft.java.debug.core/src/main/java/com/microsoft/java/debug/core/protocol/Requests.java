@@ -263,6 +263,13 @@ public class Requests {
         public int frameId;
     }
 
+    public static class CompletionsArguments extends Arguments {
+        public int frameId;
+        public String text;
+        public int line;
+        public int column;
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -285,6 +292,7 @@ public class Requests {
         SETEXCEPTIONBREAKPOINTS("setExceptionBreakpoints", SetExceptionBreakpointsArguments.class),
         SETFUNCTIONBREAKPOINTS("setFunctionBreakpoints", SetFunctionBreakpointsArguments.class),
         EVALUATE("evaluate", EvaluateArguments.class),
+        COMPLETIONS("completions", CompletionsArguments.class),
         RUNINTERMINAL("runInTerminal", RunInTerminalRequestArguments.class),
         REDEFINECLASSES("redefineClasses", RedefineClassesArguments.class),
         UNSUPPORTED("", Arguments.class);
