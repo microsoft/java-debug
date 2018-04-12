@@ -84,6 +84,10 @@ public class CompletionsProvider implements ICompletionsProvider {
 
     private IType resolveType(StackFrame frame) throws CoreException, DebugException {
         String fullyQualifiedTypeName = JdtUtils.getDeclaringTypeName(frame);
+        // Avoid anonymous type:
+        if (fullyQualifiedTypeName.indexOf('$') > 0) {
+            fullyQualifiedTypeName = fullyQualifiedTypeName.substring(0, fullyQualifiedTypeName.indexOf('$'));
+        }
 
         SearchPattern pattern = SearchPattern.createPattern(fullyQualifiedTypeName, IJavaSearchConstants.TYPE, IJavaSearchConstants.DECLARATIONS,
                 SearchPattern.R_EXACT_MATCH);
