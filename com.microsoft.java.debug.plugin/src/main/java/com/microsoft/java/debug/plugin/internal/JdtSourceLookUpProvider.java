@@ -231,7 +231,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static String getFileURI(IResource resource) {
         URI uri = resource.getLocationURI();
         if (uri != null) {
-            String uriString = uri.toString();
+            // If the file path contains non ASCII characters, encode the result.
+            String uriString = uri.toASCIIString();
             // Fix uris by adding missing // to single file:/ prefix.
             return uriString.replaceFirst("file:/([^/])", "file:///$1");
         }
