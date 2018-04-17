@@ -242,24 +242,24 @@ public class JdtUtils {
     }
 
     /**
-     * Given a stack frame, find the target project that the associated source file belongs to.
+     * Given a stack frame, find the target java project that the associated source file belongs to.
      *
      * @param stackFrame
      *                  the stack frame.
      * @param containers
      *                  the source container list.
-     * @return the context project.
+     * @return the java project.
      */
-    public static IProject findProject(StackFrame stackFrame, ISourceContainer[] containers) {
+    public static IJavaProject findProject(StackFrame stackFrame, ISourceContainer[] containers) {
         Location location = stackFrame.location();
         try {
             Object sourceElement = findSourceElement(location.sourcePath(), containers);
             if (sourceElement instanceof IResource) {
-                return ((IResource) sourceElement).getProject();
+                return JavaCore.create(((IResource) sourceElement).getProject());
             } else if (sourceElement instanceof IClassFile) {
                 IJavaProject javaProject = ((IClassFile) sourceElement).getJavaProject();
                 if (javaProject != null) {
-                    return javaProject.getProject();
+                    return javaProject;
                 }
             }
         } catch (AbsentInformationException e) {

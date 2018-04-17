@@ -13,31 +13,35 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.CompletionProposal;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
-import org.eclipse.jdt.core.search.IJavaSearchConstants;
-import org.eclipse.jdt.core.search.IJavaSearchScope;
-import org.eclipse.jdt.core.search.SearchEngine;
-import org.eclipse.jdt.core.search.SearchMatch;
-import org.eclipse.jdt.core.search.SearchParticipant;
-import org.eclipse.jdt.core.search.SearchPattern;
-import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.ls.core.internal.contentassist.CompletionProposalRequestor;
 import org.eclipse.jdt.ls.core.internal.handlers.JsonRpcHelpers;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.ICompletionsProvider;
+import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
+import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.protocol.Types.CompletionItem;
 import com.sun.jdi.StackFrame;
 
 public class CompletionsProvider implements ICompletionsProvider {
 
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
+    private IDebugAdapterContext context;
+
+    @Override
+    public void initialize(IDebugAdapterContext context, Map<String, Object> options) {
+        this.context = context;
+    }
 
     @Override
     public List<CompletionItem> codeComplete(StackFrame frame, String snippet, int line, int column) {
@@ -83,31 +87,12 @@ public class CompletionsProvider implements ICompletionsProvider {
     }
 
     private IType resolveType(StackFrame frame) throws CoreException, DebugException {
-        String fullyQualifiedTypeName = JdtUtils.getDeclaringTypeName(frame);
-        // Avoid anonymous type:
-        if (fullyQualifiedTypeName.indexOf('$') > 0) {
-            fullyQualifiedTypeName = fullyQualifiedTypeName.substring(0, fullyQualifiedTypeName.indexOf('$'));
-        }
-
-        SearchPattern pattern = SearchPattern.createPattern(fullyQualifiedTypeName, IJavaSearchConstants.TYPE, IJavaSearchConstants.DECLARATIONS,
-                SearchPattern.R_EXACT_MATCH);
-
-        IJavaSearchScope scope = SearchEngine.createWorkspaceScope();
-        ArrayList<IType> types = new ArrayList<>();
-        SearchRequestor requestor = new SearchRequestor() {
-            @Override
-            public void acceptSearchMatch(SearchMatch match) {
-                Object element = match.getElement();
-                if (element instanceof IType) {
-                    types.add((IType) element);
-                }
+        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        if (sourceProvider instanceof JdtSourceLookUpProvider) {
+            IJavaProject project = JdtUtils.findProject(frame, ((JdtSourceLookUpProvider) sourceProvider).getSourceContainers());
+            if (project != null) {
+                return project.findType(JdtUtils.getDeclaringTypeName(frame));
             }
-        };
-        SearchEngine searchEngine = new SearchEngine();
-        searchEngine.search(pattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant() }, scope, requestor, null);
-        // TODO: Handle duplicate type case:
-        if (types.size() > 0) {
-            return types.get(0);
         }
         return null;
     }
