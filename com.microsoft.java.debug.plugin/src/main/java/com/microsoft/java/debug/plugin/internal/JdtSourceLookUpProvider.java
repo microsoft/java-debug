@@ -181,7 +181,11 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return null;
     }
 
-    private synchronized ISourceContainer[] getSourceContainers() {
+    /**
+     * Get the project associated source containers.
+     * @return the initialized source container list
+     */
+    public synchronized ISourceContainer[] getSourceContainers() {
         if (sourceContainers == null) {
             sourceContainers = JdtUtils.getSourceContainers((String) options.get(Constants.PROJECT_NAME));
         }

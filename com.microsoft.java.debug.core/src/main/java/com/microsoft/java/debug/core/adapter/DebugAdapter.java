@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.CompletionsHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
@@ -108,6 +109,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new EvaluateRequestHandler());
         registerHandler(new HotCodeReplaceHandler());
         registerHandler(new RestartFrameHandler());
+        registerHandler(new CompletionsHandler());
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
