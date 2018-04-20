@@ -13,10 +13,12 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -85,7 +87,16 @@ public class ResolveMainClassHandler {
                                     if (projectName == null
                                         || targetProjectPath.isEmpty()
                                         || ResourceUtils.isContainedIn(project.getLocation(), targetProjectPath)) {
-                                        res.add(new ResolutionItem(mainClass, projectName));
+                                        String filePath = null;
+
+                                        if (match.getResource() instanceof IFile) {
+                                            try {
+                                                filePath = match.getResource().getLocation().toOSString();
+                                            } catch (Exception ex) {
+                                                // ignore
+                                            }
+                                        }
+                                        res.add(new ResolutionItem(mainClass, projectName, filePath));
                                     }
                                 }
                             }
@@ -109,10 +120,12 @@ public class ResolveMainClassHandler {
     private class ResolutionItem {
         private String mainClass;
         private String projectName;
+        private String filePath;
 
-        public ResolutionItem(String mainClass, String projectName) {
+        public ResolutionItem(String mainClass, String projectName, String filePath) {
             this.mainClass = mainClass;
             this.projectName = projectName;
+            this.filePath = filePath;
         }
 
         @Override
@@ -122,20 +135,16 @@ public class ResolveMainClassHandler {
             }
             if (o instanceof ResolutionItem) {
                 ResolutionItem item = (ResolutionItem) o;
-                if (mainClass != null ? !mainClass.equals(item.mainClass) : item.mainClass != null) {
-                    return false;
-                }
-                if (projectName != null ? !projectName.equals(item.projectName) : item.projectName != null) {
-                    return false;
-                }
-                return true;
+                return Objects.equals(mainClass, item.mainClass)
+                        && Objects.equals(projectName, item.projectName)
+                        && Objects.equals(filePath, item.filePath);
             }
             return false;
         }
 
         @Override
         public int hashCode() {
-            return (mainClass == null ? 0 : mainClass.hashCode()) * 13 + (projectName == null ? 0 : projectName.hashCode());
+            return Objects.hash(mainClass, projectName, filePath);
         }
     }
 }
