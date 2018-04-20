@@ -95,7 +95,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             // ignore since SetBreakpointsRequestHandler has already handled
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
-            ThreadReference bpThread = ((BreakpointEvent) event).thread();
+            ThreadReference bpThread = ((ExceptionEvent) event).thread();
             IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
             if (engine.isInEvaluation(bpThread)) {
                 return;
