@@ -89,6 +89,19 @@ public class DebugSession implements IDebugSession {
         manager.deleteEventRequests(legacy);
         // When no exception breakpoints are requested, no need to create an empty exception request.
         if (notifyCaught || notifyUncaught) {
+            // from: https://www.javatips.net/api/REPLmode-master/src/jm/mode/replmode/REPLRunner.java
+            // Calling this seems to set something internally to make the
+            // Eclipse JDI wake up. Without it, an ObjectCollectedException
+            // is thrown on request.enable(). No idea why this works,
+            // but at least exception handling has returned. (Suspect that it may
+            // block until all or at least some threads are available, meaning
+            // that the app has launched and we have legit objects to talk to).
+            vm.allThreads();
+            // The bug may not have been noticed because the test suite waits for
+            // a thread to be available, and queries it by calling allThreads().
+            // See org.eclipse.debug.jdi.tests.AbstractJDITest for the example.
+
+            // get only the uncaught exceptions
             ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
             request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
             request.enable();
