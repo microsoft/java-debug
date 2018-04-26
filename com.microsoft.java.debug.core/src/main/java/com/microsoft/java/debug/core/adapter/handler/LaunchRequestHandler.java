@@ -40,6 +40,7 @@ import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
+import com.microsoft.java.debug.core.adapter.ICompletionsProvider;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
@@ -117,12 +118,16 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 if (launchArguments.mainClass != null) {
                     options.put(Constants.MAIN_CLASS, launchArguments.mainClass);
                 }
+
+                // TODO: Clean up the initialize mechanism
                 ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
                 sourceProvider.initialize(context, options);
                 IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
                 evaluationProvider.initialize(context, options);
                 IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
                 hcrProvider.initialize(context, options);
+                ICompletionsProvider completionsProvider = context.getProvider(ICompletionsProvider.class);
+                completionsProvider.initialize(context, options);
 
                 // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
                 // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
