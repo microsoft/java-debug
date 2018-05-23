@@ -118,6 +118,18 @@ public class DebugUtility {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
 
+        /** In the sun JDK 10, the first launching connector is com.sun.tools.jdi.RawCommandLineLauncher, which is not the one we want to use.
+         *  Add the logic to filter the right one from LaunchingConnector list.
+         *  This fix is only for the JDI implementation by JDK. Other JDI implementations (such as JDT) doesn't have the impact.
+         */
+        final String SUN_LAUNCHING_CONNECTOR = "com.sun.tools.jdi.SunCommandLineLauncher";
+        for (LaunchingConnector con : connectors) {
+            if (con.getClass().getName().equals(SUN_LAUNCHING_CONNECTOR)) {
+                connector = con;
+                break;
+            }
+        }
+
         Map<String, Argument> arguments = connector.defaultArguments();
         arguments.get(SUSPEND).setValue("true");
 
