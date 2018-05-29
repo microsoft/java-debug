@@ -1,0 +1,7 @@
+{
+    "projects": [
+        "com.microsoft.java.debug.core",
+        "com.microsoft.java.debug.plugin"
+    ],
+   "targetPlatform": "java.debug.target"
+}
