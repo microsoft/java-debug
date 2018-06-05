@@ -28,8 +28,6 @@ hs_err_pid*
 .DS_Store
 .idea
 target/
-.classpath
-.project
 .settings
 javaConfig.json
 **/.checkstyle
