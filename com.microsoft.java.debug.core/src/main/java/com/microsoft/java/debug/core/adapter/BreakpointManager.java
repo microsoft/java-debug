@@ -193,6 +193,11 @@ public class BreakpointManager {
         breakpointExpressionMap.remove(breakpoint);
     }
 
+    public void updateLogMessageCompiledExpression(IBreakpoint breakpoint, String newLogMessage) {
+        breakpoint.setLogMessage(newLogMessage);
+        breakpointExpressionMap.remove(breakpoint);
+    }
+
     /**
      * Cleanup all breakpoints and reset the breakpoint id counter.
      */

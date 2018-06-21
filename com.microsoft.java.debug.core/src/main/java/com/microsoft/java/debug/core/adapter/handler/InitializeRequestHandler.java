@@ -52,6 +52,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         caps.supportTerminateDebuggee = true;
         caps.supportsCompletionsRequest = true;
         caps.supportsRestartFrame = true;
+        caps.supportsLogPoints = true;
         Types.ExceptionBreakpointFilter[] exceptionFilters = {
             Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER,
             Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER,

@@ -55,6 +55,7 @@ public interface IEvaluationProvider extends IProvider {
      */
     CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap);
 
+    CompletableFuture<Value> evaluateForLogpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap);
 
     /**
      * Call this method when the thread is to be resumed by user, it will first cancel ongoing evaluation tasks on specified thread and

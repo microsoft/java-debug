@@ -142,6 +142,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                         manager.updateConditionCompiledExpression(added[i], toAdds[i].getCondition());
                     }
 
+                    if (!StringUtils.equals(toAdds[i].getLogMessage(), added[i].getLogMessage())) {
+                        manager.updateLogMessageCompiledExpression(added[i], toAdds[i].getLogMessage());
+                    }
                 }
                 res.add(this.convertDebuggerBreakpointToClient(added[i], context));
             }
@@ -170,45 +173,58 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     }
 
                     // find the breakpoint related to this breakpoint event
-                    IBreakpoint conditionalBP = Arrays.asList(manager.getBreakpoints()).stream().filter(bp -> StringUtils.isNotBlank(bp.getCondition())
-                            && bp.requests().contains(((BreakpointEvent) event).request())
-                            ).findFirst().orElse(null);
-                    if (conditionalBP != null) {
+                    IBreakpoint expressionBP = Arrays.asList(manager.getBreakpoints()).stream().filter(
+                        bp -> (StringUtils.isNotBlank(bp.getCondition()) || StringUtils.isNotBlank(bp.getLogMessage()))
+                        && bp.requests().contains(((BreakpointEvent) event).request())
+                    ).findFirst().orElse(null);
+
+                    if (expressionBP != null) {
                         CompletableFuture.runAsync(() -> {
-                            engine.evaluateForBreakpoint(conditionalBP, bpThread, manager.getBreakpointExpressionMap()).whenComplete((value, ex) -> {
-                                boolean resume = false;
-                                boolean resultNotBoolean = false;
-                                if (value != null && ex == null) {
-                                    if (value instanceof BooleanValue) {
-                                        resume = !((BooleanValue) value).booleanValue();
-                                    } else if (value instanceof ObjectReference
-                                            && ((ObjectReference) value).type().name().equals("java.lang.Boolean")) {
-                                        // get boolean value from java.lang.Boolean object
-                                        Field field = ((ReferenceType) ((ObjectReference) value).type()).fieldByName("value");
-                                        resume = !((BooleanValue) ((ObjectReference) value).getValue(field)).booleanValue();
-                                    } else {
-                                        resultNotBoolean = true;
-                                    }
-                                }
-                                if (resume) {
-                                    debugEvent.eventSet.resume();
-                                    // since the evaluation result is false, clear the evaluation environment caused by above evaluation.
-                                    engine.clearState(bpThread);
-                                } else {
-                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                            if (StringUtils.isNotBlank(expressionBP.getLogMessage())) {
+                                engine.evaluateForLogpoint(expressionBP, bpThread, manager.getBreakpointExpressionMap()).whenComplete((value, ex) -> {
                                     if (ex != null) {
                                         context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
                                                 Events.UserNotificationEvent.NotificationType.ERROR,
-                                                String.format("Breakpoint condition '%s' error: %s", conditionalBP.getCondition(), ex.getMessage())));
-                                    } else if (value == null || resultNotBoolean) {
-                                        context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
-                                                Events.UserNotificationEvent.NotificationType.WARNING,
-                                                String.format("Result of breakpoint condition '%s' is not a boolean, please correct your expression.",
-                                                        conditionalBP.getCondition())));
+                                                String.format("[Logpoint] Log message '%s' error: %s", expressionBP.getLogMessage(), ex.getMessage())));
                                     }
-                                }
-                            });
-
+                                    debugEvent.eventSet.resume();
+                                    engine.clearState(bpThread);
+                                });
+                            } else {
+                                engine.evaluateForBreakpoint(expressionBP, bpThread, manager.getBreakpointExpressionMap()).whenComplete((value, ex) -> {
+                                    boolean resume = false;
+                                    boolean resultNotBoolean = false;
+                                    if (value != null && ex == null) {
+                                        if (value instanceof BooleanValue) {
+                                            resume = !((BooleanValue) value).booleanValue();
+                                        } else if (value instanceof ObjectReference
+                                                && ((ObjectReference) value).type().name().equals("java.lang.Boolean")) {
+                                            // get boolean value from java.lang.Boolean object
+                                            Field field = ((ReferenceType) ((ObjectReference) value).type()).fieldByName("value");
+                                            resume = !((BooleanValue) ((ObjectReference) value).getValue(field)).booleanValue();
+                                        } else {
+                                            resultNotBoolean = true;
+                                        }
+                                    }
+                                    if (resume) {
+                                        debugEvent.eventSet.resume();
+                                        // since the evaluation result is false, clear the evaluation environment caused by above evaluation.
+                                        engine.clearState(bpThread);
+                                    } else {
+                                        context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                                        if (ex != null) {
+                                            context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
+                                                    Events.UserNotificationEvent.NotificationType.ERROR,
+                                                    String.format("Breakpoint condition '%s' error: %s", expressionBP.getCondition(), ex.getMessage())));
+                                        } else if (value == null || resultNotBoolean) {
+                                            context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
+                                                    Events.UserNotificationEvent.NotificationType.WARNING,
+                                                    String.format("Result of breakpoint condition '%s' is not a boolean, please correct your expression.",
+                                                        expressionBP.getCondition())));
+                                        }
+                                    }
+                                });
+                            }
                         });
                     } else {
                         context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
@@ -241,7 +257,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             } catch (NumberFormatException e) {
                 hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
             }
-            breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount, sourceBreakpoints[i].condition);
+            breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount, sourceBreakpoints[i].condition,
+                sourceBreakpoints[i].logMessage);
             if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(fqns[i])) {
                 breakpoints[i].putProperty("verified", true);
             }

@@ -36,6 +36,7 @@ public class Breakpoint implements IBreakpoint {
     private int lineNumber = 0;
     private int hitCount = 0;
     private String condition = null;
+    private String logMessage = null;
     private HashMap<Object, Object> propertyMap = new HashMap<>();
 
     Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber) {
@@ -53,6 +54,11 @@ public class Breakpoint implements IBreakpoint {
         this.lineNumber = lineNumber;
         this.hitCount = hitCount;
         this.condition = condition;
+    }
+
+    Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount, String condition, String logMessage) {
+        this(vm, eventHub, className, lineNumber, hitCount, condition);
+        this.logMessage = logMessage;
     }
 
     // IDebugResource
@@ -130,6 +136,16 @@ public class Breakpoint implements IBreakpoint {
     @Override
     public void setCondition(String condition) {
         this.condition = condition;
+    }
+
+    @Override
+    public void setLogMessage(String logMessage) {
+        this.logMessage = logMessage;
+    }
+
+    @Override
+    public String getLogMessage() {
+        return this.logMessage;
     }
 
     @Override

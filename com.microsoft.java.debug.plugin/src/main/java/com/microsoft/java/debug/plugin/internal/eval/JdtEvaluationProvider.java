@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.plugin.internal.eval;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +20,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -80,6 +83,26 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         this.context = context;
     }
 
+    private CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, String expression, ThreadReference thread,
+        Map<IBreakpoint, Object> breakpointExpressionMap) {
+        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
+        try  {
+            ensureDebugTarget(thread.virtualMachine(), thread, 0);
+            JDIThread jdiThread = getMockJDIThread(thread);
+            JDIStackFrame stackframe = new JDIStackFrame(jdiThread, thread.frame(0), 0);
+
+            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            ICompiledExpression ie = (ICompiledExpression) breakpointExpressionMap
+                    .computeIfAbsent(breakpoint, bp -> engine.getCompiledExpression(expression, stackframe));
+
+            internalEvaluate(engine, ie, stackframe, completableFuture);
+            return completableFuture;
+        } catch (Exception ex) {
+            completableFuture.completeExceptionally(ex);
+            return completableFuture;
+        }
+    }
+
     @Override
     public CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap) {
         if (breakpoint == null) {
@@ -90,23 +113,38 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             throw new IllegalArgumentException("breakpoint is not a conditional breakpoint.");
         }
 
-        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
-        try  {
-            ensureDebugTarget(thread.virtualMachine(), thread, 0);
-            JDIThread jdiThread = getMockJDIThread(thread);
-            JDIStackFrame stackframe = new JDIStackFrame(jdiThread, thread.frame(0), 0);
+        return evaluateForBreakpoint(breakpoint, breakpoint.getCondition(), thread, breakpointExpressionMap);
+    }
 
-            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = (ICompiledExpression) breakpointExpressionMap
-                    .computeIfAbsent(breakpoint, bp -> engine.getCompiledExpression(bp.getCondition(), stackframe));
-
-            internalEvaluate(engine, ie, stackframe, completableFuture);
-            return completableFuture;
-        } catch (Exception ex) {
-            completableFuture.completeExceptionally(ex);
-            return completableFuture;
+    @Override
+    public CompletableFuture<Value> evaluateForLogpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap) {
+        if (breakpoint == null) {
+            throw new IllegalArgumentException("logpoint is null.");
         }
 
+        if (StringUtils.isBlank(breakpoint.getLogMessage())) {
+            throw new IllegalArgumentException("breakpoint is not a logpoint.");
+        }
+
+        return evaluateForBreakpoint(breakpoint, logMessageToExpression(breakpoint.getLogMessage()), thread, breakpointExpressionMap);
+    }
+
+    private String logMessageToExpression(String logMessage) {
+        final String LOGMESSAGE_VARIABLE_REGEXP = "\\{(.*?)\\}";
+        String format = logMessage.replaceAll(LOGMESSAGE_VARIABLE_REGEXP, "%s");
+
+        Pattern pattern = Pattern.compile(LOGMESSAGE_VARIABLE_REGEXP);
+        Matcher matcher = pattern.matcher(logMessage);
+        List<String> arguments = new ArrayList<>();
+        while (matcher.find()) {
+            arguments.add("(" + matcher.group(1) + ")");
+        }
+
+        if (arguments.size() > 0) {
+            return "System.out.println(String.format(\"" + format + "\"," + String.join(",", arguments) + "))";
+        } else {
+            return "System.out.println(\"" + format + "\")";
+        }
     }
 
     @Override
