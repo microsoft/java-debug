@@ -48,7 +48,7 @@ import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
@@ -83,50 +83,65 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         this.context = context;
     }
 
-    private CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, String expression, ThreadReference thread,
-        Map<IBreakpoint, Object> breakpointExpressionMap) {
+    @Override
+    public CompletableFuture<Value> evaluateForBreakpoint(IEvaluatableBreakpoint breakpoint, ThreadReference thread) {
+        if (breakpoint == null) {
+            throw new IllegalArgumentException("The breakpoint is null.");
+        }
+
+        if (!breakpoint.containsEvaluatableExpression()) {
+            throw new IllegalArgumentException("The breakpoint doesn't contain the evaluatable expression.");
+        }
+
+        if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
+            return evaluate(logMessageToExpression(breakpoint.getLogMessage()), thread, 0, breakpoint);
+        } else {
+            return evaluate(breakpoint.getCondition(), thread, 0, breakpoint);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
+        return evaluate(expression, thread, depth, null);
+    }
+
+    private CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth, IEvaluatableBreakpoint breakpoint) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         try  {
-            ensureDebugTarget(thread.virtualMachine(), thread, 0);
+            ensureDebugTarget(thread.virtualMachine(), thread, depth);
             JDIThread jdiThread = getMockJDIThread(thread);
-            JDIStackFrame stackframe = new JDIStackFrame(jdiThread, thread.frame(0), 0);
+            JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
+            if (stackframe == null) {
+                logger.severe("Cannot evaluate because the stackframe is not available.");
+                throw new IllegalStateException("Cannot evaluate because the stackframe is not available.");
+            }
 
+            ICompiledExpression compiledExpression = null;
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = (ICompiledExpression) breakpointExpressionMap
-                    .computeIfAbsent(breakpoint, bp -> engine.getCompiledExpression(expression, stackframe));
+            if (breakpoint != null) {
+                if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
+                    compiledExpression = (ICompiledExpression) breakpoint.getCompiledLogpointExpression();
+                    if (compiledExpression == null) {
+                        compiledExpression = engine.getCompiledExpression(expression, stackframe);
+                        breakpoint.setCompiledLogpointExpression(compiledExpression);
+                    }
+                } else {
+                    compiledExpression = (ICompiledExpression) breakpoint.getCompiledConditionalExpression();
+                    if (compiledExpression == null) {
+                        compiledExpression = engine.getCompiledExpression(expression, stackframe);
+                        breakpoint.setCompiledConditionalExpression(compiledExpression);
+                    }
+                }
+            } else {
+                compiledExpression = engine.getCompiledExpression(expression, stackframe);
+            }
 
-            internalEvaluate(engine, ie, stackframe, completableFuture);
+            internalEvaluate(engine, compiledExpression, stackframe, completableFuture);
             return completableFuture;
         } catch (Exception ex) {
             completableFuture.completeExceptionally(ex);
             return completableFuture;
         }
-    }
-
-    @Override
-    public CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap) {
-        if (breakpoint == null) {
-            throw new IllegalArgumentException("breakpoint is null.");
-        }
-
-        if (StringUtils.isBlank(breakpoint.getCondition())) {
-            throw new IllegalArgumentException("breakpoint is not a conditional breakpoint.");
-        }
-
-        return evaluateForBreakpoint(breakpoint, breakpoint.getCondition(), thread, breakpointExpressionMap);
-    }
-
-    @Override
-    public CompletableFuture<Value> evaluateForLogpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap) {
-        if (breakpoint == null) {
-            throw new IllegalArgumentException("logpoint is null.");
-        }
-
-        if (StringUtils.isBlank(breakpoint.getLogMessage())) {
-            throw new IllegalArgumentException("breakpoint is not a logpoint.");
-        }
-
-        return evaluateForBreakpoint(breakpoint, logMessageToExpression(breakpoint.getLogMessage()), thread, breakpointExpressionMap);
     }
 
     private String logMessageToExpression(String logMessage) {
@@ -144,28 +159,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             return "System.out.println(String.format(\"" + format + "\"," + String.join(",", arguments) + "))";
         } else {
             return "System.out.println(\"" + format + "\")";
-        }
-    }
-
-    @Override
-    public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
-        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
-        try  {
-            ensureDebugTarget(thread.virtualMachine(), thread, depth);
-            JDIThread jdiThread = getMockJDIThread(thread);
-            JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
-            if (stackframe == null) {
-                logger.severe("Cannot evaluate because the stackframe is not available.");
-                throw new IllegalStateException("Cannot evaluate because the stackframe is not available.");
-            }
-            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
-
-            internalEvaluate(engine, ie, stackframe, completableFuture);
-            return completableFuture;
-        } catch (Exception ex) {
-            completableFuture.completeExceptionally(ex);
-            return completableFuture;
         }
     }
 
