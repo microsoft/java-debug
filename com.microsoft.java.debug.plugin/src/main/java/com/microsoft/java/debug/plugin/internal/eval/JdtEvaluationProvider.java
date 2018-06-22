@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.plugin.internal.eval;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +20,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -45,7 +48,7 @@ import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
@@ -81,36 +84,28 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     @Override
-    public CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap) {
+    public CompletableFuture<Value> evaluateForBreakpoint(IEvaluatableBreakpoint breakpoint, ThreadReference thread) {
         if (breakpoint == null) {
-            throw new IllegalArgumentException("breakpoint is null.");
+            throw new IllegalArgumentException("The breakpoint is null.");
         }
 
-        if (StringUtils.isBlank(breakpoint.getCondition())) {
-            throw new IllegalArgumentException("breakpoint is not a conditional breakpoint.");
+        if (!breakpoint.containsEvaluatableExpression()) {
+            throw new IllegalArgumentException("The breakpoint doesn't contain the evaluatable expression.");
         }
 
-        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
-        try  {
-            ensureDebugTarget(thread.virtualMachine(), thread, 0);
-            JDIThread jdiThread = getMockJDIThread(thread);
-            JDIStackFrame stackframe = new JDIStackFrame(jdiThread, thread.frame(0), 0);
-
-            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = (ICompiledExpression) breakpointExpressionMap
-                    .computeIfAbsent(breakpoint, bp -> engine.getCompiledExpression(bp.getCondition(), stackframe));
-
-            internalEvaluate(engine, ie, stackframe, completableFuture);
-            return completableFuture;
-        } catch (Exception ex) {
-            completableFuture.completeExceptionally(ex);
-            return completableFuture;
+        if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
+            return evaluate(logMessageToExpression(breakpoint.getLogMessage()), thread, 0, breakpoint);
+        } else {
+            return evaluate(breakpoint.getCondition(), thread, 0, breakpoint);
         }
-
     }
 
     @Override
     public CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth) {
+        return evaluate(expression, thread, depth, null);
+    }
+
+    private CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth, IEvaluatableBreakpoint breakpoint) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         try  {
             ensureDebugTarget(thread.virtualMachine(), thread, depth);
@@ -120,14 +115,50 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 logger.severe("Cannot evaluate because the stackframe is not available.");
                 throw new IllegalStateException("Cannot evaluate because the stackframe is not available.");
             }
-            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            ICompiledExpression ie = engine.getCompiledExpression(expression, stackframe);
 
-            internalEvaluate(engine, ie, stackframe, completableFuture);
+            ICompiledExpression compiledExpression = null;
+            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            if (breakpoint != null) {
+                if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
+                    compiledExpression = (ICompiledExpression) breakpoint.getCompiledLogpointExpression();
+                    if (compiledExpression == null) {
+                        compiledExpression = engine.getCompiledExpression(expression, stackframe);
+                        breakpoint.setCompiledLogpointExpression(compiledExpression);
+                    }
+                } else {
+                    compiledExpression = (ICompiledExpression) breakpoint.getCompiledConditionalExpression();
+                    if (compiledExpression == null) {
+                        compiledExpression = engine.getCompiledExpression(expression, stackframe);
+                        breakpoint.setCompiledConditionalExpression(compiledExpression);
+                    }
+                }
+            } else {
+                compiledExpression = engine.getCompiledExpression(expression, stackframe);
+            }
+
+            internalEvaluate(engine, compiledExpression, stackframe, completableFuture);
             return completableFuture;
         } catch (Exception ex) {
             completableFuture.completeExceptionally(ex);
             return completableFuture;
+        }
+    }
+
+    private String logMessageToExpression(String logMessage) {
+        final String LOGMESSAGE_VARIABLE_REGEXP = "\\{(.*?)\\}";
+        String format = logMessage.replaceAll(LOGMESSAGE_VARIABLE_REGEXP, "%s");
+
+        Pattern pattern = Pattern.compile(LOGMESSAGE_VARIABLE_REGEXP);
+        Matcher matcher = pattern.matcher(logMessage);
+        List<String> arguments = new ArrayList<>();
+        while (matcher.find()) {
+            arguments.add("(" + matcher.group(1) + ")");
+        }
+
+        if (arguments.size() > 0) {
+            return "System.out.println(String.format(\"" + format + "\"," + String.join(",", arguments) + "))";
+        } else {
+            return "System.out.println(\"" + format + "\")";
         }
     }
 

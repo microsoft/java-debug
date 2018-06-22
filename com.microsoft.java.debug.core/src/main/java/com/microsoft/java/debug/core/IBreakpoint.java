@@ -31,4 +31,8 @@ public interface IBreakpoint extends IDebugResource {
     String getCondition();
 
     void setCondition(String condition);
+
+    String getLogMessage();
+
+    void setLogMessage(String logMessage);
 }
