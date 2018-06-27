@@ -163,6 +163,7 @@ public class Types {
         public int line;
         public String hitCondition;
         public String condition;
+        public String logMessage;
 
         public SourceBreakpoint() {
         }
@@ -238,6 +239,7 @@ public class Types {
         public boolean supportsRestartRequest;
         public boolean supportTerminateDebuggee;
         public boolean supportsDelayedStackTraceLoading;
+        public boolean supportsLogPoints;
         public ExceptionBreakpointFilter[] exceptionBreakpointFilters = new ExceptionBreakpointFilter[0];
     }
 }

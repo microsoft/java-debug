@@ -11,10 +11,9 @@
 
 package com.microsoft.java.debug.core.adapter;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -43,18 +42,14 @@ public interface IEvaluationProvider extends IProvider {
     CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth);
 
     /**
-     * Evaluate the conditional breakpoint at the given thread and return the promise which is to be resolved/rejected when
-     * the evaluation finishes. The breakpointExpressionMap value should be managed by this IEvaluationProvider, avoid duplicate compilation
-     * on the same query when the conditional breakpoint is set inside a large loop, when the breakpoint is removed or the condition is changed,
-     * the external owner of breakpointExpressionMap must remove the related map entry.
+     * Evaluate the conditional breakpoint or logpoint at the given thread and return the promise which is to be resolved/rejected when
+     * the evaluation finishes.
      *
-     * @param breakpoint The conditional breakpoint
+     * @param breakpoint The evaluatable breakpoint
      * @param thread The jdi thread to the expression will be executed at
-     * @param breakpointExpressionMap The map has breakpoint as the key and the compiled expression object for next evaluation use.
      * @return the evaluation result future
      */
-    CompletableFuture<Value> evaluateForBreakpoint(IBreakpoint breakpoint, ThreadReference thread, Map<IBreakpoint, Object> breakpointExpressionMap);
-
+    CompletableFuture<Value> evaluateForBreakpoint(IEvaluatableBreakpoint breakpoint, ThreadReference thread);
 
     /**
      * Call this method when the thread is to be resumed by user, it will first cancel ongoing evaluation tasks on specified thread and

@@ -28,7 +28,7 @@ public interface IDebugSession {
     void terminate();
 
     // breakpoints
-    IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition);
+    IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition, String logMessage);
 
     void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught);
 
