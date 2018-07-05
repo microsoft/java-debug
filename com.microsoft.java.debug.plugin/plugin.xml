@@ -7,6 +7,10 @@
             <command id="vscode.java.resolveClasspath"/>
             <command id="vscode.java.resolveMainClass"/>
             <command id="vscode.java.buildWorkspace"/>
+            <command id="vscode.java.startRemoteDebugSession"/>
+            <command id="vscode.java.resolveClassNameForRemoteDebug"/>
+            <command id="vscode.java.resolveSourceNameForRemoteDebug"/>
+            <command id="vscode.java.stopRemoteDebugSession"/>
             <command id="vscode.java.fetchUsageData"/>
             <command id="vscode.java.updateDebugSettings"/>
        </delegateCommandHandler>
