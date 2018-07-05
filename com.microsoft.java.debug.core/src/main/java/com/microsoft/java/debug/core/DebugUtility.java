@@ -194,6 +194,14 @@ public class DebugUtility {
             throws IOException, IllegalConnectorArgumentsException {
         List<AttachingConnector> connectors = vmManager.attachingConnectors();
         AttachingConnector connector = connectors.get(0);
+        // in JDK 10, the first AttachingConnector is not the one we want
+        final String SUN_ATTACH_CONNECTOR = "com.sun.tools.jdi.SocketAttachingConnector";
+        for (AttachingConnector con : connectors) {
+            if (con.getClass().getName().equals(SUN_ATTACH_CONNECTOR)) {
+                connector = con;
+                break;
+            }
+        }
         Map<String, Argument> arguments = connector.defaultArguments();
         arguments.get(HOSTNAME).setValue(hostName);
         arguments.get(PORT).setValue(String.valueOf(port));
