@@ -15,12 +15,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -64,11 +65,13 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
             // Just exit out of editing if we're given an empty expression.
             return CompletableFuture.completedFuture(response);
         } else if (setVarArguments.variablesReference == -1) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                    "SetVariablesRequest: property 'variablesReference' is missing, null, or empty");
+            throw new CompletionException(new DebugException(
+                "SetVariablesRequest: property 'variablesReference' is missing, null, or empty",
+                ErrorCode.ARGUMENT_MISSING.getId()));
         } else if (StringUtils.isBlank(setVarArguments.name)) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                    "SetVariablesRequest: property 'name' is missing, null, or empty");
+            throw new CompletionException(new DebugException(
+                "SetVariablesRequest: property 'name' is missing, null, or empty",
+                ErrorCode.ARGUMENT_MISSING.getId()));
         }
 
         this.context = context;
@@ -80,8 +83,9 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         Object container = context.getRecyclableIdPool().getObjectById(setVarArguments.variablesReference);
         // container is null means the stack frame is continued by user manually.
         if (container == null) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                    "Failed to set variable. Reason: Cannot set value because the thread is resumed.");
+            throw new CompletionException(new DebugException(
+                "Failed to set variable. Reason: Cannot set value because the thread is resumed.",
+                ErrorCode.SET_VARIABLE_FAILURE.getId()));
         }
 
         String name = setVarArguments.name;
@@ -103,13 +107,16 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
             } else if (containerObj instanceof ObjectReference) {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value, (ObjectReference) containerObj, options);
             } else {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                        String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference));
+                throw new CompletionException(new DebugException(
+                    String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference),
+                    ErrorCode.SET_VARIABLE_FAILURE.getId()));
             }
         } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
                 | UnsupportedOperationException | ClassNotLoadedException e) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_VARIABLE_FAILURE,
-                    String.format("Failed to set variable. Reason: %s", e.toString()));
+            throw new CompletionException(new DebugException(
+                String.format("Failed to set variable. Reason: %s", e.toString()),
+                e,
+                ErrorCode.SET_VARIABLE_FAILURE.getId()));
         }
         int referenceId = 0;
         if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {

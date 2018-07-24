@@ -15,11 +15,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.ICompletionsProvider;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -37,8 +34,6 @@ import com.sun.jdi.ThreadReference;
 
 public class CompletionsHandler implements IDebugRequestHandler {
 
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Requests.Command.COMPLETIONS);
@@ -50,8 +45,10 @@ public class CompletionsHandler implements IDebugRequestHandler {
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(completionsArgs.frameId);
 
         if (stackFrameReference == null) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.COMPLETIONS_FAILURE,
-                    String.format("Completions: cannot find the stack frame with frameID %s", completionsArgs.frameId));
+            throw new CompletionException(new DebugException(
+                String.format("Completions: cannot find the stack frame with frameID %s", completionsArgs.frameId),
+                ErrorCode.COMPLETIONS_FAILURE.getId()
+            ));
         }
 
         return CompletableFuture.supplyAsync(() -> {
@@ -66,8 +63,11 @@ public class CompletionsHandler implements IDebugRequestHandler {
                 }
                 return response;
             } catch (IncompatibleThreadStateException e) {
-                logger.log(Level.WARNING, String.format("Cannot provide code completions because of %s.", e.toString()), e);
-                throw new CompletionException(e);
+                throw new CompletionException(new DebugException(
+                    String.format("Cannot provide code completions because of %s.", e.toString()),
+                    e,
+                    ErrorCode.COMPLETIONS_FAILURE.getId()
+                ));
             }
         });
     }

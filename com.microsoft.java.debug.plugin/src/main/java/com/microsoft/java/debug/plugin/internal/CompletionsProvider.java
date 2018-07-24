@@ -80,7 +80,7 @@ public class CompletionsProvider implements ICompletionsProvider {
             }
 
         } catch (DebugException | CoreException e) {
-            logger.log(Level.WARNING, String.format("Failed to code complete because of %s", e.toString()), e);
+            logger.log(Level.SEVERE, String.format("Failed to code complete because of %s", e.toString()), e);
         }
 
         return res;

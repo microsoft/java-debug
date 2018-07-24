@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -117,8 +118,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (StringUtils.isBlank(sourcePath)) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
-                        String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
+            throw new CompletionException(new DebugException(
+                String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path),
+                ErrorCode.SET_BREAKPOINT_FAILURE.getId()));
         }
 
         try {
@@ -154,9 +156,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             response.body = new Responses.SetBreakpointsResponseBody(res);
             return CompletableFuture.completedFuture(response);
         } catch (DebugException e) {
-            return AdapterUtils.createAsyncErrorResponse(response,
-                    ErrorCode.SET_BREAKPOINT_FAILURE,
-                    String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()));
+            throw new CompletionException(new DebugException(
+                String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()),
+                ErrorCode.SET_BREAKPOINT_FAILURE.getId()));
         }
     }
 

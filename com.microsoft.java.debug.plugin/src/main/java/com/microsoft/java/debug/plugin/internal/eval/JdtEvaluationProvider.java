@@ -112,7 +112,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             JDIThread jdiThread = getMockJDIThread(thread);
             JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
             if (stackframe == null) {
-                logger.severe("Cannot evaluate because the stackframe is not available.");
                 throw new IllegalStateException("Cannot evaluate because the stackframe is not available.");
             }
 
@@ -295,7 +294,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                     try {
                         jdiThread.terminateEvaluation();
                     } catch (DebugException e) {
-                        logger.warning(String.format("Error stopping evalutoin on thread %d: %s", thread.uniqueID(),
+                        logger.warning(String.format("Error stopping evaluation on thread %d: %s", thread.uniqueID(),
                                 e.toString()));
                     }
                     threadMap.remove(thread);

@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,7 +36,6 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.ICompletionsProvider;
@@ -79,8 +77,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
                 || ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths)) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.ARGUMENT_MISSING,
-                       String.format("Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration"));
+            throw new CompletionException(new DebugException(
+                "Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration.",
+                ErrorCode.ARGUMENT_MISSING.getId()));
         }
 
         context.setAttached(false);
@@ -93,8 +92,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);
         } else {
             if (!Charset.isSupported(launchArguments.encoding)) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.INVALID_ENCODING,
-                            String.format("Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized."));
+                throw new CompletionException(new DebugException(
+                    "Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized.",
+                    ErrorCode.INVALID_ENCODING.getId()));
             }
 
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
@@ -197,7 +197,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                                 logger.info("Launching debuggee in terminal console succeeded.");
                                 resultFuture.complete(response);
                             } catch (IOException | IllegalConnectorArgumentsException e) {
-                                logger.log(Level.SEVERE, String.format(launchInTerminalErrorFormat, e.toString()));
                                 resultFuture.completeExceptionally(
                                         new DebugException(
                                                 String.format(launchInTerminalErrorFormat, e.toString()),
@@ -206,7 +205,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                                 );
                             }
                         } else {
-                            logger.log(Level.SEVERE, String.format(launchInTerminalErrorFormat, runResponse.message));
                             resultFuture.completeExceptionally(
                                     new DebugException(
                                             String.format(launchInTerminalErrorFormat, runResponse.message),
@@ -219,7 +217,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                             ex = ex.getCause();
                         }
                         String errorMessage = String.format(launchInTerminalErrorFormat, ex != null ? ex.toString() : "Null response");
-                        logger.log(Level.SEVERE, errorMessage);
                         resultFuture.completeExceptionally(
                                 new DebugException(
                                         String.format(launchInTerminalErrorFormat, errorMessage),
@@ -229,7 +226,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     }
                 });
         } catch (IOException | IllegalConnectorArgumentsException e) {
-            logger.log(Level.SEVERE, String.format(launchInTerminalErrorFormat, e.toString()));
             resultFuture.completeExceptionally(
                     new DebugException(
                             String.format(launchInTerminalErrorFormat, e.toString()),
@@ -298,7 +294,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
             resultFuture.complete(response);
         } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            logger.log(Level.SEVERE, String.format("Failed to launch debuggee VM. Reason: %s", e.toString()));
             resultFuture.completeExceptionally(
                     new DebugException(
                             String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),

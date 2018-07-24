@@ -14,11 +14,11 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.StackFrameUtility;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -51,8 +51,9 @@ public class RestartFrameHandler implements IDebugRequestHandler {
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(restartFrameArgs.frameId);
 
         if (stackFrameReference == null) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.RESTARTFRAME_FAILURE,
-                    String.format("RestartFrame: cannot find the stack frame with frameID %s", restartFrameArgs.frameId));
+            throw new CompletionException(new DebugException(
+                String.format("RestartFrame: cannot find the stack frame with frameID %s", restartFrameArgs.frameId),
+                ErrorCode.RESTARTFRAME_FAILURE.getId()));
         }
 
         if (canRestartFrame(context, stackFrameReference)) {
@@ -62,11 +63,14 @@ public class RestartFrameHandler implements IDebugRequestHandler {
                 stepInto(context, reference);
             } catch (DebugException de) {
                 context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(NotificationType.ERROR, de.getMessage()));
+                throw new CompletionException(new DebugException(
+                    String.format("Failed to restart stack frame. Reason: %s", de.getMessage()),
+                    de, ErrorCode.RESTARTFRAME_FAILURE.getId()));
             }
             return CompletableFuture.completedFuture(response);
         } else {
             context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(NotificationType.ERROR, "Current stack frame doesn't support restart."));
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.RESTARTFRAME_FAILURE, "Failed to restart the selected stack frame.");
+            throw new CompletionException(new DebugException("Current stack frame doesn't support restart.", ErrorCode.RESTARTFRAME_FAILURE.getId()));
         }
     }
 

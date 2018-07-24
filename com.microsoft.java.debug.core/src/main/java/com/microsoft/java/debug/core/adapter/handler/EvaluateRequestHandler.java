@@ -17,14 +17,13 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -60,14 +59,16 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
-                    "Failed to evaluate. Reason: Empty expression cannot be evaluated.");
+            throw new CompletionException(new DebugException(
+                "Failed to evaluate. Reason: Empty expression cannot be evaluated.",
+                ErrorCode.EVALUATE_FAILURE.getId()));
         }
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameReference == null) {
             // stackFrameReference is null means the stackframe is continued by user manually,
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EVALUATE_FAILURE,
-                    "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.");
+            throw new CompletionException(new DebugException(
+                "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.",
+                ErrorCode.EVALUATE_FAILURE.getId()));
         }
 
         return CompletableFuture.supplyAsync(() -> {
@@ -100,8 +101,10 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     cause = e.getCause();
                 }
                 // TODO: distinguish user error of wrong expression(eg: compilation error)
-                logger.log(Level.WARNING, String.format("Cannot evalution expression because of %s.", cause.toString()), cause);
-                throw new CompletionException(cause);
+                throw new CompletionException(new DebugException(
+                    String.format("Cannot evalution expression because of %s.", cause.toString()),
+                    cause,
+                    ErrorCode.EVALUATE_FAILURE.getId()));
             }
         });
     }
