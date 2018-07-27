@@ -3,5 +3,5 @@
    <bundle id="com.microsoft.java.debug.plugin" version="0.10.0">
    	<category name="javadebug" />
    </bundle>
-   <category-def name="javadebug" label="Java Debugger Server"/>
+   <category-def name="javadebug" label="Java Debug Server"/>
 </site>
