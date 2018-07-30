@@ -93,12 +93,12 @@ public class ProtocolServer extends AbstractProtocolServer {
                 ex = ex.getCause();
             }
 
-            String exceptionMessage = ex.getMessage() != null ? ex.getMessage() : ex.toString();
             if (ex instanceof VMDisconnectedException) {
                 // mark it success to avoid reporting error on VSCode.
                 response.success = true;
                 sendResponse(response);
             } else {
+                String exceptionMessage = ex.getMessage() != null ? ex.getMessage() : ex.toString();
                 ErrorCode errorCode = ex instanceof DebugException ? ErrorCode.parse(((DebugException) ex).getErrorCode()) : ErrorCode.UNKNOWN_FAILURE;
                 logger.log(Level.SEVERE, String.format("[error response][%s]: %s", request.command, exceptionMessage), ex);
                 sendResponse(AdapterUtils.setErrorResponse(response,
