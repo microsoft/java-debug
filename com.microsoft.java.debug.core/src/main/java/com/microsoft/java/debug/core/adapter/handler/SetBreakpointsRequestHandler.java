@@ -212,6 +212,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private boolean handleEvaluationResult(IDebugAdapterContext context, ThreadReference bpThread, IBreakpoint breakpoint, Value value, Throwable ex) {
         if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
             if (ex != null) {
+                logger.log(Level.SEVERE, String.format("[Logpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
                 context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
                     Events.UserNotificationEvent.NotificationType.ERROR,
                     String.format("[Logpoint] Log message '%s' error: %s", breakpoint.getLogMessage(), ex.getMessage())));
@@ -237,6 +238,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             } else {
                 context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 if (ex != null) {
+                    logger.log(Level.SEVERE, String.format("[ConditionalBreakpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
                     context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
                             Events.UserNotificationEvent.NotificationType.ERROR,
                             String.format("Breakpoint condition '%s' error: %s", breakpoint.getCondition(), ex.getMessage())));
