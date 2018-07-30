@@ -19,8 +19,8 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -64,13 +64,13 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
             // Just exit out of editing if we're given an empty expression.
             return CompletableFuture.completedFuture(response);
         } else if (setVarArguments.variablesReference == -1) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 "SetVariablesRequest: property 'variablesReference' is missing, null, or empty",
-                ErrorCode.ARGUMENT_MISSING.getId());
+                ErrorCode.ARGUMENT_MISSING);
         } else if (StringUtils.isBlank(setVarArguments.name)) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 "SetVariablesRequest: property 'name' is missing, null, or empty",
-                ErrorCode.ARGUMENT_MISSING.getId());
+                ErrorCode.ARGUMENT_MISSING);
         }
 
         this.context = context;
@@ -82,9 +82,9 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         Object container = context.getRecyclableIdPool().getObjectById(setVarArguments.variablesReference);
         // container is null means the stack frame is continued by user manually.
         if (container == null) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 "Failed to set variable. Reason: Cannot set value because the thread is resumed.",
-                ErrorCode.SET_VARIABLE_FAILURE.getId());
+                ErrorCode.SET_VARIABLE_FAILURE);
         }
 
         String name = setVarArguments.name;
@@ -106,16 +106,16 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
             } else if (containerObj instanceof ObjectReference) {
                 newValue = handleSetValueForObject(name, belongToClass, setVarArguments.value, (ObjectReference) containerObj, options);
             } else {
-                throw DebugException.wrapAsCompletionException(
+                throw AdapterUtils.createCompletionException(
                     String.format("SetVariableRequest: Variable %s cannot be found.", setVarArguments.variablesReference),
-                    ErrorCode.SET_VARIABLE_FAILURE.getId());
+                    ErrorCode.SET_VARIABLE_FAILURE);
             }
         } catch (IllegalArgumentException | AbsentInformationException | InvalidTypeException
                 | UnsupportedOperationException | ClassNotLoadedException e) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 String.format("Failed to set variable. Reason: %s", e.toString()),
                 e,
-                ErrorCode.SET_VARIABLE_FAILURE.getId());
+                ErrorCode.SET_VARIABLE_FAILURE);
         }
         int referenceId = 0;
         if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {

@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.StackFrameUtility;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -50,9 +51,9 @@ public class RestartFrameHandler implements IDebugRequestHandler {
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(restartFrameArgs.frameId);
 
         if (stackFrameReference == null) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 String.format("RestartFrame: cannot find the stack frame with frameID %s", restartFrameArgs.frameId),
-                ErrorCode.RESTARTFRAME_FAILURE.getId());
+                ErrorCode.RESTARTFRAME_FAILURE);
         }
 
         if (canRestartFrame(context, stackFrameReference)) {
@@ -62,14 +63,14 @@ public class RestartFrameHandler implements IDebugRequestHandler {
                 stepInto(context, reference);
             } catch (DebugException de) {
                 context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(NotificationType.ERROR, de.getMessage()));
-                throw DebugException.wrapAsCompletionException(
+                throw AdapterUtils.createCompletionException(
                     String.format("Failed to restart stack frame. Reason: %s", de.getMessage()),
-                    de, ErrorCode.RESTARTFRAME_FAILURE.getId());
+                    de, ErrorCode.RESTARTFRAME_FAILURE);
             }
             return CompletableFuture.completedFuture(response);
         } else {
             context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(NotificationType.ERROR, "Current stack frame doesn't support restart."));
-            throw DebugException.wrapAsCompletionException("Current stack frame doesn't support restart.", ErrorCode.RESTARTFRAME_FAILURE.getId());
+            throw AdapterUtils.createCompletionException("Current stack frame doesn't support restart.", ErrorCode.RESTARTFRAME_FAILURE);
         }
     }
 

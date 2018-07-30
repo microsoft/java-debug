@@ -18,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.ArrayUtils;
 
 import com.microsoft.java.debug.core.DebugEvent;
-import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -89,16 +88,16 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
                 final String failureMessage = String.format("Failed to step because the thread '%s' is not suspended in the target VM.", thread.name());
-                throw DebugException.wrapAsCompletionException(
+                throw AdapterUtils.createCompletionException(
                     failureMessage,
                     ex,
-                    ErrorCode.STEP_FAILURE.getId());
+                    ErrorCode.STEP_FAILURE);
             } catch (IndexOutOfBoundsException ex) {
                 final String failureMessage = String.format("Failed to step because the thread '%s' doesn't contain any stack frame", thread.name());
-                throw DebugException.wrapAsCompletionException(
+                throw AdapterUtils.createCompletionException(
                     failureMessage,
                     ex,
-                    ErrorCode.STEP_FAILURE.getId());
+                    ErrorCode.STEP_FAILURE);
             }
         }
 

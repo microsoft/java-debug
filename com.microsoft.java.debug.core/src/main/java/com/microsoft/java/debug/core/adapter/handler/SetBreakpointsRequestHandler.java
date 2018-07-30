@@ -117,9 +117,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (StringUtils.isBlank(sourcePath)) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path),
-                ErrorCode.SET_BREAKPOINT_FAILURE.getId());
+                ErrorCode.SET_BREAKPOINT_FAILURE);
         }
 
         try {
@@ -155,9 +155,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             response.body = new Responses.SetBreakpointsResponseBody(res);
             return CompletableFuture.completedFuture(response);
         } catch (DebugException e) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()),
-                ErrorCode.SET_BREAKPOINT_FAILURE.getId());
+                ErrorCode.SET_BREAKPOINT_FAILURE);
         }
     }
 

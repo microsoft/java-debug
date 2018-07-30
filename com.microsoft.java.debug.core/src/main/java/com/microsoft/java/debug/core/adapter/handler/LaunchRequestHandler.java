@@ -36,6 +36,7 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.ICompletionsProvider;
@@ -77,9 +78,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
                 || ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths)) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 "Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration.",
-                ErrorCode.ARGUMENT_MISSING.getId());
+                ErrorCode.ARGUMENT_MISSING);
         }
 
         context.setAttached(false);
@@ -92,9 +93,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);
         } else {
             if (!Charset.isSupported(launchArguments.encoding)) {
-                throw DebugException.wrapAsCompletionException(
+                throw AdapterUtils.createCompletionException(
                     "Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized.",
-                    ErrorCode.INVALID_ENCODING.getId());
+                    ErrorCode.INVALID_ENCODING);
             }
 
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));

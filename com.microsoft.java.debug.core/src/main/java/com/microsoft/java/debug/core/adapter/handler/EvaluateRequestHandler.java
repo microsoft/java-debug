@@ -21,8 +21,8 @@ import java.util.logging.Logger;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -58,16 +58,16 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 "Failed to evaluate. Reason: Empty expression cannot be evaluated.",
-                ErrorCode.EVALUATE_FAILURE.getId());
+                ErrorCode.EVALUATE_FAILURE);
         }
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameReference == null) {
             // stackFrameReference is null means the stackframe is continued by user manually,
-            throw DebugException.wrapAsCompletionException(
+            throw AdapterUtils.createCompletionException(
                 "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.",
-                ErrorCode.EVALUATE_FAILURE.getId());
+                ErrorCode.EVALUATE_FAILURE);
         }
 
         return CompletableFuture.supplyAsync(() -> {
@@ -100,10 +100,10 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     cause = e.getCause();
                 }
                 // TODO: distinguish user error of wrong expression(eg: compilation error)
-                throw DebugException.wrapAsCompletionException(
+                throw AdapterUtils.createCompletionException(
                     String.format("Cannot evalution expression because of %s.", cause.toString()),
                     cause,
-                    ErrorCode.EVALUATE_FAILURE.getId());
+                    ErrorCode.EVALUATE_FAILURE);
             }
         });
     }
