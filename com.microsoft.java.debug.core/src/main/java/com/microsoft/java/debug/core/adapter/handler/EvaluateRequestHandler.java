@@ -15,7 +15,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
@@ -59,16 +58,16 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
-            throw new CompletionException(new DebugException(
+            throw DebugException.wrapAsCompletionException(
                 "Failed to evaluate. Reason: Empty expression cannot be evaluated.",
-                ErrorCode.EVALUATE_FAILURE.getId()));
+                ErrorCode.EVALUATE_FAILURE.getId());
         }
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameReference == null) {
             // stackFrameReference is null means the stackframe is continued by user manually,
-            throw new CompletionException(new DebugException(
+            throw DebugException.wrapAsCompletionException(
                 "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.",
-                ErrorCode.EVALUATE_FAILURE.getId()));
+                ErrorCode.EVALUATE_FAILURE.getId());
         }
 
         return CompletableFuture.supplyAsync(() -> {
@@ -101,10 +100,10 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     cause = e.getCause();
                 }
                 // TODO: distinguish user error of wrong expression(eg: compilation error)
-                throw new CompletionException(new DebugException(
+                throw DebugException.wrapAsCompletionException(
                     String.format("Cannot evalution expression because of %s.", cause.toString()),
                     cause,
-                    ErrorCode.EVALUATE_FAILURE.getId()));
+                    ErrorCode.EVALUATE_FAILURE.getId());
             }
         });
     }

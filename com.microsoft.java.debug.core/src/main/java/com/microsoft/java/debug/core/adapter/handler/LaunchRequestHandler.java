@@ -77,9 +77,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         if (StringUtils.isBlank(launchArguments.mainClass)
                 || ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths)) {
-            throw new CompletionException(new DebugException(
+            throw DebugException.wrapAsCompletionException(
                 "Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration.",
-                ErrorCode.ARGUMENT_MISSING.getId()));
+                ErrorCode.ARGUMENT_MISSING.getId());
         }
 
         context.setAttached(false);
@@ -92,9 +92,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             context.setDebuggeeEncoding(StandardCharsets.UTF_8);
         } else {
             if (!Charset.isSupported(launchArguments.encoding)) {
-                throw new CompletionException(new DebugException(
+                throw DebugException.wrapAsCompletionException(
                     "Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized.",
-                    ErrorCode.INVALID_ENCODING.getId()));
+                    ErrorCode.INVALID_ENCODING.getId());
             }
 
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));

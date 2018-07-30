@@ -14,7 +14,6 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -50,10 +49,10 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
             context.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
             return CompletableFuture.completedFuture(response);
         } catch (Exception ex) {
-            throw new CompletionException(new DebugException(
+            throw DebugException.wrapAsCompletionException(
                 String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()),
                 ex,
-                ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE.getId()));
+                ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE.getId());
         }
     }
 

@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core;
 
+import java.util.concurrent.CompletionException;
+
 public class DebugException extends Exception {
     private static final long serialVersionUID = 1L;
     private int errorCode;
@@ -48,5 +50,13 @@ public class DebugException extends Exception {
 
     public int getErrorCode() {
         return this.errorCode;
+    }
+
+    public static CompletionException wrapAsCompletionException(String message, Throwable cause, int errorCode) {
+        return new CompletionException(new DebugException(message, cause, errorCode));
+    }
+
+    public static CompletionException wrapAsCompletionException(String message, int errorCode) {
+        return new CompletionException(new DebugException(message, errorCode));
     }
 }

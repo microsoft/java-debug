@@ -18,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -80,10 +79,10 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                 }
             }
         } catch (IOException | IllegalConnectorArgumentsException e) {
-            throw new CompletionException(new DebugException(
+            throw DebugException.wrapAsCompletionException(
                 String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()),
                 e,
-                ErrorCode.ATTACH_FAILURE.getId()));
+                ErrorCode.ATTACH_FAILURE.getId());
         }
 
         Map<String, Object> options = new HashMap<>();
