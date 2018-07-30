@@ -59,6 +59,7 @@
     <modules>
         <module>com.microsoft.java.debug.core</module>
         <module>com.microsoft.java.debug.plugin</module>
+        <module>com.microsoft.java.debug.repository</module>
     </modules>
     <build>
         <pluginManagement>
