@@ -4,6 +4,10 @@ os:
   - linux
   - osx
 
+# TODO: The plugin failed in jdk 10, restrict the jdk version to 8 temporarily. After the issue is resolved, remove this tag.
+jdk:
+  - openjdk8
+
 script: 
   - ./mvnw clean verify
 
