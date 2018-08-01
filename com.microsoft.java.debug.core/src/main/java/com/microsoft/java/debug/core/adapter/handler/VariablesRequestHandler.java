@@ -75,8 +75,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         }
 
         if (!(container instanceof VariableProxy)) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                    String.format("VariablesRequest: Invalid variablesReference %d.", varArgs.variablesReference));
+            throw AdapterUtils.createCompletionException(
+                String.format("VariablesRequest: Invalid variablesReference %d.", varArgs.variablesReference),
+                ErrorCode.GET_VARIABLE_FAILURE);
         }
 
         VariableProxy containerNode = (VariableProxy) container;
@@ -86,8 +87,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
             StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
             if (frame == null) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                        String.format("Invalid stackframe id %d to get variables.", varArgs.variablesReference));
+                throw AdapterUtils.createCompletionException(
+                    String.format("Invalid stackframe id %d to get variables.", varArgs.variablesReference),
+                    ErrorCode.GET_VARIABLE_FAILURE);
             }
             try {
                 childrenList = VariableUtils.listLocalVariables(frame);
@@ -99,8 +101,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     childrenList.addAll(VariableUtils.listStaticVariables(frame));
                 }
             } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                    String.format("Failed to get variables. Reason: %s", e.toString()));
+                throw AdapterUtils.createCompletionException(
+                    String.format("Failed to get variables. Reason: %s", e.toString()),
+                    ErrorCode.GET_VARIABLE_FAILURE,
+                    e);
             }
         } else {
             try {
@@ -111,8 +115,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
                 }
             } catch (AbsentInformationException e) {
-                return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.GET_VARIABLE_FAILURE,
-                    String.format("Failed to get variables. Reason: %s", e.toString()));
+                throw AdapterUtils.createCompletionException(
+                    String.format("Failed to get variables. Reason: %s", e.toString()),
+                    ErrorCode.GET_VARIABLE_FAILURE,
+                    e);
             }
         }
 

@@ -24,11 +24,13 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
@@ -219,6 +221,14 @@ public class AdapterUtils {
      */
     public static CompletableFuture<Response> createAsyncErrorResponse(Response response, ErrorCode errorCode, Exception e) {
         return CompletableFuture.completedFuture(setErrorResponse(response, errorCode, e));
+    }
+
+    public static CompletionException createCompletionException(String message, ErrorCode errorCode, Throwable cause) {
+        return new CompletionException(new DebugException(message, cause, errorCode.getId()));
+    }
+
+    public static CompletionException createCompletionException(String message, ErrorCode errorCode) {
+        return new CompletionException(new DebugException(message, errorCode.getId()));
     }
 
     /**

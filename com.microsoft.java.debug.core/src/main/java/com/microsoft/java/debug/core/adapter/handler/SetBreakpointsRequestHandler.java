@@ -117,8 +117,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (StringUtils.isBlank(sourcePath)) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_BREAKPOINT_FAILURE,
-                        String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path));
+            throw AdapterUtils.createCompletionException(
+                String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path),
+                ErrorCode.SET_BREAKPOINT_FAILURE);
         }
 
         try {
@@ -154,9 +155,9 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             response.body = new Responses.SetBreakpointsResponseBody(res);
             return CompletableFuture.completedFuture(response);
         } catch (DebugException e) {
-            return AdapterUtils.createAsyncErrorResponse(response,
-                    ErrorCode.SET_BREAKPOINT_FAILURE,
-                    String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()));
+            throw AdapterUtils.createCompletionException(
+                String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()),
+                ErrorCode.SET_BREAKPOINT_FAILURE);
         }
     }
 
@@ -211,6 +212,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private boolean handleEvaluationResult(IDebugAdapterContext context, ThreadReference bpThread, IBreakpoint breakpoint, Value value, Throwable ex) {
         if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
             if (ex != null) {
+                logger.log(Level.SEVERE, String.format("[Logpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
                 context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
                     Events.UserNotificationEvent.NotificationType.ERROR,
                     String.format("[Logpoint] Log message '%s' error: %s", breakpoint.getLogMessage(), ex.getMessage())));
@@ -236,6 +238,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             } else {
                 context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 if (ex != null) {
+                    logger.log(Level.SEVERE, String.format("[ConditionalBreakpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
                     context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
                             Events.UserNotificationEvent.NotificationType.ERROR,
                             String.format("Breakpoint condition '%s' error: %s", breakpoint.getCondition(), ex.getMessage())));
