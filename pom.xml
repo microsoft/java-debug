@@ -149,7 +149,7 @@
         </pluginManagement>
     </build>
     <repositories>
-       <repository>
+        <repository>
             <id>photon</id>
             <layout>p2</layout>
             <url>http://download.eclipse.org/releases/photon</url>
