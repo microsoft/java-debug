@@ -1,10 +1,8 @@
 language: java
 
-matrix:
-  include:
-    - os: linux
-    - os: osx
-      osx_image: xcode9.2
+os:
+  - linux
+  - osx
 
 script: 
   - ./mvnw clean verify
