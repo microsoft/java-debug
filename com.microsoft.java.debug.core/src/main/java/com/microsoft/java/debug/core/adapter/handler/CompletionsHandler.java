@@ -64,8 +64,8 @@ public class CompletionsHandler implements IDebugRequestHandler {
             } catch (IncompatibleThreadStateException e) {
                 throw AdapterUtils.createCompletionException(
                     String.format("Cannot provide code completions because of %s.", e.toString()),
-                    e,
-                    ErrorCode.COMPLETIONS_FAILURE
+                    ErrorCode.COMPLETIONS_FAILURE,
+                    e
                 );
             }
         });

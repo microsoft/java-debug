@@ -103,8 +103,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
                 throw AdapterUtils.createCompletionException(
                     String.format("Failed to get variables. Reason: %s", e.toString()),
-                    e,
-                    ErrorCode.GET_VARIABLE_FAILURE);
+                    ErrorCode.GET_VARIABLE_FAILURE,
+                    e);
             }
         } else {
             try {
@@ -117,8 +117,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             } catch (AbsentInformationException e) {
                 throw AdapterUtils.createCompletionException(
                     String.format("Failed to get variables. Reason: %s", e.toString()),
-                    e,
-                    ErrorCode.GET_VARIABLE_FAILURE);
+                    ErrorCode.GET_VARIABLE_FAILURE,
+                    e);
             }
         }
 

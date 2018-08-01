@@ -65,7 +65,8 @@ public class RestartFrameHandler implements IDebugRequestHandler {
                 context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(NotificationType.ERROR, de.getMessage()));
                 throw AdapterUtils.createCompletionException(
                     String.format("Failed to restart stack frame. Reason: %s", de.getMessage()),
-                    de, ErrorCode.RESTARTFRAME_FAILURE);
+                    ErrorCode.RESTARTFRAME_FAILURE,
+                    de);
             }
             return CompletableFuture.completedFuture(response);
         } else {

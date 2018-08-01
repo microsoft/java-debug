@@ -90,14 +90,14 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 final String failureMessage = String.format("Failed to step because the thread '%s' is not suspended in the target VM.", thread.name());
                 throw AdapterUtils.createCompletionException(
                     failureMessage,
-                    ex,
-                    ErrorCode.STEP_FAILURE);
+                    ErrorCode.STEP_FAILURE,
+                    ex);
             } catch (IndexOutOfBoundsException ex) {
                 final String failureMessage = String.format("Failed to step because the thread '%s' doesn't contain any stack frame", thread.name());
                 throw AdapterUtils.createCompletionException(
                     failureMessage,
-                    ex,
-                    ErrorCode.STEP_FAILURE);
+                    ErrorCode.STEP_FAILURE,
+                    ex);
             }
         }
 

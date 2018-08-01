@@ -50,8 +50,8 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
         } catch (Exception ex) {
             throw AdapterUtils.createCompletionException(
                 String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()),
-                ex,
-                ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE);
+                ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
+                ex);
         }
     }
 

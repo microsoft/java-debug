@@ -223,7 +223,7 @@ public class AdapterUtils {
         return CompletableFuture.completedFuture(setErrorResponse(response, errorCode, e));
     }
 
-    public static CompletionException createCompletionException(String message, Throwable cause, ErrorCode errorCode) {
+    public static CompletionException createCompletionException(String message, ErrorCode errorCode, Throwable cause) {
         return new CompletionException(new DebugException(message, cause, errorCode.getId()));
     }
 

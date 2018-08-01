@@ -81,8 +81,8 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         } catch (IOException | IllegalConnectorArgumentsException e) {
             throw AdapterUtils.createCompletionException(
                 String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()),
-                e,
-                ErrorCode.ATTACH_FAILURE);
+                ErrorCode.ATTACH_FAILURE,
+                e);
         }
 
         Map<String, Object> options = new HashMap<>();

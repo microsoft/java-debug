@@ -102,8 +102,8 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 // TODO: distinguish user error of wrong expression(eg: compilation error)
                 throw AdapterUtils.createCompletionException(
                     String.format("Cannot evalution expression because of %s.", cause.toString()),
-                    cause,
-                    ErrorCode.EVALUATE_FAILURE);
+                    ErrorCode.EVALUATE_FAILURE,
+                    cause);
             }
         });
     }

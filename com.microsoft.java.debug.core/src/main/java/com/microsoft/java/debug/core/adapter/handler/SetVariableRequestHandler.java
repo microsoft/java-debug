@@ -114,8 +114,8 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
                 | UnsupportedOperationException | ClassNotLoadedException e) {
             throw AdapterUtils.createCompletionException(
                 String.format("Failed to set variable. Reason: %s", e.toString()),
-                e,
-                ErrorCode.SET_VARIABLE_FAILURE);
+                ErrorCode.SET_VARIABLE_FAILURE,
+                e);
         }
         int referenceId = 0;
         if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
