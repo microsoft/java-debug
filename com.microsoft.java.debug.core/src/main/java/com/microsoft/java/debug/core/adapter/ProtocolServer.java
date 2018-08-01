@@ -83,7 +83,6 @@ public class ProtocolServer extends AbstractProtocolServer {
                 sendResponse(response);
                 future.complete(null);
             } else {
-                logger.log(Level.SEVERE, "The request dispatcher should not return null response.");
                 future.completeExceptionally(new DebugException("The request dispatcher should not return null response.",
                     ErrorCode.UNKNOWN_FAILURE.getId()));
             }
@@ -98,14 +97,13 @@ public class ProtocolServer extends AbstractProtocolServer {
                 // mark it success to avoid reporting error on VSCode.
                 response.success = true;
                 sendResponse(response);
-            } else if (ex instanceof DebugException) {
-                sendResponse(AdapterUtils.setErrorResponse(response,
-                    ErrorCode.parse(((DebugException) ex).getErrorCode()),
-                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
             } else {
+                String exceptionMessage = ex.getMessage() != null ? ex.getMessage() : ex.toString();
+                ErrorCode errorCode = ex instanceof DebugException ? ErrorCode.parse(((DebugException) ex).getErrorCode()) : ErrorCode.UNKNOWN_FAILURE;
+                logger.log(Level.SEVERE, String.format("[error response][%s]: %s", request.command, exceptionMessage), ex);
                 sendResponse(AdapterUtils.setErrorResponse(response,
-                    ErrorCode.UNKNOWN_FAILURE,
-                    ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+                    errorCode,
+                    exceptionMessage));
             }
             return null;
         }).join();

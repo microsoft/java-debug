@@ -48,8 +48,10 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
             context.getDebugSession().setExceptionBreakpoints(notifyCaught, notifyUncaught);
             return CompletableFuture.completedFuture(response);
         } catch (Exception ex) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
-                    String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()));
+            throw AdapterUtils.createCompletionException(
+                String.format("Failed to setExceptionBreakpoints. Reason: '%s'", ex.toString()),
+                ErrorCode.SET_EXCEPTIONBREAKPOINT_FAILURE,
+                ex);
         }
     }
 
