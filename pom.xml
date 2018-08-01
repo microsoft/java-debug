@@ -149,10 +149,10 @@
         </pluginManagement>
     </build>
     <repositories>
-        <repository>
-            <id>oxygen</id>
+       <repository>
+            <id>photon</id>
             <layout>p2</layout>
-            <url>http://download.eclipse.org/releases/oxygen</url>
+            <url>http://download.eclipse.org/releases/photon</url>
         </repository>
         <repository>
             <id>oss.sonatype.org</id>
