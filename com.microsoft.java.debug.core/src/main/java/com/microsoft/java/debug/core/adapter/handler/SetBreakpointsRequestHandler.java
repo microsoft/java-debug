@@ -86,7 +86,15 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         if (context.getDebugSession() == null) {
             return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Empty debug session.");
         }
-
+        if (!context.isDebugging()) {
+            List<Types.Breakpoint> res = new ArrayList<>();
+            Types.SourceBreakpoint[] sourceBreakpoints =  ((SetBreakpointArguments) arguments).breakpoints;
+            for (Types.SourceBreakpoint sourceBreakpoint: sourceBreakpoints) {
+                res.add(new Types.Breakpoint(0, false, sourceBreakpoint.line, ""));
+            }
+            response.body = new Responses.SetBreakpointsResponseBody(res);
+            return CompletableFuture.completedFuture(response);
+        }
         if (!registered) {
             registered = true;
             registerBreakpointHandler(context);
@@ -121,7 +129,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 String.format("Failed to setBreakpoint. Reason: '%s' is an invalid path.", bpArguments.source.path),
                 ErrorCode.SET_BREAKPOINT_FAILURE);
         }
-
         try {
             List<Types.Breakpoint> res = new ArrayList<>();
             IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, bpArguments.breakpoints, context);
