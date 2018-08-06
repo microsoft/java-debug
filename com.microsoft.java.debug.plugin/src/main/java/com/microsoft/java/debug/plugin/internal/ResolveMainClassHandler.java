@@ -72,7 +72,7 @@ public class ResolveMainClassHandler {
                     try {
                         if (method.isMainMethod()) {
                             IResource resource = method.getResource();
-                            if (resource != null) {
+                            if (resource != null && resource.exists()) {
                                 IProject project = resource.getProject();
                                 if (project != null) {
                                     String mainClass = method.getDeclaringType().getFullyQualifiedName();
