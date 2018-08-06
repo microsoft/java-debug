@@ -64,19 +64,17 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
 
     private CompletableFuture<Response> threads(Requests.ThreadsArguments arguments, Response response, IDebugAdapterContext context) {
         ArrayList<Types.Thread> threads = new ArrayList<>();
-        if (context.isDebugging()) {
-            try {
-                for (ThreadReference thread : context.getDebugSession().getAllThreads()) {
-                    if (thread.isCollected()) {
-                        continue;
-                    }
-                    Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
-                    threads.add(clientThread);
+        try {
+            for (ThreadReference thread : context.getDebugSession().getAllThreads()) {
+                if (thread.isCollected()) {
+                    continue;
                 }
-            } catch (ObjectCollectedException ex) {
-                // allThreads may throw VMDisconnectedException when VM terminates and thread.name() may throw ObjectCollectedException
-                // when the thread is exiting.
+                Types.Thread clientThread = new Types.Thread(thread.uniqueID(), "Thread [" + thread.name() + "]");
+                threads.add(clientThread);
             }
+        } catch (ObjectCollectedException ex) {
+            // allThreads may throw VMDisconnectedException when VM terminates and thread.name() may throw ObjectCollectedException
+            // when the thread is exiting.
         }
         response.body = new Responses.ThreadsResponseBody(threads);
         return CompletableFuture.completedFuture(response);
