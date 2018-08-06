@@ -38,6 +38,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private Charset debuggeeEncoding;
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
+    private boolean isDebugMode = true;
     private String mainClass;
     private StepFilters stepFilters;
 
@@ -230,5 +231,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IStackFrameManager getStackFrameManager() {
         return stackFrameManager;
+    }
+
+    @Override
+    public boolean isDebugMode() {
+        return this.isDebugMode;
+    }
+
+    @Override
+    public void setDebugging(boolean debugging) {
+        this.isDebugMode = debugging;
     }
 }

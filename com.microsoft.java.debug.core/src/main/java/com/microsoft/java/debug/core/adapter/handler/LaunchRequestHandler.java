@@ -86,6 +86,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
         context.setVmStopOnEntry(launchArguments.stopOnEntry);
+        context.setDebugging(!launchArguments.noDebug);
         context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
         context.setStepFilters(launchArguments.stepFilters);
 
