@@ -183,9 +183,7 @@ public class ResolveClasspathsHandler {
             if (entry.getClasspathProperty() == IRuntimeClasspathEntry.USER_CLASSES) {
                 IRuntimeClasspathEntry[] entries = JavaRuntime.resolveRuntimeClasspathEntry(entry, jproject);
                 for (int j = 0; j < entries.length; j++) {
-                    if (entries[j].getClasspathEntry().getPath().equals(jproject.getOutputLocation())) {
-                        continue;
-                    }
+
                     if (isTest(entries[j].getClasspathEntry())) {
                         continue;
                     }
