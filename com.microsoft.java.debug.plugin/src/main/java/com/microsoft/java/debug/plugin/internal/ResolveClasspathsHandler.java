@@ -13,6 +13,7 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -20,6 +21,8 @@ import java.util.stream.Collectors;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.jdt.core.IClasspathAttribute;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
@@ -29,6 +32,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -162,12 +166,43 @@ public class ResolveClasspathsHandler {
         }
         String[][] result = new String[2][];
         if (JavaRuntime.isModularProject(javaProject)) {
-            result[0] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
+            result[0] = computeDefaultRuntimeClassPath(javaProject);
             result[1] = new String[0];
         } else {
             result[0] = new String[0];
-            result[1] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
+            result[1] = computeDefaultRuntimeClassPath(javaProject);
         }
         return result;
+    }
+
+    private static String[] computeDefaultRuntimeClassPath(IJavaProject jproject) throws CoreException {
+        IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(jproject);
+        List<String> resolved = new ArrayList<>(unresolved.length);
+        for (int i = 0; i < unresolved.length; i++) {
+            IRuntimeClasspathEntry entry = unresolved[i];
+            if (entry.getClasspathProperty() == IRuntimeClasspathEntry.USER_CLASSES) {
+                IRuntimeClasspathEntry[] entries = JavaRuntime.resolveRuntimeClasspathEntry(entry, jproject);
+                for (int j = 0; j < entries.length; j++) {
+
+                    if (isTest(entries[j].getClasspathEntry())) {
+                        continue;
+                    }
+                    String location = entries[j].getLocation();
+                    if (location != null) {
+                        resolved.add(location);
+                    }
+                }
+            }
+        }
+        return resolved.toArray(new String[resolved.size()]);
+    }
+
+    private static boolean isTest(final IClasspathEntry classpathEntry) {
+        for (final IClasspathAttribute classpathAttribute : classpathEntry.getExtraAttributes()) {
+            if (Objects.equals(classpathAttribute.getName(), "test")) {
+                return Objects.equals(classpathAttribute.getValue(), "true");
+            }
+        }
+        return false;
     }
 }
