@@ -13,7 +13,6 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -21,8 +20,6 @@ import java.util.stream.Collectors;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.jdt.core.IClasspathAttribute;
-import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
@@ -184,7 +181,7 @@ public class ResolveClasspathsHandler {
                 IRuntimeClasspathEntry[] entries = JavaRuntime.resolveRuntimeClasspathEntry(entry, jproject);
                 for (int j = 0; j < entries.length; j++) {
 
-                    if (isTest(entries[j].getClasspathEntry())) {
+                    if (entries[j].getClasspathEntry().isTest()) {
                         continue;
                     }
                     String location = entries[j].getLocation();
@@ -195,14 +192,5 @@ public class ResolveClasspathsHandler {
             }
         }
         return resolved.toArray(new String[resolved.size()]);
-    }
-
-    private static boolean isTest(final IClasspathEntry classpathEntry) {
-        for (final IClasspathAttribute classpathAttribute : classpathEntry.getExtraAttributes()) {
-            if (Objects.equals(classpathAttribute.getName(), "test")) {
-                return Objects.equals(classpathAttribute.getValue(), "true");
-            }
-        }
-        return false;
     }
 }
