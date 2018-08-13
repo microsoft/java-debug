@@ -1,17 +1,13 @@
 #!/bin/bash
-#Usage: ./pushToBintray.sh username apikey repo package
+#Usage: ./pushToBintray.sh username apikey repo package version
 BINTRAY_USER=$1
 BINTRAY_API_KEY=$2
 BINTRAY_REPO=$3
 PCK_NAME=$4
+PCK_VERSION=$5
 
 SCRIPT=$(readlink -f "$0")
 SCRIPTPATH=$(dirname "$SCRIPT")
-
-cd $SCRIPTPATH/..
-echo "Resolving the package version..."
-PCK_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-echo "The package version: $PCK_VERSION"
 
 function main() {
     cd $SCRIPTPATH/target/repository
