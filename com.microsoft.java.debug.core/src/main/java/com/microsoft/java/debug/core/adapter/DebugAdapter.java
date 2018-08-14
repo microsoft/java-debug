@@ -49,7 +49,7 @@ public class DebugAdapter implements IDebugAdapter {
 
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlersForDebug = null;
-    private Map<Command, List<IDebugRequestHandler>> requestHandlersForRun = null;
+    private Map<Command, List<IDebugRequestHandler>> requestHandlersForNoDebug = null;
 
     /**
      * Constructor.
@@ -57,7 +57,7 @@ public class DebugAdapter implements IDebugAdapter {
     public DebugAdapter(IProtocolServer server, IProviderContext providerContext) {
         this.debugContext = new DebugAdapterContext(server, providerContext);
         requestHandlersForDebug = new HashMap<>();
-        requestHandlersForRun = new HashMap<>();
+        requestHandlersForNoDebug = new HashMap<>();
         initialize();
     }
 
@@ -76,7 +76,7 @@ public class DebugAdapter implements IDebugAdapter {
             return CompletableFuture.completedFuture(response);
         }
         List<IDebugRequestHandler> handlers = this.debugContext.isDebugMode()
-                ? requestHandlersForDebug.get(command) : requestHandlersForRun.get(command);
+                ? requestHandlersForDebug.get(command) : requestHandlersForNoDebug.get(command);
         if (handlers != null && !handlers.isEmpty()) {
             CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
             for (IDebugRequestHandler handler : handlers) {
@@ -119,12 +119,12 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(handler, true, false);
     }
 
-    private void registerHandler(IDebugRequestHandler handler, boolean forDebug, boolean forRun) {
+    private void registerHandler(IDebugRequestHandler handler, boolean forDebug, boolean forNoDebug) {
         if (forDebug) {
             registerHandler(requestHandlersForDebug, handler);
         }
-        if (forRun) {
-            registerHandler(requestHandlersForRun, handler);
+        if (forNoDebug) {
+            registerHandler(requestHandlersForNoDebug, handler);
         }
     }
 
