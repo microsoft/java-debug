@@ -101,4 +101,8 @@ public interface IDebugAdapterContext {
     StepFilters getStepFilters();
 
     IStackFrameManager getStackFrameManager();
+
+    boolean isDebugMode();
+
+    void setDebugMode(boolean isDebugMode);
 }
