@@ -29,6 +29,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -162,12 +163,34 @@ public class ResolveClasspathsHandler {
         }
         String[][] result = new String[2][];
         if (JavaRuntime.isModularProject(javaProject)) {
-            result[0] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
+            result[0] = computeDefaultRuntimeClassPath(javaProject);
             result[1] = new String[0];
         } else {
             result[0] = new String[0];
-            result[1] = JavaRuntime.computeDefaultRuntimeClassPath(javaProject);
+            result[1] = computeDefaultRuntimeClassPath(javaProject);
         }
         return result;
+    }
+
+    private static String[] computeDefaultRuntimeClassPath(IJavaProject jproject) throws CoreException {
+        IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(jproject);
+        List<String> resolved = new ArrayList<>(unresolved.length);
+        for (int i = 0; i < unresolved.length; i++) {
+            IRuntimeClasspathEntry entry = unresolved[i];
+            if (entry.getClasspathProperty() == IRuntimeClasspathEntry.USER_CLASSES) {
+                IRuntimeClasspathEntry[] entries = JavaRuntime.resolveRuntimeClasspathEntry(entry, jproject);
+                for (int j = 0; j < entries.length; j++) {
+
+                    if (entries[j].getClasspathEntry().isTest()) {
+                        continue;
+                    }
+                    String location = entries[j].getLocation();
+                    if (location != null) {
+                        resolved.add(location);
+                    }
+                }
+            }
+        }
+        return resolved.toArray(new String[resolved.size()]);
     }
 }
