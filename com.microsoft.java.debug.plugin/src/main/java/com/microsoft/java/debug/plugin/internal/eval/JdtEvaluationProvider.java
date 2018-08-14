@@ -28,7 +28,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -37,7 +36,6 @@ import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.debug.core.model.ISourceLocator;
 import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
-import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
@@ -46,6 +44,7 @@ import org.eclipse.jdt.internal.debug.core.model.JDIStackFrame;
 import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
+import org.eclipse.jdt.launching.sourcelookup.containers.JavaProjectSourceContainer;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
@@ -403,11 +402,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                     return locator;
                 }
                 locator = new JavaSourceLookupDirector();
-
                 try {
-                    locator.setSourceContainers(
-                            new ProjectSourceContainer(project.getProject(), true).getSourceContainers());
-                } catch (CoreException e) {
+                    locator.setSourceContainers(new JavaProjectSourceContainer(project).getSourceContainers());
+                } catch (Exception e) {
                     logger.severe(String.format("Cannot initialize JavaSourceLookupDirector: %s", e.toString()));
                 }
                 locator.initializeParticipants();
