@@ -102,7 +102,7 @@ public interface IDebugAdapterContext {
 
     IStackFrameManager getStackFrameManager();
 
-    boolean isDebugMode();
+    LaunchMode getLaunchMode();
 
-    void setDebugMode(boolean isDebugMode);
+    void setLaunchMode(LaunchMode launchMode);
 }

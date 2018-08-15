@@ -75,7 +75,7 @@ public class DebugAdapter implements IDebugAdapter {
             // the operation is meaningless
             return CompletableFuture.completedFuture(response);
         }
-        List<IDebugRequestHandler> handlers = this.debugContext.isDebugMode()
+        List<IDebugRequestHandler> handlers = this.debugContext.getLaunchMode() == LaunchMode.DEBUG
                 ? requestHandlersForDebug.get(command) : requestHandlersForNoDebug.get(command);
         if (handlers != null && !handlers.isEmpty()) {
             CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
