@@ -157,7 +157,7 @@ public class ResolveMainClassHandler {
         response.mainClass = validateMainClass(mainClass, projectName);
         response.projectName = validateProjectName(mainClass, projectName);
 
-        if (!response.mainClass.passed || !response.projectName.passed) {
+        if (!response.mainClass.isValid || !response.projectName.isValid) {
             response.proposals = computeProposals(arguments, mainClass, projectName);
         }
 
@@ -285,16 +285,16 @@ public class ResolveMainClassHandler {
     }
 
     class ValidationResult {
-        boolean passed;
-        String message;
+        boolean isValid;
+        String errorMessage;
 
-        ValidationResult(boolean passed) {
-            this.passed = passed;
+        ValidationResult(boolean isValid) {
+            this.isValid = isValid;
         }
 
-        ValidationResult(boolean passed, String message) {
-            this.passed = passed;
-            this.message = message;
+        ValidationResult(boolean isValid, String errorMessage) {
+            this.isValid = isValid;
+            this.errorMessage = errorMessage;
         }
     }
 }
