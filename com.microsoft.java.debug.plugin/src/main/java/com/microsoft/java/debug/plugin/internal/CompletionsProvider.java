@@ -49,7 +49,7 @@ public class CompletionsProvider implements ICompletionsProvider {
 
         try {
             IType type = resolveType(frame);
-            if (type != null) {
+            if (type != null && type.getCompilationUnit() != null) {
                 final int offset = JsonRpcHelpers.toOffset(type.getCompilationUnit().getBuffer(), frame.location().lineNumber(), 0);
                 CompletionProposalRequestor collector = new CompletionProposalRequestor(type.getCompilationUnit(), offset);
 
