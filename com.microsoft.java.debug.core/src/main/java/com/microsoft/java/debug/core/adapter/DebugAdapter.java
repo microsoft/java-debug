@@ -48,14 +48,16 @@ public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private IDebugAdapterContext debugContext = null;
-    private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
+    private Map<Command, List<IDebugRequestHandler>> requestHandlersForDebug = null;
+    private Map<Command, List<IDebugRequestHandler>> requestHandlersForNoDebug = null;
 
     /**
      * Constructor.
      */
     public DebugAdapter(IProtocolServer server, IProviderContext providerContext) {
         this.debugContext = new DebugAdapterContext(server, providerContext);
-        requestHandlers = new HashMap<>();
+        requestHandlersForDebug = new HashMap<>();
+        requestHandlersForNoDebug = new HashMap<>();
         initialize();
     }
 
@@ -73,7 +75,8 @@ public class DebugAdapter implements IDebugAdapter {
             // the operation is meaningless
             return CompletableFuture.completedFuture(response);
         }
-        List<IDebugRequestHandler> handlers = requestHandlers.get(command);
+        List<IDebugRequestHandler> handlers = this.debugContext.getLaunchMode() == LaunchMode.DEBUG
+                ? requestHandlersForDebug.get(command) : requestHandlersForNoDebug.get(command);
         if (handlers != null && !handlers.isEmpty()) {
             CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
             for (IDebugRequestHandler handler : handlers) {
@@ -92,11 +95,11 @@ public class DebugAdapter implements IDebugAdapter {
     private void initialize() {
         // Register request handlers.
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
-        registerHandler(new InitializeRequestHandler());
-        registerHandler(new LaunchRequestHandler());
+        registerHandler(new InitializeRequestHandler(), true, true);
+        registerHandler(new LaunchRequestHandler(), true, true);
         registerHandler(new AttachRequestHandler());
-        registerHandler(new ConfigurationDoneRequestHandler());
-        registerHandler(new DisconnectRequestHandler());
+        registerHandler(new ConfigurationDoneRequestHandler(), true, true);
+        registerHandler(new DisconnectRequestHandler(), true, true);
         registerHandler(new SetBreakpointsRequestHandler());
         registerHandler(new SetExceptionBreakpointsRequestHandler());
         registerHandler(new SourceRequestHandler());
@@ -113,6 +116,19 @@ public class DebugAdapter implements IDebugAdapter {
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
+        registerHandler(handler, true, false);
+    }
+
+    private void registerHandler(IDebugRequestHandler handler, boolean forDebug, boolean forNoDebug) {
+        if (forDebug) {
+            registerHandler(requestHandlersForDebug, handler);
+        }
+        if (forNoDebug) {
+            registerHandler(requestHandlersForNoDebug, handler);
+        }
+    }
+
+    private void registerHandler(Map<Command, List<IDebugRequestHandler>> requestHandlers, IDebugRequestHandler handler) {
         for (Command command : handler.getTargetCommands()) {
             List<IDebugRequestHandler> handlerList = requestHandlers.get(command);
             if (handlerList == null) {
