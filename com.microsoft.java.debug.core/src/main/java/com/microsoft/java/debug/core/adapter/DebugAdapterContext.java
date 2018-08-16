@@ -38,6 +38,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private Charset debuggeeEncoding;
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
+    private LaunchMode launchMode = LaunchMode.DEBUG;
     private String mainClass;
     private StepFilters stepFilters;
 
@@ -230,5 +231,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IStackFrameManager getStackFrameManager() {
         return stackFrameManager;
+    }
+
+    @Override
+    public LaunchMode getLaunchMode() {
+        return launchMode;
+    }
+
+    @Override
+    public void setLaunchMode(LaunchMode launchMode) {
+        this.launchMode = launchMode;
     }
 }
