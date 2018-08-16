@@ -46,6 +46,7 @@ import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
+import com.microsoft.java.debug.core.adapter.LaunchMode;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
@@ -86,6 +87,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         context.setAttached(false);
         context.setSourcePaths(launchArguments.sourcePaths);
         context.setVmStopOnEntry(launchArguments.stopOnEntry);
+        context.setLaunchMode(launchArguments.noDebug ? LaunchMode.NO_DEBUG : LaunchMode.DEBUG);
         context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
         context.setStepFilters(launchArguments.stepFilters);
 

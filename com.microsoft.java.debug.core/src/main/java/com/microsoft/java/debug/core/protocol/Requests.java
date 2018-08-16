@@ -70,6 +70,7 @@ public class Requests {
         public String cwd;
         public Map<String, String> env;
         public boolean stopOnEntry;
+        public boolean noDebug = false;
         public CONSOLE console = CONSOLE.internalConsole;
     }
 
