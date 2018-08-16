@@ -176,7 +176,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             ListeningConnector listenConnector = connectors.get(0);
             Map<String, Connector.Argument> args = listenConnector.defaultArguments();
             ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
-            String address = listenConnector.startListening(args);
+            String address = context.getLaunchMode() == LaunchMode.DEBUG ? listenConnector.startListening(args) : null;
 
             String[] cmds = constructLaunchCommands(launchArguments, false, address);
             RunInTerminalRequestArguments requestArgs = null;
@@ -205,9 +205,15 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     if (runResponse != null) {
                         if (runResponse.success) {
                             try {
-                                VirtualMachine vm = listenConnector.accept(args);
-                                context.setDebugSession(new DebugSession(vm));
-                                logger.info("Launching debuggee in terminal console succeeded.");
+                                if (context.getLaunchMode() == LaunchMode.DEBUG) {
+                                    VirtualMachine vm = listenConnector.accept(args);
+                                    context.setDebugSession(new DebugSession(vm));
+                                    logger.info("Launching debuggee in terminal console succeeded.");
+                                } else {
+                                    // Without knowing the pid, debugger has lost control of the process.
+                                    // So simply send `terminated` event to end the session.
+                                    context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                                }
                                 resultFuture.complete(response);
                             } catch (IOException | IllegalConnectorArgumentsException e) {
                                 resultFuture.completeExceptionally(
