@@ -15,6 +15,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -36,6 +38,7 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.NoDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -132,9 +135,16 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 ICompletionsProvider completionsProvider = context.getProvider(ICompletionsProvider.class);
                 completionsProvider.initialize(context, options);
 
-                // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
-                // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
-                context.getProtocolServer().sendEvent(new Events.InitializedEvent());
+                // For DEBUG launch mode, send an InitializedEvent to indicate that the debugger is ready to accept
+                // configuration requests (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
+                //
+                // For NO_DEBUG launch mode, the debugger does not respond to requests like SetBreakpointsRequest,
+                // but the front end keeps sending them according to the Debug Adapter Protocol.
+                // To avoid receiving them, a workaround is not to send InitializedEvent back to the front end.
+                // See https://github.com/Microsoft/vscode/issues/55850#issuecomment-412819676
+                if (context.getLaunchMode() == LaunchMode.DEBUG) {
+                    context.getProtocolServer().sendEvent(new Events.InitializedEvent());
+                }
             }
             return CompletableFuture.completedFuture(res);
         });
@@ -268,20 +278,45 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         try {
-            IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
+            IDebugSession debugSession = null;
+            if (context.getLaunchMode() == LaunchMode.DEBUG) {
+                IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
-            IDebugSession debugSession = DebugUtility.launch(
-                    vmProvider.getVirtualMachineManager(),
-                    launchArguments.mainClass,
-                    launchArguments.args,
-                    launchArguments.vmArgs,
-                    Arrays.asList(launchArguments.modulePaths),
-                    Arrays.asList(launchArguments.classPaths),
-                    launchArguments.cwd,
-                    envVars);
-            context.setDebugSession(debugSession);
+                debugSession = DebugUtility.launch(
+                        vmProvider.getVirtualMachineManager(),
+                        launchArguments.mainClass,
+                        launchArguments.args,
+                        launchArguments.vmArgs,
+                        Arrays.asList(launchArguments.modulePaths),
+                        Arrays.asList(launchArguments.classPaths),
+                        launchArguments.cwd,
+                        envVars);
+                context.setDebugSession(debugSession);
 
-            logger.info("Launching debuggee VM succeeded.");
+                logger.info("Launching debuggee VM succeeded.");
+            } else {
+                String[] cmds = constructLaunchCommands(launchArguments, false, null);
+                File workingDir = null;
+                if (launchArguments.cwd != null && Files.isDirectory(Paths.get(launchArguments.cwd))) {
+                    workingDir = new File(launchArguments.cwd);
+                }
+                Process process = Runtime.getRuntime().exec(cmds, envVars, workingDir);
+                new Thread() {
+                    public void run() {
+                        try {
+                            process.waitFor();
+                        } catch (InterruptedException ignore) {
+                            logger.warning(String.format("Current thread is interrupted. Reason: %s", ignore.toString()));
+                            process.destroy();
+                        } finally {
+                            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                        }
+                    }
+                }.start();
+                debugSession = new NoDebugSession(process);
+                context.setDebugSession(debugSession);
+                logger.info("Launching debuggee proccess succeeded.");
+            }
 
             ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
             debuggeeConsole.onStdout((output) -> {
@@ -318,7 +353,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         List<String> launchCmds = new ArrayList<>();
         launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
-        launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
+        if (StringUtils.isNotEmpty(address)) {
+            launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
+        }
         if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
             launchCmds.addAll(parseArguments(launchArguments.vmArgs));
         }
