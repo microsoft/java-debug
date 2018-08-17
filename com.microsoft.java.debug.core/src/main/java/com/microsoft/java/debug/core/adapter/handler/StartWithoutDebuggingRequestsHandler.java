@@ -31,6 +31,7 @@ import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.DisconnectArguments;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
@@ -40,10 +41,6 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
     private static final String TERMINAL_TITLE = "Java Process Console";
     private Process debuggeeProcess;
 
-    public StartWithoutDebuggingRequestsHandler() {
-        // TODO Auto-generated constructor stub
-    }
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.LAUNCH, Command.DISCONNECT);
@@ -52,8 +49,13 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
-        // TODO Auto-generated method stub
-        return null;
+        if (Command.LAUNCH.equals(command)) {
+            return handleLaunchCommand(arguments, response, context);
+        } else if (Command.DISCONNECT.equals(command)) {
+            return handleDisconnectCommand(arguments, response, context);
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -145,4 +147,13 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
         return resultFuture;
     }
 
+    private CompletableFuture<Response> handleDisconnectCommand(Arguments arguments, Response response,
+            IDebugAdapterContext context) {
+        DisconnectArguments disconnectArguments = (DisconnectArguments) arguments;
+        if (debuggeeProcess != null && disconnectArguments.terminateDebuggee && !context.isAttached()) {
+            debuggeeProcess.destroy();
+        }
+        return CompletableFuture.completedFuture(response);
+
+    }
 }
