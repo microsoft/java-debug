@@ -59,7 +59,8 @@ public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
-        return handleLaunchCommand(arguments, response, context);
+        LaunchArguments launchArguments = (LaunchArguments) arguments;
+        return launchArguments.noDebug ? CompletableFuture.completedFuture(response) : handleLaunchCommand(arguments, response, context);
     }
 
     @Override

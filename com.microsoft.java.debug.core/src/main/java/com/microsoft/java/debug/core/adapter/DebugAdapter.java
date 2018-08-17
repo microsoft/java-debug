@@ -35,6 +35,7 @@ import com.microsoft.java.debug.core.adapter.handler.SetExceptionBreakpointsRequ
 import com.microsoft.java.debug.core.adapter.handler.SetVariableRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.StartWithoutDebuggingRequestsHandler;
 import com.microsoft.java.debug.core.adapter.handler.StepRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
@@ -48,16 +49,14 @@ public class DebugAdapter implements IDebugAdapter {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private IDebugAdapterContext debugContext = null;
-    private Map<Command, List<IDebugRequestHandler>> requestHandlersForDebug = null;
-    private Map<Command, List<IDebugRequestHandler>> requestHandlersForNoDebug = null;
+    private Map<Command, List<IDebugRequestHandler>> requestHandlers = null;
 
     /**
      * Constructor.
      */
     public DebugAdapter(IProtocolServer server, IProviderContext providerContext) {
         this.debugContext = new DebugAdapterContext(server, providerContext);
-        requestHandlersForDebug = new HashMap<>();
-        requestHandlersForNoDebug = new HashMap<>();
+        requestHandlers = new HashMap<>();
         initialize();
     }
 
@@ -75,8 +74,7 @@ public class DebugAdapter implements IDebugAdapter {
             // the operation is meaningless
             return CompletableFuture.completedFuture(response);
         }
-        List<IDebugRequestHandler> handlers = this.debugContext.getLaunchMode() == LaunchMode.DEBUG
-                ? requestHandlersForDebug.get(command) : requestHandlersForNoDebug.get(command);
+        List<IDebugRequestHandler> handlers = requestHandlers.get(command);
         if (handlers != null && !handlers.isEmpty()) {
             CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
             for (IDebugRequestHandler handler : handlers) {
@@ -95,11 +93,14 @@ public class DebugAdapter implements IDebugAdapter {
     private void initialize() {
         // Register request handlers.
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
-        registerHandler(new InitializeRequestHandler(), true, true);
-        registerHandler(new LaunchRequestHandler(), true, true);
+        registerHandler(new InitializeRequestHandler());
+        // For NO_DEBUG launch mode
+        registerHandler(new StartWithoutDebuggingRequestsHandler());
+        // For DEBUG launch mode
+        registerHandler(new LaunchRequestHandler());
         registerHandler(new AttachRequestHandler());
-        registerHandler(new ConfigurationDoneRequestHandler(), true, true);
-        registerHandler(new DisconnectRequestHandler(), true, true);
+        registerHandler(new ConfigurationDoneRequestHandler());
+        registerHandler(new DisconnectRequestHandler());
         registerHandler(new SetBreakpointsRequestHandler());
         registerHandler(new SetExceptionBreakpointsRequestHandler());
         registerHandler(new SourceRequestHandler());
@@ -113,19 +114,11 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new HotCodeReplaceHandler());
         registerHandler(new RestartFrameHandler());
         registerHandler(new CompletionsHandler());
+
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
-        registerHandler(handler, true, false);
-    }
-
-    private void registerHandler(IDebugRequestHandler handler, boolean forDebug, boolean forNoDebug) {
-        if (forDebug) {
-            registerHandler(requestHandlersForDebug, handler);
-        }
-        if (forNoDebug) {
-            registerHandler(requestHandlersForNoDebug, handler);
-        }
+        registerHandler(requestHandlers, handler);
     }
 
     private void registerHandler(Map<Command, List<IDebugRequestHandler>> requestHandlers, IDebugRequestHandler handler) {

@@ -57,6 +57,7 @@ public abstract class AbstractLaunchRequestHandler implements IDebugRequestHandl
 
     protected CompletableFuture<Response> handleLaunchCommand(Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
+
         preLaunchConfiguration(launchArguments, context);
 
         return launch(launchArguments, response, context).thenCompose(res -> {
