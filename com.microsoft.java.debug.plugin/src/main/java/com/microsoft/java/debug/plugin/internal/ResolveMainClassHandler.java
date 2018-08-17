@@ -174,21 +174,11 @@ public class ResolveMainClassHandler {
         List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(mainClass);
         if (javaProjects.size() == 0) {
             return new ValidationResult(false, String.format("ConfigError: Main class '%s' doesn't exist in the workspace.", mainClass));
-        } else if (javaProjects.size() > 1 && !containsProject(javaProjects, projectName)) {
+        } else if (javaProjects.size() > 1 && StringUtils.isEmpty(projectName)) {
             return new ValidationResult(false, String.format("ConfigError: Main class '%s' isn't unique in the workspace.", mainClass));
         }
 
         return new ValidationResult(true);
-    }
-
-    private boolean containsProject(List<IJavaProject> javaProjects, String projectName) {
-        for (IJavaProject javaProject : javaProjects) {
-            if (javaProject.getProject().getName().equals(projectName)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private ValidationResult validateProjectName(final String mainClass, final String projectName) {
