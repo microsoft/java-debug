@@ -105,6 +105,4 @@ public interface IDebugAdapterContext {
     LaunchMode getLaunchMode();
 
     void setLaunchMode(LaunchMode launchMode);
-
-    boolean isDebugMode();
 }
