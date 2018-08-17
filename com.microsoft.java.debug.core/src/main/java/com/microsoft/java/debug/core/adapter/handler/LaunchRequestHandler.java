@@ -11,46 +11,27 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import com.google.gson.JsonObject;
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.NoDebugSession;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.ICompletionsProvider;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
-import com.microsoft.java.debug.core.adapter.LaunchMode;
-import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
@@ -66,9 +47,8 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.ListeningConnector;
 import com.sun.jdi.connect.VMStartException;
 
-public class LaunchRequestHandler implements IDebugRequestHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
+public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
+
     private static final int ACCEPT_TIMEOUT = 10 * 1000;
     private static final String TERMINAL_TITLE = "Java Debug Console";
 
@@ -79,93 +59,11 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
-        LaunchArguments launchArguments = (LaunchArguments) arguments;
-        if (StringUtils.isBlank(launchArguments.mainClass)
-                || ArrayUtils.isEmpty(launchArguments.modulePaths) && ArrayUtils.isEmpty(launchArguments.classPaths)) {
-            throw AdapterUtils.createCompletionException(
-                "Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration.",
-                ErrorCode.ARGUMENT_MISSING);
-        }
-
-        context.setAttached(false);
-        context.setSourcePaths(launchArguments.sourcePaths);
-        context.setVmStopOnEntry(launchArguments.stopOnEntry);
-        context.setLaunchMode(launchArguments.noDebug ? LaunchMode.NO_DEBUG : LaunchMode.DEBUG);
-        context.setMainClass(parseMainClassWithoutModuleName(launchArguments.mainClass));
-        context.setStepFilters(launchArguments.stepFilters);
-
-        if (StringUtils.isBlank(launchArguments.encoding)) {
-            context.setDebuggeeEncoding(StandardCharsets.UTF_8);
-        } else {
-            if (!Charset.isSupported(launchArguments.encoding)) {
-                throw AdapterUtils.createCompletionException(
-                    "Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized.",
-                    ErrorCode.INVALID_ENCODING);
-            }
-
-            context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
-        }
-
-        if (StringUtils.isBlank(launchArguments.vmArgs)) {
-            launchArguments.vmArgs = String.format("-Dfile.encoding=%s", context.getDebuggeeEncoding().name());
-        } else {
-            // if vmArgs already has the file.encoding settings, duplicate options for jvm will not cause an error, the right most value wins
-            launchArguments.vmArgs = String.format("%s -Dfile.encoding=%s", launchArguments.vmArgs, context.getDebuggeeEncoding().name());
-        }
-
-        return launch(launchArguments, response, context).thenCompose(res -> {
-            if (res.success) {
-
-                Map<String, Object> options = new HashMap<>();
-                options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
-                if (launchArguments.projectName != null) {
-                    options.put(Constants.PROJECT_NAME, launchArguments.projectName);
-                }
-                if (launchArguments.mainClass != null) {
-                    options.put(Constants.MAIN_CLASS, launchArguments.mainClass);
-                }
-
-                // TODO: Clean up the initialize mechanism
-                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-                sourceProvider.initialize(context, options);
-                IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
-                evaluationProvider.initialize(context, options);
-                IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-                hcrProvider.initialize(context, options);
-                ICompletionsProvider completionsProvider = context.getProvider(ICompletionsProvider.class);
-                completionsProvider.initialize(context, options);
-
-                // For DEBUG launch mode, send an InitializedEvent to indicate that the debugger is ready to accept
-                // configuration requests (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
-                //
-                // For NO_DEBUG launch mode, the debugger does not respond to requests like SetBreakpointsRequest,
-                // but the front end keeps sending them according to the Debug Adapter Protocol.
-                // To avoid receiving them, a workaround is not to send InitializedEvent back to the front end.
-                // See https://github.com/Microsoft/vscode/issues/55850#issuecomment-412819676
-                if (context.getLaunchMode() == LaunchMode.DEBUG) {
-                    context.getProtocolServer().sendEvent(new Events.InitializedEvent());
-                }
-            }
-            return CompletableFuture.completedFuture(res);
-        });
+        return handleLaunchCommand(arguments, response, context);
     }
 
-    private CompletableFuture<Response> launch(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
-        logger.info("Trying to launch Java Program with options:\n" + String.format("main-class: %s\n", launchArguments.mainClass)
-                + String.format("args: %s\n", launchArguments.args)
-                + String.format("module-path: %s\n", StringUtils.join(launchArguments.modulePaths, File.pathSeparator))
-                + String.format("class-path: %s\n", StringUtils.join(launchArguments.classPaths, File.pathSeparator))
-                + String.format("vmArgs: %s", launchArguments.vmArgs));
-
-        if (context.supportsRunInTerminalRequest()
-                && (launchArguments.console == CONSOLE.integratedTerminal || launchArguments.console == CONSOLE.externalTerminal)) {
-            return launchInTerminal(launchArguments, response, context);
-        } else {
-            return launchInternally(launchArguments, response, context);
-        }
-    }
-
-    private CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
+    @Override
+    protected CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
         CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
@@ -176,7 +74,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             ListeningConnector listenConnector = connectors.get(0);
             Map<String, Connector.Argument> args = listenConnector.defaultArguments();
             ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
-            String address = context.getLaunchMode() == LaunchMode.DEBUG ? listenConnector.startListening(args) : null;
+            String address = listenConnector.startListening(args);
 
             String[] cmds = constructLaunchCommands(launchArguments, false, address);
             RunInTerminalRequestArguments requestArgs = null;
@@ -205,15 +103,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     if (runResponse != null) {
                         if (runResponse.success) {
                             try {
-                                if (context.getLaunchMode() == LaunchMode.DEBUG) {
-                                    VirtualMachine vm = listenConnector.accept(args);
-                                    context.setDebugSession(new DebugSession(vm));
-                                    logger.info("Launching debuggee in terminal console succeeded.");
-                                } else {
-                                    // Without knowing the pid, debugger has lost control of the process.
-                                    // So simply send `terminated` event to end the session.
-                                    context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
-                                }
+                                VirtualMachine vm = listenConnector.accept(args);
+                                context.setDebugSession(new DebugSession(vm));
+                                logger.info("Launching debuggee in terminal console succeeded.");
                                 resultFuture.complete(response);
                             } catch (IOException | IllegalConnectorArgumentsException e) {
                                 resultFuture.completeExceptionally(
@@ -256,152 +148,49 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         return resultFuture;
     }
 
-    private CompletableFuture<Response> launchInternally(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
-        CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+    @Override
+    protected Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
-        // Append environment to native environment.
-        String[] envVars = null;
-        if (launchArguments.env != null && !launchArguments.env.isEmpty()) {
-            Map<String, String> environment = new HashMap<>(System.getenv());
-            List<String> duplicated = new ArrayList<>();
-            for (Entry<String, String> entry : launchArguments.env.entrySet()) {
-                if (environment.containsKey(entry.getKey())) {
-                    duplicated.add(entry.getKey());
-                }
-                environment.put(entry.getKey(), entry.getValue());
-            }
-            // For duplicated variables, show a warning message.
-            if (!duplicated.isEmpty()) {
-                logger.warning(String.format("There are duplicated environment variables. The values specified in launch.json will be used. "
-                        + "Here are the duplicated entries: %s.", String.join(",", duplicated)));
-            }
+        IDebugSession debugSession = DebugUtility.launch(
+                vmProvider.getVirtualMachineManager(),
+                launchArguments.mainClass,
+                launchArguments.args,
+                launchArguments.vmArgs,
+                Arrays.asList(launchArguments.modulePaths),
+                Arrays.asList(launchArguments.classPaths),
+                launchArguments.cwd,
+                constructEnvironmentVaraiables(launchArguments));
+        context.setDebugSession(debugSession);
 
-            envVars = new String[environment.size()];
-            int i = 0;
-            for (Entry<String, String> entry : environment.entrySet()) {
-                envVars[i++] = entry.getKey() + "=" + entry.getValue();
-            }
-        }
-
-        try {
-            IDebugSession debugSession = null;
-            if (context.getLaunchMode() == LaunchMode.DEBUG) {
-                IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
-
-                debugSession = DebugUtility.launch(
-                        vmProvider.getVirtualMachineManager(),
-                        launchArguments.mainClass,
-                        launchArguments.args,
-                        launchArguments.vmArgs,
-                        Arrays.asList(launchArguments.modulePaths),
-                        Arrays.asList(launchArguments.classPaths),
-                        launchArguments.cwd,
-                        envVars);
-                context.setDebugSession(debugSession);
-
-                logger.info("Launching debuggee VM succeeded.");
-            } else {
-                String[] cmds = constructLaunchCommands(launchArguments, false, null);
-                File workingDir = null;
-                if (launchArguments.cwd != null && Files.isDirectory(Paths.get(launchArguments.cwd))) {
-                    workingDir = new File(launchArguments.cwd);
-                }
-                Process process = Runtime.getRuntime().exec(cmds, envVars, workingDir);
-                new Thread() {
-                    public void run() {
-                        try {
-                            process.waitFor();
-                        } catch (InterruptedException ignore) {
-                            logger.warning(String.format("Current thread is interrupted. Reason: %s", ignore.toString()));
-                            process.destroy();
-                        } finally {
-                            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
-                        }
-                    }
-                }.start();
-                debugSession = new NoDebugSession(process);
-                context.setDebugSession(debugSession);
-                logger.info("Launching debuggee proccess succeeded.");
-            }
-
-            ProcessConsole debuggeeConsole = new ProcessConsole(debugSession.process(), "Debuggee", context.getDebuggeeEncoding());
-            debuggeeConsole.onStdout((output) -> {
-                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
-                // That means the debugger can send OutputEvent to DA at any time.
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createStdoutOutput(output));
-            });
-
-            debuggeeConsole.onStderr((err) -> {
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createStderrOutput(err));
-            });
-            debuggeeConsole.start();
-
-            resultFuture.complete(response);
-        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            resultFuture.completeExceptionally(
-                    new DebugException(
-                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
-                            ErrorCode.LAUNCH_FAILURE.getId()
-                    )
-            );
-        }
-
-        return resultFuture;
+        logger.info("Launching debuggee VM succeeded.");
+        return debugSession.process();
     }
 
-    private static String parseMainClassWithoutModuleName(String mainClass) {
-        int index = mainClass.indexOf('/');
-        return mainClass.substring(index + 1);
-    }
+    @Override
+    protected void postLaunchConfiguration(LaunchArguments launchArguments, IDebugAdapterContext context) {
+        Map<String, Object> options = new HashMap<>();
+        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
+        if (launchArguments.projectName != null) {
+            options.put(Constants.PROJECT_NAME, launchArguments.projectName);
+        }
+        if (launchArguments.mainClass != null) {
+            options.put(Constants.MAIN_CLASS, launchArguments.mainClass);
+        }
 
-    private String[] constructLaunchCommands(LaunchArguments launchArguments, boolean serverMode, String address) {
-        String slash = System.getProperty("file.separator");
+        // TODO: Clean up the initialize mechanism
+        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        sourceProvider.initialize(context, options);
+        IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
+        evaluationProvider.initialize(context, options);
+        IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+        hcrProvider.initialize(context, options);
+        ICompletionsProvider completionsProvider = context.getProvider(ICompletionsProvider.class);
+        completionsProvider.initialize(context, options);
 
-        List<String> launchCmds = new ArrayList<>();
-        launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
-        if (StringUtils.isNotEmpty(address)) {
-            launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
-        }
-        if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
-            launchCmds.addAll(parseArguments(launchArguments.vmArgs));
-        }
-        if (ArrayUtils.isNotEmpty(launchArguments.modulePaths)) {
-            launchCmds.add("--module-path");
-            launchCmds.add(String.join(File.pathSeparator, launchArguments.modulePaths));
-        }
-        if (ArrayUtils.isNotEmpty(launchArguments.classPaths)) {
-            launchCmds.add("-cp");
-            launchCmds.add(String.join(File.pathSeparator, launchArguments.classPaths));
-        }
-        // For java 9 project, should specify "-m $MainClass".
-        String[] mainClasses = launchArguments.mainClass.split("/");
-        if (ArrayUtils.isNotEmpty(launchArguments.modulePaths) || mainClasses.length == 2) {
-            launchCmds.add("-m");
-        }
-        launchCmds.add(launchArguments.mainClass);
-        if (StringUtils.isNotBlank(launchArguments.args)) {
-            launchCmds.addAll(parseArguments(launchArguments.args));
-        }
-        return launchCmds.toArray(new String[0]);
-    }
-
-    /**
-     * Parses the given command line into separate arguments that can be passed
-     * to <code>Runtime.getRuntime().exec(cmdArray)</code>.
-     *
-     * @param args command line as a single string.
-     * @return the arguments array.
-     */
-    private static List<String> parseArguments(String cmdStr) {
-        List<String> list = new ArrayList<String>();
-        // The legal arguments are
-        // 1. token starting with something other than quote " and followed by zero or more non-space characters
-        // 2. a quote " followed by whatever, until another quote "
-        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(cmdStr);
-        while (m.find()) {
-            String arg = m.group(1).replaceAll("^\"|\"$", ""); // Remove surrounding quotes.
-            list.add(arg);
-        }
-        return list;
+        // send an InitializedEvent to indicate that the debugger is ready to accept
+        // configuration requests (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
+        context.getProtocolServer().sendEvent(new Events.InitializedEvent());
     }
 }
