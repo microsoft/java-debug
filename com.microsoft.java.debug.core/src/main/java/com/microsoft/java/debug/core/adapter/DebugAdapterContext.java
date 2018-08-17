@@ -242,4 +242,9 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     public void setLaunchMode(LaunchMode launchMode) {
         this.launchMode = launchMode;
     }
+
+    @Override
+    public boolean isDebugMode() {
+        return launchMode == LaunchMode.DEBUG;
+    }
 }

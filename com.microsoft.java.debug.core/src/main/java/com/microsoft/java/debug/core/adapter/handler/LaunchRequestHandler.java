@@ -142,7 +142,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 // but the front end keeps sending them according to the Debug Adapter Protocol.
                 // To avoid receiving them, a workaround is not to send InitializedEvent back to the front end.
                 // See https://github.com/Microsoft/vscode/issues/55850#issuecomment-412819676
-                if (context.getLaunchMode() == LaunchMode.DEBUG) {
+                if (context.isDebugMode()) {
                     context.getProtocolServer().sendEvent(new Events.InitializedEvent());
                 }
             }
@@ -176,7 +176,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             ListeningConnector listenConnector = connectors.get(0);
             Map<String, Connector.Argument> args = listenConnector.defaultArguments();
             ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
-            String address = context.getLaunchMode() == LaunchMode.DEBUG ? listenConnector.startListening(args) : null;
+            String address = context.isDebugMode() ? listenConnector.startListening(args) : null;
 
             String[] cmds = constructLaunchCommands(launchArguments, false, address);
             RunInTerminalRequestArguments requestArgs = null;
@@ -205,7 +205,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     if (runResponse != null) {
                         if (runResponse.success) {
                             try {
-                                if (context.getLaunchMode() == LaunchMode.DEBUG) {
+                                if (context.isDebugMode()) {
                                     VirtualMachine vm = listenConnector.accept(args);
                                     context.setDebugSession(new DebugSession(vm));
                                     logger.info("Launching debuggee in terminal console succeeded.");
@@ -285,7 +285,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         try {
             IDebugSession debugSession = null;
-            if (context.getLaunchMode() == LaunchMode.DEBUG) {
+            if (context.isDebugMode()) {
                 IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
                 debugSession = DebugUtility.launch(
