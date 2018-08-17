@@ -286,15 +286,15 @@ public class ResolveMainClassHandler {
 
     class ValidationResult {
         boolean isValid;
-        String errorMessage;
+        String message;
 
         ValidationResult(boolean isValid) {
             this.isValid = isValid;
         }
 
-        ValidationResult(boolean isValid, String errorMessage) {
+        ValidationResult(boolean isValid, String message) {
             this.isValid = isValid;
-            this.errorMessage = errorMessage;
+            this.message = message;
         }
     }
 }
