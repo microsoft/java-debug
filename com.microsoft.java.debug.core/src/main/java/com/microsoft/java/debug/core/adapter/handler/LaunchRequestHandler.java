@@ -162,7 +162,7 @@ public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
                 Arrays.asList(launchArguments.modulePaths),
                 Arrays.asList(launchArguments.classPaths),
                 launchArguments.cwd,
-                constructEnvironmentVaraiables(launchArguments));
+                constructEnvironmentVariables(launchArguments));
         context.setDebugSession(debugSession);
 
         logger.info("Launching debuggee VM succeeded.");

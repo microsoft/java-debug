@@ -75,7 +75,7 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
         if (launchArguments.cwd != null && Files.isDirectory(Paths.get(launchArguments.cwd))) {
             workingDir = new File(launchArguments.cwd);
         }
-        this.debuggeeProcess = Runtime.getRuntime().exec(cmds, constructEnvironmentVaraiables(launchArguments),
+        this.debuggeeProcess = Runtime.getRuntime().exec(cmds, constructEnvironmentVariables(launchArguments),
                 workingDir);
         new Thread() {
             public void run() {

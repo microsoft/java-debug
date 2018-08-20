@@ -188,7 +188,7 @@ public abstract class AbstractLaunchRequestHandler implements IDebugRequestHandl
     protected abstract Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException;
 
-    protected String[] constructEnvironmentVaraiables(LaunchArguments launchArguments) {
+    protected String[] constructEnvironmentVariables(LaunchArguments launchArguments) {
         String[] envVars = null;
         if (launchArguments.env != null && !launchArguments.env.isEmpty()) {
             Map<String, String> environment = new HashMap<>(System.getenv());
