@@ -18,8 +18,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.logging.Logger;
 
 import com.google.gson.JsonObject;
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
@@ -32,11 +34,11 @@ import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
+import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
-import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
@@ -47,24 +49,15 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.ListeningConnector;
 import com.sun.jdi.connect.VMStartException;
 
-public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
+public class LaunchRequestHandler implements ILaunchDelegateHandler {
 
+    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final int ACCEPT_TIMEOUT = 10 * 1000;
     private static final String TERMINAL_TITLE = "Java Debug Console";
+    protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
     @Override
-    public List<Command> getTargetCommands() {
-        return Arrays.asList(Command.LAUNCH);
-    }
-
-    @Override
-    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
-        LaunchArguments launchArguments = (LaunchArguments) arguments;
-        return launchArguments.noDebug ? CompletableFuture.completedFuture(response) : handleLaunchCommand(arguments, response, context);
-    }
-
-    @Override
-    protected CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
         CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
@@ -77,7 +70,7 @@ public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
             ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
             String address = listenConnector.startListening(args);
 
-            String[] cmds = constructLaunchCommands(launchArguments, false, address);
+            String[] cmds = CommonLaunchRequestHandler.constructLaunchCommands(launchArguments, false, address);
             RunInTerminalRequestArguments requestArgs = null;
             if (launchArguments.console == CONSOLE.integratedTerminal) {
                 requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(
@@ -149,8 +142,7 @@ public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
         return resultFuture;
     }
 
-    @Override
-    protected Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+    private Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 
@@ -162,7 +154,7 @@ public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
                 Arrays.asList(launchArguments.modulePaths),
                 Arrays.asList(launchArguments.classPaths),
                 launchArguments.cwd,
-                constructEnvironmentVariables(launchArguments));
+                CommonLaunchRequestHandler.constructEnvironmentVariables(launchArguments));
         context.setDebugSession(debugSession);
 
         logger.info("Launching debuggee VM succeeded.");
@@ -170,7 +162,39 @@ public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
     }
 
     @Override
-    protected void postLaunchConfiguration(LaunchArguments launchArguments, IDebugAdapterContext context) {
+    public CompletableFuture<Response> launchInternally(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
+        CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+
+        try {
+            Process debugeeProcess = launchInternalDebuggeeProcess(launchArguments, context);
+
+            ProcessConsole debuggeeConsole = new ProcessConsole(debugeeProcess, "Debuggee", context.getDebuggeeEncoding());
+            debuggeeConsole.onStdout((output) -> {
+                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
+                // That means the debugger can send OutputEvent to DA at any time.
+                context.getProtocolServer().sendEvent(Events.OutputEvent.createStdoutOutput(output));
+            });
+
+            debuggeeConsole.onStderr((err) -> {
+                context.getProtocolServer().sendEvent(Events.OutputEvent.createStderrOutput(err));
+            });
+            debuggeeConsole.start();
+
+            resultFuture.complete(response);
+        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+            resultFuture.completeExceptionally(
+                    new DebugException(
+                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
+                            ErrorCode.LAUNCH_FAILURE.getId()
+                    )
+            );
+        }
+
+        return resultFuture;
+    }
+
+    @Override
+    public void postLaunch(LaunchArguments launchArguments, IDebugAdapterContext context) {
         Map<String, Object> options = new HashMap<>();
         options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
         if (launchArguments.projectName != null) {
@@ -193,5 +217,15 @@ public class LaunchRequestHandler extends AbstractLaunchRequestHandler {
         // send an InitializedEvent to indicate that the debugger is ready to accept
         // configuration requests (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
         context.getProtocolServer().sendEvent(new Events.InitializedEvent());
+    }
+
+    @Override
+    public void preLaunch(LaunchArguments launchArguments, IDebugAdapterContext context) {
+        // debug only
+        context.setAttached(false);
+        context.setSourcePaths(launchArguments.sourcePaths);
+        context.setVmStopOnEntry(launchArguments.stopOnEntry);
+        context.setMainClass(CommonLaunchRequestHandler.parseMainClassWithoutModuleName(launchArguments.mainClass));
+        context.setStepFilters(launchArguments.stepFilters);
     }
 }

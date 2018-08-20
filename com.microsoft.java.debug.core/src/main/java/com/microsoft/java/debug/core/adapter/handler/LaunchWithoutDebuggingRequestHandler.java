@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2018 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -15,67 +15,40 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.logging.Logger;
 
 import com.google.gson.JsonObject;
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.LaunchMode;
+import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
-import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
-import com.microsoft.java.debug.core.protocol.Requests.DisconnectArguments;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
-public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestHandler implements IDebugRequestHandler {
-    private static final String TERMINAL_TITLE = "Java Process Console";
-    private Process debuggeeProcess;
+public class LaunchWithoutDebuggingRequestHandler implements ILaunchDelegateHandler {
+    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected static final String TERMINAL_TITLE = "Java Process Console";
+    protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
-    @Override
-    public List<Command> getTargetCommands() {
-        // All requests will be dispatched to this handler.
-        return Arrays.asList(Command.values());
-    }
-
-    @Override
-    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
-            IDebugAdapterContext context) {
-        if (isNoDebug(command, arguments, context)) {
-            if (Command.LAUNCH == command) {
-                return handleLaunchCommand(arguments, response, context);
-            } else if (Command.DISCONNECT == command) {
-                return handleDisconnectCommand(arguments, response, context);
-            } else {
-                String errorMsg = String.format("Unrecognized request: { _request: %s }", command);
-                throw AdapterUtils.createCompletionException(errorMsg, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE);
-            }
-        } else {
-            return CompletableFuture.completedFuture(response);
-        }
-    }
-
-    @Override
-    protected Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+    private Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        String[] cmds = constructLaunchCommands(launchArguments, false, null);
+        String[] cmds = CommonLaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         File workingDir = null;
         if (launchArguments.cwd != null && Files.isDirectory(Paths.get(launchArguments.cwd))) {
             workingDir = new File(launchArguments.cwd);
         }
-        this.debuggeeProcess = Runtime.getRuntime().exec(cmds, constructEnvironmentVariables(launchArguments),
+        Process debuggeeProcess = Runtime.getRuntime().exec(cmds, CommonLaunchRequestHandler.constructEnvironmentVariables(launchArguments),
                 workingDir);
         new Thread() {
             public void run() {
@@ -90,11 +63,44 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
             }
         }.start();
         logger.info("Launching debuggee proccess succeeded.");
-        return this.debuggeeProcess;
+        return debuggeeProcess;
     }
 
     @Override
-    protected void postLaunchConfiguration(LaunchArguments launchArguments, IDebugAdapterContext context) {
+    public CompletableFuture<Response> launchInternally(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
+        CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+
+        try {
+            Process debuggeeProcess = launchInternalDebuggeeProcess(launchArguments, context);
+            context.setDebuggeeProcess(debuggeeProcess);
+
+            ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
+            debuggeeConsole.onStdout((output) -> {
+                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
+                // That means the debugger can send OutputEvent to DA at any time.
+                context.getProtocolServer().sendEvent(Events.OutputEvent.createStdoutOutput(output));
+            });
+
+            debuggeeConsole.onStderr((err) -> {
+                context.getProtocolServer().sendEvent(Events.OutputEvent.createStderrOutput(err));
+            });
+            debuggeeConsole.start();
+
+            resultFuture.complete(response);
+        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+            resultFuture.completeExceptionally(
+                    new DebugException(
+                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
+                            ErrorCode.LAUNCH_FAILURE.getId()
+                    )
+            );
+        }
+
+        return resultFuture;
+    }
+
+    @Override
+    public void postLaunch(LaunchArguments launchArguments, IDebugAdapterContext context) {
         // For NO_DEBUG launch mode, the debugger does not respond to requests like
         // SetBreakpointsRequest,
         // but the front end keeps sending them according to the Debug Adapter Protocol.
@@ -105,13 +111,13 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
     }
 
     @Override
-    protected CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response,
+    public CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response,
             IDebugAdapterContext context) {
         CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
         final String launchInTerminalErrorFormat = "Failed to launch debuggee in terminal. Reason: %s";
 
-        String[] cmds = constructLaunchCommands(launchArguments, false, null);
+        String[] cmds = CommonLaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         RunInTerminalRequestArguments requestArgs = null;
         if (launchArguments.console == CONSOLE.integratedTerminal) {
             requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(cmds, launchArguments.cwd,
@@ -156,17 +162,8 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
         return resultFuture;
     }
 
-    private CompletableFuture<Response> handleDisconnectCommand(Arguments arguments, Response response,
-            IDebugAdapterContext context) {
-        DisconnectArguments disconnectArguments = (DisconnectArguments) arguments;
-        if (debuggeeProcess != null && disconnectArguments.terminateDebuggee && !context.isAttached()) {
-            debuggeeProcess.destroy();
-        }
-        return CompletableFuture.completedFuture(response);
-    }
-
-    private boolean isNoDebug(Command command, Arguments arguments, IDebugAdapterContext context) {
-        return context.getLaunchMode() == LaunchMode.NO_DEBUG
-                || (Command.LAUNCH == command && ((LaunchArguments) arguments).noDebug);
+    @Override
+    public void preLaunch(LaunchArguments launchArguments, IDebugAdapterContext context) {
+        // TODO Auto-generated method stub
     }
 }
