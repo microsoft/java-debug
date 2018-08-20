@@ -145,6 +145,7 @@ public class ResolveMainClassHandler {
 
         String mainClass = null;
         String projectName = null;
+        boolean containsExternalClasspaths = false;
         if (arguments != null) {
             if (arguments.size() > 1) {
                 mainClass = (String) arguments.get(1);
@@ -152,9 +153,12 @@ public class ResolveMainClassHandler {
             if (arguments.size() > 2) {
                 projectName = (String) arguments.get(2);
             }
+            if (arguments.size() > 3) {
+                containsExternalClasspaths = (boolean) arguments.get(3);
+            }
         }
 
-        response.mainClass = validateMainClass(mainClass, projectName);
+        response.mainClass = validateMainClass(mainClass, projectName, containsExternalClasspaths);
         response.projectName = validateProjectName(mainClass, projectName);
 
         if (!response.mainClass.isValid || !response.projectName.isValid) {
@@ -164,21 +168,28 @@ public class ResolveMainClassHandler {
         return response;
     }
 
-    private ValidationResult validateMainClass(final String mainClass, final String projectName) throws CoreException {
+    private ValidationResult validateMainClass(final String mainClass, final String projectName, boolean containsExternalClasspaths) throws CoreException {
         if (StringUtils.isEmpty(mainClass)) {
             return new ValidationResult(true);
         } else if (!mainClass.matches(CLASSNAME_REGX)) {
             return new ValidationResult(false, String.format("ConfigError: '%s' is not a valid class name.", mainClass));
         }
 
-        List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(mainClass);
-        if (javaProjects.size() == 0) {
-            return new ValidationResult(false, String.format("ConfigError: Main class '%s' doesn't exist in the workspace.", mainClass));
-        } else if (javaProjects.size() > 1 && StringUtils.isEmpty(projectName)) {
-            return new ValidationResult(false, String.format("ConfigError: Main class '%s' isn't unique in the workspace.", mainClass));
+        if (!containsExternalClasspaths && StringUtils.isEmpty(projectName)) {
+            List<IJavaProject> javaProjects = searchClassInProjectClasspaths(mainClass);
+            if (javaProjects.size() == 0) {
+                return new ValidationResult(false, String.format("ConfigError: Main class '%s' doesn't exist in the workspace.", mainClass));
+            }
+            if (javaProjects.size() > 1) {
+                return new ValidationResult(false, String.format("ConfigError: Main class '%s' isn't unique in the workspace.", mainClass));
+            }
         }
 
         return new ValidationResult(true);
+    }
+
+    private List<IJavaProject> searchClassInProjectClasspaths(String fullyQualifiedClassName) throws CoreException {
+        return ResolveClasspathsHandler.getJavaProjectFromType(fullyQualifiedClassName);
     }
 
     private ValidationResult validateProjectName(final String mainClass, final String projectName) {
