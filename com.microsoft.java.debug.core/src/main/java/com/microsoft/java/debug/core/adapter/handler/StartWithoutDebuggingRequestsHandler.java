@@ -25,6 +25,7 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
+import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.LaunchMode;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
@@ -39,30 +40,29 @@ import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArgum
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
-public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestHandler {
+public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestHandler implements IDebugRequestHandler {
     private static final String TERMINAL_TITLE = "Java Process Console";
     private Process debuggeeProcess;
 
     @Override
     public List<Command> getTargetCommands() {
+        // All requests will be dispatched to this handler.
         return Arrays.asList(Command.values());
     }
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
-        if (Command.INITIALIZE.equals(command)) {
-            return CompletableFuture.completedFuture(response);
-        } else if (Command.LAUNCH.equals(command)) {
-            LaunchArguments launchArguments = (LaunchArguments) arguments;
-            return launchArguments.noDebug ? handleLaunchCommand(arguments, response, context) : CompletableFuture.completedFuture(response);
-        } else if (Command.DISCONNECT.equals(command)) {
-            return handleDisconnectCommand(arguments, response, context);
-        } else {
-            if (context.getLaunchMode() == LaunchMode.NO_DEBUG) {
+        if (isNoDebug(command, arguments, context)) {
+            if (Command.LAUNCH == command) {
+                return handleLaunchCommand(arguments, response, context);
+            } else if (Command.DISCONNECT == command) {
+                return handleDisconnectCommand(arguments, response, context);
+            } else {
                 String errorMsg = String.format("Unrecognized request: { _request: %s }", command);
                 throw AdapterUtils.createCompletionException(errorMsg, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE);
             }
+        } else {
             return CompletableFuture.completedFuture(response);
         }
     }
@@ -163,6 +163,10 @@ public class StartWithoutDebuggingRequestsHandler extends AbstractLaunchRequestH
             debuggeeProcess.destroy();
         }
         return CompletableFuture.completedFuture(response);
+    }
 
+    private boolean isNoDebug(Command command, Arguments arguments, IDebugAdapterContext context) {
+        return context.getLaunchMode() == LaunchMode.NO_DEBUG
+                || (Command.LAUNCH == command && ((LaunchArguments) arguments).noDebug);
     }
 }
