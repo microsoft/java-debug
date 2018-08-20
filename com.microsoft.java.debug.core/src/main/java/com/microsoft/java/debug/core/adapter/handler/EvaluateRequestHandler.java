@@ -15,12 +15,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -42,8 +42,6 @@ import com.sun.jdi.Value;
 import com.sun.jdi.VoidValue;
 
 public class EvaluateRequestHandler implements IDebugRequestHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.EVALUATE);
@@ -58,16 +56,16 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
-            throw AdapterUtils.createCompletionException(
+            throw new CompletionException(AdapterUtils.createUserErrorDebugException(
                 "Failed to evaluate. Reason: Empty expression cannot be evaluated.",
-                ErrorCode.EVALUATE_FAILURE);
+                ErrorCode.EVALUATION_COMPILE_ERROR));
         }
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(evalArguments.frameId);
         if (stackFrameReference == null) {
-            // stackFrameReference is null means the stackframe is continued by user manually,
-            throw AdapterUtils.createCompletionException(
-                "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.",
-                ErrorCode.EVALUATE_FAILURE);
+            // stackFrameReference is null means the given thread is running
+            throw new CompletionException(AdapterUtils.createUserErrorDebugException(
+                    "Failed to evaluate. Reason: Cannot evaluate because the thread is resumed.",
+                    ErrorCode.EVALUATE_WHEN_RUNNING));
         }
 
         return CompletableFuture.supplyAsync(() -> {
@@ -99,9 +97,12 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 if (e instanceof ExecutionException && e.getCause() != null) {
                     cause = e.getCause();
                 }
-                // TODO: distinguish user error of wrong expression(eg: compilation error)
+
+                if (cause instanceof DebugException) {
+                    throw new CompletionException(cause);
+                }
                 throw AdapterUtils.createCompletionException(
-                    String.format("Cannot evalution expression because of %s.", cause.toString()),
+                    String.format("Cannot evaluation expression because of %s.", cause.toString()),
                     ErrorCode.EVALUATE_FAILURE,
                     cause);
             }
