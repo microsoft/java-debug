@@ -140,7 +140,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
             if (compiledExpression.hasErrors()) {
                 completableFuture.completeExceptionally(AdapterUtils.createUserErrorDebugException(
-                        String.format("Cannot evalution expression because of compilation error(s): %s.",
+                        String.format("Cannot evaluate because of compilation error(s): %s.",
                                 StringUtils.join(compiledExpression.getErrorMessages(), "\n")),
                         ErrorCode.EVALUATION_COMPILE_ERROR));
                 return completableFuture;
