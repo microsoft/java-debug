@@ -40,7 +40,7 @@ public class UsageDataSession {
     private Map<String, Integer> commandCountMap = new HashMap<>();
     private Map<String, Integer> breakpointCountMap = new HashMap<>();
     private Map<Integer, RequestEvent> requestEventMap = new HashMap<>();
-    private  Map<String, Integer> userErrorCount = new HashMap<>();
+    private Map<String, Integer> userErrorCount = new HashMap<>();
     private List<String> eventList = new ArrayList<>();
 
     public static String getSessionGuid() {
