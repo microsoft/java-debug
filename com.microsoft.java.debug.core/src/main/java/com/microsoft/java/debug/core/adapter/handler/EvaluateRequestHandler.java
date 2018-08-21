@@ -102,7 +102,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     throw new CompletionException(cause);
                 }
                 throw AdapterUtils.createCompletionException(
-                    String.format("Cannot evaluation expression because of %s.", cause.toString()),
+                    String.format("Cannot evaluate because of %s.", cause.toString()),
                     ErrorCode.EVALUATE_FAILURE,
                     cause);
             }
