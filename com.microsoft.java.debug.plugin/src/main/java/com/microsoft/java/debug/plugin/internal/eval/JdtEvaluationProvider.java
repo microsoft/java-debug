@@ -241,7 +241,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     }
 
-
     private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
         try {
             IStackFrame[] jdiStackFrames = thread.getStackFrames();
