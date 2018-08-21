@@ -43,9 +43,7 @@ import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 public class CommonLaunchRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
-    private ILaunchDelegateHandler launchWithDebuggingHandler = new LaunchRequestHandler();
-    private ILaunchDelegateHandler launchWithoutDebuggingHandler = new LaunchWithoutDebuggingRequestHandler();
-    private ILaunchDelegateHandler activeLaunchHandler;
+    protected ILaunchDelegateHandler activeLaunchHandler;
 
     @Override
     public List<Command> getTargetCommands() {
@@ -55,7 +53,7 @@ public class CommonLaunchRequestHandler implements IDebugRequestHandler {
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
-        activeLaunchHandler = launchArguments.noDebug ? launchWithoutDebuggingHandler : launchWithDebuggingHandler;
+        activeLaunchHandler = launchArguments.noDebug ? new LaunchWithoutDebuggingRequestHandler() : new LaunchRequestHandler();
         return handleLaunchCommand(arguments, response, context);
     }
 
