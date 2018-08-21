@@ -42,7 +42,7 @@ public class DebugException extends Exception {
      * Create a debug exception with userError flag.
      * @param message the error message
      * @param errorCode the error code
-     * @param userError the boolean value of whether this exception is caused by a known user error
+     * @param userError the boolean value indicating whether this exception is caused by a known user error
      */
     public DebugException(String message, int errorCode, boolean userError) {
         super(message);
@@ -54,7 +54,6 @@ public class DebugException extends Exception {
         super(message, cause);
         this.errorCode = errorCode;
     }
-
 
     public DebugException(Throwable cause, int errorCode) {
         super(cause);

@@ -187,7 +187,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             return false;
         }).collect(Collectors.toList());
 
-
         if (StringUtils.isNotBlank(mainclass)) {
             filterProjectCandidatesByClass(mainclass);
         }
@@ -216,7 +215,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             logger.severe("No project is available for evaluation.");
             throw new IllegalStateException("Cannot evaluate, please specify projectName in launch.json.");
         }
-
 
         try {
             StackFrame sf = thread.frame(depth);
