@@ -105,4 +105,8 @@ public interface IDebugAdapterContext {
     LaunchMode getLaunchMode();
 
     void setLaunchMode(LaunchMode launchMode);
+
+    Process getDebuggeeProcess();
+
+    void setDebuggeeProcess(Process debuggeeProcess);
 }
