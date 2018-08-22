@@ -17,7 +17,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 
-public interface ILaunchDelegateHandler {
+public interface ILaunchDelegate {
     void postLaunch(LaunchArguments launchArguments, IDebugAdapterContext context);
 
     void preLaunch(LaunchArguments launchArguments, IDebugAdapterContext context);

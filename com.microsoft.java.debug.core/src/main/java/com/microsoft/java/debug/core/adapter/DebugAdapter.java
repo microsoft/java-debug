@@ -21,7 +21,6 @@ import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
-import com.microsoft.java.debug.core.adapter.handler.CommonLaunchRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.CompletionsHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
@@ -29,6 +28,7 @@ import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestWithoutDeb
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.HotCodeReplaceHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.RestartFrameHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetBreakpointsRequestHandler;
@@ -97,7 +97,7 @@ public class DebugAdapter implements IDebugAdapter {
         // Register request handlers.
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
-        registerHandler(new CommonLaunchRequestHandler());
+        registerHandler(new LaunchRequestHandler());
 
         // DEBUG node only
         registerHandlerForDebug(new AttachRequestHandler());

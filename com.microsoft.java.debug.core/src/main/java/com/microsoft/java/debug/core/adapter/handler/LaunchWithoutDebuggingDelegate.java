@@ -36,19 +36,19 @@ import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArgum
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
-public class LaunchWithoutDebuggingRequestHandler implements ILaunchDelegateHandler {
+public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     protected static final String TERMINAL_TITLE = "Java Process Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
     private Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        String[] cmds = CommonLaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
+        String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         File workingDir = null;
         if (launchArguments.cwd != null && Files.isDirectory(Paths.get(launchArguments.cwd))) {
             workingDir = new File(launchArguments.cwd);
         }
-        Process debuggeeProcess = Runtime.getRuntime().exec(cmds, CommonLaunchRequestHandler.constructEnvironmentVariables(launchArguments),
+        Process debuggeeProcess = Runtime.getRuntime().exec(cmds, LaunchRequestHandler.constructEnvironmentVariables(launchArguments),
                 workingDir);
         new Thread() {
             public void run() {
@@ -117,7 +117,7 @@ public class LaunchWithoutDebuggingRequestHandler implements ILaunchDelegateHand
 
         final String launchInTerminalErrorFormat = "Failed to launch debuggee in terminal. Reason: %s";
 
-        String[] cmds = CommonLaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
+        String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         RunInTerminalRequestArguments requestArgs = null;
         if (launchArguments.console == CONSOLE.integratedTerminal) {
             requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(cmds, launchArguments.cwd,
