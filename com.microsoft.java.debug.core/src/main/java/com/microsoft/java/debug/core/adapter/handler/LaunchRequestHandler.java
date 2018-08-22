@@ -95,7 +95,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         });
     }
 
-
     protected static String[] constructLaunchCommands(LaunchArguments launchArguments, boolean serverMode, String address) {
         String slash = System.getProperty("file.separator");
 
