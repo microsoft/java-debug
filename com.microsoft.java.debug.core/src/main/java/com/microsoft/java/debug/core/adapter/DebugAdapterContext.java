@@ -39,6 +39,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private transient boolean vmTerminated;
     private boolean isVmStopOnEntry = false;
     private LaunchMode launchMode = LaunchMode.DEBUG;
+    private Process debuggeeProcess;
     private String mainClass;
     private StepFilters stepFilters;
 
@@ -241,5 +242,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setLaunchMode(LaunchMode launchMode) {
         this.launchMode = launchMode;
+    }
+
+    @Override
+    public Process getDebuggeeProcess() {
+        return this.debuggeeProcess;
+    }
+
+    @Override
+    public void setDebuggeeProcess(Process debuggeeProcess) {
+        this.debuggeeProcess = debuggeeProcess;
     }
 }

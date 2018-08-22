@@ -24,6 +24,7 @@ import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.CompletionsHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestWithoutDebuggingHandler;
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.HotCodeReplaceHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
@@ -95,37 +96,43 @@ public class DebugAdapter implements IDebugAdapter {
     private void initialize() {
         // Register request handlers.
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
-        registerHandler(new InitializeRequestHandler(), true, true);
-        registerHandler(new LaunchRequestHandler(), true, true);
-        registerHandler(new AttachRequestHandler());
-        registerHandler(new ConfigurationDoneRequestHandler(), true, true);
-        registerHandler(new DisconnectRequestHandler(), true, true);
-        registerHandler(new SetBreakpointsRequestHandler());
-        registerHandler(new SetExceptionBreakpointsRequestHandler());
-        registerHandler(new SourceRequestHandler());
-        registerHandler(new ThreadsRequestHandler());
-        registerHandler(new StepRequestHandler());
-        registerHandler(new StackTraceRequestHandler());
-        registerHandler(new ScopesRequestHandler());
-        registerHandler(new VariablesRequestHandler());
-        registerHandler(new SetVariableRequestHandler());
-        registerHandler(new EvaluateRequestHandler());
-        registerHandler(new HotCodeReplaceHandler());
-        registerHandler(new RestartFrameHandler());
-        registerHandler(new CompletionsHandler());
+        registerHandler(new InitializeRequestHandler());
+        registerHandler(new LaunchRequestHandler());
+
+        // DEBUG node only
+        registerHandlerForDebug(new AttachRequestHandler());
+        registerHandlerForDebug(new ConfigurationDoneRequestHandler());
+        registerHandlerForDebug(new DisconnectRequestHandler());
+        registerHandlerForDebug(new SetBreakpointsRequestHandler());
+        registerHandlerForDebug(new SetExceptionBreakpointsRequestHandler());
+        registerHandlerForDebug(new SourceRequestHandler());
+        registerHandlerForDebug(new ThreadsRequestHandler());
+        registerHandlerForDebug(new StepRequestHandler());
+        registerHandlerForDebug(new StackTraceRequestHandler());
+        registerHandlerForDebug(new ScopesRequestHandler());
+        registerHandlerForDebug(new VariablesRequestHandler());
+        registerHandlerForDebug(new SetVariableRequestHandler());
+        registerHandlerForDebug(new EvaluateRequestHandler());
+        registerHandlerForDebug(new HotCodeReplaceHandler());
+        registerHandlerForDebug(new RestartFrameHandler());
+        registerHandlerForDebug(new CompletionsHandler());
+
+        // NO_DEBUG mode only
+        registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());
+
+    }
+
+    private void registerHandlerForDebug(IDebugRequestHandler handler) {
+        registerHandler(requestHandlersForDebug, handler);
+    }
+
+    private void registerHandlerForNoDebug(IDebugRequestHandler handler) {
+        registerHandler(requestHandlersForNoDebug, handler);
     }
 
     private void registerHandler(IDebugRequestHandler handler) {
-        registerHandler(handler, true, false);
-    }
-
-    private void registerHandler(IDebugRequestHandler handler, boolean forDebug, boolean forNoDebug) {
-        if (forDebug) {
-            registerHandler(requestHandlersForDebug, handler);
-        }
-        if (forNoDebug) {
-            registerHandler(requestHandlersForNoDebug, handler);
-        }
+        registerHandler(requestHandlersForDebug, handler);
+        registerHandler(requestHandlersForNoDebug, handler);
     }
 
     private void registerHandler(Map<Command, List<IDebugRequestHandler>> requestHandlers, IDebugRequestHandler handler) {
