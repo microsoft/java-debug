@@ -48,7 +48,9 @@ import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
+import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
@@ -136,6 +138,13 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 compiledExpression = engine.getCompiledExpression(expression, stackframe);
             }
 
+            if (compiledExpression.hasErrors()) {
+                completableFuture.completeExceptionally(AdapterUtils.createUserErrorDebugException(
+                        String.format("Cannot evaluate because of compilation error(s): %s.",
+                                StringUtils.join(compiledExpression.getErrorMessages(), "\n")),
+                        ErrorCode.EVALUATION_COMPILE_ERROR));
+                return completableFuture;
+            }
             internalEvaluate(engine, compiledExpression, stackframe, completableFuture);
             return completableFuture;
         } catch (Exception ex) {
@@ -178,7 +187,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             return false;
         }).collect(Collectors.toList());
 
-
         if (StringUtils.isNotBlank(mainclass)) {
             filterProjectCandidatesByClass(mainclass);
         }
@@ -208,7 +216,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             throw new IllegalStateException("Cannot evaluate, please specify projectName in launch.json.");
         }
 
-
         try {
             StackFrame sf = thread.frame(depth);
             String typeName = sf.location().method().declaringType().name();
@@ -233,7 +240,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
 
     }
-
 
     private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
         try {

@@ -48,7 +48,6 @@ public class StackFrameReference {
         return thread;
     }
 
-
     @Override
     public int hashCode() {
         return hash;

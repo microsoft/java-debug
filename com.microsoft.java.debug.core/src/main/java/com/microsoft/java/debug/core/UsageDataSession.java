@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 
 import com.google.gson.JsonElement;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -39,6 +40,7 @@ public class UsageDataSession {
     private Map<String, Integer> commandCountMap = new HashMap<>();
     private Map<String, Integer> breakpointCountMap = new HashMap<>();
     private Map<Integer, RequestEvent> requestEventMap = new HashMap<>();
+    private Map<String, Integer> userErrorCount = new HashMap<>();
     private List<String> eventList = new ArrayList<>();
 
     public static String getSessionGuid() {
@@ -136,6 +138,7 @@ public class UsageDataSession {
         props.put("sessionStopAt", String.valueOf(stopAt));
         props.put("commandCount", JsonUtils.toJson(commandCountMap));
         props.put("breakpointCount", JsonUtils.toJson(breakpointCountMap));
+        props.put("userErrorCount", JsonUtils.toJson(userErrorCount));
         if (jdiEventSequenceEnabled) {
             synchronized (eventList) {
                 props.put("jdiEventSequence", JsonUtils.toJson(eventList));
@@ -160,6 +163,18 @@ public class UsageDataSession {
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("Exception on recording event: %s.", e.toString()), e);
+        }
+    }
+
+    /**
+     * Record counts for each user errors encountered.
+     */
+    public void recordUserError(ErrorCode errorCode) {
+        try {
+            String errorCodeStr = errorCode.name();
+            userErrorCount.put(errorCodeStr, userErrorCount.getOrDefault(errorCodeStr, 0) + 1);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, String.format("Exception on recording user error: %s.", e.toString()), e);
         }
     }
 
