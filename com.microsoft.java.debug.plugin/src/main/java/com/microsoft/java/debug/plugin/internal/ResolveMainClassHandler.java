@@ -208,9 +208,9 @@ public class ResolveMainClassHandler {
         List<ResolutionItem> proposals = resolveMainClassCore(arguments);
 
         Collections.sort(proposals, new ProposalItemComparator((ResolutionItem item) -> {
-            if (item.mainClass.equals(mainClass)) {
+            if (Objects.equals(item.mainClass, mainClass)) {
                 return 1;
-            } else if (item.projectName != null && item.projectName.equals(projectName)) {
+            } else if (Objects.equals(item.projectName, projectName)) {
                 return 2;
             }
 
