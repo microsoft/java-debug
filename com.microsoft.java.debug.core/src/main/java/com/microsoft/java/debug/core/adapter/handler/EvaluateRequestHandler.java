@@ -65,7 +65,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
             // stackFrameReference is null means the given thread is running
             throw new CompletionException(AdapterUtils.createUserErrorDebugException(
                     "Evaluation failed because the thread is not suspended.",
-                    ErrorCode.EVALUATE_NOT_SUSPEND));
+                    ErrorCode.EVALUATE_NOT_SUSPENDED_THREAD));
         }
 
         return CompletableFuture.supplyAsync(() -> {
