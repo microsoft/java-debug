@@ -231,6 +231,11 @@ public class AdapterUtils {
         return new CompletionException(new DebugException(message, errorCode.getId()));
     }
 
+    public static DebugException createUserErrorDebugException(String message, ErrorCode errorCode) {
+        return new DebugException(message, errorCode.getId(), true);
+    }
+
+
     /**
      * Calculate SHA-256 Digest of given string.
      * @param content

@@ -101,4 +101,12 @@ public interface IDebugAdapterContext {
     StepFilters getStepFilters();
 
     IStackFrameManager getStackFrameManager();
+
+    LaunchMode getLaunchMode();
+
+    void setLaunchMode(LaunchMode launchMode);
+
+    Process getDebuggeeProcess();
+
+    void setDebuggeeProcess(Process debuggeeProcess);
 }

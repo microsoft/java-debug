@@ -28,7 +28,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -37,7 +36,7 @@ import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.debug.core.model.ISourceLocator;
 import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
-import org.eclipse.debug.core.sourcelookup.containers.ProjectSourceContainer;
+import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
@@ -49,9 +48,13 @@ import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
+import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.plugin.internal.JdtSourceLookUpProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
@@ -135,6 +138,13 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 compiledExpression = engine.getCompiledExpression(expression, stackframe);
             }
 
+            if (compiledExpression.hasErrors()) {
+                completableFuture.completeExceptionally(AdapterUtils.createUserErrorDebugException(
+                        String.format("Cannot evaluate because of compilation error(s): %s.",
+                                StringUtils.join(compiledExpression.getErrorMessages(), "\n")),
+                        ErrorCode.EVALUATION_COMPILE_ERROR));
+                return completableFuture;
+            }
             internalEvaluate(engine, compiledExpression, stackframe, completableFuture);
             return completableFuture;
         } catch (Exception ex) {
@@ -177,7 +187,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             return false;
         }).collect(Collectors.toList());
 
-
         if (StringUtils.isNotBlank(mainclass)) {
             filterProjectCandidatesByClass(mainclass);
         }
@@ -207,7 +216,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             throw new IllegalStateException("Cannot evaluate, please specify projectName in launch.json.");
         }
 
-
         try {
             StackFrame sf = thread.frame(depth);
             String typeName = sf.location().method().declaringType().name();
@@ -232,7 +240,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
 
     }
-
 
     private JDIStackFrame createStackFrame(JDIThread thread, int depth) {
         try {
@@ -319,7 +326,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
 
             if (launch == null) {
-                launch = createILaunchMock(project);
+                ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+                launch = createILaunchMock(project, ((JdtSourceLookUpProvider) sourceProvider).getSourceContainers());
             }
 
             debugTarget = new JDIDebugTarget(launch, vm, "", false, false, null, false) {
@@ -331,7 +339,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
-    private static ILaunch createILaunchMock(IJavaProject project) {
+    private static ILaunch createILaunchMock(IJavaProject project, ISourceContainer[] containers) {
         return new ILaunch() {
             private AbstractSourceLookupDirector locator;
 
@@ -405,9 +413,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 locator = new JavaSourceLookupDirector();
 
                 try {
-                    locator.setSourceContainers(
-                            new ProjectSourceContainer(project.getProject(), true).getSourceContainers());
-                } catch (CoreException e) {
+                    locator.setSourceContainers(containers);
+                } catch (Exception e) {
                     logger.severe(String.format("Cannot initialize JavaSourceLookupDirector: %s", e.toString()));
                 }
                 locator.initializeParticipants();
