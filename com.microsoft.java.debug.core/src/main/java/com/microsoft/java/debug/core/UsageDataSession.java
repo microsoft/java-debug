@@ -141,7 +141,7 @@ public class UsageDataSession {
         props.put("commandCount", JsonUtils.toJson(commandCountMap));
         props.put("breakpointCount", JsonUtils.toJson(breakpointCountMap));
         props.put("userErrorCount", JsonUtils.toJson(userErrorCount));
-        props.put("commandPerCount", JsonUtils.toJson(commandPerfCountMap));
+        props.put("commandPerfCount", JsonUtils.toJson(commandPerfCountMap));
         if (jdiEventSequenceEnabled) {
             synchronized (eventList) {
                 props.put("jdiEventSequence", JsonUtils.toJson(eventList));
