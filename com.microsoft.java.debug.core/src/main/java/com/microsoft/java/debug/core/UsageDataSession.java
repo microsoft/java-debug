@@ -41,6 +41,7 @@ public class UsageDataSession {
     private Map<String, Integer> breakpointCountMap = new HashMap<>();
     private Map<Integer, RequestEvent> requestEventMap = new HashMap<>();
     private Map<String, Integer> userErrorCount = new HashMap<>();
+    private Map<String, Integer> commandPerfCountMap = new HashMap<>();
     private List<String> eventList = new ArrayList<>();
 
     public static String getSessionGuid() {
@@ -114,6 +115,7 @@ public class UsageDataSession {
                 requestEventMap.remove(response.request_seq);
             }
             long duration = responseMillis - requestMillis;
+            commandPerfCountMap.compute(command, (k, v) -> (v == null ? 0 : v.intValue()) + (int) duration);
 
             if (!response.success || duration > RESPONSE_MAX_DELAY_MS) {
                 Map<String, Object> props = new HashMap<>();
@@ -139,6 +141,7 @@ public class UsageDataSession {
         props.put("commandCount", JsonUtils.toJson(commandCountMap));
         props.put("breakpointCount", JsonUtils.toJson(breakpointCountMap));
         props.put("userErrorCount", JsonUtils.toJson(userErrorCount));
+        props.put("commandPerCount", JsonUtils.toJson(commandPerfCountMap));
         if (jdiEventSequenceEnabled) {
             synchronized (eventList) {
                 props.put("jdiEventSequence", JsonUtils.toJson(eventList));
