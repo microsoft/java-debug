@@ -79,7 +79,7 @@ public class ResolveClasspathsHandler {
      * @throws CoreException
      *             CoreException
      */
-    private static List<IJavaProject> getJavaProjectFromType(String fullyQualifiedTypeName) throws CoreException {
+    public static List<IJavaProject> getJavaProjectFromType(String fullyQualifiedTypeName) throws CoreException {
         String[] splitItems = fullyQualifiedTypeName.split("/");
         // If the main class name contains the module name, should trim the module info.
         if (splitItems.length == 2) {
