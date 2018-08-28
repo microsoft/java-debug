@@ -15,6 +15,8 @@ public class DebugException extends Exception {
     private static final long serialVersionUID = 1L;
     private int errorCode;
 
+    private boolean userError = false;
+
     public DebugException() {
         super();
     }
@@ -36,6 +38,18 @@ public class DebugException extends Exception {
         this.errorCode = errorCode;
     }
 
+    /**
+     * Create a debug exception with userError flag.
+     * @param message the error message
+     * @param errorCode the error code
+     * @param userError the boolean value indicating whether this exception is caused by a known user error
+     */
+    public DebugException(String message, int errorCode, boolean userError) {
+        super(message);
+        this.errorCode = errorCode;
+        this.userError = userError;
+    }
+
     public DebugException(String message, Throwable cause, int errorCode) {
         super(message, cause);
         this.errorCode = errorCode;
@@ -48,5 +62,13 @@ public class DebugException extends Exception {
 
     public int getErrorCode() {
         return this.errorCode;
+    }
+
+    public void setUserError(boolean userError) {
+        this.userError = userError;
+    }
+
+    public boolean isUserError() {
+        return this.userError;
     }
 }
