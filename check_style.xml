@@ -136,6 +136,7 @@
             <property name="allowNoEmptyLineBetweenFields" value="true"/>
             <property name="allowMultipleEmptyLines" value="false"/>
             <property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
+            <property name="tokens" value="VARIABLE_DEF, METHOD_DEF"/>
         </module>
         <module name="SeparatorWrap">
             <property name="id" value="SeparatorWrapDot"/>
@@ -276,5 +277,16 @@
         <module name="CommentsIndentation"/>
         <module name="EmptyStatement"/>
         <module name="StringLiteralEquality"/>
+         <!-- Developer should probably bring up this issue with designer if ever it occurs. -->
+        <module name="EqualsHashCode">
+            <property name="severity" value="info" />
+        </module>
+        <!-- Only apply this to local variables; Designers seem to prefer using same parameter names as class members. -->
+        <module name="HiddenField">
+            <property name="tokens" value="VARIABLE_DEF"/>
+        </module>
+        
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
     </module>
 </module>

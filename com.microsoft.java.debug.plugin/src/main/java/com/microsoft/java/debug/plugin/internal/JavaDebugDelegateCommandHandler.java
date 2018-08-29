@@ -32,6 +32,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
 
     public static String UPDATE_DEBUG_SETTINGS = "vscode.java.updateDebugSettings";
 
+    public static String VALIDATE_LAUNCHCONFIG = "vscode.java.validateLaunchConfig";
+
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
         if (DEBUG_STARTSESSION.equals(commandId)) {
@@ -50,6 +52,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             return UsageDataStore.getInstance().fetchAll();
         } else if (UPDATE_DEBUG_SETTINGS.equals(commandId)) {
             return DebugSettingUtils.configDebugSettings(arguments);
+        } else if (VALIDATE_LAUNCHCONFIG.equals(commandId)) {
+            return new ResolveMainClassHandler().validateLaunchConfig(arguments);
         }
 
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));
