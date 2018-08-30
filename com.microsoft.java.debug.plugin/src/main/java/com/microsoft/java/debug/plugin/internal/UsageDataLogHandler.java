@@ -32,7 +32,7 @@ public class UsageDataLogHandler extends Handler {
         if (record.getLevel().intValue() >= thresholdLevel.intValue()) {
             if (record.getThrown() != null) {
                 // error message
-                boolean isUserError = record.getThrown() instanceof DebugException && ((DebugException) record.getThrown()).isUserError();
+                boolean isUserError = isUserError(record.getThrown());
                 if (isUserError) {
                     return;
                 }
@@ -59,4 +59,7 @@ public class UsageDataLogHandler extends Handler {
         // do nothing
     }
 
+    private static boolean isUserError(Throwable th) {
+        return th instanceof DebugException &&  ((DebugException) th).isUserError();
+    }
 }
