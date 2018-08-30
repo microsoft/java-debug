@@ -31,9 +31,7 @@ public class UsageDataLogHandler extends Handler {
     public void publish(LogRecord record) {
         if (record.getLevel().intValue() >= thresholdLevel.intValue()) {
             if (record.getThrown() != null) {
-                // error message
-                boolean isUserError = isUserError(record.getThrown());
-                if (isUserError) {
+                if (isUserError(record.getThrown())) {
                     return;
                 }
                 UsageDataStore.getInstance().logErrorData(record.getMessage(), record.getThrown());
