@@ -16,6 +16,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.UsageDataStore;
 
@@ -31,6 +32,10 @@ public class UsageDataLogHandler extends Handler {
         if (record.getLevel().intValue() >= thresholdLevel.intValue()) {
             if (record.getThrown() != null) {
                 // error message
+                boolean isUserError = record.getThrown() instanceof DebugException && ((DebugException) record.getThrown()).isUserError();
+                if (isUserError) {
+                    return;
+                }
                 UsageDataStore.getInstance().logErrorData(record.getMessage(), record.getThrown());
                 UsageDataSession.enableJdiEventSequence();
             } else if (record.getParameters() != null) {
