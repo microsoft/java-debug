@@ -164,7 +164,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 envVars[i++] = entry.getKey() + "=" + entry.getValue();
             }
         }
-        return null;
+        return envVars;
     }
 
     /**
