@@ -33,12 +33,12 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
-import org.eclipse.m2e.jdt.IClasspathManager;
 
 import com.microsoft.java.debug.core.Configuration;
 
 public class ResolveClasspathsHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private static final String SCOPE_ATTRIBUTE = "maven.scope";
 
     /**
      * Resolves class path for a java project.
@@ -199,7 +199,7 @@ public class ResolveClasspathsHandler {
 
     private static boolean isRuntime(final IClasspathEntry classpathEntry) {
         for (IClasspathAttribute attribute : classpathEntry.getExtraAttributes()) {
-            if (IClasspathManager.SCOPE_ATTRIBUTE.equals(attribute.getName()) && "runtime".equals(attribute.getValue())) {
+            if (SCOPE_ATTRIBUTE.equals(attribute.getName()) && "runtime".equals(attribute.getValue())) {
                 return true;
             }
         }
