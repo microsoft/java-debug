@@ -12,6 +12,9 @@
             <command
                   id="vscode.java.validateLaunchConfig">
             </command>
+            <command
+                  id="vscode.java.resolveMainMethod">
+            </command>
        </delegateCommandHandler>
    </extension>
 </plugin>
