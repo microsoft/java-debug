@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.jdt.core.IClasspathAttribute;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
@@ -31,6 +33,7 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.m2e.jdt.IClasspathManager;
 
 import com.microsoft.java.debug.core.Configuration;
 
@@ -178,10 +181,10 @@ public class ResolveClasspathsHandler {
         for (int i = 0; i < unresolved.length; i++) {
             IRuntimeClasspathEntry entry = unresolved[i];
             if (entry.getClasspathProperty() == IRuntimeClasspathEntry.USER_CLASSES) {
-                IRuntimeClasspathEntry[] entries = JavaRuntime.resolveRuntimeClasspathEntry(entry, jproject);
+                IRuntimeClasspathEntry[] entries = JavaRuntime.resolveRuntimeClasspathEntry(entry, jproject, true);
                 for (int j = 0; j < entries.length; j++) {
 
-                    if (entries[j].getClasspathEntry().isTest()) {
+                    if (entries[j].getClasspathEntry().isTest() && !isRuntime(entries[j].getClasspathEntry())) {
                         continue;
                     }
                     String location = entries[j].getLocation();
@@ -192,5 +195,14 @@ public class ResolveClasspathsHandler {
             }
         }
         return resolved.toArray(new String[resolved.size()]);
+    }
+
+    private static boolean isRuntime(final IClasspathEntry classpathEntry) {
+        for (IClasspathAttribute attribute : classpathEntry.getExtraAttributes()) {
+            if (IClasspathManager.SCOPE_ATTRIBUTE.equals(attribute.getName()) && "runtime".equals(attribute.getValue())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
