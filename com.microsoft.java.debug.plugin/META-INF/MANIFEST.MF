@@ -18,7 +18,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.jdt.launching,
  com.google.gson,
  org.apache.commons.lang3,
- org.eclipse.lsp4j
+ org.eclipse.lsp4j,
+ org.eclipse.m2e.jdt;bundle-version="1.9.0"
 Bundle-ClassPath: lib/commons-io-2.5.jar,
  .,
  lib/rxjava-2.1.1.jar,
