@@ -12,7 +12,9 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -177,7 +179,7 @@ public class ResolveClasspathsHandler {
 
     private static String[] computeDefaultRuntimeClassPath(IJavaProject jproject) throws CoreException {
         IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(jproject);
-        List<String> resolved = new ArrayList<>(unresolved.length);
+        Set<String> resolved = new LinkedHashSet<String>();
         for (int i = 0; i < unresolved.length; i++) {
             IRuntimeClasspathEntry entry = unresolved[i];
             if (entry.getClasspathProperty() == IRuntimeClasspathEntry.USER_CLASSES) {
@@ -190,9 +192,7 @@ public class ResolveClasspathsHandler {
                     String location = entries[j].getLocation();
                     if (location != null) {
                         // remove duplicate classpath
-                        if (!resolved.contains(location)) {
-                            resolved.add(location);
-                        }
+                        resolved.add(location);
                     }
                 }
             }
