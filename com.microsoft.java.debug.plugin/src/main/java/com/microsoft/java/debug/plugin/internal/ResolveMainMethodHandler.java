@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -29,6 +30,8 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 import org.eclipse.lsp4j.Range;
+
+import com.microsoft.java.debug.core.DebugException;
 
 public class ResolveMainMethodHandler {
     /**
@@ -49,59 +52,73 @@ public class ResolveMainMethodHandler {
         try {
             return resolveMainMethodCore(unit);
         } catch (Exception e) {
-            throw new Exception("Failed to resolve main method codeLens: " + e.getMessage(), e);
+            throw new DebugException("Failed to resolve main method codeLens: " + e.getMessage(), e);
         }
     }
 
-    private static List<MainMethod> resolveMainMethodCore(ICompilationUnit typeRoot) throws JavaModelException {
-        List<MainMethod> mainMethods = new ArrayList<>();
-
-        List<IMethod> jdtMainMethods = new ArrayList<>();
-        IType[] topLevelTypes = typeRoot.getTypes();
-        for (IType topType : topLevelTypes) {
-            jdtMainMethods.addAll(resolveMainMethodCore(topType, 1));
-        }
-
-        for (IMethod method : jdtMainMethods) {
-            MainMethod mainMethod = constructMainMethod(typeRoot, method);
-            if (mainMethod != null) {
-                mainMethods.add(mainMethod);
+    private static List<MainMethod> resolveMainMethodCore(ICompilationUnit compilationUnit) throws JavaModelException {
+        List<MainMethod> codeLenses = new ArrayList<>();
+        for (IMethod method : searchMainMethods(compilationUnit)) {
+            MainMethod codeLens = constructMainMethodCodeLens(compilationUnit, method);
+            if (codeLens != null) {
+                codeLenses.add(codeLens);
             }
         }
 
-        return mainMethods;
+        return codeLenses;
     }
 
-    private static List<IMethod> resolveMainMethodCore(IType type, int level) throws JavaModelException {
-        // main method can only exist in the static class or top level class.
-        if (level > 1 && !Flags.isStatic(type.getFlags())) {
+    private static List<IMethod> searchMainMethods(ICompilationUnit compilationUnit) throws JavaModelException {
+        List<IType> potentialTypes = getPotentialMainClassTypes(compilationUnit.getTypes(), 1);
+        List<IMethod> result = new ArrayList<>();
+        for (IType type: potentialTypes) {
+            result.addAll(searchMainMethodsInType(type));
+        }
+
+        return result;
+    }
+
+    private static List<IMethod> searchMainMethodsInType(IType type) throws JavaModelException {
+        for (IMethod method : type.getMethods()) {
+            // Have at most one main method in the member methods of the type.
+            if (method.isMainMethod()) {
+                return Arrays.asList(method);
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private static List<IType> getPotentialMainClassTypes(IType[] types, int level) throws JavaModelException {
+        if (types.length == 0) {
             return Collections.emptyList();
         }
 
-        List<IMethod> mainMethods = new ArrayList<>();
-
-        // Have at most one main method at the same level.
-        for (IMethod method : type.getMethods()) {
-            if (method.isMainMethod()) {
-                mainMethods.add(method);
-                break;
-            }
+        List<IType> result = new ArrayList<>();
+        for (IType type: types) {
+            result.addAll(getPotentialMainClassTypes(type, level));
         }
 
-        for (IType child : type.getTypes()) {
-            mainMethods.addAll(resolveMainMethodCore(child, level + 1));
+        return result;
+    }
+
+    private static List<IType> getPotentialMainClassTypes(IType type, int level) throws JavaModelException {
+        if (!allowHavingMainMethod(type, level)) {
+            return Collections.emptyList();
         }
 
-        return mainMethods;
+        List<IType> result = new ArrayList<>();
+        result.add(type);
+        result.addAll(getPotentialMainClassTypes(type.getTypes(), level + 1));
+        return result;
     }
 
-    private static Range getRange(ICompilationUnit typeRoot, IJavaElement element) throws JavaModelException {
-        ISourceRange r = ((ISourceReference) element).getNameRange();
-        final Range range = JDTUtils.toRange(typeRoot, r.getOffset(), r.getLength());
-        return range;
+    private static boolean allowHavingMainMethod(IType type, int level) throws JavaModelException {
+        // main method can only exist in the static class or top level class.
+        return type.isClass() && (level <= 1 || Flags.isStatic(type.getFlags()));
     }
 
-    private static MainMethod constructMainMethod(ICompilationUnit typeRoot, IMethod method) throws JavaModelException {
+    private static MainMethod constructMainMethodCodeLens(ICompilationUnit typeRoot, IMethod method) throws JavaModelException {
         final Range range = getRange(typeRoot, method);
         IResource resource = typeRoot.getResource();
         if (resource != null) {
@@ -117,12 +134,17 @@ public class ResolveMainMethodHandler {
                 }
 
                 String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
-
                 return new MainMethod(range, mainClass, projectName);
             }
         }
 
         return null;
+    }
+
+    private static Range getRange(ICompilationUnit typeRoot, IJavaElement element) throws JavaModelException {
+        ISourceRange r = ((ISourceReference) element).getNameRange();
+        final Range range = JDTUtils.toRange(typeRoot, r.getOffset(), r.getLength());
+        return range;
     }
 
     static class MainMethod {
