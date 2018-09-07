@@ -38,7 +38,7 @@ public class ResolveMainMethodHandler {
      * Resolve the main methods from the current file.
      * @return an array of main methods.
      */
-    public static Object resolveMainMethods(List<Object> arguments) throws Exception {
+    public static Object resolveMainMethods(List<Object> arguments) throws DebugException {
         if (arguments == null || arguments.size() == 0) {
             return Collections.emptyList();
         }
