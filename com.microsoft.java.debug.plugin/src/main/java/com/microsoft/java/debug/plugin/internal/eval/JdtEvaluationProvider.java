@@ -142,8 +142,8 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
 
             if (compiledExpression.hasErrors()) {
-                if (!firstTime && breakpoint != null) {
-                    // for conditional breakpoint and logpoint, don't send errors
+                if (!firstTime && breakpoint != null && StringUtils.isNotBlank(breakpoint.getLogMessage())) {
+                    // for logpoint with compilation errors, don't send errors if it is already reported
                     completableFuture.complete(debugTarget.getVM().mirrorOf(""));
                     return completableFuture;
                 }
