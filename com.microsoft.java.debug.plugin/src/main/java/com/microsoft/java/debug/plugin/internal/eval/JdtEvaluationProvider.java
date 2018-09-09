@@ -120,16 +120,19 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
             ICompiledExpression compiledExpression = null;
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            boolean firstTime = false;
             if (breakpoint != null) {
                 if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
                     compiledExpression = (ICompiledExpression) breakpoint.getCompiledLogpointExpression();
                     if (compiledExpression == null) {
+                        firstTime = true;
                         compiledExpression = engine.getCompiledExpression(expression, stackframe);
                         breakpoint.setCompiledLogpointExpression(compiledExpression);
                     }
                 } else {
                     compiledExpression = (ICompiledExpression) breakpoint.getCompiledConditionalExpression();
                     if (compiledExpression == null) {
+                        firstTime = true;
                         compiledExpression = engine.getCompiledExpression(expression, stackframe);
                         breakpoint.setCompiledConditionalExpression(compiledExpression);
                     }
@@ -139,6 +142,11 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
 
             if (compiledExpression.hasErrors()) {
+                if (!firstTime && breakpoint != null) {
+                    // for conditional breakpoint and logpoint, don't send errors
+                    completableFuture.complete(debugTarget.getVM().mirrorOf(""));
+                    return completableFuture;
+                }
                 completableFuture.completeExceptionally(AdapterUtils.createUserErrorDebugException(
                         String.format("Cannot evaluate because of compilation error(s): %s.",
                                 StringUtils.join(compiledExpression.getErrorMessages(), "\n")),
