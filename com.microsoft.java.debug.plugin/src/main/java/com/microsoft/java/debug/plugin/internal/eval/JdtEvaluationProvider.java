@@ -120,16 +120,19 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
             ICompiledExpression compiledExpression = null;
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            boolean newExpression = false;
             if (breakpoint != null) {
                 if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
                     compiledExpression = (ICompiledExpression) breakpoint.getCompiledLogpointExpression();
                     if (compiledExpression == null) {
+                        newExpression = true;
                         compiledExpression = engine.getCompiledExpression(expression, stackframe);
                         breakpoint.setCompiledLogpointExpression(compiledExpression);
                     }
                 } else {
                     compiledExpression = (ICompiledExpression) breakpoint.getCompiledConditionalExpression();
                     if (compiledExpression == null) {
+                        newExpression = true;
                         compiledExpression = engine.getCompiledExpression(expression, stackframe);
                         breakpoint.setCompiledConditionalExpression(compiledExpression);
                     }
@@ -139,6 +142,18 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
 
             if (compiledExpression.hasErrors()) {
+                if (!newExpression && breakpoint != null) {
+                    if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
+                        // for logpoint with compilation errors, don't send errors if it is already reported
+                        Value emptyValue = thread.virtualMachine().mirrorOf("");
+                        completableFuture.complete(emptyValue);
+                    } else {
+                        // for conditional bp, report true to let breakpoint hit
+                        Value trueValue = thread.virtualMachine().mirrorOf(true);
+                        completableFuture.complete(trueValue);
+                    }
+                    return completableFuture;
+                }
                 completableFuture.completeExceptionally(AdapterUtils.createUserErrorDebugException(
                         String.format("Cannot evaluate because of compilation error(s): %s.",
                                 StringUtils.join(compiledExpression.getErrorMessages(), "\n")),
