@@ -59,9 +59,9 @@ public class ResolveMainMethodHandler {
     private static List<MainMethod> resolveMainMethodCore(ICompilationUnit compilationUnit) throws JavaModelException {
         List<MainMethod> result = new ArrayList<>();
         for (IMethod method : searchMainMethods(compilationUnit)) {
-            MainMethod codeLens = constructMainMethodCodeLens(compilationUnit, method);
-            if (codeLens != null) {
-                result.add(codeLens);
+            MainMethod mainMethod = extractMainMethodInfo(compilationUnit, method);
+            if (mainMethod != null) {
+                result.add(mainMethod);
             }
         }
 
@@ -120,7 +120,7 @@ public class ResolveMainMethodHandler {
         return result;
     }
 
-    private static MainMethod constructMainMethodCodeLens(ICompilationUnit typeRoot, IMethod method) throws JavaModelException {
+    private static MainMethod extractMainMethodInfo(ICompilationUnit typeRoot, IMethod method) throws JavaModelException {
         final Range range = getRange(typeRoot, method);
         IResource resource = typeRoot.getResource();
         if (resource != null) {
