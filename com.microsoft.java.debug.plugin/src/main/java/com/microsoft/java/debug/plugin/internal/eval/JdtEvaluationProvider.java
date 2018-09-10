@@ -120,19 +120,19 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
             ICompiledExpression compiledExpression = null;
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
-            boolean firstTime = false;
+            boolean newExpression = false;
             if (breakpoint != null) {
                 if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
                     compiledExpression = (ICompiledExpression) breakpoint.getCompiledLogpointExpression();
                     if (compiledExpression == null) {
-                        firstTime = true;
+                        newExpression = true;
                         compiledExpression = engine.getCompiledExpression(expression, stackframe);
                         breakpoint.setCompiledLogpointExpression(compiledExpression);
                     }
                 } else {
                     compiledExpression = (ICompiledExpression) breakpoint.getCompiledConditionalExpression();
                     if (compiledExpression == null) {
-                        firstTime = true;
+                        newExpression = true;
                         compiledExpression = engine.getCompiledExpression(expression, stackframe);
                         breakpoint.setCompiledConditionalExpression(compiledExpression);
                     }
@@ -142,13 +142,15 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             }
 
             if (compiledExpression.hasErrors()) {
-                if (!firstTime && breakpoint != null) {
+                if (!newExpression && breakpoint != null) {
                     if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
                         // for logpoint with compilation errors, don't send errors if it is already reported
-                        completableFuture.complete(debugTarget.getVM().mirrorOf(""));
+                        Value emptyValue = thread.virtualMachine().mirrorOf("");
+                        completableFuture.complete(emptyValue);
                     } else {
                         // for conditional bp, report true to let breakpoint hit
-                        completableFuture.complete(debugTarget.getVM().mirrorOf(true));
+                        Value trueValue = thread.virtualMachine().mirrorOf(true);
+                        completableFuture.complete(trueValue);
                     }
                     return completableFuture;
                 }
