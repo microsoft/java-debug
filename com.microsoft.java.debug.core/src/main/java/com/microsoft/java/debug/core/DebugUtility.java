@@ -163,6 +163,10 @@ public class DebugUtility {
             arguments.get(ENV).setValue(encodeArrayArgument(envVars));
         }
 
+        if (StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome)) {
+            arguments.get(HOME).setValue(DebugSettings.getCurrent().javaHome);
+        }
+
         VirtualMachine vm = connector.launch(arguments);
         // workaround for JDT bug.
         // vm.version() calls org.eclipse.jdi.internal.MirrorImpl#requestVM
