@@ -26,6 +26,7 @@ public final class DebugSettings {
     public boolean showHex = false;
     public boolean enableHotCodeReplace = false;
     public String logLevel;
+    public String javaHome;
 
     public static DebugSettings getCurrent() {
         return current;

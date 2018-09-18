@@ -29,6 +29,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -99,7 +100,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         String slash = System.getProperty("file.separator");
 
         List<String> launchCmds = new ArrayList<>();
-        launchCmds.add(System.getProperty("java.home") + slash + "bin" + slash + "java");
+        final String javaHome = StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome) ? DebugSettings.getCurrent().javaHome
+                : System.getProperty("java.home");
+        launchCmds.add(javaHome + slash + "bin" + slash + "java");
         if (StringUtils.isNotEmpty(address)) {
             launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
         }
