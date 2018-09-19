@@ -94,10 +94,6 @@ public class ProtocolServer extends AbstractProtocolServer {
     /**
      * If the the dispatcher is idle, then send the event to the DA immediately.
      * Else add the new event to an eventQueue first and send them when dispatcher becomes idle again.
-     * @param eventType
-     *              event type
-     * @param body
-     *              event content
      */
     private void sendEventLater(DebugEvent event) {
         synchronized (this) {
