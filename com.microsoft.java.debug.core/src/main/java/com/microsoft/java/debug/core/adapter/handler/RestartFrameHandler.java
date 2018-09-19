@@ -106,8 +106,8 @@ public class RestartFrameHandler implements IDebugRequestHandler {
         context.getDebugSession().getEventHub().stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1).subscribe(debugEvent -> {
             debugEvent.shouldResume = false;
             // Have to send two events to keep the UI sync with the step in operations:
-            context.getProtocolServer().sendEvent(new Events.StoppedEvent("restartframe", thread.uniqueID()));
             context.getProtocolServer().sendEvent(new Events.ContinuedEvent(thread.uniqueID()));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("restartframe", thread.uniqueID()));
         });
         request.enable();
         thread.resume();
