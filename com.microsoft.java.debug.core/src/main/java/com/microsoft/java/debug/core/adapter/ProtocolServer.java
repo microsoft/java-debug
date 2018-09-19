@@ -33,6 +33,8 @@ public class ProtocolServer extends AbstractProtocolServer {
 
     private IDebugAdapter debugAdapter;
     private UsageDataSession usageDataSession = new UsageDataSession();
+
+    private Object lock = new Object();
     private boolean isDispatchingRequest = false;
     private ConcurrentLinkedQueue<DebugEvent> eventQueue = new ConcurrentLinkedQueue<>();
 
@@ -96,7 +98,7 @@ public class ProtocolServer extends AbstractProtocolServer {
      * Else add the new event to an eventQueue first and send them when dispatcher becomes idle again.
      */
     private void sendEventLater(DebugEvent event) {
-        synchronized (this) {
+        synchronized (lock) {
             if (this.isDispatchingRequest) {
                 this.eventQueue.offer(event);
             } else {
@@ -109,7 +111,7 @@ public class ProtocolServer extends AbstractProtocolServer {
     protected void dispatchRequest(Messages.Request request) {
         usageDataSession.recordRequest(request);
         try {
-            synchronized (this) {
+            synchronized (lock) {
                 this.isDispatchingRequest = true;
             }
 
@@ -150,7 +152,7 @@ public class ProtocolServer extends AbstractProtocolServer {
                 return null;
             }).join();
         } finally {
-            synchronized (this) {
+            synchronized (lock) {
                 this.isDispatchingRequest = false;
             }
 
