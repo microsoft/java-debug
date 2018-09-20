@@ -25,10 +25,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
@@ -41,6 +46,7 @@ import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 
 import com.microsoft.java.debug.core.Configuration;
+
 
 public class ResolveMainClassHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -79,7 +85,6 @@ public class ResolveMainClassHandler {
         if (rootPath != null) {
             targetProjectPath.add(rootPath);
         }
-        IJavaSearchScope searchScope = SearchEngine.createWorkspaceScope();
         SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
                 IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
         final List<ResolutionItem> res = new ArrayList<>();
@@ -128,9 +133,31 @@ public class ResolveMainClassHandler {
             }
         };
         SearchEngine searchEngine = new SearchEngine();
+        int constraints = IJavaSearchScope.SOURCES;
+        constraints |= IJavaSearchScope.APPLICATION_LIBRARIES;
+        IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
+        List<IJavaElement> sourcePackageFragmentRoots = new ArrayList<IJavaElement>();
+        for (IProject project : root.getProjects()) {
+            IJavaProject javaProject = JavaCore.create(project);
+            try {
+                IPackageFragmentRoot[] packageFragmentRoot = javaProject.getPackageFragmentRoots();
+
+                for (int i = 0; i < packageFragmentRoot.length; i++) {
+                    if (packageFragmentRoot[i].getElementType() == IJavaElement.PACKAGE_FRAGMENT_ROOT
+                            && packageFragmentRoot[i].getKind() == IPackageFragmentRoot.K_SOURCE) {
+                        sourcePackageFragmentRoots.add(packageFragmentRoot[i]);
+                    }
+                }
+            } catch (JavaModelException e) {
+                // ignore
+            }
+
+        }
+
+        IJavaSearchScope scope = SearchEngine.createJavaSearchScope(sourcePackageFragmentRoots.toArray(new IJavaElement[0]), constraints);
         try {
             searchEngine.search(pattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
-                    searchScope, requestor, null /* progress monitor */);
+                    scope, requestor, null /* progress monitor */);
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("Searching the main class failure: %s", e.toString()), e);
         }
