@@ -18,6 +18,9 @@ import java.util.List;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -28,6 +31,7 @@ import org.eclipse.jdt.core.ISourceReference;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
+import org.eclipse.jdt.ls.core.internal.handlers.DocumentLifeCycleHandler;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 import org.eclipse.lsp4j.Range;
 
@@ -41,6 +45,17 @@ public class ResolveMainMethodHandler {
     public static Object resolveMainMethods(List<Object> arguments) throws DebugException {
         if (arguments == null || arguments.isEmpty()) {
             return Collections.emptyList();
+        }
+
+        // When the current document is changed, the language server will receive a didChange request about the changed text and then
+        // trigger a background job to update the change to the CompilationUnit. Because of race condition, the resolveMainMethods may read
+        // an old CompilationUnit. So add some waiting logic to wait the Document Update to finish first.
+        try {
+            Job.getJobManager().join(DocumentLifeCycleHandler.DOCUMENT_LIFE_CYCLE_JOBS, new NullProgressMonitor());
+        } catch (OperationCanceledException ignorable) {
+            // Do nothing.
+        } catch (InterruptedException e) {
+            // Do nothing.
         }
 
         String uri = (String) arguments.get(0);
