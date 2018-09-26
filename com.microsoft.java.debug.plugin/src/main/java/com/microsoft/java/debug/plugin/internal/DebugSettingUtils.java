@@ -50,7 +50,7 @@ public final class DebugSettingUtils {
             });
 
         } else {
-            logger.severe(String.format("Invalid parameters for debugSettings: %s", StringUtils.join(arguments)));
+            logger.severe(String.format("Invalid parameters for debugSettings: %s", StringUtils.join(arguments.toArray(), ',')));
         }
         return JsonUtils.toJson(DebugSettings.getCurrent());
     }
