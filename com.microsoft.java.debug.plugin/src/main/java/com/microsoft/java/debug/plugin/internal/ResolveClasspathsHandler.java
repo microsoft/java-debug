@@ -48,12 +48,9 @@ public class ResolveClasspathsHandler {
 
     /**
      * Resolves class path for a java project.
-     *
-     * @param arguments
-     *            a list contains the main class name and project name
+     * @param arguments a list contains the main class name and  project name
      * @return the class paths entries
-     * @throws Exception
-     *             when there are any errors during resolving class path
+     * @throws Exception when there are any errors during resolving class path
      */
     public String[][] resolveClasspaths(List<Object> arguments) throws Exception {
         try {
@@ -117,8 +114,8 @@ public class ResolveClasspathsHandler {
         };
         SearchEngine searchEngine = new SearchEngine();
         searchEngine.search(pattern, new SearchParticipant[] {
-                SearchEngine.getDefaultSearchParticipant()
-            }, scope, requestor, null /* progress monitor */);
+            SearchEngine.getDefaultSearchParticipant() }, scope,
+            requestor, null /* progress monitor */);
 
         return projects.stream().distinct().collect(Collectors.toList());
     }
