@@ -96,8 +96,11 @@ public class ResolveClasspathsHandler {
         }
         final String moduleName = splitItems.length == 2 ? splitItems[0] : null;
 
-        SearchPattern pattern = SearchPattern.createPattern(fullyQualifiedTypeName, IJavaSearchConstants.TYPE,
-                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_EXACT_MATCH);
+        SearchPattern pattern = SearchPattern.createPattern(
+                fullyQualifiedTypeName,
+                IJavaSearchConstants.TYPE,
+                IJavaSearchConstants.DECLARATIONS,
+                SearchPattern.R_EXACT_MATCH);
         IJavaSearchScope scope = SearchEngine.createWorkspaceScope();
         ArrayList<IJavaProject> projects = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
