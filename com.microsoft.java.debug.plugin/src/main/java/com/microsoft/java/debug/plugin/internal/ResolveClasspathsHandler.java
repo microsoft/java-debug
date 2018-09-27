@@ -22,12 +22,8 @@ import java.util.stream.Collectors;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.jdt.core.IClasspathAttribute;
-import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IPackageFragmentRoot;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -42,9 +38,7 @@ import com.microsoft.java.debug.core.Configuration;
 
 public class ResolveClasspathsHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final String TEST_SCOPE = "test";
-    private static final String MAVEN_SCOPE_ATTRIBUTE = "maven.scope";
-    private static final String GRADLE_SCOPE_ATTRIBUTE = "gradle_scope";
+
 
     /**
      * Resolves class path for a java project.
@@ -194,7 +188,7 @@ public class ResolveClasspathsHandler {
                         !includeTestScope);
                 for (int j = 0; j < entries.length; j++) {
 
-                    if (!includeTestScope && forTestOnly(entries[j].getClasspathEntry())) {
+                    if (!includeTestScope && JdtUtils.isTest(entries[j].getClasspathEntry())) {
                         continue;
                     }
                     String location = entries[j].getLocation();
@@ -208,21 +202,6 @@ public class ResolveClasspathsHandler {
         return resolved.toArray(new String[resolved.size()]);
     }
 
-    /**
-     * There is an issue on isTest: it will return true if the scope is runtime, so we will this method for testing whether
-     * the classpath entry is for test only.
-     *
-     * @param classpathEntry classpath entry
-     * @return whether this classpath entry is only used in test
-     */
-    private static boolean forTestOnly(final IClasspathEntry classpathEntry) {
-        for (IClasspathAttribute attribute : classpathEntry.getExtraAttributes()) {
-            if (GRADLE_SCOPE_ATTRIBUTE.equals(attribute.getName()) || MAVEN_SCOPE_ATTRIBUTE.equals(attribute.getName())) {
-                return TEST_SCOPE.equals(attribute.getValue());
-            }
-        }
-        return classpathEntry.isTest();
-    }
 
     /**
      * Test whether the main class is located in test folders.
@@ -233,22 +212,8 @@ public class ResolveClasspathsHandler {
     private static boolean isMainClassInTestFolder(IJavaProject project, String mainClass) {
         // get a list of test folders and check whether main class is here
         int constraints = IJavaSearchScope.SOURCES;
-        List<IJavaElement> testFolders = new ArrayList<IJavaElement>();
-        try {
-            IPackageFragmentRoot[] packageFragmentRoot = project.getPackageFragmentRoots();
-            for (int i = 0; i < packageFragmentRoot.length; i++) {
-                if (packageFragmentRoot[i].getElementType() == IJavaElement.PACKAGE_FRAGMENT_ROOT
-                        && packageFragmentRoot[i].getKind() == IPackageFragmentRoot.K_SOURCE) {
-                    IClasspathEntry cpe = packageFragmentRoot[i].getResolvedClasspathEntry();
-                    if (forTestOnly(cpe)) {
-                        testFolders.add(packageFragmentRoot[i]);
-                    }
-                }
-            }
-        } catch (JavaModelException e) {
-            // ignore
-        }
-        if (!testFolders.isEmpty()) {
+        IJavaElement[] testFolders = JdtUtils.getTestPackageFragmentRoots(project);
+        if (testFolders.length > 0) {
             try {
 
                 List<Object> mainClassesInTestFolder = new ArrayList<>();
@@ -256,8 +221,7 @@ public class ResolveClasspathsHandler {
                         IJavaSearchConstants.DECLARATIONS,
                         SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
                 SearchEngine searchEngine = new SearchEngine();
-                IJavaSearchScope scope = SearchEngine
-                        .createJavaSearchScope(testFolders.toArray(new IJavaElement[0]), constraints);
+                IJavaSearchScope scope = SearchEngine.createJavaSearchScope(testFolders, constraints);
                 SearchRequestor requestor = new SearchRequestor() {
                     @Override
                     public void acceptSearchMatch(SearchMatch match) {
