@@ -25,6 +25,9 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.IClasspathAttribute;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IModuleDescription;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
@@ -47,6 +50,9 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
 
 public class JdtUtils {
+    private static final String TEST_SCOPE = "test";
+    private static final String MAVEN_SCOPE_ATTRIBUTE = "maven.scope";
+    private static final String GRADLE_SCOPE_ATTRIBUTE = "gradle_scope";
 
     /**
      * Returns the module this project represents or null if the Java project doesn't represent any named module.
@@ -116,6 +122,50 @@ public class JdtUtils {
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
         return root.getProject(projectName);
     }
+
+    /**
+     * Compute the fragment roots for each test source folders.
+     *
+     * @param project the java project.
+     * @return the fragment roots for each test source folders.
+     */
+    public static IPackageFragmentRoot[] getTestPackageFragmentRoots(IJavaProject project) {
+        try {
+            IPackageFragmentRoot[] packageFragmentRoot = project.getPackageFragmentRoots();
+            List<IPackageFragmentRoot> sources = new ArrayList<>();
+            for (int i = 0; i < packageFragmentRoot.length; i++) {
+                if (packageFragmentRoot[i].getElementType() == IJavaElement.PACKAGE_FRAGMENT_ROOT
+                        && packageFragmentRoot[i].getKind() == IPackageFragmentRoot.K_SOURCE) {
+                    IClasspathEntry cpe = packageFragmentRoot[i].getResolvedClasspathEntry();
+
+                    if (isTest(cpe)) {
+                        sources.add(packageFragmentRoot[i]);
+                    }
+                }
+            }
+            return sources.toArray(new IPackageFragmentRoot[0]);
+        } catch (JavaModelException e) {
+            // ignore
+            return new IPackageFragmentRoot[0];
+        }
+    }
+
+    /**
+     * There is an issue on IClasspathEntry#isTest: it will return true if the scope is runtime, so we will this method for testing whether
+     * the classpath entry is for test only.
+     *
+     * @param classpathEntry classpath entry
+     * @return whether this classpath entry is only used in test
+     */
+    public static boolean isTest(final IClasspathEntry classpathEntry) {
+        for (IClasspathAttribute attribute : classpathEntry.getExtraAttributes()) {
+            if (GRADLE_SCOPE_ATTRIBUTE.equals(attribute.getName()) || MAVEN_SCOPE_ATTRIBUTE.equals(attribute.getName())) {
+                return TEST_SCOPE.equals(attribute.getValue());
+            }
+        }
+        return classpathEntry.isTest();
+    }
+
 
     /**
      * Compute the possible source containers that the specified project could be associated with.
