@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspaceRoot;
@@ -103,7 +104,7 @@ public class JdtUtils {
      * If the project doesn't exist or not a java project, return null.
      */
     public static IJavaProject getJavaProject(String projectName) {
-        if (projectName == null) {
+        if (StringUtils.isBlank(projectName)) {
             return null;
         }
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
@@ -112,11 +113,24 @@ public class JdtUtils {
     }
 
     /**
+     * List all available Java projects of the specified workspace.
+     */
+    public static List<IJavaProject> listJavaProjects(IWorkspaceRoot workspace) {
+        List<IJavaProject> results = new ArrayList<>();
+        for (IProject project : workspace.getProjects()) {
+            if (isJavaProject(project)) {
+                results.add(JavaCore.create(project));
+            }
+        }
+        return results;
+    }
+
+    /**
      * Given the project name, return the corresponding project object.
      * If the project doesn't exist, return null.
      */
     public static IProject getProject(String projectName) {
-        if (projectName == null) {
+        if (StringUtils.isBlank(projectName)) {
             return null;
         }
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
