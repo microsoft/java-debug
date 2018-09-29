@@ -193,11 +193,12 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                         CompletableFuture.runAsync(() -> {
                             engine.evaluateForBreakpoint((IEvaluatableBreakpoint) expressionBP, bpThread).whenComplete((value, ex) -> {
                                 boolean resume = handleEvaluationResult(context, bpThread, expressionBP, value, ex);
+                                // Clear the evaluation environment caused by above evaluation.
+                                engine.clearState(bpThread);
+
                                 if (resume) {
                                     debugEvent.eventSet.resume();
                                 }
-                                // Clear the evaluation environment caused by above evaluation.
-                                engine.clearState(bpThread);
                             });
                         });
                     } else {
