@@ -15,15 +15,20 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -83,6 +88,12 @@ public class ResolveClasspathsHandler {
      *             CoreException
      */
     public static List<IJavaProject> getJavaProjectFromType(String fullyQualifiedTypeName) throws CoreException {
+        // If only one Java project exists in the whole workspace, return the project directly.
+        List<IJavaProject> javaProjects = JdtUtils.listJavaProjects(ResourcesPlugin.getWorkspace().getRoot());
+        if (javaProjects.size() <= 1) {
+            return javaProjects;
+        }
+
         String[] splitItems = fullyQualifiedTypeName.split("/");
         // If the main class name contains the module name, should trim the module info.
         if (splitItems.length == 2) {
@@ -90,29 +101,91 @@ public class ResolveClasspathsHandler {
         }
         final String moduleName = splitItems.length == 2 ? splitItems[0] : null;
 
+        // Search the associated project for the type.
+        List<IJavaProject> projects = searchJavaProjectFromType(fullyQualifiedTypeName, moduleName);
+        if (projects.isEmpty()) {
+            String className = fullyQualifiedTypeName.substring(fullyQualifiedTypeName.lastIndexOf('.') + 1);
+            // See the bug https://github.com/Microsoft/vscode-java-debug/issues/427
+            // If the target class is an inner class, its fully qualified name will contain $, but the search engine doesn't support $ separated class name.
+            // Add an extra search from main method.
+            if (className.indexOf('$') > 0) {
+                return searchJavaProjectFromMainMethod(fullyQualifiedTypeName, moduleName);
+            }
+        }
+
+        return projects;
+    }
+
+    private static List<IJavaProject> searchJavaProjectFromType(String fullyQualifiedTypeName, String moduleName) throws CoreException {
         SearchPattern pattern = SearchPattern.createPattern(
                 fullyQualifiedTypeName,
-                IJavaSearchConstants.TYPE,
+                IJavaSearchConstants.CLASS,
                 IJavaSearchConstants.DECLARATIONS,
                 SearchPattern.R_EXACT_MATCH);
-        IJavaSearchScope scope = SearchEngine.createWorkspaceScope();
-        ArrayList<IJavaProject> projects = new ArrayList<>();
+
+        List<IJavaProject> projects = searchJavaProject(pattern, (SearchMatch match) -> {
+            Object element = match.getElement();
+            if (element instanceof IJavaElement) {
+                IJavaProject project = ((IJavaElement) element).getJavaProject();
+                if (moduleName == null || moduleName.equals(JdtUtils.getModuleName(project))) {
+                    return project;
+                }
+            }
+
+            return null;
+        });
+
+        return projects.stream().distinct().collect(Collectors.toList());
+    }
+
+    private static List<IJavaProject> searchJavaProjectFromMainMethod(String fullyQualifiedTypeName, String moduleName) throws CoreException {
+        SearchPattern pattern = SearchPattern.createPattern(
+                "main(String[]) void",
+                IJavaSearchConstants.METHOD,
+                IJavaSearchConstants.DECLARATIONS,
+                SearchPattern.R_EXACT_MATCH);
+
+        List<IJavaProject> projects = searchJavaProject(pattern, (SearchMatch match) -> {
+            Object element = match.getElement();
+            if (element instanceof IMethod) {
+                IMethod method = (IMethod) element;
+                try {
+                    if (method.isMainMethod() && method.getDeclaringType().getFullyQualifiedName().equals(fullyQualifiedTypeName)) {
+                        IJavaProject project = method.getJavaProject();
+                        if (moduleName == null || moduleName.equals(JdtUtils.getModuleName(project))) {
+                            return project;
+                        }
+                    }
+                } catch (JavaModelException e) {
+                    // ignore
+                }
+            }
+
+            return null;
+        });
+
+        return projects.stream().distinct().collect(Collectors.toList());
+    }
+
+    private static List<IJavaProject> searchJavaProject(SearchPattern searchPattern, Function<SearchMatch, IJavaProject> handleSearchMatch)
+        throws CoreException {
+        List<IJavaProject> projects = new ArrayList<>();
+        IJavaSearchScope searchScope = SearchEngine.createWorkspaceScope();
         SearchRequestor requestor = new SearchRequestor() {
             @Override
             public void acceptSearchMatch(SearchMatch match) {
-                Object element = match.getElement();
-                if (element instanceof IJavaElement) {
-                    IJavaProject project = ((IJavaElement) element).getJavaProject();
-                    if (moduleName == null || moduleName.equals(JdtUtils.getModuleName(project))) {
-                        projects.add(project);
-                    }
+                IJavaProject accept = handleSearchMatch.apply(match);
+                if (accept != null) {
+                    projects.add(accept);
                 }
             }
         };
         SearchEngine searchEngine = new SearchEngine();
-        searchEngine.search(pattern, new SearchParticipant[] {
-            SearchEngine.getDefaultSearchParticipant() }, scope,
-            requestor, null /* progress monitor */);
+        searchEngine.search(searchPattern,
+                new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+                searchScope,
+                requestor,
+                null /* progress monitor */);
 
         return projects.stream().distinct().collect(Collectors.toList());
     }
@@ -132,7 +205,7 @@ public class ResolveClasspathsHandler {
         IJavaProject project = null;
         // if type exists in multiple projects, debug configuration need provide
         // project name.
-        if (projectName != null) {
+        if (StringUtils.isNotBlank(projectName)) {
             project = getJavaProjectFromName(projectName);
         } else {
             List<IJavaProject> projects = getJavaProjectFromType(mainClass);
