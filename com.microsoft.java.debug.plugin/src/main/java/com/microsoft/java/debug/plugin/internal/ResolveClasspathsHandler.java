@@ -19,6 +19,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -83,6 +85,12 @@ public class ResolveClasspathsHandler {
      *             CoreException
      */
     public static List<IJavaProject> getJavaProjectFromType(String fullyQualifiedTypeName) throws CoreException {
+        // If only one Java project exists in the whole workspace, return the project directly.
+        List<IJavaProject> javaProjects = JdtUtils.listJavaProjects(ResourcesPlugin.getWorkspace().getRoot());
+        if (javaProjects.size() <= 1) {
+            return javaProjects;
+        }
+
         String[] splitItems = fullyQualifiedTypeName.split("/");
         // If the main class name contains the module name, should trim the module info.
         if (splitItems.length == 2) {
@@ -132,7 +140,7 @@ public class ResolveClasspathsHandler {
         IJavaProject project = null;
         // if type exists in multiple projects, debug configuration need provide
         // project name.
-        if (projectName != null) {
+        if (StringUtils.isNotBlank(projectName)) {
             project = getJavaProjectFromName(projectName);
         } else {
             List<IJavaProject> projects = getJavaProjectFromType(mainClass);
