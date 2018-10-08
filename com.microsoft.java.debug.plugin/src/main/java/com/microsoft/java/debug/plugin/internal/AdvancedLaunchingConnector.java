@@ -17,7 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 
-import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.jdi.internal.VirtualMachineImpl;
 import org.eclipse.jdi.internal.VirtualMachineManagerImpl;
 import org.eclipse.jdi.internal.connect.SocketLaunchingConnectorImpl;
