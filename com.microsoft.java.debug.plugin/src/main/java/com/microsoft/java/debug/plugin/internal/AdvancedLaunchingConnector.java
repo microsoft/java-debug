@@ -115,7 +115,7 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         }
         execString.append(" " + main);
 
-        return DebugPlugin.parseArguments(execString.toString());
+        return DebugUtility.parseArguments(execString.toString()).toArray(new String[0]);
     }
 
     class AdvancedStringArgumentImpl extends StringArgumentImpl implements StringArgument {
