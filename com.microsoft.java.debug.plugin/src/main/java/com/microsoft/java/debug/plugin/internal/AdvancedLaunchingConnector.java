@@ -17,7 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 
-import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.jdi.internal.VirtualMachineImpl;
 import org.eclipse.jdi.internal.VirtualMachineManagerImpl;
 import org.eclipse.jdi.internal.connect.SocketLaunchingConnectorImpl;
@@ -115,7 +114,7 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         }
         execString.append(" " + main);
 
-        return DebugPlugin.parseArguments(execString.toString());
+        return DebugUtility.parseArguments(execString.toString()).toArray(new String[0]);
     }
 
     class AdvancedStringArgumentImpl extends StringArgumentImpl implements StringArgument {

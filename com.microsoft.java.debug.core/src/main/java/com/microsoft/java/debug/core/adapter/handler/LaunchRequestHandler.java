@@ -22,14 +22,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
+import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -107,7 +106,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
         }
         if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
-            launchCmds.addAll(parseArguments(launchArguments.vmArgs));
+            launchCmds.addAll(DebugUtility.parseArguments(launchArguments.vmArgs));
         }
         if (ArrayUtils.isNotEmpty(launchArguments.modulePaths)) {
             launchCmds.add("--module-path");
@@ -124,7 +123,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
         launchCmds.add(launchArguments.mainClass);
         if (StringUtils.isNotBlank(launchArguments.args)) {
-            launchCmds.addAll(parseArguments(launchArguments.args));
+            launchCmds.addAll(DebugUtility.parseArguments(launchArguments.args));
         }
         return launchCmds.toArray(new String[0]);
     }
@@ -168,26 +167,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             }
         }
         return envVars;
-    }
-
-    /**
-     * Parses the given command line into separate arguments that can be passed
-     * to <code>Runtime.getRuntime().exec(cmdArray)</code>.
-     *
-     * @param cmdStr command line as a single string.
-     * @return the arguments array.
-     */
-    protected static List<String> parseArguments(String cmdStr) {
-        List<String> list = new ArrayList<String>();
-        // The legal arguments are
-        // 1. token starting with something other than quote " and followed by zero or more non-space characters
-        // 2. a quote " followed by whatever, until another quote "
-        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(cmdStr);
-        while (m.find()) {
-            String arg = m.group(1).replaceAll("^\"|\"$", ""); // Remove surrounding quotes.
-            list.add(arg);
-        }
-        return list;
     }
 
     public static String parseMainClassWithoutModuleName(String mainClass) {

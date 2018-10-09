@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
@@ -437,5 +438,205 @@ public class DebugUtility {
         }
 
         return result.toArray(new String[0]);
+    }
+
+    /**
+     * Parses the given command line into separate arguments that can be passed
+     * to <code>Runtime.getRuntime().exec(cmdArray)</code>.
+     *
+     * @param cmdStr command line as a single string.
+     * @return the individual arguments.
+     */
+    public static List<String> parseArguments(String cmdStr) {
+        if (cmdStr == null) {
+            return new ArrayList<>();
+        }
+
+        return AdapterUtils.isWindows() ? parseArgumentsWindows(cmdStr) : parseArgumentsNonWindows(cmdStr);
+    }
+
+
+    /**
+     * Parses the given command line into separate arguments for mac/linux platform.
+     * This piece of code is mainly copied from
+     * https://github.com/eclipse/eclipse.platform.debug/blob/master/org.eclipse.debug.core/core/org/eclipse/debug/core/DebugPlugin.java#L1374
+     *
+     * @param args
+     *            the command line arguments as a single string.
+     * @return the individual arguments
+     */
+    private static List<String> parseArgumentsNonWindows(String args) {
+        // man sh, see topic QUOTING
+        List<String> result = new ArrayList<>();
+
+        final int DEFAULT = 0;
+        final int ARG = 1;
+        final int IN_DOUBLE_QUOTE = 2;
+        final int IN_SINGLE_QUOTE = 3;
+
+        int state = DEFAULT;
+        StringBuilder buf = new StringBuilder();
+        int len = args.length();
+        for (int i = 0; i < len; i++) {
+            char ch = args.charAt(i);
+            if (Character.isWhitespace(ch)) {
+                if (state == DEFAULT) {
+                    // skip
+                    continue;
+                } else if (state == ARG) {
+                    state = DEFAULT;
+                    result.add(buf.toString());
+                    buf.setLength(0);
+                    continue;
+                }
+            }
+            switch (state) {
+                case DEFAULT:
+                case ARG:
+                    if (ch == '"') {
+                        state = IN_DOUBLE_QUOTE;
+                    } else if (ch == '\'') {
+                        state = IN_SINGLE_QUOTE;
+                    } else if (ch == '\\' && i + 1 < len) {
+                        state = ARG;
+                        ch = args.charAt(++i);
+                        buf.append(ch);
+                    } else {
+                        state = ARG;
+                        buf.append(ch);
+                    }
+                    break;
+
+                case IN_DOUBLE_QUOTE:
+                    if (ch == '"') {
+                        state = ARG;
+                    } else if (ch == '\\' && i + 1 < len && (args.charAt(i + 1) == '\\' || args.charAt(i + 1) == '"')) {
+                        ch = args.charAt(++i);
+                        buf.append(ch);
+                    } else {
+                        buf.append(ch);
+                    }
+                    break;
+
+                case IN_SINGLE_QUOTE:
+                    if (ch == '\'') {
+                        state = ARG;
+                    } else {
+                        buf.append(ch);
+                    }
+                    break;
+
+                default:
+                    throw new IllegalStateException();
+            }
+        }
+        if (buf.length() > 0 || state != DEFAULT) {
+            result.add(buf.toString());
+        }
+
+        return result;
+    }
+
+
+    /**
+     * Parses the given command line into separate arguments for windows platform.
+     * This piece of code is mainly copied from
+     * https://github.com/eclipse/eclipse.platform.debug/blob/master/org.eclipse.debug.core/core/org/eclipse/debug/core/DebugPlugin.java#L1264
+     *
+     * @param args
+     *            the command line arguments as a single string.
+     * @return the individual arguments
+     */
+    private static List<String> parseArgumentsWindows(String args) {
+        // see http://msdn.microsoft.com/en-us/library/a1y7w461.aspx
+        List<String> result = new ArrayList<>();
+        final int DEFAULT = 0;
+        final int ARG = 1;
+        final int IN_DOUBLE_QUOTE = 2;
+
+        int state = DEFAULT;
+        int backslashes = 0;
+        StringBuilder buf = new StringBuilder();
+        int len = args.length();
+        for (int i = 0; i < len; i++) {
+            char ch = args.charAt(i);
+            if (ch == '\\') {
+                backslashes++;
+                continue;
+            } else if (backslashes != 0) {
+                if (ch == '"') {
+                    for (; backslashes >= 2; backslashes -= 2) {
+                        buf.append('\\');
+                    }
+                    if (backslashes == 1) {
+                        if (state == DEFAULT) {
+                            state = ARG;
+                        }
+                        buf.append('"');
+                        backslashes = 0;
+                        continue;
+                    } // else fall through to switch
+                } else {
+                    // false alarm, treat passed backslashes literally...
+                    if (state == DEFAULT) {
+                        state = ARG;
+                    }
+                    for (; backslashes > 0; backslashes--) {
+                        buf.append('\\');
+                    }
+                    // fall through to switch
+                }
+            }
+            if (Character.isWhitespace(ch)) {
+                if (state == DEFAULT) {
+                    // skip
+                    continue;
+                } else if (state == ARG) {
+                    state = DEFAULT;
+                    result.add(buf.toString());
+                    buf.setLength(0);
+                    continue;
+                }
+            }
+            switch (state) {
+                case DEFAULT:
+                case ARG:
+                    if (ch == '"') {
+                        state = IN_DOUBLE_QUOTE;
+                    } else {
+                        state = ARG;
+                        buf.append(ch);
+                    }
+                    break;
+
+                case IN_DOUBLE_QUOTE:
+                    if (ch == '"') {
+                        if (i + 1 < len && args.charAt(i + 1) == '"') {
+                            /* Undocumented feature in Windows:
+                             * Two consecutive double quotes inside a double-quoted argument are interpreted as
+                             * a single double quote.
+                             */
+                            buf.append('"');
+                            i++;
+                        } else if (buf.length() == 0) {
+                            // empty string on Windows platform. Account for bug in constructor of JDK's java.lang.ProcessImpl.
+                            result.add("\"\""); //$NON-NLS-1$
+                            state = DEFAULT;
+                        } else {
+                            state = ARG;
+                        }
+                    } else {
+                        buf.append(ch);
+                    }
+                    break;
+
+                default:
+                    throw new IllegalStateException();
+            }
+        }
+        if (buf.length() > 0 || state != DEFAULT) {
+            result.add(buf.toString());
+        }
+        return result;
     }
 }
