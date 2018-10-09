@@ -44,7 +44,8 @@ import com.microsoft.java.debug.core.Configuration;
 
 public class ResolveMainClassHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final String CLASSNAME_REGX = "([$\\w]+\\.)*[$\\w]+";
+    // Java command line supports two kinds of main class format: <mainclass> and <module>[/<mainclass>]
+    private static final String CLASSNAME_REGX = "([$\\w]+\\.)*[$\\w]+(/([$\\w]+\\.)*[$\\w]+)?";
 
     /**
      * resolve main class and project name.
