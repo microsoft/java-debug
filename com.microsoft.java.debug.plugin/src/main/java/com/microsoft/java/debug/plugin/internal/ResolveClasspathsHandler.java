@@ -26,6 +26,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -97,7 +98,7 @@ public class ResolveClasspathsHandler {
             fullyQualifiedTypeName = splitItems[1];
         }
         final String moduleName = splitItems.length == 2 ? splitItems[0] : null;
-
+        final String className = fullyQualifiedTypeName;
         SearchPattern pattern = SearchPattern.createPattern(
                 fullyQualifiedTypeName,
                 IJavaSearchConstants.TYPE,
@@ -109,9 +110,11 @@ public class ResolveClasspathsHandler {
             @Override
             public void acceptSearchMatch(SearchMatch match) {
                 Object element = match.getElement();
-                if (element instanceof IJavaElement) {
-                    IJavaProject project = ((IJavaElement) element).getJavaProject();
-                    if (moduleName == null || moduleName.equals(JdtUtils.getModuleName(project))) {
+                if (element instanceof IType) {
+                    IType type = (IType) element;
+                    IJavaProject project = type.getJavaProject();
+                    if (className.equals(type.getFullyQualifiedName())
+                            && (moduleName == null || moduleName.equals(JdtUtils.getModuleName(project)))) {
                         projects.add(project);
                     }
                 }
