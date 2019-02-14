@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
 
@@ -42,6 +43,8 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private Process debuggeeProcess;
     private String mainClass;
     private StepFilters stepFilters;
+    private Path classpathJar = null;
+    private Path argsfile = null;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -252,5 +255,25 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setDebuggeeProcess(Process debuggeeProcess) {
         this.debuggeeProcess = debuggeeProcess;
+    }
+
+    @Override
+    public void setClasspathJar(Path classpathJar) {
+        this.classpathJar = classpathJar;
+    }
+
+    @Override
+    public Path getClasspathJar() {
+        return this.classpathJar;
+    }
+
+    @Override
+    public void setArgsfile(Path argsfile) {
+        this.argsfile = argsfile;
+    }
+
+    @Override
+    public Path getArgsfile() {
+        return this.argsfile;
     }
 }

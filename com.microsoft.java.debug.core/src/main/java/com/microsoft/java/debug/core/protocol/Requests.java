@@ -60,6 +60,12 @@ public class Requests {
         externalTerminal;
     }
 
+    public static enum CliStyle {
+        none,
+        jarmanifest,
+        argfile;
+    }
+
     public static class LaunchArguments extends LaunchBaseArguments {
         public String mainClass;
         public String args = "";
@@ -72,6 +78,7 @@ public class Requests {
         public boolean stopOnEntry;
         public boolean noDebug = false;
         public CONSOLE console = CONSOLE.internalConsole;
+        public CliStyle shortenCommandLine = CliStyle.none;
     }
 
     public static class AttachArguments extends LaunchBaseArguments {

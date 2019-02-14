@@ -72,8 +72,7 @@ public class DebugAdapter implements IDebugAdapter {
         Command command = Command.parse(request.command);
         Arguments cmdArgs = JsonUtils.fromJson(request.arguments, command.getArgumentType());
 
-        if (debugContext.isVmTerminated()) {
-            // the operation is meaningless
+        if (debugContext.isVmTerminated() && command != Command.DISCONNECT) {
             return CompletableFuture.completedFuture(response);
         }
         List<IDebugRequestHandler> handlers = this.debugContext.getLaunchMode() == LaunchMode.DEBUG

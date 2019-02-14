@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.Map;
 
 import com.microsoft.java.debug.core.IDebugSession;
@@ -109,4 +110,12 @@ public interface IDebugAdapterContext {
     Process getDebuggeeProcess();
 
     void setDebuggeeProcess(Process debuggeeProcess);
+
+    void setClasspathJar(Path classpathJar);
+
+    Path getClasspathJar();
+
+    void setArgsfile(Path argsfile);
+
+    Path getArgsfile();
 }
