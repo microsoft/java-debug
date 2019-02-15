@@ -46,9 +46,9 @@ import com.microsoft.java.debug.core.adapter.LaunchMode;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
-import com.microsoft.java.debug.core.protocol.Requests.CliStyle;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
+import com.microsoft.java.debug.core.protocol.Requests.ShortenApproach;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -99,7 +99,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         Path tempfile = null;
         // Use the specified cli style to launch the program.
-        if (launchArguments.shortenCommandLine == CliStyle.jarmanifest) {
+        if (launchArguments.shortenCommandLine == ShortenApproach.JARMANIFEST) {
             if (ArrayUtils.isNotEmpty(launchArguments.classPaths)) {
                 List<String> classpathUrls = new ArrayList<>();
                 for (String classpath : launchArguments.classPaths) {
@@ -129,7 +129,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                     tempfile = null;
                 }
             }
-        } else if (launchArguments.shortenCommandLine == CliStyle.argfile) {
+        } else if (launchArguments.shortenCommandLine == ShortenApproach.ARGFILE) {
             try {
                 tempfile = Files.createTempFile("java_", ".argfile");
                 String argfile = "";

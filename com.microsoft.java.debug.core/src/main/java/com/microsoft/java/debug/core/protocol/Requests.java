@@ -14,6 +14,8 @@ package com.microsoft.java.debug.core.protocol;
 import java.util.Arrays;
 import java.util.Map;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * The request arguments types defined by VSCode Debug Protocol.
  */
@@ -60,10 +62,13 @@ public class Requests {
         externalTerminal;
     }
 
-    public static enum CliStyle {
-        none,
-        jarmanifest,
-        argfile;
+    public static enum ShortenApproach {
+        @SerializedName("none")
+        NONE,
+        @SerializedName("jarmanifest")
+        JARMANIFEST,
+        @SerializedName("argfile")
+        ARGFILE;
     }
 
     public static class LaunchArguments extends LaunchBaseArguments {
@@ -78,7 +83,7 @@ public class Requests {
         public boolean stopOnEntry;
         public boolean noDebug = false;
         public CONSOLE console = CONSOLE.internalConsole;
-        public CliStyle shortenCommandLine = CliStyle.none;
+        public ShortenApproach shortenCommandLine = ShortenApproach.NONE;
     }
 
     public static class AttachArguments extends LaunchBaseArguments {
