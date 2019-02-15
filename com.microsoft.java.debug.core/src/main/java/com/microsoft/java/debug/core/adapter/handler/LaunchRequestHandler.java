@@ -12,8 +12,13 @@
 package com.microsoft.java.debug.core.adapter.handler;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -21,6 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
+import java.util.jar.Attributes;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -39,6 +48,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
+import com.microsoft.java.debug.core.protocol.Requests.ShortenApproach;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -86,6 +96,62 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         context.setLaunchMode(launchArguments.noDebug ? LaunchMode.NO_DEBUG : LaunchMode.DEBUG);
 
         activeLaunchHandler.preLaunch(launchArguments, context);
+
+        Path tempfile = null;
+        // Use the specified cli style to launch the program.
+        if (launchArguments.shortenCommandLine == ShortenApproach.JARMANIFEST) {
+            if (ArrayUtils.isNotEmpty(launchArguments.classPaths)) {
+                List<String> classpathUrls = new ArrayList<>();
+                for (String classpath : launchArguments.classPaths) {
+                    try {
+                        classpathUrls.add(AdapterUtils.toUrl(classpath));
+                    } catch (IllegalArgumentException | MalformedURLException ex) {
+                        logger.log(Level.SEVERE, String.format("Failed to launch the program with jarmanifest style: %s", ex.toString(), ex));
+                        throw AdapterUtils.createCompletionException("Failed to launch the program with jarmanifest style: " + ex.toString(),
+                                ErrorCode.LAUNCH_FAILURE, ex);
+                    }
+                }
+
+                try {
+                    tempfile = Files.createTempFile("classpath_", ".jar");
+                    Manifest manifest = new Manifest();
+                    Attributes attributes = manifest.getMainAttributes();
+                    attributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
+                    // In jar manifest, the absolute path C:\a.jar should be converted to the url style file:///C:/a.jar
+                    attributes.put(Attributes.Name.CLASS_PATH, String.join(" ", classpathUrls));
+                    JarOutputStream jar = new JarOutputStream(new FileOutputStream(tempfile.toFile()), manifest);
+                    jar.close();
+                    launchArguments.vmArgs += " -cp \"" + tempfile.toAbsolutePath().toString() + "\"";
+                    launchArguments.classPaths = new String[0];
+                    context.setClasspathJar(tempfile);
+                } catch (IOException e) {
+                    logger.log(Level.SEVERE, String.format("Failed to create a temp classpath.jar: %s", e.toString()), e);
+                    tempfile = null;
+                }
+            }
+        } else if (launchArguments.shortenCommandLine == ShortenApproach.ARGFILE) {
+            try {
+                tempfile = Files.createTempFile("java_", ".argfile");
+                String argfile = "";
+                if (ArrayUtils.isNotEmpty(launchArguments.classPaths)) {
+                    argfile = "-classpath \"" + String.join(File.pathSeparator, launchArguments.classPaths) + "\"";
+                }
+
+                if (ArrayUtils.isNotEmpty(launchArguments.modulePaths)) {
+                    argfile = " --module-path \"" + String.join(File.pathSeparator, launchArguments.modulePaths) + "\"";
+                }
+
+                argfile = argfile.replace("\\", "\\\\");
+                Files.write(tempfile, argfile.getBytes());
+                launchArguments.vmArgs += " @" + tempfile.toAbsolutePath().toString();
+                launchArguments.classPaths = new String[0];
+                launchArguments.modulePaths = new String[0];
+                context.setArgsfile(tempfile);
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, String.format("Failed to create a temp argfile: %s", e.toString()), e);
+                tempfile = null;
+            }
+        }
 
         return launch(launchArguments, response, context).thenCompose(res -> {
             if (res.success) {

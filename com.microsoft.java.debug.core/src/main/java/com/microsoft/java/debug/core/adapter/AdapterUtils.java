@@ -11,7 +11,9 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
@@ -157,6 +159,19 @@ public class AdapterUtils {
         } catch (InvalidPathException e) {
             return null;
         }
+    }
+
+    /**
+     * Convert a file path to an url string.
+     * @param path
+     *              the file path
+     * @return the url string
+     * @throws MalformedURLException
+     *              if the file path cannot be constructed to an url because of some errors.
+     */
+    public static String toUrl(String path) throws MalformedURLException {
+        File file = new File(path);
+        return file.toURI().toURL().toString();
     }
 
     /**
