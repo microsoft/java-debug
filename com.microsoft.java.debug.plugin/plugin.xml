@@ -9,12 +9,9 @@
             <command id="vscode.java.buildWorkspace"/>
             <command id="vscode.java.fetchUsageData"/>
             <command id="vscode.java.updateDebugSettings"/>
-            <command
-                  id="vscode.java.validateLaunchConfig">
-            </command>
-            <command
-                  id="vscode.java.resolveMainMethod">
-            </command>
+            <command id="vscode.java.validateLaunchConfig"/>
+            <command id="vscode.java.resolveMainMethod"/>
+            <command id="vscode.java.inferLaunchCommandLength"/>
        </delegateCommandHandler>
    </extension>
 </plugin>
