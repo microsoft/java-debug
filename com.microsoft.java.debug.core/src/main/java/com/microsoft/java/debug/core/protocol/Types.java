@@ -13,6 +13,8 @@ package com.microsoft.java.debug.core.protocol;
 
 import java.nio.file.Paths;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * The data types defined by VSCode Debug Protocol.
  */
@@ -228,6 +230,26 @@ public class Types {
                 new ExceptionBreakpointFilter(CAUGHT_EXCEPTION_FILTER_NAME, CAUGHT_EXCEPTION_FILTER_LABEL);
     }
 
+    public static enum ExceptionBreakMode {
+        @SerializedName("never")
+        NEVER,
+        @SerializedName("always")
+        ALWAYS,
+        @SerializedName("unhandled")
+        UNHANDLED,
+        @SerializedName("userUnhandled")
+        USERUNHANDLED
+    }
+
+    public static class ExceptionDetails {
+        public String message;
+        public String typeName;
+        public String fullTypeName;
+        public String evaluateName;
+        public String stackTrace;
+        public ExceptionDetails[] innerException;
+    }
+
     public static class Capabilities {
         public boolean supportsConfigurationDoneRequest;
         public boolean supportsHitConditionalBreakpoints;
@@ -240,6 +262,7 @@ public class Types {
         public boolean supportTerminateDebuggee;
         public boolean supportsDelayedStackTraceLoading;
         public boolean supportsLogPoints;
+        public boolean supportsExceptionInfoRequest;
         public ExceptionBreakpointFilter[] exceptionBreakpointFilters = new ExceptionBreakpointFilter[0];
     }
 }

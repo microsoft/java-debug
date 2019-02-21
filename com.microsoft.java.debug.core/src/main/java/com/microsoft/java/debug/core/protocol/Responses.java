@@ -13,6 +13,9 @@ package com.microsoft.java.debug.core.protocol;
 
 import java.util.List;
 
+import com.microsoft.java.debug.core.protocol.Types.ExceptionBreakMode;
+import com.microsoft.java.debug.core.protocol.Types.ExceptionDetails;
+
 /**
  * The response content types defined by VSCode Debug Protocol.
  */
@@ -216,6 +219,30 @@ public class Responses {
          */
         public ContinueResponseBody(boolean allThreadsContinued) {
             this.allThreadsContinued = allThreadsContinued;
+        }
+    }
+
+    public static class ExceptionInfoResponse extends ResponseBody {
+        public String exceptionId;
+        public String description;
+        public ExceptionBreakMode breakMode;
+        public ExceptionDetails details;
+
+        /**
+         * Constructs a ExceptionInfoResponse.
+         */
+        public ExceptionInfoResponse(String exceptionId, String description, ExceptionBreakMode breakMode) {
+            this.exceptionId = exceptionId;
+            this.description = description;
+            this.breakMode = breakMode;
+        }
+
+        /**
+         * Constructs a ExceptionInfoResponse.
+         */
+        public ExceptionInfoResponse(String exceptionId, String description, ExceptionBreakMode breakMode, ExceptionDetails details) {
+            this(exceptionId, description, breakMode);
+            this.details = details;
         }
     }
 }

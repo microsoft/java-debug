@@ -51,6 +51,10 @@ public interface IDebugAdapterContext {
 
     void setClientLinesStartAt1(boolean clientLinesStartAt1);
 
+    boolean isClientColumnsStartAt1();
+
+    void setClientColumnsStartAt1(boolean clientColumnsStartAt1);
+
     boolean isClientPathsAreUri();
 
     void setClientPathsAreUri(boolean clientPathsAreUri);
@@ -118,4 +122,6 @@ public interface IDebugAdapterContext {
     void setArgsfile(Path argsfile);
 
     Path getArgsfile();
+
+    IExceptionManager getExceptionManager();
 }

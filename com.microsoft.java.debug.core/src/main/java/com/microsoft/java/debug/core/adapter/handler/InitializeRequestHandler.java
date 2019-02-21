@@ -32,6 +32,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
                        IDebugAdapterContext context) {
         Requests.InitializeArguments initializeArguments = (Requests.InitializeArguments) argument;
         context.setClientLinesStartAt1(initializeArguments.linesStartAt1);
+        context.setClientColumnsStartAt1(initializeArguments.columnsStartAt1);
         String pathFormat = initializeArguments.pathFormat;
         if (pathFormat != null) {
             switch (pathFormat) {
@@ -59,6 +60,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
             Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER,
         };
         caps.exceptionBreakpointFilters = exceptionFilters;
+        caps.supportsExceptionInfoRequest = true;
         response.body = caps;
         return CompletableFuture.completedFuture(response);
     }
