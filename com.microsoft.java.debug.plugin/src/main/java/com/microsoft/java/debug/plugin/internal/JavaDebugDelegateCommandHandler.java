@@ -17,47 +17,48 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
 
 import com.microsoft.java.debug.core.UsageDataStore;
+import com.microsoft.java.debug.core.protocol.JsonUtils;
+import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 
 public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler {
-
-    public static String FETCH_USER_DATA = "vscode.java.fetchUsageData";
-
-    public static String DEBUG_STARTSESSION = "vscode.java.startDebugSession";
-
-    public static String RESOLVE_CLASSPATH = "vscode.java.resolveClasspath";
-
-    public static String RESOLVE_MAINCLASS = "vscode.java.resolveMainClass";
-
-    public static String BUILD_WORKSPACE = "vscode.java.buildWorkspace";
-
-    public static String UPDATE_DEBUG_SETTINGS = "vscode.java.updateDebugSettings";
-
-    public static String VALIDATE_LAUNCHCONFIG = "vscode.java.validateLaunchConfig";
-
-    public static String RESOLVE_MAINMETHOD = "vscode.java.resolveMainMethod";
+    public static final String FETCH_USER_DATA = "vscode.java.fetchUsageData";
+    public static final String DEBUG_STARTSESSION = "vscode.java.startDebugSession";
+    public static final String RESOLVE_CLASSPATH = "vscode.java.resolveClasspath";
+    public static final String RESOLVE_MAINCLASS = "vscode.java.resolveMainClass";
+    public static final String BUILD_WORKSPACE = "vscode.java.buildWorkspace";
+    public static final String UPDATE_DEBUG_SETTINGS = "vscode.java.updateDebugSettings";
+    public static final String VALIDATE_LAUNCHCONFIG = "vscode.java.validateLaunchConfig";
+    public static final String RESOLVE_MAINMETHOD = "vscode.java.resolveMainMethod";
+    public static final String INFER_LAUNCH_COMMAND_LENGTH = "vscode.java.inferLaunchCommandLength";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
-        if (DEBUG_STARTSESSION.equals(commandId)) {
-            IDebugServer debugServer = JavaDebugServer.getInstance();
-            debugServer.start();
-            return debugServer.getPort();
-        } else if (RESOLVE_CLASSPATH.equals(commandId)) {
-            ResolveClasspathsHandler handler = new ResolveClasspathsHandler();
-            return handler.resolveClasspaths(arguments);
-        } else if (RESOLVE_MAINCLASS.equals(commandId)) {
-            ResolveMainClassHandler handler = new ResolveMainClassHandler();
-            return handler.resolveMainClass(arguments);
-        } else if (BUILD_WORKSPACE.equals(commandId)) {
-            // TODO
-        } else if (FETCH_USER_DATA.equals(commandId)) {
-            return UsageDataStore.getInstance().fetchAll();
-        } else if (UPDATE_DEBUG_SETTINGS.equals(commandId)) {
-            return DebugSettingUtils.configDebugSettings(arguments);
-        } else if (VALIDATE_LAUNCHCONFIG.equals(commandId)) {
-            return new ResolveMainClassHandler().validateLaunchConfig(arguments);
-        } else if (RESOLVE_MAINMETHOD.equals(commandId)) {
-            return ResolveMainMethodHandler.resolveMainMethods(arguments);
+        switch (commandId) {
+            case DEBUG_STARTSESSION:
+                IDebugServer debugServer = JavaDebugServer.getInstance();
+                debugServer.start();
+                return debugServer.getPort();
+            case RESOLVE_CLASSPATH:
+                ResolveClasspathsHandler handler = new ResolveClasspathsHandler();
+                return handler.resolveClasspaths(arguments);
+            case RESOLVE_MAINCLASS:
+                ResolveMainClassHandler resolveMainClassHandler = new ResolveMainClassHandler();
+                return resolveMainClassHandler.resolveMainClass(arguments);
+            case BUILD_WORKSPACE:
+                // TODO
+                break;
+            case FETCH_USER_DATA:
+                return UsageDataStore.getInstance().fetchAll();
+            case UPDATE_DEBUG_SETTINGS:
+                return DebugSettingUtils.configDebugSettings(arguments);
+            case VALIDATE_LAUNCHCONFIG:
+                return new ResolveMainClassHandler().validateLaunchConfig(arguments);
+            case RESOLVE_MAINMETHOD:
+                return ResolveMainMethodHandler.resolveMainMethods(arguments);
+            case INFER_LAUNCH_COMMAND_LENGTH:
+                return LaunchCommandHandler.getLaunchCommandLength(JsonUtils.fromJson((String) arguments.get(0), LaunchArguments.class));
+            default:
+                break;
         }
 
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));
