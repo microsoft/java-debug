@@ -11,12 +11,28 @@
 
 package com.microsoft.java.debug.core.adapter;
 
-import com.microsoft.java.debug.core.JdiException;
+import com.microsoft.java.debug.core.JdiExceptionReference;
 
 public interface IExceptionManager {
-    JdiException getException(long threadId);
+    /**
+     * Returns the Exception associated with the thread.
+     */
+    JdiExceptionReference getException(long threadId);
 
-    void removeException(long threadId);
+    /**
+     * Removes the Exception associated with the thread. Returns the previous Exception mapping to the thread,
+     * null if no mapping exists.
+     */
+    JdiExceptionReference removeException(long threadId);
 
-    void addException(long threadId, JdiException exception);
+    /**
+     * Associates an Exception with the thread. Returns the previous Exception mapping to the thread,
+     * null if no mapping exists before.
+     */
+    JdiExceptionReference setException(long threadId, JdiExceptionReference exception);
+
+    /**
+     * Clear all Exceptions.
+     */
+    void removeAllExceptions();
 }

@@ -21,7 +21,7 @@ import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
-import com.microsoft.java.debug.core.JdiException;
+import com.microsoft.java.debug.core.JdiExceptionReference;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -58,7 +58,7 @@ public class ExceptionInfoRequestHandler implements IDebugRequestHandler {
             throw AdapterUtils.createCompletionException("Thread " + exceptionInfoArgs.threadId + " doesn't exist.", ErrorCode.EXCEPTION_INFO_FAILURE);
         }
 
-        JdiException jdiException = context.getExceptionManager().getException(exceptionInfoArgs.threadId);
+        JdiExceptionReference jdiException = context.getExceptionManager().getException(exceptionInfoArgs.threadId);
         if (jdiException == null) {
             throw AdapterUtils.createCompletionException("No exception exists in thread " + exceptionInfoArgs.threadId, ErrorCode.EXCEPTION_INFO_FAILURE);
         }

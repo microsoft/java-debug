@@ -14,23 +14,28 @@ package com.microsoft.java.debug.core.adapter;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.microsoft.java.debug.core.JdiException;
+import com.microsoft.java.debug.core.JdiExceptionReference;
 
 public class ExceptionManager implements IExceptionManager {
-    private Map<Long, JdiException> exceptions = new HashMap<>();
+    private Map<Long, JdiExceptionReference> exceptions = new HashMap<>();
 
     @Override
-    public synchronized JdiException getException(long threadId) {
+    public synchronized JdiExceptionReference getException(long threadId) {
         return exceptions.get(threadId);
     }
 
     @Override
-    public synchronized void removeException(long threadId) {
-        exceptions.remove(threadId);
+    public synchronized JdiExceptionReference removeException(long threadId) {
+        return exceptions.remove(threadId);
     }
 
     @Override
-    public synchronized void addException(long threadId, JdiException exception) {
-        exceptions.put(threadId, exception);
+    public synchronized JdiExceptionReference setException(long threadId, JdiExceptionReference exception) {
+        return exceptions.put(threadId, exception);
+    }
+
+    @Override
+    public synchronized void removeAllExceptions() {
+        exceptions.clear();
     }
 }

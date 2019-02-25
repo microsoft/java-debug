@@ -20,7 +20,7 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
-import com.microsoft.java.debug.core.JdiException;
+import com.microsoft.java.debug.core.JdiExceptionReference;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -105,8 +105,9 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 return;
             }
 
-            JdiException jdiException = new JdiException(((ExceptionEvent) event).exception(), ((ExceptionEvent) event).catchLocation() == null);
-            context.getExceptionManager().addException(thread.uniqueID(), jdiException);
+            JdiExceptionReference jdiException = new JdiExceptionReference(((ExceptionEvent) event).exception(),
+                    ((ExceptionEvent) event).catchLocation() == null);
+            context.getExceptionManager().setException(thread.uniqueID(), jdiException);
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {

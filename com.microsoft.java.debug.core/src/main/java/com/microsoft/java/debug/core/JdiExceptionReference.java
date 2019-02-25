@@ -13,11 +13,11 @@ package com.microsoft.java.debug.core;
 
 import com.sun.jdi.ObjectReference;
 
-public class JdiException {
+public class JdiExceptionReference {
     public ObjectReference exception;
     public boolean isUncaught;
 
-    public JdiException(ObjectReference exception, boolean isUncaught) {
+    public JdiExceptionReference(ObjectReference exception, boolean isUncaught) {
         this.exception = exception;
         this.isUncaught = isUncaught;
     }
