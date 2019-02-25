@@ -11,31 +11,32 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.microsoft.java.debug.core.JdiExceptionReference;
 
 public class ExceptionManager implements IExceptionManager {
-    private Map<Long, JdiExceptionReference> exceptions = new HashMap<>();
+    private Map<Long, JdiExceptionReference> exceptions = Collections.synchronizedMap(new HashMap<>());
 
     @Override
-    public synchronized JdiExceptionReference getException(long threadId) {
+    public JdiExceptionReference getException(long threadId) {
         return exceptions.get(threadId);
     }
 
     @Override
-    public synchronized JdiExceptionReference removeException(long threadId) {
+    public JdiExceptionReference removeException(long threadId) {
         return exceptions.remove(threadId);
     }
 
     @Override
-    public synchronized JdiExceptionReference setException(long threadId, JdiExceptionReference exception) {
+    public JdiExceptionReference setException(long threadId, JdiExceptionReference exception) {
         return exceptions.put(threadId, exception);
     }
 
     @Override
-    public synchronized void removeAllExceptions() {
+    public void removeAllExceptions() {
         exceptions.clear();
     }
 }
