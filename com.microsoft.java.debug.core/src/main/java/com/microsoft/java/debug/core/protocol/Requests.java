@@ -210,6 +210,10 @@ public class Requests {
         public String[] filters = new String[0];
     }
 
+    public static class ExceptionInfoArguments extends Arguments {
+        public long threadId;
+    }
+
     public static class ThreadsArguments extends Arguments {
 
     }
@@ -308,6 +312,7 @@ public class Requests {
         COMPLETIONS("completions", CompletionsArguments.class),
         RUNINTERMINAL("runInTerminal", RunInTerminalRequestArguments.class),
         REDEFINECLASSES("redefineClasses", RedefineClassesArguments.class),
+        EXCEPTIONINFO("exceptionInfo", ExceptionInfoArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;

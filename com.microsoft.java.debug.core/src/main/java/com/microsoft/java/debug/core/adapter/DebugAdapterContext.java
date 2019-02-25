@@ -32,6 +32,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private boolean debuggerLinesStartAt1 = true;
     private boolean debuggerPathsAreUri = true;
     private boolean clientLinesStartAt1 = true;
+    private boolean clientColumnsStartAt1 = true;
     private boolean clientPathsAreUri = false;
     private boolean supportsRunInTerminalRequest;
     private boolean isAttached = false;
@@ -51,6 +52,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
 
     private IStackFrameManager stackFrameManager = new StackFrameManager();
+    private IExceptionManager exceptionManager = new ExceptionManager();
 
     public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
         this.providerContext = providerContext;
@@ -105,6 +107,14 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setClientLinesStartAt1(boolean clientLinesStartAt1) {
         this.clientLinesStartAt1 = clientLinesStartAt1;
+    }
+
+    public boolean isClientColumnsStartAt1() {
+        return clientColumnsStartAt1;
+    }
+
+    public void setClientColumnsStartAt1(boolean clientColumnsStartAt1) {
+        this.clientColumnsStartAt1 = clientColumnsStartAt1;
     }
 
     @Override
@@ -275,5 +285,10 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public Path getArgsfile() {
         return this.argsfile;
+    }
+
+    @Override
+    public IExceptionManager getExceptionManager() {
+        return this.exceptionManager;
     }
 }

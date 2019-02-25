@@ -26,6 +26,7 @@ import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHan
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestWithoutDebuggingHandler;
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.ExceptionInfoRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.HotCodeReplaceHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
@@ -115,6 +116,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForDebug(new HotCodeReplaceHandler());
         registerHandlerForDebug(new RestartFrameHandler());
         registerHandlerForDebug(new CompletionsHandler());
+        registerHandlerForDebug(new ExceptionInfoRequestHandler());
 
         // NO_DEBUG mode only
         registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());

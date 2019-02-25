@@ -20,6 +20,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.JdiExceptionReference;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -59,6 +60,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         long threadId = ((StepArguments) arguments).threadId;
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), threadId);
         if (thread != null) {
+            JdiExceptionReference exception = context.getExceptionManager().removeException(threadId);
             try {
                 ThreadState threadState = new ThreadState();
                 threadState.threadId = threadId;
@@ -87,12 +89,16 @@ public class StepRequestHandler implements IDebugRequestHandler {
 
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
+                // Roll back the Exception info if stepping fails.
+                context.getExceptionManager().setException(threadId, exception);
                 final String failureMessage = String.format("Failed to step because the thread '%s' is not suspended in the target VM.", thread.name());
                 throw AdapterUtils.createCompletionException(
                     failureMessage,
                     ErrorCode.STEP_FAILURE,
                     ex);
             } catch (IndexOutOfBoundsException ex) {
+                // Roll back the Exception info if stepping fails.
+                context.getExceptionManager().setException(threadId, exception);
                 final String failureMessage = String.format("Failed to step because the thread '%s' doesn't contain any stack frame", thread.name());
                 throw AdapterUtils.createCompletionException(
                     failureMessage,
