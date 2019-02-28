@@ -52,7 +52,7 @@ import com.sun.jdi.connect.VMStartException;
 public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
 
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final int ACCEPT_TIMEOUT = 10 * 1000;
+    private static final int ATTACH_TERMINAL_TIMEOUT = 20 * 1000;
     private static final String TERMINAL_TITLE = "Java Debug Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
@@ -67,7 +67,7 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
             List<ListeningConnector> connectors = vmProvider.getVirtualMachineManager().listeningConnectors();
             ListeningConnector listenConnector = connectors.get(0);
             Map<String, Connector.Argument> args = listenConnector.defaultArguments();
-            ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
+            ((Connector.IntegerArgument) args.get("timeout")).setValue(ATTACH_TERMINAL_TIMEOUT);
             String address = listenConnector.startListening(args);
 
             String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, address);
