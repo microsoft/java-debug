@@ -20,6 +20,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
+
 import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -47,6 +50,7 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.ListeningConnector;
+import com.sun.jdi.connect.TransportTimeoutException;
 import com.sun.jdi.connect.VMStartException;
 
 public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
@@ -101,6 +105,29 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
                                 context.setDebugSession(new DebugSession(vm));
                                 logger.info("Launching debuggee in terminal console succeeded.");
                                 resultFuture.complete(response);
+                            } catch (TransportTimeoutException e) {
+                                int commandLength = StringUtils.length(launchArguments.cwd) + 1;
+                                for (String cmd : cmds) {
+                                    commandLength += StringUtils.length(cmd) + 1;
+                                }
+
+                                final int threshold = SystemUtils.IS_OS_WINDOWS ? 8092 : 32 * 1024;
+                                String errorMessage = String.format(launchInTerminalErrorFormat, e.toString());
+                                if (commandLength >= threshold) {
+                                    errorMessage = "Failed to launch debuggee in terminal. The possible reason is the command line too long. "
+                                            + "More details: " + e.toString();
+                                    logger.severe(errorMessage
+                                            + "\r\n"
+                                            + "The estimated command line length is " + commandLength + ". "
+                                            + "Try to enable shortenCommandLine option in the debug launch configuration.");
+                                }
+
+                                resultFuture.completeExceptionally(
+                                        new DebugException(
+                                                errorMessage,
+                                                ErrorCode.LAUNCH_IN_TERMINAL_FAILURE.getId()
+                                        )
+                                );
                             } catch (IOException | IllegalConnectorArgumentsException e) {
                                 resultFuture.completeExceptionally(
                                         new DebugException(
