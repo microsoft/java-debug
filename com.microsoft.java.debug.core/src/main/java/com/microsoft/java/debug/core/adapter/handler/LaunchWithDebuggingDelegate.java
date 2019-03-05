@@ -20,6 +20,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
+
 import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -47,12 +50,13 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.ListeningConnector;
+import com.sun.jdi.connect.TransportTimeoutException;
 import com.sun.jdi.connect.VMStartException;
 
 public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
 
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final int ACCEPT_TIMEOUT = 10 * 1000;
+    private static final int ATTACH_TERMINAL_TIMEOUT = 20 * 1000;
     private static final String TERMINAL_TITLE = "Java Debug Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
@@ -67,7 +71,7 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
             List<ListeningConnector> connectors = vmProvider.getVirtualMachineManager().listeningConnectors();
             ListeningConnector listenConnector = connectors.get(0);
             Map<String, Connector.Argument> args = listenConnector.defaultArguments();
-            ((Connector.IntegerArgument) args.get("timeout")).setValue(ACCEPT_TIMEOUT);
+            ((Connector.IntegerArgument) args.get("timeout")).setValue(ATTACH_TERMINAL_TIMEOUT);
             String address = listenConnector.startListening(args);
 
             String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, address);
@@ -101,6 +105,29 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
                                 context.setDebugSession(new DebugSession(vm));
                                 logger.info("Launching debuggee in terminal console succeeded.");
                                 resultFuture.complete(response);
+                            } catch (TransportTimeoutException e) {
+                                int commandLength = StringUtils.length(launchArguments.cwd) + 1;
+                                for (String cmd : cmds) {
+                                    commandLength += StringUtils.length(cmd) + 1;
+                                }
+
+                                final int threshold = SystemUtils.IS_OS_WINDOWS ? 8092 : 32 * 1024;
+                                String errorMessage = String.format(launchInTerminalErrorFormat, e.toString());
+                                if (commandLength >= threshold) {
+                                    errorMessage = "Failed to launch debuggee in terminal. The possible reason is the command line too long. "
+                                            + "More details: " + e.toString();
+                                    logger.severe(errorMessage
+                                            + "\r\n"
+                                            + "The estimated command line length is " + commandLength + ". "
+                                            + "Try to enable shortenCommandLine option in the debug launch configuration.");
+                                }
+
+                                resultFuture.completeExceptionally(
+                                        new DebugException(
+                                                errorMessage,
+                                                ErrorCode.LAUNCH_IN_TERMINAL_FAILURE.getId()
+                                        )
+                                );
                             } catch (IOException | IllegalConnectorArgumentsException e) {
                                 resultFuture.completeExceptionally(
                                         new DebugException(
