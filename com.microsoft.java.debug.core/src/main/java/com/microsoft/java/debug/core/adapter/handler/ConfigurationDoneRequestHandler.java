@@ -27,6 +27,7 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -80,13 +81,15 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             context.getProtocolServer().sendEvent(new Events.ExitedEvent(0));
         } else if (event instanceof VMDisconnectEvent) {
             context.setVmTerminated();
-            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
             // Terminate eventHub thread.
             try {
                 debugSession.getEventHub().close();
             } catch (Exception e) {
                 // do nothing.
             }
+
+            waitForDebuggeeConsole(context);
+            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
         } else if (event instanceof ThreadStartEvent) {
             ThreadReference startThread = ((ThreadStartEvent) event).thread();
             Events.ThreadEvent threadEvent = new Events.ThreadEvent("started", startThread.uniqueID());
@@ -117,6 +120,13 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         // record events of important types only, to get rid of noises.
         if (isImportantEvent) {
             UsageDataSession.recordEvent(event);
+        }
+    }
+
+    private void waitForDebuggeeConsole(IDebugAdapterContext context) {
+        ProcessConsole console = context.getDebuggeeProcessConsole();
+        if (console != null) {
+            console.waitFor();
         }
     }
 }

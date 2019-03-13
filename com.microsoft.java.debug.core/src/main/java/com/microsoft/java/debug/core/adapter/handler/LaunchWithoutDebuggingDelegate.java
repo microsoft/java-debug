@@ -41,7 +41,8 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
     protected static final String TERMINAL_TITLE = "Java Process Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
-    private Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+    @Override
+    public Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         File workingDir = null;
@@ -58,45 +59,16 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
                     logger.warning(String.format("Current thread is interrupted. Reason: %s", ignore.toString()));
                     debuggeeProcess.destroy();
                 } finally {
+                    ProcessConsole console = context.getDebuggeeProcessConsole();
+                    if (console != null) {
+                        console.waitFor();
+                    }
                     context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
                 }
             }
         }.start();
         logger.info("Launching debuggee proccess succeeded.");
         return debuggeeProcess;
-    }
-
-    @Override
-    public CompletableFuture<Response> launchInternally(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
-        CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-
-        try {
-            Process debuggeeProcess = launchInternalDebuggeeProcess(launchArguments, context);
-            context.setDebuggeeProcess(debuggeeProcess);
-
-            ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
-            debuggeeConsole.onStdout((output) -> {
-                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
-                // That means the debugger can send OutputEvent to DA at any time.
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createStdoutOutput(output));
-            });
-
-            debuggeeConsole.onStderr((err) -> {
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createStderrOutput(err));
-            });
-            debuggeeConsole.start();
-
-            resultFuture.complete(response);
-        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            resultFuture.completeExceptionally(
-                    new DebugException(
-                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
-                            ErrorCode.LAUNCH_FAILURE.getId()
-                    )
-            );
-        }
-
-        return resultFuture;
     }
 
     @Override

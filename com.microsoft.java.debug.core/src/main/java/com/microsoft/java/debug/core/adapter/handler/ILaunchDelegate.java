@@ -11,11 +11,14 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
+import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import com.sun.jdi.connect.VMStartException;
 
 public interface ILaunchDelegate {
     void postLaunch(LaunchArguments launchArguments, IDebugAdapterContext context);
@@ -24,6 +27,7 @@ public interface ILaunchDelegate {
 
     CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response, IDebugAdapterContext context);
 
-    CompletableFuture<Response> launchInternally(LaunchArguments launchArguments, Response response, IDebugAdapterContext context);
+    Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException;
 
 }

@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core.protocol;
 
+import com.microsoft.java.debug.core.protocol.Types.Source;
+
 /**
  * The event types defined by VSCode Debug Protocol.
  */
@@ -136,6 +138,11 @@ public class Events {
 
         public Category category;
         public String output;
+        public int variablesReference;
+        public Source source;
+        public int line;
+        public int column;
+        public Object data;
 
         /**
          * Constructor.
@@ -146,6 +153,17 @@ public class Events {
             this.output = output;
         }
 
+        /**
+         * Constructor.
+         */
+        public OutputEvent(Category category, String output, Source source, int line) {
+            super("output");
+            this.category = category;
+            this.output = output;
+            this.source = source;
+            this.line = line;
+        }
+
         public static OutputEvent createConsoleOutput(String output) {
             return new OutputEvent(Category.console, output);
         }
@@ -154,8 +172,22 @@ public class Events {
             return new OutputEvent(Category.stdout, output);
         }
 
+        /**
+         * Constructor an stdout output event with source info.
+         */
+        public static OutputEvent createStdoutOutput(String output, Source source, int line) {
+            return new OutputEvent(Category.stdout, output, source, line);
+        }
+
         public static OutputEvent createStderrOutput(String output) {
             return new OutputEvent(Category.stderr, output);
+        }
+
+        /**
+         * Constructor an stderr output event with source info.
+         */
+        public static OutputEvent createStderrOutput(String output, Source source, int line) {
+            return new OutputEvent(Category.stderr, output, source, line);
         }
 
         public static OutputEvent createTelemetryOutput(String output) {

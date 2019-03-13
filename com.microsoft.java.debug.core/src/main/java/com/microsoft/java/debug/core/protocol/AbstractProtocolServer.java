@@ -100,6 +100,8 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
         } catch (IOException e) {
             logger.log(Level.SEVERE, String.format("Read data from io exception: %s", e.toString()), e);
         }
+
+        requestSubject.onComplete();
     }
 
     /**
