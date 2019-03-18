@@ -129,11 +129,11 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
     /**
      * Find the source mapping for the specified source file name.
      */
-    public static Types.Source convertDebuggerSourceToClient(String fullyQualifiedName, String sourceName, String sourcePath, IDebugAdapterContext context)
-            throws URISyntaxException {
+    public static Types.Source convertDebuggerSourceToClient(String fullyQualifiedName, String sourceName, String relativeSourcePath,
+            IDebugAdapterContext context) throws URISyntaxException {
         // use a lru cache for better performance
         String uri = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key -> {
-            String fromProvider = context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, sourcePath);
+            String fromProvider = context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, relativeSourcePath);
             // avoid return null which will cause the compute function executed again
             return StringUtils.isBlank(fromProvider) ? "" : fromProvider;
         });
@@ -153,7 +153,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             }
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
-            String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), sourcePath);
+            String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), relativeSourcePath);
             if (absoluteSourcepath != null) {
                 return new Types.Source(sourceName, absoluteSourcepath, 0);
             } else {

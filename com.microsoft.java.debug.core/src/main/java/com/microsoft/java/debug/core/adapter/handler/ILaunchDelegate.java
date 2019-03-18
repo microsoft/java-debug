@@ -27,7 +27,7 @@ public interface ILaunchDelegate {
 
     CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response, IDebugAdapterContext context);
 
-    Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+    Process launch(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException;
 
 }

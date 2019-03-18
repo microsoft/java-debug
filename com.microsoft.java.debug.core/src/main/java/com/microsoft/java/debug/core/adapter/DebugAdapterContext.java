@@ -46,7 +46,6 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private StepFilters stepFilters;
     private Path classpathJar = null;
     private Path argsfile = null;
-    private ProcessConsole debuggeeProcessConsole;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -291,15 +290,5 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IExceptionManager getExceptionManager() {
         return this.exceptionManager;
-    }
-
-    @Override
-    public ProcessConsole getDebuggeeProcessConsole() {
-        return this.debuggeeProcessConsole;
-    }
-
-    @Override
-    public void setDebuggeeProcessConsole(ProcessConsole processConsole) {
-        this.debuggeeProcessConsole = processConsole;
     }
 }

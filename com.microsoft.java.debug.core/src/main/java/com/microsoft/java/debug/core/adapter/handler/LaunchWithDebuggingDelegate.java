@@ -169,7 +169,7 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
     }
 
     @Override
-    public Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+    public Process launch(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
 

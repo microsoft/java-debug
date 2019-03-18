@@ -124,8 +124,4 @@ public interface IDebugAdapterContext {
     Path getArgsfile();
 
     IExceptionManager getExceptionManager();
-
-    ProcessConsole getDebuggeeProcessConsole();
-
-    void setDebuggeeProcessConsole(ProcessConsole processConsole);
 }

@@ -24,7 +24,6 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
@@ -42,7 +41,7 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
     @Override
-    public Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+    public Process launch(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         File workingDir = null;
@@ -59,10 +58,6 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
                     logger.warning(String.format("Current thread is interrupted. Reason: %s", ignore.toString()));
                     debuggeeProcess.destroy();
                 } finally {
-                    ProcessConsole console = context.getDebuggeeProcessConsole();
-                    if (console != null) {
-                        console.waitFor();
-                    }
                     context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
                 }
             }

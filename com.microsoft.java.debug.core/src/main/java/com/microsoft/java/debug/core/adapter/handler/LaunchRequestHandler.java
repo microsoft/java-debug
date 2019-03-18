@@ -26,8 +26,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -40,17 +38,15 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.JavaStackTraceConsole;
 import com.microsoft.java.debug.core.adapter.LaunchMode;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
-import com.microsoft.java.debug.core.adapter.ProcessConsole.MessageType;
-import com.microsoft.java.debug.core.protocol.Events.OutputEvent;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.ShortenApproach;
-import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
@@ -188,83 +184,25 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 && (launchArguments.console == CONSOLE.integratedTerminal || launchArguments.console == CONSOLE.externalTerminal)) {
             return activeLaunchHandler.launchInTerminal(launchArguments, response, context);
         } else {
-            return launchInternally(launchArguments, response, context);
+            CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+            try {
+                Process debuggeeProcess = activeLaunchHandler.launch(launchArguments, context);
+                context.setDebuggeeProcess(debuggeeProcess);
+                ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
+                JavaStackTraceConsole stackTraceConsole = new JavaStackTraceConsole(debuggeeConsole, context);
+                stackTraceConsole.start();
+                resultFuture.complete(response);
+            } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+                resultFuture.completeExceptionally(
+                        new DebugException(
+                                String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
+                                ErrorCode.LAUNCH_FAILURE.getId()
+                        )
+                );
+            }
+
+            return resultFuture;
         }
-    }
-
-    protected CompletableFuture<Response> launchInternally(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
-        CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-
-        try {
-            Process debuggeeProcess = activeLaunchHandler.launchInternalDebuggeeProcess(launchArguments, context);
-            context.setDebuggeeProcess(debuggeeProcess);
-            String[] lastIncompleteLine = new String[] {
-                null,
-                null
-            };
-            Pattern stacktracePattern = Pattern.compile("\\s+at\\s+(([\\w$]+\\.)*[\\w$]+)\\(([\\w-$]+\\.java:\\d+)\\)");
-            ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
-            context.setDebuggeeProcessConsole(debuggeeConsole);
-            debuggeeConsole.onData((message) -> {
-                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
-                // That means the debugger can send OutputEvent to DA at any time.
-                OutputEvent.Category eventCategory = message.type == MessageType.STDOUT ? OutputEvent.Category.stdout : OutputEvent.Category.stderr;
-                int type = message.type.ordinal();
-                String[] lines = message.output.split("\n");
-                boolean endWithLF = message.output.endsWith("\n");
-                String unsent = "";
-                for (int i = 0; i < lines.length; i++) {
-                    String toSend = (i < lines.length - 1 || endWithLF) ? lines[i] + "\n" : lines[i];
-                    String revisedLine = lines[i];
-                    if (lastIncompleteLine[type] != null) {
-                        revisedLine = lastIncompleteLine[type] + revisedLine;
-                        lastIncompleteLine[type] = null;
-                    }
-
-                    Matcher matcher = stacktracePattern.matcher(revisedLine);
-                    if (matcher.find()) {
-                        if (StringUtils.isNotEmpty(unsent)) {
-                            context.getProtocolServer().sendEvent(new OutputEvent(eventCategory, unsent));
-                            unsent = "";
-                        }
-
-                        String methodField = matcher.group(1);
-                        String locationField = matcher.group(matcher.groupCount());
-
-                        String fullyQualifiedName = methodField.substring(0, methodField.lastIndexOf("."));
-                        String packageName = fullyQualifiedName.substring(0, fullyQualifiedName.lastIndexOf("."));
-                        String[] locations = locationField.split(":");
-                        String sourceName = locations[0];
-                        int lineNumber = Integer.parseInt(locations[1]);
-                        String sourcePath = StringUtils.isBlank(packageName) ? sourceName
-                                : packageName.replace('.', File.separatorChar) + File.separatorChar + sourceName;
-                        Types.Source source = StackTraceRequestHandler.convertDebuggerSourceToClient(fullyQualifiedName, sourceName, sourcePath, context);
-                        context.getProtocolServer().sendEvent(new OutputEvent(eventCategory, toSend, source, lineNumber));
-                    } else {
-                        unsent += toSend;
-                    }
-
-                    if (i == lines.length - 1 && StringUtils.isNotEmpty(unsent)) {
-                        context.getProtocolServer().sendEvent(new OutputEvent(eventCategory, unsent));
-                        if (!endWithLF) {
-                            lastIncompleteLine[type] = toSend;
-                        }
-                    }
-                }
-            });
-
-            debuggeeConsole.start();
-            resultFuture.complete(response);
-        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            resultFuture.completeExceptionally(
-                    new DebugException(
-                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
-                            ErrorCode.LAUNCH_FAILURE.getId()
-                    )
-            );
-        }
-
-        return resultFuture;
     }
 
     protected static String[] constructEnvironmentVariables(LaunchArguments launchArguments) {
