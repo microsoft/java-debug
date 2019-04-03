@@ -39,6 +39,11 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     protected static final String TERMINAL_TITLE = "Java Process Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
+    private LaunchRequestHandler handler;
+
+    public LaunchWithoutDebuggingDelegate(LaunchRequestHandler handler) {
+        this.handler = handler;
+    }
 
     @Override
     public Process launch(LaunchArguments launchArguments, IDebugAdapterContext context)
@@ -58,7 +63,7 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
                     logger.warning(String.format("Current thread is interrupted. Reason: %s", ignore.toString()));
                     debuggeeProcess.destroy();
                 } finally {
-                    context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                    handler.handleTerminatedEvent(context);
                 }
             }
         }.start();

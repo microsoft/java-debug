@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -37,12 +40,14 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
+import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.LaunchMode;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
+import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Events.OutputEvent;
 import com.microsoft.java.debug.core.protocol.Events.OutputEvent.Category;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -54,11 +59,13 @@ import com.microsoft.java.debug.core.protocol.Requests.ShortenApproach;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
+import com.sun.jdi.event.VMDisconnectEvent;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
     protected ILaunchDelegate activeLaunchHandler;
+    private CompletableFuture<Boolean> waitForDebuggeeConsole = new CompletableFuture<>();
 
     @Override
     public List<Command> getTargetCommands() {
@@ -68,7 +75,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
-        activeLaunchHandler = launchArguments.noDebug ? new LaunchWithoutDebuggingDelegate() : new LaunchWithDebuggingDelegate();
+        activeLaunchHandler = launchArguments.noDebug ? new LaunchWithoutDebuggingDelegate(this) : new LaunchWithDebuggingDelegate();
         return handleLaunchCommand(arguments, response, context);
     }
 
@@ -134,7 +141,36 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             if (res.success) {
                 activeLaunchHandler.postLaunch(launchArguments, context);
             }
+
+            IDebugSession debugSession = context.getDebugSession();
+            if (debugSession != null) {
+                debugSession.getEventHub().events()
+                    .filter((debugEvent) -> debugEvent.event instanceof VMDisconnectEvent)
+                    .subscribe((debugEvent) -> {
+                        context.setVmTerminated();
+                        // Terminate eventHub thread.
+                        try {
+                            debugSession.getEventHub().close();
+                        } catch (Exception e) {
+                            // do nothing.
+                        }
+
+                        handleTerminatedEvent(context);
+                    });
+            }
             return CompletableFuture.completedFuture(res);
+        });
+    }
+
+    protected void handleTerminatedEvent(IDebugAdapterContext context) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                waitForDebuggeeConsole.get(5, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                // do nothing.
+            }
+
+            context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
         });
     }
 
@@ -197,6 +233,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
             debuggeeConsole.lineMessages()
                 .map((message) -> convertToOutputEvent(message.output, message.category, context))
+                .doFinally(() -> waitForDebuggeeConsole.complete(true))
                 .subscribe((event) -> context.getProtocolServer().sendEvent(event));
             debuggeeConsole.start();
             resultFuture.complete(response);
