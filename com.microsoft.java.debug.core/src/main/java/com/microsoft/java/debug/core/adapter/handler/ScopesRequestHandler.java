@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -45,7 +45,7 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
             return CompletableFuture.completedFuture(response);
         }
         ThreadReference thread = stackFrameReference.getThread();
-        VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference);
+        VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference, stackFrameReference);
         int localScopeId = context.getRecyclableIdPool().addObject(thread.uniqueID(), localScope);
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 

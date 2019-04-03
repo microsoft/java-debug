@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2019 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter;
 import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
+import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
@@ -40,6 +41,17 @@ public interface IEvaluationProvider extends IProvider {
      * @return the evaluation result future
      */
     CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth);
+
+    /**
+     * Evaluate the expression at the given context of the object instance, return the promise which is to be resolved/rejected when
+     * the evaluation finishes.
+     * @param expression The expression to be evaluated
+     * @param context The jdi object which the expression will be executed at
+     * @param thread The jdi thread which the expression will be executed at
+     * @param depth The depth of stackframe of the stopped thread
+     * @return the evaluation result future
+     */
+    CompletableFuture<Value> evaluate(String expression, ObjectReference context, ThreadReference thread, int depth);
 
     /**
      * Evaluate the conditional breakpoint or logpoint at the given thread and return the promise which is to be resolved/rejected when

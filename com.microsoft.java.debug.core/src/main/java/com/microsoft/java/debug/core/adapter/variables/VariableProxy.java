@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -20,6 +20,7 @@ public class VariableProxy {
     private final String scopeName;
     private Object variable;
     private int hashCode;
+    private final StackFrameReference stackFrame;
 
     /**
      * Create a variable reference.
@@ -30,10 +31,11 @@ public class VariableProxy {
      * @param variable
      *              the variable object
      */
-    public VariableProxy(ThreadReference thread, String scopeName, Object variable) {
+    public VariableProxy(ThreadReference thread, String scopeName, Object variable, StackFrameReference stackFrame) {
         this.thread = thread;
         this.scopeName = scopeName;
         this.variable = variable;
+        this.stackFrame = stackFrame;
         hashCode = thread.hashCode() & scopeName.hashCode() & variable.hashCode();
     }
 
@@ -72,5 +74,9 @@ public class VariableProxy {
 
     public Object getProxiedVariable() {
         return variable;
+    }
+
+    public StackFrameReference getStackFrame() {
+        return stackFrame;
     }
 }
