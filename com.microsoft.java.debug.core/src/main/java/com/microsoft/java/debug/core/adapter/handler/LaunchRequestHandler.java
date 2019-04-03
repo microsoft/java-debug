@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -26,6 +27,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -38,15 +41,17 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
-import com.microsoft.java.debug.core.adapter.JavaStackTraceConsole;
 import com.microsoft.java.debug.core.adapter.LaunchMode;
 import com.microsoft.java.debug.core.adapter.ProcessConsole;
+import com.microsoft.java.debug.core.protocol.Events.OutputEvent;
+import com.microsoft.java.debug.core.protocol.Events.OutputEvent.Category;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.ShortenApproach;
+import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
@@ -183,26 +188,55 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         if (context.supportsRunInTerminalRequest()
                 && (launchArguments.console == CONSOLE.integratedTerminal || launchArguments.console == CONSOLE.externalTerminal)) {
             return activeLaunchHandler.launchInTerminal(launchArguments, response, context);
-        } else {
-            CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+        }
+
+        CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+        try {
+            Process debuggeeProcess = activeLaunchHandler.launch(launchArguments, context);
+            context.setDebuggeeProcess(debuggeeProcess);
+            ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
+            debuggeeConsole.lineMessages()
+                .map((message) -> convertToOutputEvent(message.output, message.category, context))
+                .subscribe((event) -> context.getProtocolServer().sendEvent(event));
+            debuggeeConsole.start();
+            resultFuture.complete(response);
+        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
+            resultFuture.completeExceptionally(
+                    new DebugException(
+                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
+                            ErrorCode.LAUNCH_FAILURE.getId()
+                    )
+            );
+        }
+
+        return resultFuture;
+    }
+
+    private static final Pattern STACKTRACE_PATTERN = Pattern.compile("\\s+at\\s+(([\\w$]+\\.)*[\\w$]+)\\(([\\w-$]+\\.java:\\d+)\\)");
+
+    private static OutputEvent convertToOutputEvent(String message, Category category, IDebugAdapterContext context) {
+        Matcher matcher = STACKTRACE_PATTERN.matcher(message);
+        if (matcher.find()) {
+            String methodField = matcher.group(1);
+            String locationField = matcher.group(matcher.groupCount());
+            String fullyQualifiedName = methodField.substring(0, methodField.lastIndexOf("."));
+            String packageName = fullyQualifiedName.lastIndexOf(".") > -1 ? fullyQualifiedName.substring(0, fullyQualifiedName.lastIndexOf(".")) : "";
+            String[] locations = locationField.split(":");
+            String sourceName = locations[0];
+            int lineNumber = Integer.parseInt(locations[1]);
+            String sourcePath = StringUtils.isBlank(packageName) ? sourceName
+                    : packageName.replace('.', File.separatorChar) + File.separatorChar + sourceName;
+            Types.Source source = null;
             try {
-                Process debuggeeProcess = activeLaunchHandler.launch(launchArguments, context);
-                context.setDebuggeeProcess(debuggeeProcess);
-                ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
-                JavaStackTraceConsole stackTraceConsole = new JavaStackTraceConsole(debuggeeConsole, context);
-                stackTraceConsole.start();
-                resultFuture.complete(response);
-            } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-                resultFuture.completeExceptionally(
-                        new DebugException(
-                                String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
-                                ErrorCode.LAUNCH_FAILURE.getId()
-                        )
-                );
+                source = StackTraceRequestHandler.convertDebuggerSourceToClient(fullyQualifiedName, sourceName, sourcePath, context);
+            } catch (URISyntaxException e) {
+                // do nothing.
             }
 
-            return resultFuture;
+            return new OutputEvent(category, message, source, lineNumber);
         }
+
+        return new OutputEvent(category, message);
     }
 
     protected static String[] constructEnvironmentVariables(LaunchArguments launchArguments) {
