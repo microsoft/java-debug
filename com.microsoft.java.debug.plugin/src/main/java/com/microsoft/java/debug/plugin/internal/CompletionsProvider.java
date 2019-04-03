@@ -21,7 +21,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.CompletionProposal;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
-import org.eclipse.jdt.ls.core.internal.contentassist.CompletionProposalRequestor;
+import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.ls.core.internal.handlers.JsonRpcHelpers;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -49,9 +49,10 @@ public class CompletionsProvider implements ICompletionsProvider {
 
         try {
             IType type = resolveType(frame);
-            if (type != null && type.getCompilationUnit() != null) {
-                final int offset = JsonRpcHelpers.toOffset(type.getCompilationUnit().getBuffer(), frame.location().lineNumber(), 0);
-                CompletionProposalRequestor collector = new CompletionProposalRequestor(type.getCompilationUnit(), offset);
+            if (type != null) {
+                ITypeRoot r = type.getCompilationUnit() != null ? type.getCompilationUnit() : type.getClassFile();
+                final int offset = JsonRpcHelpers.toOffset(r.getBuffer(), frame.location().lineNumber(), 0);
+                CompletionProposalRequestor collector = new CompletionProposalRequestor(r, offset);
 
                 collector.setAllowsRequiredProposals(CompletionProposal.FIELD_REF, CompletionProposal.TYPE_REF, true);
                 collector.setAllowsRequiredProposals(CompletionProposal.FIELD_REF, CompletionProposal.TYPE_IMPORT, true);
