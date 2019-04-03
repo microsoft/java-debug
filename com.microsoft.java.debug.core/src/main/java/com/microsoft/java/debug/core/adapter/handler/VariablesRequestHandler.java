@@ -145,7 +145,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     }
                 }
 
-                if (childrenList.isEmpty()) {
+                if (childrenList.isEmpty() && VariableUtils.hasChildren(containerObj, showStaticVariables)) {
                     if (varArgs.count > 0) {
                         childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
                     } else {
