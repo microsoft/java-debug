@@ -20,7 +20,6 @@ public class VariableProxy {
     private final String scopeName;
     private Object variable;
     private int hashCode;
-    private final StackFrameReference stackFrame;
 
     /**
      * Create a variable reference.
@@ -31,17 +30,20 @@ public class VariableProxy {
      * @param variable
      *              the variable object
      */
-    public VariableProxy(ThreadReference thread, String scopeName, Object variable, StackFrameReference stackFrame) {
+    public VariableProxy(ThreadReference thread, String scopeName, Object variable) {
         this.thread = thread;
         this.scopeName = scopeName;
         this.variable = variable;
-        this.stackFrame = stackFrame;
-        hashCode = thread.hashCode() & scopeName.hashCode() & variable.hashCode();
+        hashCode = Objects.hash(scopeName, thread, variable);
     }
 
     @Override
     public String toString() {
         return String.format("%s %s", String.valueOf(variable), scopeName);
+    }
+
+    public ThreadReference getThread() {
+        return thread;
     }
 
     @Override
@@ -50,18 +52,19 @@ public class VariableProxy {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof VariableProxy)) {
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
             return false;
         }
-        final VariableProxy other = (VariableProxy) o;
-        return this.getThreadId() == other.getThreadId()
-                && Objects.equals(this.getScope(), other.getScope())
-                && Objects.equals(this.getProxiedVariable(), other.getProxiedVariable());
-    }
-
-    public ThreadReference getThread() {
-        return thread;
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        VariableProxy other = (VariableProxy) obj;
+        return Objects.equals(scopeName, other.scopeName) && Objects.equals(getThreadId(), other.getThreadId())
+                && Objects.equals(variable, other.variable);
     }
 
     public long getThreadId() {
@@ -74,9 +77,5 @@ public class VariableProxy {
 
     public Object getProxiedVariable() {
         return variable;
-    }
-
-    public StackFrameReference getStackFrame() {
-        return stackFrame;
     }
 }

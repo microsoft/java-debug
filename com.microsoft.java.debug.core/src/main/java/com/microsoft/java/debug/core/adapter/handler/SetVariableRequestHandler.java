@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -121,8 +121,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
             long threadId = ((VariableProxy) container).getThreadId();
             String scopeName = ((VariableProxy) container).getScope();
-            StackFrameReference stackFrame = ((VariableProxy) container).getStackFrame();
-            VariableProxy varProxy = new VariableProxy(((VariableProxy) container).getThread(), scopeName, newValue, stackFrame);
+            VariableProxy varProxy = new VariableProxy(((VariableProxy) container).getThread(), scopeName, newValue);
             referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
         }
 

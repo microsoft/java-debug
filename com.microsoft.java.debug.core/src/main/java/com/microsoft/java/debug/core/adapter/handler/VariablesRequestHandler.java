@@ -125,7 +125,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                         try {
                             if (StringUtils.isNotEmpty(expression)) {
                                 Value value = evaluationEngine.evaluate(expression, containerObj,
-                                            containerNode.getThread(), containerNode.getStackFrame().getDepth()).get();
+                                            containerNode.getThread()).get();
                                 if (value instanceof ObjectReference) {
                                     containerObj = (ObjectReference) value;
                                 } else {
@@ -135,7 +135,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                                 for (LogicalVariable logicalVariable : logicalVariables) {
                                     String name = logicalVariable.getName();
                                     Value value = evaluationEngine.evaluate(logicalVariable.getValue(), containerObj,
-                                            containerNode.getThread(), containerNode.getStackFrame().getDepth()).get();
+                                            containerNode.getThread()).get();
                                     childrenList.add(new Variable(name, value));
                                 }
                             }
@@ -202,7 +202,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
             int referenceId = 0;
             if (value instanceof ObjectReference && VariableUtils.hasChildren(value, showStaticVariables)) {
-                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode.getStackFrame());
+                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),

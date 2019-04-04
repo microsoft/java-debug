@@ -113,17 +113,12 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     }
 
     @Override
-    public CompletableFuture<Value> evaluate(String expression, ObjectReference context, ThreadReference thread, int depth) {
+    public CompletableFuture<Value> evaluate(String expression, ObjectReference thisContext, ThreadReference thread) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         try  {
-            ensureDebugTarget(thread.virtualMachine(), thread, depth);
+            ensureDebugTarget(thisContext.virtualMachine(), thisContext.type().name());
             JDIThread jdiThread = getMockJDIThread(thread);
-            JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
-            if (stackframe == null) {
-                throw new IllegalStateException("Cannot evaluate because the stackframe is not available.");
-            }
-
-            JDIObjectValue jdiObject = new JDIObjectValue(debugTarget, context);
+            JDIObjectValue jdiObject = new JDIObjectValue(debugTarget, thisContext);
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
             ICompiledExpression compiledExpression = engine.getCompiledExpression(expression, jdiObject);
             internalEvaluate(engine, compiledExpression, jdiObject, jdiThread, completableFuture);
@@ -137,7 +132,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth, IEvaluatableBreakpoint breakpoint) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         try  {
-            ensureDebugTarget(thread.virtualMachine(), thread, depth);
+            StackFrame sf = thread.frame(depth);
+            String typeName = sf.location().method().declaringType().name();
+            ensureDebugTarget(thread.virtualMachine(), typeName);
             JDIThread jdiThread = getMockJDIThread(thread);
             JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
             if (stackframe == null) {
@@ -246,7 +243,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         visitedClassNames.add(className);
     }
 
-    private IJavaProject findJavaProjectByStackFrame(ThreadReference thread, int depth) {
+    private IJavaProject findJavaProjectByType(String typeName) {
         if (projectCandidates == null) {
             // initial candidate projects by main class (projects contains this main class)
             initializeProjectCandidates((String) options.get(Constants.MAIN_CLASS));
@@ -258,8 +255,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
 
         try {
-            StackFrame sf = thread.frame(depth);
-            String typeName = sf.location().method().declaringType().name();
             // narrow down candidate projects by current class
             filterProjectCandidatesByClass(typeName);
         } catch (Exception ex) {
@@ -374,12 +369,12 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
-    private void ensureDebugTarget(VirtualMachine vm, ThreadReference thread, int depth) {
+    private void ensureDebugTarget(VirtualMachine vm, String typeName) {
         if (debugTarget == null) {
             if (project == null) {
                 String projectName = (String) options.get(Constants.PROJECT_NAME);
                 if (StringUtils.isBlank(projectName)) {
-                    project = findJavaProjectByStackFrame(thread, depth);
+                    project = findJavaProjectByType(typeName);
                 } else {
                     IJavaProject javaProject = JdtUtils.getJavaProject(projectName);
                     if (javaProject == null) {

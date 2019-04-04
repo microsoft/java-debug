@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -79,7 +79,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 }
                 long threadId = stackFrameReference.getThread().uniqueID();
                 if (value instanceof ObjectReference) {
-                    VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value, stackFrameReference);
+                    VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
                     int referenceId = VariableUtils.hasChildren(value, showStaticVariables)
                             ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
                     int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;

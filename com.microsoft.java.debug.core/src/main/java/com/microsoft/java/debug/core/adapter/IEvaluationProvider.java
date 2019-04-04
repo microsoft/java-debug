@@ -32,26 +32,25 @@ public interface IEvaluationProvider extends IProvider {
     boolean isInEvaluation(ThreadReference thread);
 
     /**
-     * Evaluate the expression at the given thread and stack frame depth, return the promise which is to be resolved/rejected when
+     * Evaluate the expression in the context of the specified stack frame, return the promise which is to be resolved/rejected when
      * the evaluation finishes.
      *
      * @param expression The expression to be evaluated
-     * @param thread The jdi thread to the expression will be executed at
-     * @param depth The depth of stackframe of the stopped thread
+     * @param thread The suspended thread the evaluation will be executed at
+     * @param depth The stack frame depth in the suspended thread
      * @return the evaluation result future
      */
     CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth);
 
     /**
-     * Evaluate the expression at the given context of the object instance, return the promise which is to be resolved/rejected when
+     * Evaluate the expression in the context of the specified 'this' object, return the promise which is to be resolved/rejected when
      * the evaluation finishes.
      * @param expression The expression to be evaluated
-     * @param context The jdi object which the expression will be executed at
-     * @param thread The jdi thread which the expression will be executed at
-     * @param depth The depth of stackframe of the stopped thread
+     * @param thisContext The 'this' context for the evaluation
+     * @param thread The suspended thread which the evaluation will be executed at
      * @return the evaluation result future
      */
-    CompletableFuture<Value> evaluate(String expression, ObjectReference context, ThreadReference thread, int depth);
+    CompletableFuture<Value> evaluate(String expression, ObjectReference thisContext, ThreadReference thread);
 
     /**
      * Evaluate the conditional breakpoint or logpoint at the given thread and return the promise which is to be resolved/rejected when
