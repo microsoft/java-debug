@@ -22,12 +22,12 @@ public class JavaLogicalStructureManager {
     private static final List<JavaLogicalStructure> supportedLogicalStructures = Collections.synchronizedList(new ArrayList<>());
 
     static {
-        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map", "return entrySet().toArray();", new LogicalVariable[0]));
-        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map$Entry", null, new LogicalVariable[] {
+        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map", "return entrySet().toArray();", "return size();", new LogicalVariable[0]));
+        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map$Entry", null, null, new LogicalVariable[] {
             new LogicalVariable("key", "return getKey();"),
             new LogicalVariable("value", "return getValue();")
         }));
-        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Collection", "return toArray();", new LogicalVariable[0]));
+        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Collection", "return toArray();", "return size();", new LogicalVariable[0]));
     }
 
     /**
@@ -41,5 +41,15 @@ public class JavaLogicalStructureManager {
         }
 
         return null;
+    }
+
+    public static boolean isIndexedVariable(ObjectReference obj) {
+        JavaLogicalStructure structure = getLogicalStructure(obj);
+        return structure != null && structure.isIndexedVariable();
+    }
+
+    public static String getLogicalSize(ObjectReference obj) {
+        JavaLogicalStructure structure = getLogicalStructure(obj);
+        return structure == null ? null : structure.getSize();
     }
 }

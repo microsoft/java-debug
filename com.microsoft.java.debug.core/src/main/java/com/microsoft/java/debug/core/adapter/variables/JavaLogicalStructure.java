@@ -14,6 +14,8 @@ package com.microsoft.java.debug.core.adapter.variables;
 import java.util.List;
 import java.util.Objects;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.sun.jdi.ClassType;
 import com.sun.jdi.InterfaceType;
 import com.sun.jdi.ObjectReference;
@@ -22,14 +24,16 @@ import com.sun.jdi.Type;
 public class JavaLogicalStructure {
     private final String type;
     private final String value;
+    private final String size;
     private final LogicalVariable[] variables;
 
     /**
      * Constructor.
      */
-    public JavaLogicalStructure(String type, String value, LogicalVariable[] variables) {
+    public JavaLogicalStructure(String type, String value, String size, LogicalVariable[] variables) {
         this.value = value;
         this.type = type;
+        this.size = size;
         this.variables = variables;
     }
 
@@ -39,6 +43,10 @@ public class JavaLogicalStructure {
 
     public String getType() {
         return type;
+    }
+
+    public String getSize() {
+        return size;
     }
 
     public LogicalVariable[] getVariables() {
@@ -71,6 +79,10 @@ public class JavaLogicalStructure {
         }
 
         return false;
+    }
+
+    public boolean isIndexedVariable() {
+        return StringUtils.isNotBlank(size);
     }
 
     public static class LogicalVariable {

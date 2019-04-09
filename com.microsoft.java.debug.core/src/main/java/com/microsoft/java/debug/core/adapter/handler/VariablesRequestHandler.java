@@ -48,6 +48,7 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
+import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ObjectReference;
@@ -200,17 +201,35 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             if (variableNameMap.containsKey(javaVariable)) {
                 name = variableNameMap.get(javaVariable);
             }
+            int indexedVariables = -1;
+            if (value instanceof ArrayReference) {
+                indexedVariables = ((ArrayReference) value).length();
+            } else if (DebugSettings.getCurrent().showLogicalStructure
+                    && value instanceof ObjectReference
+                    && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
+                String logicalSizeExpression = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value);
+                IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
+                if (StringUtils.isNotBlank(logicalSizeExpression) && evaluationEngine != null) {
+                    try {
+                        Value size = evaluationEngine.evaluate(logicalSizeExpression, (ObjectReference) value,
+                                containerNode.getThread()).get();
+                        if (size instanceof IntegerValue) {
+                            indexedVariables = ((IntegerValue) size).value();
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        // do nothing.
+                    }
+                }
+            }
             int referenceId = 0;
-            if (value instanceof ObjectReference && VariableUtils.hasChildren(value, showStaticVariables)) {
+            if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
                 VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
                     variableFormatter.typeToString(value == null ? null : value.type(), options),
                     referenceId, null);
-            if (javaVariable.value instanceof ArrayReference) {
-                typedVariables.indexedVariables = ((ArrayReference) javaVariable.value).length();
-            }
+            typedVariables.indexedVariables = Math.max(indexedVariables, 0);
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);
