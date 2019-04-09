@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2019 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -38,9 +38,12 @@ import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.sourcelookup.AbstractSourceLookupDirector;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.debug.core.IJavaObject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
+import org.eclipse.jdt.debug.core.IJavaThread;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
 import org.eclipse.jdt.internal.debug.core.model.JDIDebugTarget;
+import org.eclipse.jdt.internal.debug.core.model.JDIObjectValue;
 import org.eclipse.jdt.internal.debug.core.model.JDIStackFrame;
 import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
@@ -56,6 +59,7 @@ import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.plugin.internal.JdtSourceLookUpProvider;
 import com.microsoft.java.debug.plugin.internal.JdtUtils;
+import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
@@ -108,10 +112,29 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         return evaluate(expression, thread, depth, null);
     }
 
+    @Override
+    public CompletableFuture<Value> evaluate(String expression, ObjectReference thisContext, ThreadReference thread) {
+        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
+        try  {
+            ensureDebugTarget(thisContext.virtualMachine(), thisContext.type().name());
+            JDIThread jdiThread = getMockJDIThread(thread);
+            JDIObjectValue jdiObject = new JDIObjectValue(debugTarget, thisContext);
+            ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
+            ICompiledExpression compiledExpression = engine.getCompiledExpression(expression, jdiObject);
+            internalEvaluate(engine, compiledExpression, jdiObject, jdiThread, completableFuture);
+            return completableFuture;
+        } catch (Exception ex) {
+            completableFuture.completeExceptionally(ex);
+            return completableFuture;
+        }
+    }
+
     private CompletableFuture<Value> evaluate(String expression, ThreadReference thread, int depth, IEvaluatableBreakpoint breakpoint) {
         CompletableFuture<Value> completableFuture = new CompletableFuture<>();
         try  {
-            ensureDebugTarget(thread.virtualMachine(), thread, depth);
+            StackFrame sf = thread.frame(depth);
+            String typeName = sf.location().method().declaringType().name();
+            ensureDebugTarget(thread.virtualMachine(), typeName);
             JDIThread jdiThread = getMockJDIThread(thread);
             JDIStackFrame stackframe = createStackFrame(jdiThread, depth);
             if (stackframe == null) {
@@ -220,7 +243,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         visitedClassNames.add(className);
     }
 
-    private IJavaProject findJavaProjectByStackFrame(ThreadReference thread, int depth) {
+    private IJavaProject findJavaProjectByType(String typeName) {
         if (projectCandidates == null) {
             // initial candidate projects by main class (projects contains this main class)
             initializeProjectCandidates((String) options.get(Constants.MAIN_CLASS));
@@ -232,8 +255,6 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
 
         try {
-            StackFrame sf = thread.frame(depth);
-            String typeName = sf.location().method().declaringType().name();
             // narrow down candidate projects by current class
             filterProjectCandidatesByClass(typeName);
         } catch (Exception ex) {
@@ -302,6 +323,29 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
+    private void internalEvaluate(ASTEvaluationEngine engine, ICompiledExpression compiledExpression, IJavaObject object,
+            IJavaThread thread, CompletableFuture<Value> completableFuture) {
+        try  {
+            engine.evaluateExpression(compiledExpression, object, thread, evaluateResult -> {
+                if (evaluateResult == null || evaluateResult.hasErrors()) {
+                    Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
+                            : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
+                    completableFuture.completeExceptionally(ex);
+                    return;
+                }
+                try {
+                    // we need to read fValue from the result Value instance implements by JDT
+                    Value value = (Value) FieldUtils.readField(evaluateResult.getValue(), "fValue", true);
+                    completableFuture.complete(value);
+                } catch (IllegalArgumentException | IllegalAccessException ex) {
+                    completableFuture.completeExceptionally(ex);
+                }
+            }, 0, false);
+        } catch (Exception ex) {
+            completableFuture.completeExceptionally(ex);
+        }
+    }
+
     @Override
     public boolean isInEvaluation(ThreadReference thread) {
         return debugTarget != null && getMockJDIThread(thread).isPerformingEvaluation();
@@ -325,12 +369,12 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
     }
 
-    private void ensureDebugTarget(VirtualMachine vm, ThreadReference thread, int depth) {
+    private void ensureDebugTarget(VirtualMachine vm, String typeName) {
         if (debugTarget == null) {
             if (project == null) {
                 String projectName = (String) options.get(Constants.PROJECT_NAME);
                 if (StringUtils.isBlank(projectName)) {
-                    project = findJavaProjectByStackFrame(thread, depth);
+                    project = findJavaProjectByType(typeName);
                 } else {
                     IJavaProject javaProject = JdtUtils.getJavaProject(projectName);
                     if (javaProject == null) {
