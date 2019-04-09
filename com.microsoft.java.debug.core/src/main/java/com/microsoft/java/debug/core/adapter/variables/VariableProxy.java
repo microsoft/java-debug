@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -34,12 +34,16 @@ public class VariableProxy {
         this.thread = thread;
         this.scopeName = scopeName;
         this.variable = variable;
-        hashCode = thread.hashCode() & scopeName.hashCode() & variable.hashCode();
+        hashCode = Objects.hash(scopeName, thread, variable);
     }
 
     @Override
     public String toString() {
         return String.format("%s %s", String.valueOf(variable), scopeName);
+    }
+
+    public ThreadReference getThread() {
+        return thread;
     }
 
     @Override
@@ -48,18 +52,19 @@ public class VariableProxy {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof VariableProxy)) {
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
             return false;
         }
-        final VariableProxy other = (VariableProxy) o;
-        return this.getThreadId() == other.getThreadId()
-                && Objects.equals(this.getScope(), other.getScope())
-                && Objects.equals(this.getProxiedVariable(), other.getProxiedVariable());
-    }
-
-    public ThreadReference getThread() {
-        return thread;
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        VariableProxy other = (VariableProxy) obj;
+        return Objects.equals(scopeName, other.scopeName) && Objects.equals(getThreadId(), other.getThreadId())
+                && Objects.equals(variable, other.variable);
     }
 
     public long getThreadId() {
