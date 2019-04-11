@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -20,15 +20,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IStackFrameManager;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalVariable;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -41,6 +48,7 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
+import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ObjectReference;
@@ -81,7 +89,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         }
 
         VariableProxy containerNode = (VariableProxy) container;
-        List<Variable> childrenList;
+        List<Variable> childrenList = new ArrayList<>();
         IStackFrameManager stackFrameManager = context.getStackFrameManager();
         if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
             StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
@@ -109,10 +117,41 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         } else {
             try {
                 ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
-                if (varArgs.count > 0) {
-                    childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
-                } else {
-                    childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
+                if (DebugSettings.getCurrent().showLogicalStructure) {
+                    JavaLogicalStructure logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
+                    IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
+                    if (logicalStructure != null && evaluationEngine != null) {
+                        String expression = logicalStructure.getValue();
+                        LogicalVariable[] logicalVariables = logicalStructure.getVariables();
+                        try {
+                            if (StringUtils.isNotEmpty(expression)) {
+                                Value value = evaluationEngine.evaluate(expression, containerObj,
+                                            containerNode.getThread()).get();
+                                if (value instanceof ObjectReference) {
+                                    containerObj = (ObjectReference) value;
+                                } else {
+                                    childrenList = Arrays.asList(new Variable("logical structure", value));
+                                }
+                            } else if (logicalVariables != null && logicalVariables.length > 0) {
+                                for (LogicalVariable logicalVariable : logicalVariables) {
+                                    String name = logicalVariable.getName();
+                                    Value value = evaluationEngine.evaluate(logicalVariable.getValue(), containerObj,
+                                            containerNode.getThread()).get();
+                                    childrenList.add(new Variable(name, value));
+                                }
+                            }
+                        } catch (InterruptedException | ExecutionException e) {
+                            // do nothing.
+                        }
+                    }
+                }
+
+                if (childrenList.isEmpty() && VariableUtils.hasChildren(containerObj, showStaticVariables)) {
+                    if (varArgs.count > 0) {
+                        childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
+                    } else {
+                        childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
+                    }
                 }
             } catch (AbsentInformationException e) {
                 throw AdapterUtils.createCompletionException(
@@ -162,17 +201,35 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             if (variableNameMap.containsKey(javaVariable)) {
                 name = variableNameMap.get(javaVariable);
             }
+            int indexedVariables = -1;
+            if (value instanceof ArrayReference) {
+                indexedVariables = ((ArrayReference) value).length();
+            } else if (DebugSettings.getCurrent().showLogicalStructure
+                    && value instanceof ObjectReference
+                    && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
+                String logicalSizeExpression = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value);
+                IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
+                if (StringUtils.isNotBlank(logicalSizeExpression) && evaluationEngine != null) {
+                    try {
+                        Value size = evaluationEngine.evaluate(logicalSizeExpression, (ObjectReference) value,
+                                containerNode.getThread()).get();
+                        if (size instanceof IntegerValue) {
+                            indexedVariables = ((IntegerValue) size).value();
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        // do nothing.
+                    }
+                }
+            }
             int referenceId = 0;
-            if (value instanceof ObjectReference && VariableUtils.hasChildren(value, showStaticVariables)) {
+            if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
                 VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
                     variableFormatter.typeToString(value == null ? null : value.type(), options),
                     referenceId, null);
-            if (javaVariable.value instanceof ArrayReference) {
-                typedVariables.indexedVariables = ((ArrayReference) javaVariable.value).length();
-            }
+            typedVariables.indexedVariables = Math.max(indexedVariables, 0);
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);

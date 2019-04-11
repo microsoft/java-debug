@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2019 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -51,7 +51,7 @@ public abstract class VariableUtils {
      * @return true if this value is reference objects.
      */
     public static boolean hasChildren(Value value, boolean includeStatic) {
-        if (value == null) {
+        if (value == null || !(value instanceof ObjectReference)) {
             return false;
         }
         Type type = value.type();
