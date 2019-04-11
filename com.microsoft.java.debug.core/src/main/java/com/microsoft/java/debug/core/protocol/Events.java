@@ -173,9 +173,9 @@ public class Events {
         }
 
         /**
-         * Constructor an stdout output event with source info.
+         * Construct an stdout output event with source info.
          */
-        public static OutputEvent createStdoutOutput(String output, Source source, int line) {
+        public static OutputEvent createStdoutOutputWithSource(String output, Source source, int line) {
             return new OutputEvent(Category.stdout, output, source, line);
         }
 
@@ -184,9 +184,9 @@ public class Events {
         }
 
         /**
-         * Constructor an stderr output event with source info.
+         * Construct an stderr output event with source info.
          */
-        public static OutputEvent createStderrOutput(String output, Source source, int line) {
+        public static OutputEvent createStderrOutputWithSource(String output, Source source, int line) {
             return new OutputEvent(Category.stderr, output, source, line);
         }
 

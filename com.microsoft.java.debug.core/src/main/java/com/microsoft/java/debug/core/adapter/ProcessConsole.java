@@ -45,14 +45,14 @@ public class ProcessConsole {
      */
     public ProcessConsole(Process process, String name, Charset encoding) {
         this.stdoutStream = new InputStreamObservable(name + " Stdout Handler", process.getInputStream(), encoding);
-        this.stderrStream = new InputStreamObservable(name + "Stderr Handler", process.getErrorStream(), encoding);
+        this.stderrStream = new InputStreamObservable(name + " Stderr Handler", process.getErrorStream(), encoding);
         Observable<ConsoleMessage> stdout = this.stdoutStream.messages().map((message) -> new ConsoleMessage(message, Category.stdout));
         Observable<ConsoleMessage> stderr = this.stderrStream.messages().map((message) -> new ConsoleMessage(message, Category.stderr));
         this.observable = Observable.mergeArrayDelayError(stdout, stderr).observeOn(Schedulers.newThread());
     }
 
     /**
-     * Start monitoring the process stdout/stderr streams.
+     * Start monitoring the stdout/stderr streams of the target process.
      */
     public void start() {
         stdoutStream.start();

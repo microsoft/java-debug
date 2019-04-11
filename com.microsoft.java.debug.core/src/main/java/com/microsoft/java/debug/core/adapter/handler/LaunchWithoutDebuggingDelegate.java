@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import com.google.gson.JsonObject;
@@ -39,10 +40,10 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     protected static final String TERMINAL_TITLE = "Java Process Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
-    private LaunchRequestHandler handler;
+    private Consumer<IDebugAdapterContext> terminateHandler;
 
-    public LaunchWithoutDebuggingDelegate(LaunchRequestHandler handler) {
-        this.handler = handler;
+    public LaunchWithoutDebuggingDelegate(Consumer<IDebugAdapterContext> terminateHandler) {
+        this.terminateHandler = terminateHandler;
     }
 
     @Override
@@ -63,7 +64,7 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
                     logger.warning(String.format("Current thread is interrupted. Reason: %s", ignore.toString()));
                     debuggeeProcess.destroy();
                 } finally {
-                    handler.handleTerminatedEvent(context);
+                    terminateHandler.accept(context);
                 }
             }
         }.start();

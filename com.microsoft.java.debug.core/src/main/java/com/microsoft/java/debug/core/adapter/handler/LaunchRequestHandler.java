@@ -75,7 +75,8 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
-        activeLaunchHandler = launchArguments.noDebug ? new LaunchWithoutDebuggingDelegate(this) : new LaunchWithDebuggingDelegate();
+        activeLaunchHandler = launchArguments.noDebug ? new LaunchWithoutDebuggingDelegate((daContext) -> handleTerminatedEvent(daContext))
+                : new LaunchWithDebuggingDelegate();
         return handleLaunchCommand(arguments, response, context);
     }
 
