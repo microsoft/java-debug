@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import com.google.gson.JsonObject;
@@ -24,7 +25,6 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.ProcessConsole;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Request;
@@ -40,8 +40,14 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     protected static final String TERMINAL_TITLE = "Java Process Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
+    private Consumer<IDebugAdapterContext> terminateHandler;
 
-    private Process launchInternalDebuggeeProcess(LaunchArguments launchArguments, IDebugAdapterContext context)
+    public LaunchWithoutDebuggingDelegate(Consumer<IDebugAdapterContext> terminateHandler) {
+        this.terminateHandler = terminateHandler;
+    }
+
+    @Override
+    public Process launch(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         File workingDir = null;
@@ -58,45 +64,12 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
                     logger.warning(String.format("Current thread is interrupted. Reason: %s", ignore.toString()));
                     debuggeeProcess.destroy();
                 } finally {
-                    context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                    terminateHandler.accept(context);
                 }
             }
         }.start();
         logger.info("Launching debuggee proccess succeeded.");
         return debuggeeProcess;
-    }
-
-    @Override
-    public CompletableFuture<Response> launchInternally(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
-        CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-
-        try {
-            Process debuggeeProcess = launchInternalDebuggeeProcess(launchArguments, context);
-            context.setDebuggeeProcess(debuggeeProcess);
-
-            ProcessConsole debuggeeConsole = new ProcessConsole(debuggeeProcess, "Debuggee", context.getDebuggeeEncoding());
-            debuggeeConsole.onStdout((output) -> {
-                // When DA receives a new OutputEvent, it just shows that on Debug Console and doesn't affect the DA's dispatching workflow.
-                // That means the debugger can send OutputEvent to DA at any time.
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createStdoutOutput(output));
-            });
-
-            debuggeeConsole.onStderr((err) -> {
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createStderrOutput(err));
-            });
-            debuggeeConsole.start();
-
-            resultFuture.complete(response);
-        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
-            resultFuture.completeExceptionally(
-                    new DebugException(
-                            String.format("Failed to launch debuggee VM. Reason: %s", e.toString()),
-                            ErrorCode.LAUNCH_FAILURE.getId()
-                    )
-            );
-        }
-
-        return resultFuture;
     }
 
     @Override

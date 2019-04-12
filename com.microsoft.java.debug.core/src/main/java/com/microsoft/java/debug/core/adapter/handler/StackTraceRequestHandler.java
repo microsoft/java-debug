@@ -123,10 +123,17 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             relativeSourcePath = enclosingType.replace('.', File.separatorChar) + ".java";
         }
 
-        final String finalRelativeSourcePath = relativeSourcePath;
+        return convertDebuggerSourceToClient(fullyQualifiedName, sourceName, relativeSourcePath, context);
+    }
+
+    /**
+     * Find the source mapping for the specified source file name.
+     */
+    public static Types.Source convertDebuggerSourceToClient(String fullyQualifiedName, String sourceName, String relativeSourcePath,
+            IDebugAdapterContext context) throws URISyntaxException {
         // use a lru cache for better performance
         String uri = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key -> {
-            String fromProvider = context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, finalRelativeSourcePath);
+            String fromProvider = context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, relativeSourcePath);
             // avoid return null which will cause the compute function executed again
             return StringUtils.isBlank(fromProvider) ? "" : fromProvider;
         });
