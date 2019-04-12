@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -30,6 +30,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static final String VALIDATE_LAUNCHCONFIG = "vscode.java.validateLaunchConfig";
     public static final String RESOLVE_MAINMETHOD = "vscode.java.resolveMainMethod";
     public static final String INFER_LAUNCH_COMMAND_LENGTH = "vscode.java.inferLaunchCommandLength";
+    public static final String CHECK_PROJECT_SETTINGS = "vscode.java.checkProjectSettings";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -57,6 +58,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 return ResolveMainMethodHandler.resolveMainMethods(arguments);
             case INFER_LAUNCH_COMMAND_LENGTH:
                 return LaunchCommandHandler.getLaunchCommandLength(JsonUtils.fromJson((String) arguments.get(0), LaunchArguments.class));
+            case CHECK_PROJECT_SETTINGS:
+                return ProjectSettingsChecker.check(JsonUtils.fromJson((String) arguments.get(0), ProjectSettingsChecker.ProjectSettingsCheckerParams.class));
             default:
                 break;
         }

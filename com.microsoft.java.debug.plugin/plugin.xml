@@ -12,6 +12,7 @@
             <command id="vscode.java.validateLaunchConfig"/>
             <command id="vscode.java.resolveMainMethod"/>
             <command id="vscode.java.inferLaunchCommandLength"/>
+            <command id="vscode.java.checkProjectSettings"/>
        </delegateCommandHandler>
    </extension>
 </plugin>
