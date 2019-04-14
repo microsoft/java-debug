@@ -21,10 +21,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -57,6 +60,7 @@ import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 
 public class VariablesRequestHandler implements IDebugRequestHandler {
+    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {
@@ -141,7 +145,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                                 }
                             }
                         } catch (InterruptedException | ExecutionException e) {
-                            // do nothing.
+                            logger.log(Level.WARNING,
+                                    String.format("Failed to get the logical structure for the type %s, fall back to the Object view.",
+                                            containerObj.type().name()),
+                                    e);
                         }
                     }
                 }
@@ -217,7 +224,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                             indexedVariables = ((IntegerValue) size).value();
                         }
                     } catch (InterruptedException | ExecutionException e) {
-                        // do nothing.
+                        logger.log(Level.INFO,
+                                String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
                     }
                 }
             }
