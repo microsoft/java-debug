@@ -14,18 +14,18 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
@@ -37,6 +37,8 @@ import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IStackFrameManager;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.Expression;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.ExpressionType;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalVariable;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
@@ -51,11 +53,18 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
+import com.sun.jdi.ClassNotLoadedException;
+import com.sun.jdi.Field;
+import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
+import com.sun.jdi.InvalidTypeException;
+import com.sun.jdi.InvocationException;
+import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
+import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 
@@ -121,35 +130,38 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         } else {
             try {
                 ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
-                if (DebugSettings.getCurrent().showLogicalStructure) {
+                IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
+                if (DebugSettings.getCurrent().showLogicalStructure && evaluationEngine != null) {
                     JavaLogicalStructure logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
-                    IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
-                    if (logicalStructure != null && evaluationEngine != null) {
-                        String expression = logicalStructure.getValue();
+                    while (logicalStructure != null) {
+                        Expression expression = logicalStructure.getValue();
                         LogicalVariable[] logicalVariables = logicalStructure.getVariables();
                         try {
-                            if (StringUtils.isNotEmpty(expression)) {
-                                Value value = evaluationEngine.evaluate(expression, containerObj,
-                                            containerNode.getThread()).get();
+                            if (expression != null) {
+                                Value value = getValue(containerObj, expression, containerNode.getThread(), evaluationEngine);
                                 if (value instanceof ObjectReference) {
                                     containerObj = (ObjectReference) value;
+                                    logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
+                                    continue;
                                 } else {
                                     childrenList = Arrays.asList(new Variable("logical structure", value));
                                 }
                             } else if (logicalVariables != null && logicalVariables.length > 0) {
                                 for (LogicalVariable logicalVariable : logicalVariables) {
                                     String name = logicalVariable.getName();
-                                    Value value = evaluationEngine.evaluate(logicalVariable.getValue(), containerObj,
-                                            containerNode.getThread()).get();
+                                    Value value = getValue(containerObj, logicalVariable.getValue(), containerNode.getThread(), evaluationEngine);
                                     childrenList.add(new Variable(name, value));
                                 }
                             }
-                        } catch (InterruptedException | ExecutionException e) {
+                        } catch (InterruptedException | ExecutionException | InvalidTypeException
+                                | ClassNotLoadedException | IncompatibleThreadStateException | InvocationException e) {
                             logger.log(Level.WARNING,
                                     String.format("Failed to get the logical structure for the type %s, fall back to the Object view.",
                                             containerObj.type().name()),
                                     e);
                         }
+
+                        logicalStructure = null;
                     }
                 }
 
@@ -211,24 +223,23 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             int indexedVariables = -1;
             if (value instanceof ArrayReference) {
                 indexedVariables = ((ArrayReference) value).length();
-            } else if (DebugSettings.getCurrent().showLogicalStructure
-                    && value instanceof ObjectReference
+            } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure
+                    && context.getProvider(IEvaluationProvider.class) != null
                     && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
-                String logicalSizeExpression = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value);
+                Expression logicalSizeExpression = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value);
                 IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
-                if (StringUtils.isNotBlank(logicalSizeExpression) && evaluationEngine != null) {
-                    try {
-                        Value size = evaluationEngine.evaluate(logicalSizeExpression, (ObjectReference) value,
-                                containerNode.getThread()).get();
-                        if (size instanceof IntegerValue) {
-                            indexedVariables = ((IntegerValue) size).value();
-                        }
-                    } catch (InterruptedException | ExecutionException e) {
-                        logger.log(Level.INFO,
-                                String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
+                try {
+                    Value sizeValue = getValue((ObjectReference) value, logicalSizeExpression, containerNode.getThread(), evaluationEngine);
+                    if (sizeValue instanceof IntegerValue) {
+                        indexedVariables = ((IntegerValue) sizeValue).value();
                     }
+                } catch (InvalidTypeException | ClassNotLoadedException
+                        | IncompatibleThreadStateException | InvocationException | InterruptedException | ExecutionException e) {
+                    logger.log(Level.INFO,
+                            String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
                 }
             }
+
             int referenceId = 0;
             if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
                 VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
@@ -242,6 +253,53 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         }
         response.body = new Responses.VariablesResponseBody(list);
         return CompletableFuture.completedFuture(response);
+    }
+
+    private Value getValue(ObjectReference thisObject, Expression expression, ThreadReference thread, IEvaluationProvider evaluationEngine)
+            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
+            InterruptedException, ExecutionException {
+        if (expression.type == ExpressionType.METHOD) {
+            return getValueByInvokeMethod(thisObject, expression, thread);
+        } else if (expression.type == ExpressionType.FIELD) {
+            return getValueByField(thisObject, expression, thread);
+        } else {
+            return evaluationEngine.evaluate(expression.value, thisObject, thread).get();
+        }
+    }
+
+    private Value getValueByInvokeMethod(ObjectReference thisObject, Expression expression, ThreadReference thread)
+            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException {
+        List<Method> methods = thisObject.referenceType().allMethods();
+        Method targetMethod = null;
+        for (Method method : methods) {
+            if (Objects.equals(method.name(), expression.value) && method.argumentTypeNames().isEmpty()) {
+                targetMethod = method;
+                break;
+            }
+        }
+
+        if (targetMethod == null) {
+            return null;
+        }
+
+        return thisObject.invokeMethod(thread, targetMethod, Collections.EMPTY_LIST, ObjectReference.INVOKE_SINGLE_THREADED);
+    }
+
+    private Value getValueByField(ObjectReference thisObject, Expression expression, ThreadReference thread) {
+        List<Field> fields = thisObject.referenceType().allFields();
+        Field targetField = null;
+        for (Field field : fields) {
+            if (Objects.equals(field.name(), expression.value)) {
+                targetField = field;
+                break;
+            }
+        }
+
+        if (targetField == null) {
+            return null;
+        }
+
+        return thisObject.getValue(targetField);
     }
 
     private Set<String> getDuplicateNames(Collection<String> list) {

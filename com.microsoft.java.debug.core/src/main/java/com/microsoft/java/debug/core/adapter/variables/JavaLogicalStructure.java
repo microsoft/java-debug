@@ -14,8 +14,6 @@ package com.microsoft.java.debug.core.adapter.variables;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.commons.lang3.StringUtils;
-
 import com.sun.jdi.ClassType;
 import com.sun.jdi.InterfaceType;
 import com.sun.jdi.ObjectReference;
@@ -23,21 +21,21 @@ import com.sun.jdi.Type;
 
 public class JavaLogicalStructure {
     private final String type;
-    private final String value;
-    private final String size;
+    private final Expression value;
+    private final Expression size;
     private final LogicalVariable[] variables;
 
     /**
      * Constructor.
      */
-    public JavaLogicalStructure(String type, String value, String size, LogicalVariable[] variables) {
+    public JavaLogicalStructure(String type, Expression value, Expression size, LogicalVariable[] variables) {
         this.value = value;
         this.type = type;
         this.size = size;
         this.variables = variables;
     }
 
-    public String getValue() {
+    public Expression getValue() {
         return value;
     }
 
@@ -45,7 +43,7 @@ public class JavaLogicalStructure {
         return type;
     }
 
-    public String getSize() {
+    public Expression getSize() {
         return size;
     }
 
@@ -82,14 +80,14 @@ public class JavaLogicalStructure {
     }
 
     public boolean isIndexedVariable() {
-        return StringUtils.isNotBlank(size);
+        return size != null;
     }
 
     public static class LogicalVariable {
         private final String name;
-        private final String value;
+        private final Expression value;
 
-        public LogicalVariable(String name, String value) {
+        public LogicalVariable(String name, Expression value) {
             this.name = name;
             this.value = value;
         }
@@ -98,8 +96,26 @@ public class JavaLogicalStructure {
             return name;
         }
 
-        public String getValue() {
+        public Expression getValue() {
             return value;
         }
+    }
+
+    public static class Expression {
+        public ExpressionType type;
+        public String value;
+
+        /**
+         *  Constructor.
+         */
+        public Expression(ExpressionType type, String value) {
+            super();
+            this.type = type;
+            this.value = value;
+        }
+    }
+
+    public static enum ExpressionType {
+        FIELD, METHOD, EXPRESSION
     }
 }
