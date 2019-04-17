@@ -14,11 +14,19 @@ package com.microsoft.java.debug.core.adapter.variables;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
+import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalStructureExpression;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalStructureExpressionType;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalVariable;
+import com.sun.jdi.ClassNotLoadedException;
+import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.InvalidTypeException;
+import com.sun.jdi.InvocationException;
 import com.sun.jdi.ObjectReference;
+import com.sun.jdi.ThreadReference;
+import com.sun.jdi.Value;
 
 public class JavaLogicalStructureManager {
     private static final List<JavaLogicalStructure> supportedLogicalStructures = Collections.synchronizedList(new ArrayList<>());
@@ -51,13 +59,25 @@ public class JavaLogicalStructureManager {
         return null;
     }
 
+    /**
+     * Return true if the specified Object has defined the logical size.
+     */
     public static boolean isIndexedVariable(ObjectReference obj) {
         JavaLogicalStructure structure = getLogicalStructure(obj);
-        return structure != null && structure.isIndexedVariable();
+        return structure != null && structure.getSizeExpression() != null;
     }
 
-    public static LogicalStructureExpression getLogicalSize(ObjectReference obj) {
-        JavaLogicalStructure structure = getLogicalStructure(obj);
-        return structure == null ? null : structure.getSize();
+    /**
+     * Return the logical size if the specified Object has defined the logical size.
+     */
+    public static Value getLogicalSize(ObjectReference thisObject, ThreadReference thread, IEvaluationProvider evaluationEngine)
+            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
+            InterruptedException, ExecutionException, UnsupportedOperationException {
+        JavaLogicalStructure structure = getLogicalStructure(thisObject);
+        if (structure == null) {
+            return null;
+        }
+
+        return structure.getSize(thisObject, thread, evaluationEngine);
     }
 }
