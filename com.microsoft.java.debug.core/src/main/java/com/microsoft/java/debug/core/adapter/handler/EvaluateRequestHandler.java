@@ -115,7 +115,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
 
                     response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options),
                             referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
-                            indexedVariables);
+                            Math.max(indexedVariables, 0));
                     return response;
                 }
                 // for primitive value
