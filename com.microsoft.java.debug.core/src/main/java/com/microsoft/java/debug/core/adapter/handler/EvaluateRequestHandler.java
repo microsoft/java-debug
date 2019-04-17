@@ -17,9 +17,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -28,6 +31,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
@@ -37,11 +41,18 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.EvaluateArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.sun.jdi.ArrayReference;
+import com.sun.jdi.ClassNotLoadedException;
+import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.IntegerValue;
+import com.sun.jdi.InvalidTypeException;
+import com.sun.jdi.InvocationException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.Value;
 import com.sun.jdi.VoidValue;
 
 public class EvaluateRequestHandler implements IDebugRequestHandler {
+    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
     @Override
     public List<Command> getTargetCommands() {
         return Arrays.asList(Command.EVALUATE);
@@ -80,12 +91,31 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 long threadId = stackFrameReference.getThread().uniqueID();
                 if (value instanceof ObjectReference) {
                     VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
-                    int referenceId = VariableUtils.hasChildren(value, showStaticVariables)
-                            ? context.getRecyclableIdPool().addObject(threadId, varProxy) : 0;
-                    int indexedVariableId = value instanceof ArrayReference ? ((ArrayReference) value).length() : 0;
+                    int indexedVariables = -1;
+                    if (value instanceof ArrayReference) {
+                        indexedVariables = ((ArrayReference) value).length();
+                    } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure
+                            && engine != null
+                            && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
+                        try {
+                            Value sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, stackFrameReference.getThread(), engine);
+                            if (sizeValue != null && sizeValue instanceof IntegerValue) {
+                                indexedVariables = ((IntegerValue) sizeValue).value();
+                            }
+                        } catch (InvalidTypeException | ClassNotLoadedException | IncompatibleThreadStateException
+                                | InvocationException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
+                            logger.log(Level.INFO,
+                                    String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
+                        }
+                    }
+                    int referenceId = 0;
+                    if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
+                        referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
+                    }
+
                     response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options),
                             referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
-                            indexedVariableId);
+                            indexedVariables);
                     return response;
                 }
                 // for primitive value
