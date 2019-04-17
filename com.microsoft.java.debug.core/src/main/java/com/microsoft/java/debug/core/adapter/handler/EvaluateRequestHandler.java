@@ -30,6 +30,7 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.IStackFrameManager;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
@@ -80,8 +81,8 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         }
 
         return CompletableFuture.supplyAsync(() -> {
+            IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
             try {
-                IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
                 Value value = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth()).get();
                 IVariableFormatter variableFormatter = context.getVariableFormatter();
                 if (value instanceof VoidValue) {
@@ -106,6 +107,10 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                                 | InvocationException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
                             logger.log(Level.INFO,
                                     String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
+                        } finally {
+                            // getLogicalSize operation will change the thread stack frame state, need reload the stack frames cached by IStackFrameManager.
+                            IStackFrameManager stackFrameManager = context.getStackFrameManager();
+                            stackFrameManager.reloadStackFrames(stackFrameReference.getThread());
                         }
                     }
                     int referenceId = 0;
@@ -135,6 +140,8 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     String.format("Cannot evaluate because of %s.", cause.toString()),
                     ErrorCode.EVALUATE_FAILURE,
                     cause);
+            } finally {
+                engine.clearState(stackFrameReference.getThread());
             }
         });
     }

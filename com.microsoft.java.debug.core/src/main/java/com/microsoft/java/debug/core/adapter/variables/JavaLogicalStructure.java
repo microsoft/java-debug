@@ -117,12 +117,17 @@ public class JavaLogicalStructure {
             IEvaluationProvider evaluationEngine)
             throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
             InterruptedException, ExecutionException {
-        if (expression.type == LogicalStructureExpressionType.METHOD) {
-            return getValueByMethod(thisObject, expression.value, thread);
-        } else if (expression.type == LogicalStructureExpressionType.FIELD) {
-            return getValueByField(thisObject, expression.value, thread);
-        } else {
-            return evaluationEngine.evaluate(expression.value, thisObject, thread).get();
+        try {
+            if (expression.type == LogicalStructureExpressionType.METHOD) {
+                return getValueByMethod(thisObject, expression.value, thread);
+            } else if (expression.type == LogicalStructureExpressionType.FIELD) {
+                return getValueByField(thisObject, expression.value, thread);
+            } else {
+                return evaluationEngine.evaluate(expression.value, thisObject, thread).get();
+            }
+        } finally {
+            // Make sure the evaluation is terminated and state is cleared.
+            evaluationEngine.clearState(thread);
         }
     }
 

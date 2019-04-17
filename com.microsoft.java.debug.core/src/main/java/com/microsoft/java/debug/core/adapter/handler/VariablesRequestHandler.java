@@ -98,6 +98,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList = new ArrayList<>();
         IStackFrameManager stackFrameManager = context.getStackFrameManager();
+        boolean stackFrameStateChanged = false;
         if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
             StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
             StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
@@ -132,6 +133,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                         LogicalVariable[] logicalVariables = logicalStructure.getVariables();
                         try {
                             if (valueExpression != null) {
+                                stackFrameStateChanged = true;
                                 Value value = logicalStructure.getValue(containerObj, containerNode.getThread(), evaluationEngine);
                                 if (value instanceof ObjectReference) {
                                     containerObj = (ObjectReference) value;
@@ -141,6 +143,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                                     childrenList = Arrays.asList(new Variable("logical structure", value));
                                 }
                             } else if (logicalVariables != null && logicalVariables.length > 0) {
+                                stackFrameStateChanged = true;
                                 for (LogicalVariable logicalVariable : logicalVariables) {
                                     String name = logicalVariable.getName();
                                     Value value = logicalVariable.getValue(containerObj, containerNode.getThread(), evaluationEngine);
@@ -231,6 +234,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     logger.log(Level.INFO,
                             String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
                 }
+                stackFrameStateChanged = true;
             }
 
             int referenceId = 0;
@@ -245,6 +249,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);
+
+        if (stackFrameStateChanged) {
+            stackFrameManager.reloadStackFrames(containerNode.getThread());
+        }
         return CompletableFuture.completedFuture(response);
     }
 
