@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.Expression;
-import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.ExpressionType;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalStructureExpression;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalStructureExpressionType;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalVariable;
 import com.sun.jdi.ObjectReference;
 
@@ -25,16 +25,16 @@ public class JavaLogicalStructureManager {
 
     static {
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map",
-                new Expression(ExpressionType.METHOD, "entrySet"),
-                new Expression(ExpressionType.METHOD, "size"),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "entrySet"),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "size"),
                 new LogicalVariable[0]));
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map$Entry", null, null, new LogicalVariable[] {
-            new LogicalVariable("key", new Expression(ExpressionType.METHOD, "getKey")),
-            new LogicalVariable("value", new Expression(ExpressionType.METHOD, "getValue"))
+            new LogicalVariable("key", new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "getKey")),
+            new LogicalVariable("value", new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "getValue"))
         }));
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Collection",
-                new Expression(ExpressionType.METHOD, "toArray"),
-                new Expression(ExpressionType.METHOD, "size"),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "toArray"),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "size"),
                 new LogicalVariable[0]));
     }
 
@@ -56,7 +56,7 @@ public class JavaLogicalStructureManager {
         return structure != null && structure.isIndexedVariable();
     }
 
-    public static Expression getLogicalSize(ObjectReference obj) {
+    public static LogicalStructureExpression getLogicalSize(ObjectReference obj) {
         JavaLogicalStructure structure = getLogicalStructure(obj);
         return structure == null ? null : structure.getSize();
     }

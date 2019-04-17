@@ -21,21 +21,21 @@ import com.sun.jdi.Type;
 
 public class JavaLogicalStructure {
     private final String type;
-    private final Expression value;
-    private final Expression size;
+    private final LogicalStructureExpression value;
+    private final LogicalStructureExpression size;
     private final LogicalVariable[] variables;
 
     /**
      * Constructor.
      */
-    public JavaLogicalStructure(String type, Expression value, Expression size, LogicalVariable[] variables) {
+    public JavaLogicalStructure(String type, LogicalStructureExpression value, LogicalStructureExpression size, LogicalVariable[] variables) {
         this.value = value;
         this.type = type;
         this.size = size;
         this.variables = variables;
     }
 
-    public Expression getValue() {
+    public LogicalStructureExpression getValue() {
         return value;
     }
 
@@ -43,7 +43,7 @@ public class JavaLogicalStructure {
         return type;
     }
 
-    public Expression getSize() {
+    public LogicalStructureExpression getSize() {
         return size;
     }
 
@@ -85,9 +85,9 @@ public class JavaLogicalStructure {
 
     public static class LogicalVariable {
         private final String name;
-        private final Expression value;
+        private final LogicalStructureExpression value;
 
-        public LogicalVariable(String name, Expression value) {
+        public LogicalVariable(String name, LogicalStructureExpression value) {
             this.name = name;
             this.value = value;
         }
@@ -96,26 +96,26 @@ public class JavaLogicalStructure {
             return name;
         }
 
-        public Expression getValue() {
+        public LogicalStructureExpression getValue() {
             return value;
         }
     }
 
-    public static class Expression {
-        public ExpressionType type;
+    public static class LogicalStructureExpression {
+        public LogicalStructureExpressionType type;
         public String value;
 
         /**
          *  Constructor.
          */
-        public Expression(ExpressionType type, String value) {
+        public LogicalStructureExpression(LogicalStructureExpressionType type, String value) {
             super();
             this.type = type;
             this.value = value;
         }
     }
 
-    public static enum ExpressionType {
-        FIELD, METHOD, EXPRESSION
+    public static enum LogicalStructureExpressionType {
+        FIELD, METHOD, EVALUATION_SNIPPET
     }
 }
