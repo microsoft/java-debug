@@ -14,16 +14,13 @@ package com.microsoft.java.debug.core.adapter.variables;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalStructureExpression;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalStructureExpressionType;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalVariable;
-import com.sun.jdi.ClassNotLoadedException;
-import com.sun.jdi.IncompatibleThreadStateException;
-import com.sun.jdi.InvalidTypeException;
-import com.sun.jdi.InvocationException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
@@ -33,16 +30,17 @@ public class JavaLogicalStructureManager {
 
     static {
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map",
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "entrySet"),
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "size"),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"entrySet", "()Ljava/util/Set;"}),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"size", "()I"}),
                 new LogicalVariable[0]));
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map$Entry", null, null, new LogicalVariable[] {
-            new LogicalVariable("key", new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "getKey")),
-            new LogicalVariable("value", new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "getValue"))
+            new LogicalVariable("key", new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"getKey", "()Ljava/lang/Object;"})),
+            new LogicalVariable("value",
+                    new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"getValue", "()Ljava/lang/Object;"}))
         }));
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Collection",
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "toArray"),
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, "size"),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"toArray", "()[Ljava/lang/Object;"}),
+                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"size", "()I"}),
                 new LogicalVariable[0]));
     }
 
@@ -71,8 +69,7 @@ public class JavaLogicalStructureManager {
      * Return the logical size if the specified Object has defined the logical size.
      */
     public static Value getLogicalSize(ObjectReference thisObject, ThreadReference thread, IEvaluationProvider evaluationEngine)
-            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
-            InterruptedException, ExecutionException, UnsupportedOperationException {
+            throws CancellationException, InterruptedException, IllegalArgumentException, ExecutionException, UnsupportedOperationException {
         JavaLogicalStructure structure = getLogicalStructure(thisObject);
         if (structure == null) {
             return null;

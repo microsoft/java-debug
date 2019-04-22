@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -50,13 +51,9 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
-import com.sun.jdi.ClassNotLoadedException;
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
-import com.sun.jdi.InvalidTypeException;
-import com.sun.jdi.InvocationException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
@@ -98,7 +95,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList = new ArrayList<>();
         IStackFrameManager stackFrameManager = context.getStackFrameManager();
-        boolean stackFrameStateChanged = false;
         if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
             StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
             StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
@@ -133,7 +129,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                         LogicalVariable[] logicalVariables = logicalStructure.getVariables();
                         try {
                             if (valueExpression != null) {
-                                stackFrameStateChanged = true;
                                 Value value = logicalStructure.getValue(containerObj, containerNode.getThread(), evaluationEngine);
                                 if (value instanceof ObjectReference) {
                                     containerObj = (ObjectReference) value;
@@ -143,15 +138,13 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                                     childrenList = Arrays.asList(new Variable("logical structure", value));
                                 }
                             } else if (logicalVariables != null && logicalVariables.length > 0) {
-                                stackFrameStateChanged = true;
                                 for (LogicalVariable logicalVariable : logicalVariables) {
                                     String name = logicalVariable.getName();
                                     Value value = logicalVariable.getValue(containerObj, containerNode.getThread(), evaluationEngine);
                                     childrenList.add(new Variable(name, value));
                                 }
                             }
-                        } catch (InterruptedException | ExecutionException | InvalidTypeException
-                                | ClassNotLoadedException | IncompatibleThreadStateException | InvocationException e) {
+                        } catch (IllegalArgumentException | CancellationException | InterruptedException | ExecutionException e) {
                             logger.log(Level.WARNING,
                                     String.format("Failed to get the logical structure for the type %s, fall back to the Object view.",
                                             containerObj.type().name()),
@@ -229,12 +222,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     if (sizeValue != null && sizeValue instanceof IntegerValue) {
                         indexedVariables = ((IntegerValue) sizeValue).value();
                     }
-                } catch (InvalidTypeException | ClassNotLoadedException | IncompatibleThreadStateException
-                        | InvocationException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
+                } catch (CancellationException | IllegalArgumentException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
                     logger.log(Level.INFO,
                             String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
                 }
-                stackFrameStateChanged = true;
             }
 
             int referenceId = 0;
@@ -250,9 +241,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         }
         response.body = new Responses.VariablesResponseBody(list);
 
-        if (stackFrameStateChanged) {
-            stackFrameManager.reloadStackFrames(containerNode.getThread());
-        }
         return CompletableFuture.completedFuture(response);
     }
 
