@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -50,13 +51,9 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
-import com.sun.jdi.ClassNotLoadedException;
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
-import com.sun.jdi.InvalidTypeException;
-import com.sun.jdi.InvocationException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
@@ -147,8 +144,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                                     childrenList.add(new Variable(name, value));
                                 }
                             }
-                        } catch (InterruptedException | ExecutionException | InvalidTypeException
-                                | ClassNotLoadedException | IncompatibleThreadStateException | InvocationException e) {
+                        } catch (IllegalArgumentException | CancellationException | InterruptedException | ExecutionException e) {
                             logger.log(Level.WARNING,
                                     String.format("Failed to get the logical structure for the type %s, fall back to the Object view.",
                                             containerObj.type().name()),
@@ -226,8 +222,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     if (sizeValue != null && sizeValue instanceof IntegerValue) {
                         indexedVariables = ((IntegerValue) sizeValue).value();
                     }
-                } catch (InvalidTypeException | ClassNotLoadedException | IncompatibleThreadStateException
-                        | InvocationException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
+                } catch (CancellationException | IllegalArgumentException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
                     logger.log(Level.INFO,
                             String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
                 }
@@ -245,6 +240,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);
+
         return CompletableFuture.completedFuture(response);
     }
 

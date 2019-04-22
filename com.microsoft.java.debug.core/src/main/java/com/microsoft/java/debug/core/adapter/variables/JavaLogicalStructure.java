@@ -11,20 +11,15 @@
 
 package com.microsoft.java.debug.core.adapter.variables;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
-import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.ClassType;
 import com.sun.jdi.Field;
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.InterfaceType;
-import com.sun.jdi.InvalidTypeException;
-import com.sun.jdi.InvocationException;
-import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Type;
@@ -95,8 +90,7 @@ public class JavaLogicalStructure {
      * Return the logical size of the specified thisObject.
      */
     public Value getSize(ObjectReference thisObject, ThreadReference thread, IEvaluationProvider evaluationEngine)
-            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
-            InterruptedException, ExecutionException, UnsupportedOperationException {
+            throws CancellationException, InterruptedException, IllegalArgumentException, ExecutionException, UnsupportedOperationException {
         if (sizeExpression  == null) {
             throw new UnsupportedOperationException("The object hasn't defined the logical size operation.");
         }
@@ -108,52 +102,32 @@ public class JavaLogicalStructure {
      * Return the logical value of the specified thisObject.
      */
     public Value getValue(ObjectReference thisObject, ThreadReference thread, IEvaluationProvider evaluationEngine)
-            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
-            InterruptedException, ExecutionException {
+            throws CancellationException, IllegalArgumentException, InterruptedException, ExecutionException {
         return getValue(thisObject, valueExpression, thread, evaluationEngine);
     }
 
     private static Value getValue(ObjectReference thisObject, LogicalStructureExpression expression, ThreadReference thread,
-            IEvaluationProvider evaluationEngine)
-            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
-            InterruptedException, ExecutionException {
+            IEvaluationProvider evaluationEngine) throws CancellationException, IllegalArgumentException, InterruptedException, ExecutionException {
         if (expression.type == LogicalStructureExpressionType.METHOD) {
-            return getValueByMethod(thisObject, expression.value, thread);
+            if (expression.value == null || expression.value.length < 2) {
+                throw new IllegalArgumentException("The method expression should contain at least methodName and methodSignature!");
+            }
+            return evaluationEngine.invokeMethod(thisObject, expression.value[0], expression.value[1], null, thread, false).get();
         } else if (expression.type == LogicalStructureExpressionType.FIELD) {
-            return getValueByField(thisObject, expression.value, thread);
+            if (expression.value == null || expression.value.length < 1) {
+                throw new IllegalArgumentException("The field expression should contain the field name!");
+            }
+            return getValueByField(thisObject, expression.value[0], thread);
         } else {
-            return evaluationEngine.evaluate(expression.value, thisObject, thread).get();
+            if (expression.value == null || expression.value.length < 1) {
+                throw new IllegalArgumentException("The evaluation expression should contain a valid expression statement!");
+            }
+            return evaluationEngine.evaluate(expression.value[0], thisObject, thread).get();
         }
     }
 
-    private static Value getValueByMethod(ObjectReference thisObject, String methodName, ThreadReference thread)
-            throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException {
-        List<Method> methods = thisObject.referenceType().allMethods();
-        Method targetMethod = null;
-        for (Method method : methods) {
-            if (Objects.equals(method.name(), methodName) && method.argumentTypeNames().isEmpty()) {
-                targetMethod = method;
-                break;
-            }
-        }
-
-        if (targetMethod == null) {
-            return null;
-        }
-
-        return thisObject.invokeMethod(thread, targetMethod, Collections.EMPTY_LIST, ObjectReference.INVOKE_SINGLE_THREADED);
-    }
-
-    private static Value getValueByField(ObjectReference thisObject, String filedName, ThreadReference thread) {
-        List<Field> fields = thisObject.referenceType().allFields();
-        Field targetField = null;
-        for (Field field : fields) {
-            if (Objects.equals(field.name(), filedName)) {
-                targetField = field;
-                break;
-            }
-        }
-
+    private static Value getValueByField(ObjectReference thisObject, String fieldName, ThreadReference thread) {
+        Field targetField = thisObject.referenceType().fieldByName(fieldName);
         if (targetField == null) {
             return null;
         }
@@ -175,20 +149,19 @@ public class JavaLogicalStructure {
         }
 
         public Value getValue(ObjectReference thisObject, ThreadReference thread, IEvaluationProvider evaluationEngine)
-                throws InvalidTypeException, ClassNotLoadedException, IncompatibleThreadStateException, InvocationException,
-                InterruptedException, ExecutionException {
+                throws CancellationException, IllegalArgumentException, InterruptedException, ExecutionException {
             return JavaLogicalStructure.getValue(thisObject, valueExpression, thread, evaluationEngine);
         }
     }
 
     public static class LogicalStructureExpression {
         public LogicalStructureExpressionType type;
-        public String value;
+        public String[] value;
 
         /**
          *  Constructor.
          */
-        public LogicalStructureExpression(LogicalStructureExpressionType type, String value) {
+        public LogicalStructureExpression(LogicalStructureExpressionType type, String[] value) {
             this.type = type;
             this.value = value;
         }

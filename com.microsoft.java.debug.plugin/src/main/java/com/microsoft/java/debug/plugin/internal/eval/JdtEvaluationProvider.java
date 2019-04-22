@@ -13,6 +13,7 @@ package com.microsoft.java.debug.plugin.internal.eval;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -41,11 +42,13 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.debug.core.IJavaObject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
+import org.eclipse.jdt.debug.core.IJavaValue;
 import org.eclipse.jdt.debug.eval.ICompiledExpression;
 import org.eclipse.jdt.internal.debug.core.model.JDIDebugTarget;
 import org.eclipse.jdt.internal.debug.core.model.JDIObjectValue;
 import org.eclipse.jdt.internal.debug.core.model.JDIStackFrame;
 import org.eclipse.jdt.internal.debug.core.model.JDIThread;
+import org.eclipse.jdt.internal.debug.core.model.JDIValue;
 import org.eclipse.jdt.internal.debug.eval.ast.engine.ASTEvaluationEngine;
 import org.eclipse.jdt.internal.launching.JavaSourceLookupDirector;
 
@@ -184,6 +187,34 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 return completableFuture;
             }
             internalEvaluate(engine, compiledExpression, stackframe, completableFuture);
+            return completableFuture;
+        } catch (Exception ex) {
+            completableFuture.completeExceptionally(ex);
+            return completableFuture;
+        }
+    }
+
+    @Override
+    public CompletableFuture<Value> invokeMethod(ObjectReference thisContext, String methodName, String methodSignature,
+            Value[] args, ThreadReference thread, boolean invokeSuper) {
+        CompletableFuture<Value> completableFuture = new CompletableFuture<>();
+        try  {
+            ensureDebugTarget(thisContext.virtualMachine(), thisContext.type().name());
+            JDIThread jdiThread = getMockJDIThread(thread);
+            JDIObjectValue jdiObject = new JDIObjectValue(debugTarget, thisContext);
+            List<IJavaValue> arguments = null;
+            if (args == null) {
+                arguments = Collections.EMPTY_LIST;
+            } else {
+                arguments = new ArrayList<>(args.length);
+                for (Value arg : args) {
+                    arguments.add(new JDIValue(debugTarget, arg));
+                }
+            }
+            IJavaValue javaValue = jdiObject.sendMessage(methodName, methodSignature, arguments.toArray(new IJavaValue[0]), jdiThread, invokeSuper);
+            // we need to read fValue from the result Value instance implements by JDT
+            Value value = (Value) FieldUtils.readField(javaValue, "fValue", true);
+            completableFuture.complete(value);
             return completableFuture;
         } catch (Exception ex) {
             completableFuture.completeExceptionally(ex);
@@ -348,7 +379,12 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
 
     @Override
     public boolean isInEvaluation(ThreadReference thread) {
-        return debugTarget != null && getMockJDIThread(thread).isPerformingEvaluation();
+        if (debugTarget == null) {
+            return false;
+        }
+
+        JDIThread jdiThread = getMockJDIThread(thread);
+        return jdiThread != null && (jdiThread.isPerformingEvaluation() || jdiThread.isInvokingMethod());
     }
 
     @Override

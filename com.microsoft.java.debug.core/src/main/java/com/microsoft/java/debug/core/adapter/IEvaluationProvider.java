@@ -63,6 +63,20 @@ public interface IEvaluationProvider extends IProvider {
     CompletableFuture<Value> evaluateForBreakpoint(IEvaluatableBreakpoint breakpoint, ThreadReference thread);
 
     /**
+     * Invoke the specified method with the given arguments at this object and the given thread, and return the result.
+     * The given thread is resumed to perform the method invocation. The thread will suspend in its originallocation when the method invocation is complete.
+     * @param thisContext The 'this' context for the invocation
+     * @param methodName The method to be invoked
+     * @param methodSignature The JNI style signature of the method to be invoked
+     * @param args The arguments of the method, which can be null or empty if there are none
+     * @param thread The thread in which to invoke the method
+     * @param invokeSuper true if the method lookup should begin in thisobject's superclass
+     * @return The result of invoking the method
+     */
+    CompletableFuture<Value> invokeMethod(ObjectReference thisContext, String methodName, String methodSignature,
+            Value[] args, ThreadReference thread, boolean invokeSuper);
+
+    /**
      * Call this method when the thread is to be resumed by user, it will first cancel ongoing evaluation tasks on specified thread and
      * ensure the inner states is cleaned.
      *

@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -41,11 +42,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.EvaluateArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.sun.jdi.ArrayReference;
-import com.sun.jdi.ClassNotLoadedException;
-import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.IntegerValue;
-import com.sun.jdi.InvalidTypeException;
-import com.sun.jdi.InvocationException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.Value;
 import com.sun.jdi.VoidValue;
@@ -80,8 +77,8 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         }
 
         return CompletableFuture.supplyAsync(() -> {
+            IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
             try {
-                IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
                 Value value = engine.evaluate(expression, stackFrameReference.getThread(), stackFrameReference.getDepth()).get();
                 IVariableFormatter variableFormatter = context.getVariableFormatter();
                 if (value instanceof VoidValue) {
@@ -102,8 +99,8 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                             if (sizeValue != null && sizeValue instanceof IntegerValue) {
                                 indexedVariables = ((IntegerValue) sizeValue).value();
                             }
-                        } catch (InvalidTypeException | ClassNotLoadedException | IncompatibleThreadStateException
-                                | InvocationException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
+                        } catch (CancellationException | IllegalArgumentException | InterruptedException
+                                | ExecutionException | UnsupportedOperationException e) {
                             logger.log(Level.INFO,
                                     String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
                         }
