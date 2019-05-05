@@ -224,6 +224,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
         if (context.supportsRunInTerminalRequest()
                 && (launchArguments.console == CONSOLE.integratedTerminal || launchArguments.console == CONSOLE.externalTerminal)) {
+            waitForDebuggeeConsole.complete(true);
             return activeLaunchHandler.launchInTerminal(launchArguments, response, context);
         }
 
