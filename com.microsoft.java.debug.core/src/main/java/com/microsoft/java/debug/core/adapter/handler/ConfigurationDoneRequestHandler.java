@@ -79,7 +79,18 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             context.setVmTerminated();
             context.getProtocolServer().sendEvent(new Events.ExitedEvent(0));
         } else if (event instanceof VMDisconnectEvent) {
-            // ignore since LaunchRequestHandler has already handled.
+            if (context.isAttached()) {
+                context.setVmTerminated();
+                context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                // Terminate eventHub thread.
+                try {
+                    debugSession.getEventHub().close();
+                } catch (Exception e) {
+                    // do nothing.
+                }
+            } else {
+                // Skip it when the debugger is in launch mode, because LaunchRequestHandler will handle the event there.
+            }
         } else if (event instanceof ThreadStartEvent) {
             ThreadReference startThread = ((ThreadStartEvent) event).thread();
             Events.ThreadEvent threadEvent = new Events.ThreadEvent("started", startThread.uniqueID());
