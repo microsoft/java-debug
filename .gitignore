@@ -29,7 +29,6 @@ hs_err_pid*
 .idea
 target/
 .settings
-javaConfig.json
 **/.checkstyle
 target/
 bin/
