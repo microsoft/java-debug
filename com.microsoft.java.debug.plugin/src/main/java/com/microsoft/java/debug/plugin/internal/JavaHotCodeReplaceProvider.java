@@ -10,7 +10,7 @@
  *     Yevgen Kogan - Bug 403475 - Hot Code Replace drops too much frames in some cases
  *******************************************************************************/
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2019 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -259,7 +259,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     @Override
     public void initialize(IDebugAdapterContext context, Map<String, Object> options) {
-        if (DebugSettings.getCurrent().enableHotCodeReplace) {
+        if (DebugSettings.getCurrent().hotCodeReplace != DebugSettings.HotCodeReplace.NEVER) {
             // Listen to the built file events.
             ResourcesPlugin.getWorkspace().addResourceChangeListener(this, IResourceChangeEvent.POST_BUILD);
         }
