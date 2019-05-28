@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core;
 import java.util.logging.Logger;
 
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 
 public final class DebugSettings {
@@ -24,10 +25,10 @@ public final class DebugSettings {
     public boolean showStaticVariables = false;
     public boolean showQualifiedNames = false;
     public boolean showHex = false;
-    public boolean enableHotCodeReplace = false;
     public boolean showLogicalStructure = true;
     public String logLevel;
     public String javaHome;
+    public HotCodeReplace hotCodeReplace = HotCodeReplace.MANUAL;
 
     public static DebugSettings getCurrent() {
         return current;
@@ -49,5 +50,14 @@ public final class DebugSettings {
 
     private DebugSettings() {
 
+    }
+
+    public static enum HotCodeReplace {
+        @SerializedName("manual")
+        MANUAL,
+        @SerializedName("auto")
+        AUTO,
+        @SerializedName("never")
+        NEVER
     }
 }
