@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -243,6 +243,17 @@ public class Responses {
         public ExceptionInfoResponse(String exceptionId, String description, ExceptionBreakMode breakMode, ExceptionDetails details) {
             this(exceptionId, description, breakMode);
             this.details = details;
+        }
+    }
+
+    public static class RedefineClassesResponse extends ResponseBody {
+        public String[] changedClasses = new String[0];
+
+        /**
+         * Constructor.
+         */
+        public RedefineClassesResponse(String[] changedClasses) {
+            this.changedClasses = changedClasses;
         }
     }
 }
