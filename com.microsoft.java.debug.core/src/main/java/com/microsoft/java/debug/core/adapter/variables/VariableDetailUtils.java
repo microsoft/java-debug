@@ -17,9 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -67,21 +65,6 @@ public class VariableDetailUtils {
             return null;
         }
 
-        if (DebugSettings.getCurrent().showLogicalStructure
-                && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
-            if (intermediateResult) {
-                return variableFormatter.valueToString(value, options);
-            } else {
-                try {
-                    Value sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, thread, evaluationEngine);
-                    return "size=" + variableFormatter.valueToString(sizeValue, options);
-                } catch (CancellationException | IllegalArgumentException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
-                    logger.log(Level.INFO,
-                            String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
-                }
-            }
-        }
-
         if (DebugSettings.getCurrent().showToString) {
             String inheritedType = findInheritedType(value, COLLECTION_TYPES);
             if (inheritedType != null) {
@@ -92,7 +75,7 @@ public class VariableDetailUtils {
                         Value valueObject = evaluationEngine.invokeMethod((ObjectReference) value, GET_VALUE_METHOD, GET_VALUE_METHOD_SIGNATURE,
                                 null, thread, false).get();
                         String toStringValue = computeToStringValue(keyObject, thread, variableFormatter, options, evaluationEngine, true)
-                                + ": "
+                                + ":"
                                 + computeToStringValue(valueObject, thread, variableFormatter, options, evaluationEngine, true);
                         if (intermediateResult) {
                             toStringValue = "\"" + toStringValue + "\"";
@@ -101,6 +84,10 @@ public class VariableDetailUtils {
                         return toStringValue;
                     } catch (InterruptedException | ExecutionException e) {
                         // do nothing.
+                    }
+                } else {
+                    if (intermediateResult) {
+                        return variableFormatter.valueToString(value, options);
                     }
                 }
             } else if (containsToStringMethod((ObjectReference) value)) {

@@ -90,13 +90,14 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 if (value instanceof ObjectReference) {
                     VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
                     int indexedVariables = -1;
+                    Value sizeValue = null;
                     if (value instanceof ArrayReference) {
                         indexedVariables = ((ArrayReference) value).length();
                     } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure
                             && engine != null
                             && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
                         try {
-                            Value sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, stackFrameReference.getThread(), engine);
+                            sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, stackFrameReference.getThread(), engine);
                             if (sizeValue != null && sizeValue instanceof IntegerValue) {
                                 indexedVariables = ((IntegerValue) sizeValue).value();
                             }
@@ -112,10 +113,12 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     }
 
                     String valueString = variableFormatter.valueToString(value, options);
-                    String detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
+                    String detailsString = (sizeValue != null) ? "size=" + variableFormatter.valueToString(sizeValue, options)
+                        : VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
                     if (detailsString != null) {
                         valueString = valueString + " " + detailsString;
                     }
+
                     response.body = new Responses.EvaluateResponseBody(valueString,
                             referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
                             Math.max(indexedVariables, 0));

@@ -238,7 +238,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     variableFormatter.typeToString(value == null ? null : value.type(), options),
                     referenceId, null);
             typedVariables.indexedVariables = Math.max(indexedVariables, 0);
-            String detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
+            String detailsValue = (sizeValue != null) ? "size=" + variableFormatter.valueToString(sizeValue, options)
+                : VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
             if (detailsValue != null) {
                 typedVariables.value = typedVariables.value + " " + detailsValue;
             }
