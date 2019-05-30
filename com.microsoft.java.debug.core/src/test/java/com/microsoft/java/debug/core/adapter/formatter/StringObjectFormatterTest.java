@@ -65,13 +65,11 @@ public class StringObjectFormatterTest extends BaseJdiTestCase {
         Value string = this.getLocalValue("str");
         Map<String, Object> options = formatter.getDefaultOptions();
         options.put(MAX_STRING_LENGTH_OPTION, 4);
-        assertEquals("Should be able to format string type.", String.format("\"s...\" (id=%d)",
-            ((ObjectReference) string).uniqueID()),
+        assertEquals("Should be able to format string type.", "\"s...\"",
             formatter.toString(string, options));
 
         options.put(MAX_STRING_LENGTH_OPTION, 5);
-        assertEquals("Should be able to format string type.", String.format("\"st...\" (id=%d)",
-            ((ObjectReference) string).uniqueID()),
+        assertEquals("Should be able to format string type.", "\"st...\"",
             formatter.toString(string, options));
         assertTrue("Should not trim long string by default",
             formatter.toString(string, new HashMap<>()).contains(((StringReference) string).value()));

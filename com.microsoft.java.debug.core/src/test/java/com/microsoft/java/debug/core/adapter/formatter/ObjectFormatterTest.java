@@ -63,7 +63,7 @@ public class ObjectFormatterTest extends BaseJdiTestCase {
     @Test
     public void testToStringDec() throws Exception {
         ObjectReference or = this.getObjectReference("Foo");
-        assertEquals("Failed to format an object.", String.format("MockType (id=%d)", or.uniqueID()),
+        assertEquals("Failed to format an object.", String.format("MockType@%d", or.uniqueID()),
             formatter.toString(or, new HashMap<>()));
     }
 
@@ -72,7 +72,7 @@ public class ObjectFormatterTest extends BaseJdiTestCase {
         ObjectReference or = this.getObjectReference("Foo");
         Map<String, Object> options = formatter.getDefaultOptions();
         options.put(NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
-        assertEquals("Failed to format an object.", String.format("MockType (id=%#x)", or.uniqueID()),
+        assertEquals("Failed to format an object.", String.format("MockType@%#x", or.uniqueID()),
             formatter.toString(or, options));
     }
 
@@ -81,7 +81,7 @@ public class ObjectFormatterTest extends BaseJdiTestCase {
         ObjectReference or = this.getObjectReference("Foo");
         Map<String, Object> options = formatter.getDefaultOptions();
         options.put(NUMERIC_FORMAT_OPTION, NumericFormatEnum.OCT);
-        assertEquals("Failed to format an object.", String.format("MockType (id=%#o)", or.uniqueID()),
+        assertEquals("Failed to format an object.", String.format("MockType@%#o", or.uniqueID()),
             formatter.toString(or, options));
     }
 
