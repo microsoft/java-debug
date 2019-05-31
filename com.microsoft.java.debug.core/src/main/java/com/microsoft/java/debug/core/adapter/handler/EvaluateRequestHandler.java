@@ -113,13 +113,14 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     }
 
                     String valueString = variableFormatter.valueToString(value, options);
-                    String detailsString = (sizeValue != null) ? "size=" + variableFormatter.valueToString(sizeValue, options)
-                        : VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
-                    if (detailsString != null) {
-                        valueString = valueString + " " + detailsString;
+                    String detailsString = null;
+                    if (sizeValue != null) {
+                        detailsString = "size=" + variableFormatter.valueToString(sizeValue, options);
+                    } else if (DebugSettings.getCurrent().showToString) {
+                        detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
                     }
 
-                    response.body = new Responses.EvaluateResponseBody(valueString,
+                    response.body = new Responses.EvaluateResponseBody((detailsString == null) ? valueString : valueString + " " + detailsString,
                             referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
                             Math.max(indexedVariables, 0));
                     return response;

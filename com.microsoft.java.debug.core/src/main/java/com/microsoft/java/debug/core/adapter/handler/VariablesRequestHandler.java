@@ -234,12 +234,18 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
+
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
                     variableFormatter.typeToString(value == null ? null : value.type(), options),
                     referenceId, null);
             typedVariables.indexedVariables = Math.max(indexedVariables, 0);
-            String detailsValue = (sizeValue != null) ? "size=" + variableFormatter.valueToString(sizeValue, options)
-                : VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
+            String detailsValue = null;
+            if (sizeValue != null) {
+                detailsValue = "size=" + variableFormatter.valueToString(sizeValue, options);
+            } else if (DebugSettings.getCurrent().showToString) {
+                detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
+            }
+
             if (detailsValue != null) {
                 typedVariables.value = typedVariables.value + " " + detailsValue;
             }

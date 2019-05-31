@@ -18,10 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.sun.jdi.ClassType;
 import com.sun.jdi.InterfaceType;
@@ -44,60 +41,54 @@ public class VariableDetailUtils {
     private static final Set<String> COLLECTION_TYPES = new HashSet(
             Arrays.asList("java.util.Map", "java.util.Collection", "java.util.Map$Entry"));
 
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     /**
      * Returns the details information for the specified variable.
      */
     public static String formatDetailsValue(Value value, ThreadReference thread, IVariableFormatter variableFormatter, Map<String, Object> options,
             IEvaluationProvider evaluationEngine) {
-        if (isSubtype(value, STRING_TYPE)) {
+        if (isClassType(value, STRING_TYPE)) {
             // No need to show additional details information.
             return null;
         } else {
-            return computeToStringValue(value, thread, variableFormatter, options, evaluationEngine, false);
+            return computeToStringValue(value, thread, variableFormatter, options, evaluationEngine, true);
         }
     }
 
     private static String computeToStringValue(Value value, ThreadReference thread, IVariableFormatter variableFormatter,
-            Map<String, Object> options, IEvaluationProvider evaluationEngine, boolean intermediateResult) {
+            Map<String, Object> options, IEvaluationProvider evaluationEngine, boolean isFirstLevel) {
         if (!(value instanceof ObjectReference) || evaluationEngine == null) {
             return null;
         }
 
-        if (DebugSettings.getCurrent().showToString) {
-            String inheritedType = findInheritedType(value, COLLECTION_TYPES);
-            if (inheritedType != null) {
-                if (Objects.equals(inheritedType, ENTRY_TYPE)) {
-                    try {
-                        Value keyObject = evaluationEngine.invokeMethod((ObjectReference) value, GET_KEY_METHOD, GET_KEY_METHOD_SIGNATURE,
-                                null, thread, false).get();
-                        Value valueObject = evaluationEngine.invokeMethod((ObjectReference) value, GET_VALUE_METHOD, GET_VALUE_METHOD_SIGNATURE,
-                                null, thread, false).get();
-                        String toStringValue = computeToStringValue(keyObject, thread, variableFormatter, options, evaluationEngine, true)
-                                + ":"
-                                + computeToStringValue(valueObject, thread, variableFormatter, options, evaluationEngine, true);
-                        if (intermediateResult) {
-                            toStringValue = "\"" + toStringValue + "\"";
-                        }
-
-                        return toStringValue;
-                    } catch (InterruptedException | ExecutionException e) {
-                        // do nothing.
-                    }
-                } else {
-                    if (intermediateResult) {
-                        return variableFormatter.valueToString(value, options);
-                    }
-                }
-            } else if (containsToStringMethod((ObjectReference) value)) {
+        String inheritedType = findInheritedType(value, COLLECTION_TYPES);
+        if (inheritedType != null) {
+            if (Objects.equals(inheritedType, ENTRY_TYPE)) {
                 try {
-                    Value toStringValue = evaluationEngine.invokeMethod((ObjectReference) value, TO_STRING_METHOD, TO_STRING_METHOD_SIGNATURE,
+                    Value keyObject = evaluationEngine.invokeMethod((ObjectReference) value, GET_KEY_METHOD, GET_KEY_METHOD_SIGNATURE,
                             null, thread, false).get();
-                    return variableFormatter.valueToString(toStringValue, options);
+                    Value valueObject = evaluationEngine.invokeMethod((ObjectReference) value, GET_VALUE_METHOD, GET_VALUE_METHOD_SIGNATURE,
+                            null, thread, false).get();
+                    String toStringValue = computeToStringValue(keyObject, thread, variableFormatter, options, evaluationEngine, false)
+                            + ":"
+                            + computeToStringValue(valueObject, thread, variableFormatter, options, evaluationEngine, false);
+                    if (!isFirstLevel) {
+                        toStringValue = "\"" + toStringValue + "\"";
+                    }
+
+                    return toStringValue;
                 } catch (InterruptedException | ExecutionException e) {
                     // do nothing.
                 }
+            } else if (!isFirstLevel) {
+                return variableFormatter.valueToString(value, options);
+            }
+        } else if (containsToStringMethod((ObjectReference) value)) {
+            try {
+                Value toStringValue = evaluationEngine.invokeMethod((ObjectReference) value, TO_STRING_METHOD, TO_STRING_METHOD_SIGNATURE,
+                        null, thread, false).get();
+                return variableFormatter.valueToString(toStringValue, options);
+            } catch (InterruptedException | ExecutionException e) {
+                // do nothing.
             }
         }
 
@@ -156,7 +147,11 @@ public class VariableDetailUtils {
         return null;
     }
 
-    private static boolean isSubtype(Value value, String typeName) {
-        return findInheritedType(value, new HashSet(Arrays.asList(typeName))) != null;
+    private static boolean isClassType(Value value, String typeName) {
+        if (!(value instanceof ObjectReference)) {
+            return false;
+        }
+
+        return Objects.equals(((ObjectReference) value).type().name(), typeName);
     }
 }
