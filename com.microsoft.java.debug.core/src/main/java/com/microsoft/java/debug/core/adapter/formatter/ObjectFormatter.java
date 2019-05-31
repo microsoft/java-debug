@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2019 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -39,7 +39,7 @@ public class ObjectFormatter implements IValueFormatter {
 
     @Override
     public String toString(Object obj, Map<String, Object> options) {
-        return String.format("%s %s", getPrefix((ObjectReference) obj, options),
+        return String.format("%s@%s", getPrefix((ObjectReference) obj, options),
                 getIdPostfix((ObjectReference) obj, options));
     }
 
@@ -74,6 +74,6 @@ public class ObjectFormatter implements IValueFormatter {
     }
 
     protected static String getIdPostfix(ObjectReference obj, Map<String, Object> options) {
-        return String.format("(id=%s)", NumericFormatter.formatNumber(obj.uniqueID(), options));
+        return NumericFormatter.formatNumber(obj.uniqueID(), options);
     }
 }

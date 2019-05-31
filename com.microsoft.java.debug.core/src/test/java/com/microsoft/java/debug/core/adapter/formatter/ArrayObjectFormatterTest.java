@@ -58,7 +58,7 @@ public class ArrayObjectFormatterTest extends BaseJdiTestCase {
     @Test
     public void testToString() throws Exception {
         Value arrays = this.getLocalValue("arrays");
-        assertEquals("Should be able to format array type.", String.format("int[1] (id=%d)",
+        assertEquals("Should be able to format array type.", String.format("int[1]@%d",
             ((ObjectReference) arrays).uniqueID()),
             formatter.toString(arrays, new HashMap<>()));
     }

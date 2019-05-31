@@ -26,6 +26,7 @@ public final class DebugSettings {
     public boolean showQualifiedNames = false;
     public boolean showHex = false;
     public boolean showLogicalStructure = true;
+    public boolean showToString = true;
     public String logLevel;
     public String javaHome;
     public HotCodeReplace hotCodeReplace = HotCodeReplace.MANUAL;

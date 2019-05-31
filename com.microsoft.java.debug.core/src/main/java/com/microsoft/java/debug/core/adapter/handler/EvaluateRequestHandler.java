@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -34,6 +34,7 @@ import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
+import com.microsoft.java.debug.core.adapter.variables.VariableDetailUtils;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -89,13 +90,14 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 if (value instanceof ObjectReference) {
                     VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
                     int indexedVariables = -1;
+                    Value sizeValue = null;
                     if (value instanceof ArrayReference) {
                         indexedVariables = ((ArrayReference) value).length();
                     } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure
                             && engine != null
                             && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
                         try {
-                            Value sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, stackFrameReference.getThread(), engine);
+                            sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, stackFrameReference.getThread(), engine);
                             if (sizeValue != null && sizeValue instanceof IntegerValue) {
                                 indexedVariables = ((IntegerValue) sizeValue).value();
                             }
@@ -110,7 +112,15 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
                     }
 
-                    response.body = new Responses.EvaluateResponseBody(variableFormatter.valueToString(value, options),
+                    String valueString = variableFormatter.valueToString(value, options);
+                    String detailsString = null;
+                    if (sizeValue != null) {
+                        detailsString = "size=" + variableFormatter.valueToString(sizeValue, options);
+                    } else if (DebugSettings.getCurrent().showToString) {
+                        detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
+                    }
+
+                    response.body = new Responses.EvaluateResponseBody((detailsString == null) ? valueString : valueString + " " + detailsString,
                             referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
                             Math.max(indexedVariables, 0));
                     return response;

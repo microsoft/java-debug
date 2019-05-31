@@ -73,7 +73,7 @@ public class ClassObjectFormatterTest extends BaseJdiTestCase {
     @Test
     public void testToString() throws Exception {
         Value clazzValue = this.getLocalValue("b");
-        assertEquals("Should be able to format clazz type.", String.format("java.lang.Class (A) (id=%d)",
+        assertEquals("Should be able to format clazz type.", String.format("java.lang.Class (A)@%d",
             ((ObjectReference)clazzValue).uniqueID()),
             formatter.toString(clazzValue, new HashMap<>()));
     }

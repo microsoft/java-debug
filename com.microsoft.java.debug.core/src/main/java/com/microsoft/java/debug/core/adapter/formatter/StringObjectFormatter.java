@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -19,7 +19,6 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StringReference;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
@@ -43,9 +42,8 @@ public class StringObjectFormatter extends ObjectFormatter implements IValueForm
     @Override
     public String toString(Object value, Map<String, Object> options) {
         int maxLength = getMaxStringLength(options);
-        return String.format("\"%s\" %s",
-                maxLength > 0 ? StringUtils.abbreviate(((StringReference) value).value(), maxLength) : ((StringReference) value).value(),
-                getIdPostfix((ObjectReference) value, options));
+        return String.format("\"%s\"",
+                maxLength > 0 ? StringUtils.abbreviate(((StringReference) value).value(), maxLength) : ((StringReference) value).value());
     }
 
     @Override

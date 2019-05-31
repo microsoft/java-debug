@@ -41,6 +41,7 @@ import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.Logi
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
+import com.microsoft.java.debug.core.adapter.variables.VariableDetailUtils;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
 import com.microsoft.java.debug.core.adapter.variables.VariableUtils;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -76,6 +77,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         Map<String, Object> options = variableFormatter.getDefaultOptions();
         VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex);
+        IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
 
         List<Types.Variable> list = new ArrayList<>();
         Object container = context.getRecyclableIdPool().getObjectById(varArgs.variablesReference);
@@ -121,7 +123,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         } else {
             try {
                 ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
-                IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
                 if (DebugSettings.getCurrent().showLogicalStructure && evaluationEngine != null) {
                     JavaLogicalStructure logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
                     while (logicalStructure != null) {
@@ -211,14 +212,14 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 name = variableNameMap.get(javaVariable);
             }
             int indexedVariables = -1;
+            Value sizeValue = null;
             if (value instanceof ArrayReference) {
                 indexedVariables = ((ArrayReference) value).length();
             } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure
-                    && context.getProvider(IEvaluationProvider.class) != null
+                    && evaluationEngine != null
                     && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
-                IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
                 try {
-                    Value sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, containerNode.getThread(), evaluationEngine);
+                    sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, containerNode.getThread(), evaluationEngine);
                     if (sizeValue != null && sizeValue instanceof IntegerValue) {
                         indexedVariables = ((IntegerValue) sizeValue).value();
                     }
@@ -233,10 +234,21 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
+
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
                     variableFormatter.typeToString(value == null ? null : value.type(), options),
                     referenceId, null);
             typedVariables.indexedVariables = Math.max(indexedVariables, 0);
+            String detailsValue = null;
+            if (sizeValue != null) {
+                detailsValue = "size=" + variableFormatter.valueToString(sizeValue, options);
+            } else if (DebugSettings.getCurrent().showToString) {
+                detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
+            }
+
+            if (detailsValue != null) {
+                typedVariables.value = typedVariables.value + " " + detailsValue;
+            }
             list.add(typedVariables);
         }
         response.body = new Responses.VariablesResponseBody(list);
