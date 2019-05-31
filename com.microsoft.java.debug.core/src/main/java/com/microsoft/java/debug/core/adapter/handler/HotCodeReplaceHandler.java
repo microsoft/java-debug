@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -25,6 +25,7 @@ import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Responses;
 
 public class HotCodeReplaceHandler implements IDebugRequestHandler {
     @Override
@@ -58,7 +59,10 @@ public class HotCodeReplaceHandler implements IDebugRequestHandler {
 
         IHotCodeReplaceProvider provider = context.getProvider(IHotCodeReplaceProvider.class);
 
-        return provider.redefineClasses().thenApply(classNames -> response);
+        return provider.redefineClasses().thenApply(classNames -> {
+            response.body = new Responses.RedefineClassesResponse(classNames.toArray(new String[0]));
+            return response;
+        });
     }
 
 }
