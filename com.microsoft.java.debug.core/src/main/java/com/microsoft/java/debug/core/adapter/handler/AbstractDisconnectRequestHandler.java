@@ -56,6 +56,10 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
     }
 
     private boolean shouldDestroyLaunchFiles(IDebugAdapterContext context) {
+        if(context.isAttached()){
+            return false; // the debugger is not an owner of the process, so the cleanup can be ignored.
+        }
+
         // Delete the temporary launch files must happen after the debuggee process is fully exited,
         // otherwise it throws error saying the file is being used by other process.
         // In Debug mode, the debugger is able to receive VM terminate event. It's sensible to do cleanup.
