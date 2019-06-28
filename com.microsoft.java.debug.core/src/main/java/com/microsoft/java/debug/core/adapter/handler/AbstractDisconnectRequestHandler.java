@@ -85,6 +85,8 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
                     Files.deleteIfExists(context.getArgsfile());
                     context.setArgsfile(null);
                 }
+
+                break;
             } catch (IOException e) {
                 // do nothing.
                 logger.log(Level.WARNING, "Failed to destory launch files, will retry again.");

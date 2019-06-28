@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2019 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,7 +11,12 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,11 +24,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.debug.core.ILaunchConfiguration;
+import org.eclipse.debug.internal.core.LaunchConfiguration;
+import org.eclipse.debug.internal.core.LaunchConfigurationInfo;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
@@ -34,14 +48,19 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.jdt.ls.core.internal.ProjectUtils;
+import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 import com.microsoft.java.debug.core.Configuration;
 
 public class ResolveClasspathsHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
 
     /**
      * Resolves class path for a java project.
@@ -160,74 +179,70 @@ public class ResolveClasspathsHandler {
             project = projects.get(0);
         }
 
-        return computeClassPath(project, isMainClassInTestFolder(project, mainClass));
+        IJavaElement testElement = findMainClassInTestFolders(project, mainClass);
+        List<IResource> mappedResources = (testElement != null && testElement.getResource() != null)
+                ? Arrays.asList(testElement.getResource()) : Collections.EMPTY_LIST;
+        return computeClassPath(project, testElement == null, mappedResources);
     }
 
     /**
      * Compute runtime classpath of a java project.
      *
-     * @param javaProject
-     *            java project
+     * @param javaProject java project
+     * @param excludeTestCode whether to exclude the test code and test dependencies
+     * @param mappedResources the associated resources with the application
      * @return class path
      * @throws CoreException
      *             CoreException
      */
-    private static String[][] computeClassPath(IJavaProject javaProject, boolean includeTestScope)
+    private static String[][] computeClassPath(IJavaProject javaProject, boolean excludeTestCode, List<IResource> mappedResources)
             throws CoreException {
         if (javaProject == null) {
             throw new IllegalArgumentException("javaProject is null");
         }
-        String[][] result = new String[2][];
-        if (JavaRuntime.isModularProject(javaProject)) {
-            result[0] = computeDefaultRuntimeClassPath(javaProject, includeTestScope);
-            result[1] = new String[0];
-        } else {
-            result[0] = new String[0];
-            result[1] = computeDefaultRuntimeClassPath(javaProject, includeTestScope);
-        }
-        return result;
-    }
 
-    private static String[] computeDefaultRuntimeClassPath(IJavaProject jproject, boolean includeTestScope)
-            throws CoreException {
-        IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(jproject);
-        Set<String> resolved = new LinkedHashSet<String>();
-        for (int i = 0; i < unresolved.length; i++) {
-            IRuntimeClasspathEntry entry = unresolved[i];
-            if (entry.getClasspathProperty() == IRuntimeClasspathEntry.USER_CLASSES) {
-                IRuntimeClasspathEntry[] entries = JavaRuntime.resolveRuntimeClasspathEntry(entry, jproject,
-                        !includeTestScope);
-                for (int j = 0; j < entries.length; j++) {
-
-                    if (!includeTestScope && JdtUtils.isTest(entries[j].getClasspathEntry())) {
-                        continue;
-                    }
-                    String location = entries[j].getLocation();
-                    if (location != null) {
-                        // remove duplicate classpath
-                        resolved.add(location);
-                    }
+        ILaunchConfiguration launchConfig = new JavaApplicationLaunchConfiguration(javaProject.getProject(), excludeTestCode, mappedResources);
+        IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(launchConfig);
+        IRuntimeClasspathEntry[] resolved = JavaRuntime.resolveRuntimeClasspath(unresolved, launchConfig);
+        Set<String> classpaths = new LinkedHashSet<>();
+        Set<String> modulepaths = new LinkedHashSet<>();
+        for (IRuntimeClasspathEntry entry : resolved) {
+            String location = entry.getLocation();
+            if (location != null) {
+                if (entry.getClasspathProperty() == IRuntimeClasspathEntry.USER_CLASSES
+                        || entry.getClasspathProperty() == IRuntimeClasspathEntry.CLASS_PATH) {
+                    classpaths.add(location);
+                } else if (entry.getClasspathProperty() == IRuntimeClasspathEntry.MODULE_PATH) {
+                    modulepaths.add(location);
                 }
             }
         }
-        return resolved.toArray(new String[resolved.size()]);
+
+        return new String[][] {
+            modulepaths.toArray(new String[modulepaths.size()]),
+            classpaths.toArray(new String[classpaths.size()])
+        };
     }
 
-
     /**
-     * Test whether the main class is located in test folders.
+     * Try to find the associated java element with the main class from the test folders.
+     *
      * @param project the java project containing the main class
      * @param mainClass the main class name
-     * @return whether the main class is located in test folders
+     * @return the associated java element
      */
-    private static boolean isMainClassInTestFolder(IJavaProject project, String mainClass) {
+    private static IJavaElement findMainClassInTestFolders(IJavaProject project, String mainClass) {
+        if (project == null || StringUtils.isBlank(mainClass)) {
+            return null;
+        }
+
         // get a list of test folders and check whether main class is here
         int constraints = IJavaSearchScope.SOURCES;
         IJavaElement[] testFolders = JdtUtils.getTestPackageFragmentRoots(project);
         if (testFolders.length > 0) {
             try {
 
-                List<Object> mainClassesInTestFolder = new ArrayList<>();
+                List<IJavaElement> mainClassesInTestFolder = new ArrayList<>();
                 SearchPattern pattern = SearchPattern.createPattern(mainClass, IJavaSearchConstants.CLASS,
                         IJavaSearchConstants.DECLARATIONS,
                         SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
@@ -238,7 +253,7 @@ public class ResolveClasspathsHandler {
                     public void acceptSearchMatch(SearchMatch match) {
                         Object element = match.getElement();
                         if (element instanceof IJavaElement) {
-                            mainClassesInTestFolder.add(element);
+                            mainClassesInTestFolder.add((IJavaElement) element);
                         }
                     }
                 };
@@ -247,11 +262,92 @@ public class ResolveClasspathsHandler {
                             SearchEngine.getDefaultSearchParticipant()
                     }, scope, requestor, null /* progress monitor */);
 
-                return !mainClassesInTestFolder.isEmpty();
+                if (!mainClassesInTestFolder.isEmpty()) {
+                    return mainClassesInTestFolder.get(0);
+                }
             } catch (Exception e) {
                 logger.log(Level.SEVERE, String.format("Searching the main class failure: %s", e.toString()), e);
             }
         }
-        return false;
+
+        return null;
+    }
+
+    private static class JavaApplicationLaunchConfiguration extends LaunchConfiguration {
+        public static final String JAVA_APPLICATION_LAUNCH = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+                + "<launchConfiguration type=\"org.eclipse.jdt.launching.localJavaApplication\">\n"
+                + "<listAttribute key=\"org.eclipse.debug.core.MAPPED_RESOURCE_PATHS\">\n"
+                + "</listAttribute>\n"
+                + "<listAttribute key=\"org.eclipse.debug.core.MAPPED_RESOURCE_TYPES\">\n"
+                + "</listAttribute>\n"
+                + "</launchConfiguration>";
+        private IProject project;
+        private boolean excludeTestCode;
+        private List<IResource> mappedResources;
+        private String classpathProvider;
+        private String sourcepathProvider;
+        private LaunchConfigurationInfo launchInfo;
+
+        protected JavaApplicationLaunchConfiguration(IProject project, boolean excludeTestCode, List<IResource> mappedResources) throws CoreException {
+            super(String.valueOf(new Date().getTime()), null, false);
+            this.project = project;
+            this.excludeTestCode = excludeTestCode;
+            this.mappedResources = mappedResources;
+            if (ProjectUtils.isMavenProject(project)) {
+                classpathProvider = "org.eclipse.m2e.launchconfig.classpathProvider";
+                sourcepathProvider = "org.eclipse.m2e.launchconfig.sourcepathProvider";
+            } else if (ProjectUtils.isGradleProject(project)) {
+                classpathProvider = "org.eclipse.buildship.core.classpathprovider";
+            }
+            this.launchInfo = new JavaLaunchConfigurationInfo(JAVA_APPLICATION_LAUNCH);
+        }
+
+        @Override
+        public boolean getAttribute(String attributeName, boolean defaultValue) throws CoreException {
+            if (IJavaLaunchConfigurationConstants.ATTR_EXCLUDE_TEST_CODE.equalsIgnoreCase(attributeName)) {
+                return excludeTestCode;
+            }
+
+            return super.getAttribute(attributeName, defaultValue);
+        }
+
+        @Override
+        public String getAttribute(String attributeName, String defaultValue) throws CoreException {
+            if (IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME.equalsIgnoreCase(attributeName)) {
+                return project.getName();
+            } else if (IJavaLaunchConfigurationConstants.ATTR_CLASSPATH_PROVIDER.equalsIgnoreCase(attributeName)) {
+                return classpathProvider;
+            } else if (IJavaLaunchConfigurationConstants.ATTR_SOURCE_PATH_PROVIDER.equalsIgnoreCase(attributeName)) {
+                return sourcepathProvider;
+            }
+
+            return super.getAttribute(attributeName, defaultValue);
+        }
+
+        @Override
+        public IResource[] getMappedResources() throws CoreException {
+            return mappedResources.toArray(new IResource[0]);
+        }
+
+        @Override
+        protected LaunchConfigurationInfo getInfo() throws CoreException {
+            return this.launchInfo;
+        }
+    }
+
+    private static class JavaLaunchConfigurationInfo extends LaunchConfigurationInfo {
+        public JavaLaunchConfigurationInfo(String launchXml) {
+            super();
+            try {
+                DocumentBuilder parser = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                parser.setErrorHandler(new DefaultHandler());
+                StringReader reader = new StringReader(launchXml);
+                InputSource source = new InputSource(reader);
+                Element root = parser.parse(source).getDocumentElement();
+                initializeFromXML(root);
+            } catch (ParserConfigurationException | SAXException | IOException | CoreException e) {
+                // do nothing
+            }
+        }
     }
 }
