@@ -14,6 +14,8 @@ package com.microsoft.java.debug.plugin.internal;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,6 +30,7 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
@@ -176,26 +179,29 @@ public class ResolveClasspathsHandler {
             project = projects.get(0);
         }
 
-        return computeClassPath(project, !isMainClassInTestFolder(project, mainClass));
+        IJavaElement testElement = findMainClassInTestFolders(project, mainClass);
+        List<IResource> mappedResources = (testElement != null && testElement.getResource() != null)
+                ? Arrays.asList(testElement.getResource()) : Collections.EMPTY_LIST;
+        return computeClassPath(project, testElement == null, mappedResources);
     }
 
     /**
      * Compute runtime classpath of a java project.
      *
-     * @param javaProject
-     *            java project
-     * @param excludeTestCode whether to exclude the test code and test dependencies.
+     * @param javaProject java project
+     * @param excludeTestCode whether to exclude the test code and test dependencies
+     * @param mappedResources the associated resources with the application
      * @return class path
      * @throws CoreException
      *             CoreException
      */
-    private static String[][] computeClassPath(IJavaProject javaProject, boolean excludeTestCode)
+    private static String[][] computeClassPath(IJavaProject javaProject, boolean excludeTestCode, List<IResource> mappedResources)
             throws CoreException {
         if (javaProject == null) {
             throw new IllegalArgumentException("javaProject is null");
         }
 
-        ILaunchConfiguration launchConfig = new JavaApplicationLaunchConfiguration(javaProject.getProject(), excludeTestCode);
+        ILaunchConfiguration launchConfig = new JavaApplicationLaunchConfiguration(javaProject.getProject(), excludeTestCode, mappedResources);
         IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(launchConfig);
         IRuntimeClasspathEntry[] resolved = JavaRuntime.resolveRuntimeClasspath(unresolved, launchConfig);
         Set<String> classpaths = new LinkedHashSet<>();
@@ -219,19 +225,24 @@ public class ResolveClasspathsHandler {
     }
 
     /**
-     * Test whether the main class is located in test folders.
+     * Try to find the associated java element with the main class from the test folders.
+     *
      * @param project the java project containing the main class
      * @param mainClass the main class name
-     * @return whether the main class is located in test folders
+     * @return the associated java element
      */
-    private static boolean isMainClassInTestFolder(IJavaProject project, String mainClass) {
+    private static IJavaElement findMainClassInTestFolders(IJavaProject project, String mainClass) {
+        if (project == null || StringUtils.isBlank(mainClass)) {
+            return null;
+        }
+
         // get a list of test folders and check whether main class is here
         int constraints = IJavaSearchScope.SOURCES;
         IJavaElement[] testFolders = JdtUtils.getTestPackageFragmentRoots(project);
         if (testFolders.length > 0) {
             try {
 
-                List<Object> mainClassesInTestFolder = new ArrayList<>();
+                List<IJavaElement> mainClassesInTestFolder = new ArrayList<>();
                 SearchPattern pattern = SearchPattern.createPattern(mainClass, IJavaSearchConstants.CLASS,
                         IJavaSearchConstants.DECLARATIONS,
                         SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
@@ -242,7 +253,7 @@ public class ResolveClasspathsHandler {
                     public void acceptSearchMatch(SearchMatch match) {
                         Object element = match.getElement();
                         if (element instanceof IJavaElement) {
-                            mainClassesInTestFolder.add(element);
+                            mainClassesInTestFolder.add((IJavaElement) element);
                         }
                     }
                 };
@@ -251,12 +262,15 @@ public class ResolveClasspathsHandler {
                             SearchEngine.getDefaultSearchParticipant()
                     }, scope, requestor, null /* progress monitor */);
 
-                return !mainClassesInTestFolder.isEmpty();
+                if (!mainClassesInTestFolder.isEmpty()) {
+                    return mainClassesInTestFolder.get(0);
+                }
             } catch (Exception e) {
                 logger.log(Level.SEVERE, String.format("Searching the main class failure: %s", e.toString()), e);
             }
         }
-        return false;
+
+        return null;
     }
 
     private static class JavaApplicationLaunchConfiguration extends LaunchConfiguration {
@@ -265,19 +279,20 @@ public class ResolveClasspathsHandler {
                 + "<listAttribute key=\"org.eclipse.debug.core.MAPPED_RESOURCE_PATHS\">\n"
                 + "</listAttribute>\n"
                 + "<listAttribute key=\"org.eclipse.debug.core.MAPPED_RESOURCE_TYPES\">\n"
-                + "<listEntry value=\"1\"/>\n"
                 + "</listAttribute>\n"
                 + "</launchConfiguration>";
         private IProject project;
         private boolean excludeTestCode;
+        private List<IResource> mappedResources;
         private String classpathProvider;
         private String sourcepathProvider;
         private LaunchConfigurationInfo launchInfo;
 
-        protected JavaApplicationLaunchConfiguration(IProject project, boolean excludeTestCode) throws CoreException {
+        protected JavaApplicationLaunchConfiguration(IProject project, boolean excludeTestCode, List<IResource> mappedResources) throws CoreException {
             super(String.valueOf(new Date().getTime()), null, false);
             this.project = project;
             this.excludeTestCode = excludeTestCode;
+            this.mappedResources = mappedResources;
             if (ProjectUtils.isMavenProject(project)) {
                 classpathProvider = "org.eclipse.m2e.launchconfig.classpathProvider";
                 sourcepathProvider = "org.eclipse.m2e.launchconfig.sourcepathProvider";
@@ -307,6 +322,11 @@ public class ResolveClasspathsHandler {
             }
 
             return super.getAttribute(attributeName, defaultValue);
+        }
+
+        @Override
+        public IResource[] getMappedResources() throws CoreException {
+            return mappedResources.toArray(new IResource[0]);
         }
 
         @Override
