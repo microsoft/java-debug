@@ -56,7 +56,7 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
     }
 
     private boolean shouldDestroyLaunchFiles(IDebugAdapterContext context) {
-        if(context.isAttached()){
+        if (context.isAttached()) {
             return false; // the debugger is not an owner of the process, so the cleanup can be ignored.
         }
 
