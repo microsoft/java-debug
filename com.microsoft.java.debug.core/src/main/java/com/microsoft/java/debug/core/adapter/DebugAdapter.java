@@ -150,7 +150,7 @@ public class DebugAdapter implements IDebugAdapter {
     }
 
     /**
-     * Closes the debuggee and cleans up the context when the vm is not already terminated and the session is open
+     * Closes the debuggee and cleans up the context when the vm is not already terminated and the session is open.
      */
     @Override
     public void close() {
@@ -164,5 +164,6 @@ public class DebugAdapter implements IDebugAdapter {
         } else {
             session.terminate();
         }
+        debugContext.close();
     }
 }

@@ -20,7 +20,7 @@ import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 
-public interface IDebugAdapterContext {
+public interface IDebugAdapterContext extends AutoCloseable {
     IProtocolServer getProtocolServer();
 
     <T extends IProvider> T getProvider(Class<T> clazz);
@@ -124,4 +124,6 @@ public interface IDebugAdapterContext {
     Path getArgsfile();
 
     IExceptionManager getExceptionManager();
+
+    void close();
 }

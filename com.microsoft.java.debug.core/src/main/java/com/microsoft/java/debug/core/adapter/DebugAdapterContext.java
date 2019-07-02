@@ -11,11 +11,17 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
@@ -23,6 +29,8 @@ import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 
 public class DebugAdapterContext implements IDebugAdapterContext {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+
     private static final int MAX_CACHE_ITEMS = 10000;
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
     private IProviderContext providerContext;
@@ -290,5 +298,56 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IExceptionManager getExceptionManager() {
         return this.exceptionManager;
+    }
+
+    /**
+     * Cleans up resources created by the adapter.
+     */
+    @Override
+    public void close() {
+        if (shouldDestroyLaunchFiles()) {
+            destroyLaunchFiles();
+        }
+    }
+
+    private boolean shouldDestroyLaunchFiles() {
+        // Delete the temporary launch files must happen after the debuggee process is fully exited,
+        // otherwise it throws error saying the file is being used by other process.
+        // In Debug mode, the debugger is able to receive VM terminate event. It's sensible to do cleanup.
+        // In noDebug mode, if the debuggee is launched internally by the debugger, the debugger knows
+        // when the debuggee process exited. Should do cleanup. But if the debuggee is launched in the
+        // integrated/external terminal, the debugger lost the contact with the debuggee after it's launched.
+        // Have no idea when the debuggee is exited. So ignore the cleanup.
+        return getLaunchMode() == LaunchMode.DEBUG || getDebuggeeProcess() != null;
+    }
+
+    private void destroyLaunchFiles() {
+        // Sometimes when the debug session is terminated, the debuggee process is not exited immediately.
+        // Add retry to delete the temporary launch files.
+        int retry = 5;
+        while (retry-- > 0) {
+            try {
+                if (getClasspathJar() != null) {
+                    Files.deleteIfExists(getClasspathJar());
+                    setClasspathJar(null);
+                }
+
+                if (getArgsfile() != null) {
+                    Files.deleteIfExists(getArgsfile());
+                    setArgsfile(null);
+                }
+
+                break;
+            } catch (IOException e) {
+                // do nothing.
+                logger.log(Level.WARNING, "Failed to destory launch files, will retry again.");
+            }
+
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                // do nothing.
+            }
+        }
     }
 }
