@@ -89,16 +89,22 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
         char[] buffer = new char[BUFFER_SIZE];
         try {
             while (!this.terminateSession) {
-                int read = this.reader.read(buffer, 0, BUFFER_SIZE);
-                if (read == -1) {
-                    break;
-                }
+                if (this.reader.ready()) {
+                    int read = this.reader.read(buffer, 0, BUFFER_SIZE);
+                    if (read == -1) {
+                        break;
+                    }
 
-                this.rawData.append(new String(buffer, 0, read).getBytes(PROTOCOL_ENCODING));
-                this.processData();
+                    this.rawData.append(new String(buffer, 0, read).getBytes(PROTOCOL_ENCODING));
+                    this.processData();
+                } else {
+                    Thread.sleep(250);
+                }
             }
         } catch (IOException e) {
             logger.log(Level.SEVERE, String.format("Read data from io exception: %s", e.toString()), e);
+        } catch (InterruptedException e) {
+            stop();
         }
 
         requestSubject.onComplete();
