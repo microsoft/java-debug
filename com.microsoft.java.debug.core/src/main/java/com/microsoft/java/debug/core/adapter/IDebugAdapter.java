@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.protocol.Messages;
 
-public interface IDebugAdapter {
+public interface IDebugAdapter extends AutoCloseable {
     CompletableFuture<Messages.Response> dispatchRequest(Messages.Request request);
+
+    void close();
 }

@@ -16,6 +16,7 @@ import java.io.OutputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -159,6 +160,28 @@ public class ProtocolServer extends AbstractProtocolServer {
             while (this.eventQueue.peek() != null) {
                 super.sendEvent(this.eventQueue.poll());
             }
+        }
+    }
+
+    /**
+     * Blocking operation. Waits until there is no request being dispatched, then closes the debug adapter
+     */
+    @Override
+    public void stop() {
+        super.stop();
+
+        try {
+            // prevents race condition for debuggee termination if the disconnect request is currently handled
+            while (isDispatchingRequest) {
+                TimeUnit.MILLISECONDS.sleep(250);
+            }
+        } catch (InterruptedException e) {
+            // ignore
+        }
+
+        // don't accept new request until the adapter is closed
+        synchronized (lock) {
+            debugAdapter.close();
         }
     }
 }

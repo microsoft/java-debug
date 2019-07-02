@@ -20,6 +20,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.CompletionsHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
@@ -145,6 +146,23 @@ public class DebugAdapter implements IDebugAdapter {
             }
             handler.initialize(debugContext);
             handlerList.add(handler);
+        }
+    }
+
+    /**
+     * Closes the debuggee and cleans up the context when the vm is not already terminated and the session is open
+     */
+    @Override
+    public void close() {
+        IDebugSession session = debugContext.getDebugSession();
+        if (debugContext.isVmTerminated() || session == null) {
+            return;
+        }
+
+        if (debugContext.isAttached()) {
+            session.detach();
+        } else {
+            session.terminate();
         }
     }
 }
