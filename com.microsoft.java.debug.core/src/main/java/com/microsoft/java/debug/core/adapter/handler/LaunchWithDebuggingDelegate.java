@@ -56,6 +56,10 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
     private static final String TERMINAL_TITLE = "Java Debug Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
 
+    public LaunchWithDebuggingDelegate(Logger logger) {
+        super(logger);
+    }
+
     @Override
     public CompletableFuture<Response> launchInTerminal(LaunchArguments launchArguments, Response response, IDebugAdapterContext context) {
         CompletableFuture<Response> resultFuture = new CompletableFuture<>();
@@ -98,7 +102,7 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
                         if (runResponse.success) {
                             try {
                                 VirtualMachine vm = listenConnector.accept(args);
-                                context.setDebugSession(new DebugSession(vm));
+                                context.setDebugSession(new DebugSession(vm, logger));
                                 logger.info("Launching debuggee in terminal console succeeded.");
                                 resultFuture.complete(response);
                             } catch (TransportTimeoutException e) {
@@ -178,7 +182,8 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
                 Arrays.asList(launchArguments.modulePaths),
                 Arrays.asList(launchArguments.classPaths),
                 launchArguments.cwd,
-                constructEnvironmentVariables(launchArguments));
+                constructEnvironmentVariables(launchArguments),
+                logger);
         context.setDebugSession(debugSession);
 
         logger.info("Launching debuggee VM succeeded.");

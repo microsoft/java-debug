@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 
@@ -27,6 +28,7 @@ import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.event.VMDisconnectEvent;
 
 public class DebugSessionFactory {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final String TEST_ROOT = "../com.microsoft.java.debug.test/project";
     private static String rootPath = new File(TEST_ROOT).getAbsolutePath();
     private static Set<String> readyForLaunchProjects = new HashSet<>();
@@ -52,7 +54,7 @@ public class DebugSessionFactory {
             String projectRoot = new File(rootPath, name).getAbsolutePath();
             try {
                 final IDebugSession debugSession = DebugUtility.launch(Bootstrap.virtualMachineManager(), mainClass, "", "",
-                        null, new File(projectRoot, "bin").getAbsolutePath(), null, null);
+                        null, new File(projectRoot, "bin").getAbsolutePath(), null, null, logger);
                 debugSession.getEventHub().events().subscribe(debugEvent -> {
                     if (debugEvent.event instanceof VMDisconnectEvent) {
                         try {

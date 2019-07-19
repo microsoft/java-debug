@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -41,7 +40,11 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {
-    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger;
+
+    public AttachRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {
@@ -61,7 +64,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         try {
             logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .", attachArguments.hostName, attachArguments.port));
             IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), attachArguments.hostName, attachArguments.port,
-                    attachArguments.timeout);
+                    attachArguments.timeout, logger);
             context.setDebugSession(debugSession);
             logger.info("Attaching to debuggee VM succeeded.");
 

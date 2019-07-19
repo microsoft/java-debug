@@ -31,8 +31,12 @@ import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 
 public class EventHub implements IEventHub {
-    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger;
     private PublishSubject<DebugEvent> subject = PublishSubject.<DebugEvent>create();
+
+    public EventHub(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public Observable<DebugEvent> events() {

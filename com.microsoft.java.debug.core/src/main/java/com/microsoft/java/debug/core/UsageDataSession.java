@@ -1,13 +1,13 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
-* All rights reserved. This program and the accompanying materials
-* are made available under the terms of the Eclipse Public License v1.0
-* which accompanies this distribution, and is available at
-* http://www.eclipse.org/legal/epl-v10.html
-*
-* Contributors:
-*     Microsoft Corporation - initial API and implementation
-*******************************************************************************/
+ * Copyright (c) 2017 Microsoft Corporation and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Microsoft Corporation - initial API and implementation
+ *******************************************************************************/
 
 package com.microsoft.java.debug.core;
 
@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,8 +29,8 @@ import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.sun.jdi.event.Event;
 
 public class UsageDataSession {
-    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
+    private final Logger logger;
+    private final Logger usageDataLogger;
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
     private static final ThreadLocal<UsageDataSession> threadLocal = new InheritableThreadLocal<>();
 
@@ -52,7 +53,12 @@ public class UsageDataSession {
         return threadLocal.get();
     }
 
-    public UsageDataSession() {
+    /**
+     * Constructor.
+     */
+    public UsageDataSession(Logger logger, Function<String, Logger> loggerFactory) {
+        this.logger = logger;
+        this.usageDataLogger = loggerFactory.apply(Configuration.USAGE_DATA_LOGGER_NAME);
         threadLocal.set(this);
     }
 

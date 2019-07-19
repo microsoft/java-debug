@@ -33,7 +33,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
@@ -59,10 +58,14 @@ import com.sun.jdi.connect.VMStartException;
 import com.sun.jdi.event.VMDisconnectEvent;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
-    protected final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger;
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
     protected ILaunchDelegate activeLaunchHandler;
     private CompletableFuture<Boolean> waitForDebuggeeConsole = new CompletableFuture<>();
+
+    public LaunchRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {
@@ -72,8 +75,9 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
-        activeLaunchHandler = launchArguments.noDebug ? new LaunchWithoutDebuggingDelegate((daContext) -> handleTerminatedEvent(daContext))
-                : new LaunchWithDebuggingDelegate();
+        activeLaunchHandler = launchArguments.noDebug
+                ? new LaunchWithoutDebuggingDelegate(this::handleTerminatedEvent, logger)
+                : new LaunchWithDebuggingDelegate(logger);
         return handleLaunchCommand(arguments, response, context);
     }
 

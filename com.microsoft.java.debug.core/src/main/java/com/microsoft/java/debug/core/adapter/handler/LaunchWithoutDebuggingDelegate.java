@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.DebugException;
@@ -39,7 +40,8 @@ public class LaunchWithoutDebuggingDelegate extends AbstractLaunchDelegate {
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
     private Consumer<IDebugAdapterContext> terminateHandler;
 
-    public LaunchWithoutDebuggingDelegate(Consumer<IDebugAdapterContext> terminateHandler) {
+    public LaunchWithoutDebuggingDelegate(Consumer<IDebugAdapterContext> terminateHandler, Logger logger) {
+        super(logger);
         this.terminateHandler = terminateHandler;
     }
 

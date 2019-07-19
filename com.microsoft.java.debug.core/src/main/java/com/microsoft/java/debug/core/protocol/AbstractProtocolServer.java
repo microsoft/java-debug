@@ -33,7 +33,6 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 
 import io.reactivex.disposables.Disposable;
@@ -41,7 +40,7 @@ import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
 public abstract class AbstractProtocolServer implements IProtocolServer {
-    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger;
     private static final int BUFFER_SIZE = 4096;
     private static final String TWO_CRLF = "\r\n\r\n";
     private static final Pattern CONTENT_LENGTH_MATCHER = Pattern.compile("Content-Length: (\\d+)");
@@ -68,7 +67,8 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
      * @param output
      *            the output stream
      */
-    public AbstractProtocolServer(InputStream input, OutputStream output) {
+    public AbstractProtocolServer(InputStream input, OutputStream output, Logger logger) {
+        this.logger = logger;
         this.reader = new BufferedReader(new InputStreamReader(input, PROTOCOL_ENCODING));
         this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(output, PROTOCOL_ENCODING)));
         this.contentLength = -1;

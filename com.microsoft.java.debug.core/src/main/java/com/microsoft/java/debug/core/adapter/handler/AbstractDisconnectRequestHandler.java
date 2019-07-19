@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.LaunchMode;
@@ -29,7 +28,11 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 
 public abstract class AbstractDisconnectRequestHandler implements IDebugRequestHandler {
-    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger;
+
+    public AbstractDisconnectRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {

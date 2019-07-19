@@ -11,17 +11,20 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
-import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.protocol.Requests;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.protocol.Requests;
+
 abstract class AbstractLaunchDelegate implements ILaunchDelegate {
-    protected final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger;
+
+    protected AbstractLaunchDelegate(Logger logger) {
+        this.logger = logger;
+    }
 
     protected String[] constructEnvironmentVariables(Requests.LaunchArguments launchArguments) {
         String[] envVars = null;

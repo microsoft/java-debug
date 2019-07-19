@@ -19,7 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.CompletionsHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
@@ -47,7 +46,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 
 public class DebugAdapter implements IDebugAdapter {
-    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger;
 
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlersForDebug = null;
@@ -56,7 +55,8 @@ public class DebugAdapter implements IDebugAdapter {
     /**
      * Constructor.
      */
-    public DebugAdapter(IProtocolServer server, IProviderContext providerContext) {
+    public DebugAdapter(IProtocolServer server, IProviderContext providerContext, Logger logger) {
+        this.logger = logger;
         this.debugContext = new DebugAdapterContext(server, providerContext);
         requestHandlersForDebug = new HashMap<>();
         requestHandlersForNoDebug = new HashMap<>();
@@ -97,29 +97,29 @@ public class DebugAdapter implements IDebugAdapter {
         // Register request handlers.
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
-        registerHandler(new LaunchRequestHandler());
+        registerHandler(new LaunchRequestHandler(logger));
 
         // DEBUG node only
-        registerHandlerForDebug(new AttachRequestHandler());
-        registerHandlerForDebug(new ConfigurationDoneRequestHandler());
-        registerHandlerForDebug(new DisconnectRequestHandler());
-        registerHandlerForDebug(new SetBreakpointsRequestHandler());
+        registerHandlerForDebug(new AttachRequestHandler(logger));
+        registerHandlerForDebug(new ConfigurationDoneRequestHandler(logger));
+        registerHandlerForDebug(new DisconnectRequestHandler(logger));
+        registerHandlerForDebug(new SetBreakpointsRequestHandler(logger));
         registerHandlerForDebug(new SetExceptionBreakpointsRequestHandler());
         registerHandlerForDebug(new SourceRequestHandler());
         registerHandlerForDebug(new ThreadsRequestHandler());
         registerHandlerForDebug(new StepRequestHandler());
         registerHandlerForDebug(new StackTraceRequestHandler());
         registerHandlerForDebug(new ScopesRequestHandler());
-        registerHandlerForDebug(new VariablesRequestHandler());
+        registerHandlerForDebug(new VariablesRequestHandler(logger));
         registerHandlerForDebug(new SetVariableRequestHandler());
-        registerHandlerForDebug(new EvaluateRequestHandler());
+        registerHandlerForDebug(new EvaluateRequestHandler(logger));
         registerHandlerForDebug(new HotCodeReplaceHandler());
         registerHandlerForDebug(new RestartFrameHandler());
         registerHandlerForDebug(new CompletionsHandler());
-        registerHandlerForDebug(new ExceptionInfoRequestHandler());
+        registerHandlerForDebug(new ExceptionInfoRequestHandler(logger));
 
         // NO_DEBUG mode only
-        registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());
+        registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler(logger));
 
     }
 

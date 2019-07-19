@@ -20,11 +20,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IBreakpoint;
 
 public class BreakpointManager {
-    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger;
     /**
      * A collection of breakpoints registered with this manager.
      */
@@ -35,7 +34,8 @@ public class BreakpointManager {
     /**
      * Constructor.
      */
-    public BreakpointManager() {
+    public BreakpointManager(Logger logger) {
+        this.logger = logger;
         this.breakpoints = Collections.synchronizedList(new ArrayList<>(5));
         this.sourceToBreakpoints = new HashMap<>();
     }

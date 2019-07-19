@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.util.logging.Logger;
+
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -18,7 +20,12 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.DisconnectArguments;
 
+
 public class DisconnectRequestHandler extends AbstractDisconnectRequestHandler {
+
+    public DisconnectRequestHandler(Logger logger) {
+        super(logger);
+    }
 
     @Override
     public void destroyDebugSession(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {

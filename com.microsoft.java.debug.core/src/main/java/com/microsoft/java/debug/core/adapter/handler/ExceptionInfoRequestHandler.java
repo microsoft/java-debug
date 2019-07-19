@@ -19,7 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.JdiExceptionReference;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -42,7 +41,11 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
 public class ExceptionInfoRequestHandler implements IDebugRequestHandler {
-    protected final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger;
+
+    public ExceptionInfoRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {
