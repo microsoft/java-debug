@@ -24,7 +24,7 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IBreakpoint;
 
 public class BreakpointManager {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     /**
      * A collection of breakpoints registered with this manager.
      */

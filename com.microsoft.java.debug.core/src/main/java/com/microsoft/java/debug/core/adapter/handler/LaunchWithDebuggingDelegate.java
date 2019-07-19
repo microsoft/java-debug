@@ -24,7 +24,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 
 import com.google.gson.JsonObject;
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSession;
 import com.microsoft.java.debug.core.DebugUtility;
@@ -52,9 +51,7 @@ import com.sun.jdi.connect.ListeningConnector;
 import com.sun.jdi.connect.TransportTimeoutException;
 import com.sun.jdi.connect.VMStartException;
 
-public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
-
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
     private static final int ATTACH_TERMINAL_TIMEOUT = 20 * 1000;
     private static final String TERMINAL_TITLE = "Java Debug Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
@@ -181,7 +178,7 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
                 Arrays.asList(launchArguments.modulePaths),
                 Arrays.asList(launchArguments.classPaths),
                 launchArguments.cwd,
-                LaunchRequestHandler.constructEnvironmentVariables(launchArguments));
+                constructEnvironmentVariables(launchArguments));
         context.setDebugSession(debugSession);
 
         logger.info("Launching debuggee VM succeeded.");

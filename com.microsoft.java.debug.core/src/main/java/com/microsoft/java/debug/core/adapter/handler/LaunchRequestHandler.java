@@ -20,10 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +59,7 @@ import com.sun.jdi.connect.VMStartException;
 import com.sun.jdi.event.VMDisconnectEvent;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
     protected ILaunchDelegate activeLaunchHandler;
     private CompletableFuture<Boolean> waitForDebuggeeConsole = new CompletableFuture<>();
@@ -276,32 +273,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         return new OutputEvent(category, message);
-    }
-
-    protected static String[] constructEnvironmentVariables(LaunchArguments launchArguments) {
-        String[] envVars = null;
-        if (launchArguments.env != null && !launchArguments.env.isEmpty()) {
-            Map<String, String> environment = new HashMap<>(System.getenv());
-            List<String> duplicated = new ArrayList<>();
-            for (Entry<String, String> entry : launchArguments.env.entrySet()) {
-                if (environment.containsKey(entry.getKey())) {
-                    duplicated.add(entry.getKey());
-                }
-                environment.put(entry.getKey(), entry.getValue());
-            }
-            // For duplicated variables, show a warning message.
-            if (!duplicated.isEmpty()) {
-                logger.warning(String.format("There are duplicated environment variables. The values specified in launch.json will be used. "
-                        + "Here are the duplicated entries: %s.", String.join(",", duplicated)));
-            }
-
-            envVars = new String[environment.size()];
-            int i = 0;
-            for (Entry<String, String> entry : environment.entrySet()) {
-                envVars[i++] = entry.getKey() + "=" + entry.getValue();
-            }
-        }
-        return envVars;
     }
 
     public static String parseMainClassWithoutModuleName(String mainClass) {

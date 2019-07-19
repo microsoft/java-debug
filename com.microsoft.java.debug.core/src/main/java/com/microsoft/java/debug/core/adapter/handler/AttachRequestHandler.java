@@ -41,7 +41,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {

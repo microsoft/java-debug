@@ -49,7 +49,7 @@ import com.sun.jdi.Value;
 import com.sun.jdi.VoidValue;
 
 public class EvaluateRequestHandler implements IDebugRequestHandler {
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {

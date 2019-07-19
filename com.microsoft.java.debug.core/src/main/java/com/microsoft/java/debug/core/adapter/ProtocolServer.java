@@ -29,7 +29,7 @@ import com.microsoft.java.debug.core.protocol.Messages;
 import com.sun.jdi.VMDisconnectedException;
 
 public class ProtocolServer extends AbstractProtocolServer {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private IDebugAdapter debugAdapter;
     private UsageDataSession usageDataSession = new UsageDataSession();

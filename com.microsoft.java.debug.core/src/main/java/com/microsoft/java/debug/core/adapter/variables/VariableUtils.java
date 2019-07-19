@@ -12,13 +12,11 @@
 package com.microsoft.java.debug.core.adapter.variables;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
 import com.microsoft.java.debug.core.adapter.formatter.NumericFormatter;
@@ -39,8 +37,6 @@ import com.sun.jdi.TypeComponent;
 import com.sun.jdi.Value;
 
 public abstract class VariableUtils {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     /**
      * Test whether the value has referenced objects.
      *
@@ -82,23 +78,13 @@ public abstract class VariableUtils {
             }
             return res;
         }
+
         List<Field> fields = obj.referenceType().allFields().stream().filter(t -> includeStatic || !t.isStatic())
-                .sorted((a, b) -> {
-                    try {
-                        boolean v1isStatic = a.isStatic();
-                        boolean v2isStatic = b.isStatic();
-                        if (v1isStatic && !v2isStatic) {
-                            return -1;
-                        }
-                        if (!v1isStatic && v2isStatic) {
-                            return 1;
-                        }
-                        return a.name().compareToIgnoreCase(b.name());
-                    } catch (Exception e) {
-                        logger.log(Level.SEVERE, String.format("Cannot sort fields: %s", e), e);
-                        return -1;
-                    }
-                }).collect(Collectors.toList());
+                .sorted(Comparator.comparing(Field::isStatic)
+                        .reversed()
+                        .thenComparing(Field::name))
+                .collect(Collectors.toList());
+
         fields.forEach(f -> {
             Variable var = new Variable(f.name(), obj.getValue(f));
             var.field = f;

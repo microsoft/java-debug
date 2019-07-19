@@ -54,7 +54,7 @@ import com.sun.jdi.event.StepEvent;
 
 public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private BreakpointManager manager = new BreakpointManager();
 

@@ -47,7 +47,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 
 public class DebugAdapter implements IDebugAdapter {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     private IDebugAdapterContext debugContext = null;
     private Map<Command, List<IDebugRequestHandler>> requestHandlersForDebug = null;

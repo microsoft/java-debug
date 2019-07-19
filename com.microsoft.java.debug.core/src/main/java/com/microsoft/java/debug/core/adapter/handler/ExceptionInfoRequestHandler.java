@@ -42,7 +42,7 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
 public class ExceptionInfoRequestHandler implements IDebugRequestHandler {
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
     public List<Command> getTargetCommands() {

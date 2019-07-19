@@ -28,8 +28,8 @@ import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.sun.jdi.event.Event;
 
 public class UsageDataSession {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
+    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
     private static final ThreadLocal<UsageDataSession> threadLocal = new InheritableThreadLocal<>();
 
@@ -46,6 +46,10 @@ public class UsageDataSession {
 
     public static String getSessionGuid() {
         return threadLocal.get() == null ? "" : threadLocal.get().sessionGuid;
+    }
+
+    public static UsageDataSession currentSession() {
+        return threadLocal.get();
     }
 
     public UsageDataSession() {
@@ -153,16 +157,13 @@ public class UsageDataSession {
     /**
      * Record JDI event.
      */
-    public static void recordEvent(Event event) {
+    public void recordEvent(Event event) {
         try {
-            UsageDataSession currentSession = threadLocal.get();
-            if (currentSession != null) {
-                Map<String, String> eventEntry = new HashMap<>();
-                eventEntry.put("timestamp", String.valueOf(System.currentTimeMillis()));
-                eventEntry.put("event", event.toString());
-                synchronized (currentSession.eventList) {
-                    currentSession.eventList.add(JsonUtils.toJson(eventEntry));
-                }
+            Map<String, String> eventEntry = new HashMap<>();
+            eventEntry.put("timestamp", String.valueOf(System.currentTimeMillis()));
+            eventEntry.put("event", event.toString());
+            synchronized (eventList) {
+                eventList.add(JsonUtils.toJson(eventEntry));
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("Exception on recording event: %s.", e.toString()), e);

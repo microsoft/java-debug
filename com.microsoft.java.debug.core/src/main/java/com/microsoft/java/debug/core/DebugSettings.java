@@ -18,7 +18,7 @@ import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 
 public final class DebugSettings {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static DebugSettings current = new DebugSettings();
 
     public int maxStringLength = 0;
