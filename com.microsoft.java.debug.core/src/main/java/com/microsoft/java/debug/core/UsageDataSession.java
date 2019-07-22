@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -56,9 +55,9 @@ public class UsageDataSession {
     /**
      * Constructor.
      */
-    public UsageDataSession(Logger logger, Function<String, Logger> loggerFactory) {
+    public UsageDataSession(Logger logger, LoggerFactory factory) {
         this.logger = logger;
-        this.usageDataLogger = loggerFactory.apply(Configuration.USAGE_DATA_LOGGER_NAME);
+        this.usageDataLogger = factory.create(Configuration.USAGE_DATA_LOGGER_NAME);
         threadLocal.set(this);
     }
 

@@ -16,12 +16,12 @@ import java.io.OutputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.LoggerFactory;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
@@ -41,10 +41,10 @@ public class ProtocolServer extends AbstractProtocolServer {
     /**
      * Constructor.
      */
-    public ProtocolServer(InputStream input, OutputStream output, IProviderContext context, Function<String, Logger> loggerFactory) {
-        super(input, output, loggerFactory.apply(Configuration.LOGGER_NAME));
+    public ProtocolServer(InputStream input, OutputStream output, IProviderContext context, LoggerFactory factory) {
+        super(input, output, factory.create(Configuration.LOGGER_NAME));
         debugAdapter = new DebugAdapter(this, context, logger);
-        usageDataSession = new UsageDataSession(logger, loggerFactory);
+        usageDataSession = new UsageDataSession(logger, factory);
     }
 
     /**
