@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core.adapter.variables;
 
+import static java.lang.String.CASE_INSENSITIVE_ORDER;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -82,7 +84,7 @@ public abstract class VariableUtils {
         List<Field> fields = obj.referenceType().allFields().stream().filter(t -> includeStatic || !t.isStatic())
                 .sorted(Comparator.comparing(Field::isStatic)
                         .reversed()
-                        .thenComparing(Field::name))
+                        .thenComparing(Field::name, CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
 
         fields.forEach(f -> {
