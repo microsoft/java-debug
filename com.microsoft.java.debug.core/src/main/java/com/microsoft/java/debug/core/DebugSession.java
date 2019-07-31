@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VirtualMachine;
@@ -22,10 +23,11 @@ import com.sun.jdi.request.ExceptionRequest;
 
 public class DebugSession implements IDebugSession {
     private VirtualMachine vm;
-    private EventHub eventHub = new EventHub();
+    private EventHub eventHub;
 
-    public DebugSession(VirtualMachine virtualMachine) {
+    public DebugSession(VirtualMachine virtualMachine, Logger logger) {
         vm = virtualMachine;
+        eventHub = new EventHub(logger);
     }
 
     @Override

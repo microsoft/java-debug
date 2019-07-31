@@ -23,7 +23,6 @@ import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -49,7 +48,11 @@ import com.sun.jdi.Value;
 import com.sun.jdi.VoidValue;
 
 public class EvaluateRequestHandler implements IDebugRequestHandler {
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger;
+
+    public EvaluateRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {

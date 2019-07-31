@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -66,7 +67,8 @@ public class DebugUtility {
             List<String> modulePaths,
             List<String> classPaths,
             String cwd,
-            String[] envVars)
+            String[] envVars,
+            Logger logger)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         return DebugUtility.launch(vmManager,
                 mainClass,
@@ -75,7 +77,8 @@ public class DebugUtility {
                 String.join(File.pathSeparator, modulePaths),
                 String.join(File.pathSeparator, classPaths),
                 cwd,
-                envVars);
+                envVars,
+                logger);
     }
 
     /**
@@ -114,7 +117,8 @@ public class DebugUtility {
             String modulePaths,
             String classPaths,
             String cwd,
-            String[] envVars)
+            String[] envVars,
+            Logger logger)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
@@ -176,7 +180,7 @@ public class DebugUtility {
         // Without this line, it throws ObjectCollectedException in ExceptionRequest.enable().
         // See https://github.com/Microsoft/java-debug/issues/23
         vm.version();
-        return new DebugSession(vm);
+        return new DebugSession(vm, logger);
     }
 
     /**
@@ -195,7 +199,7 @@ public class DebugUtility {
      * @throws IllegalConnectorArgumentsException
      *               when one of the connector arguments is invalid.
      */
-    public static IDebugSession attach(VirtualMachineManager vmManager, String hostName, int port, int attachTimeout)
+    public static IDebugSession attach(VirtualMachineManager vmManager, String hostName, int port, int attachTimeout, Logger logger)
             throws IOException, IllegalConnectorArgumentsException {
         List<AttachingConnector> connectors = vmManager.attachingConnectors();
         AttachingConnector connector = connectors.get(0);
@@ -211,7 +215,7 @@ public class DebugUtility {
         arguments.get(HOSTNAME).setValue(hostName);
         arguments.get(PORT).setValue(String.valueOf(port));
         arguments.get(TIMEOUT).setValue(String.valueOf(attachTimeout));
-        return new DebugSession(connector.attach(arguments));
+        return new DebugSession(connector.attach(arguments), logger);
     }
 
     /**
@@ -543,8 +547,7 @@ public class DebugUtility {
      * This piece of code is mainly copied from
      * https://github.com/eclipse/eclipse.platform.debug/blob/master/org.eclipse.debug.core/core/org/eclipse/debug/core/DebugPlugin.java#L1264
      *
-     * @param args
-     *            the command line arguments as a single string.
+     * @param args the command line arguments as a single string.
      * @return the individual arguments
      */
     private static List<String> parseArgumentsWindows(String args) {

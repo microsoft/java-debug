@@ -21,7 +21,6 @@ import java.util.logging.Logger;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.IDebugSession;
@@ -53,12 +52,15 @@ import com.sun.jdi.event.Event;
 import com.sun.jdi.event.StepEvent;
 
 public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
-
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
-    private BreakpointManager manager = new BreakpointManager();
+    private final Logger logger;
+    private final BreakpointManager manager;
 
     private boolean registered = false;
+
+    public SetBreakpointsRequestHandler(Logger logger) {
+        this.logger = logger;
+        this.manager = new BreakpointManager(logger);
+    }
 
     @Override
     public List<Command> getTargetCommands() {

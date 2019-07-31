@@ -11,14 +11,11 @@
 
 package com.microsoft.java.debug.core;
 
-import java.util.logging.Logger;
-
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 
 public final class DebugSettings {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static DebugSettings current = new DebugSettings();
 
     public int maxStringLength = 0;
@@ -41,12 +38,8 @@ public final class DebugSettings {
      * @param jsonSettings
      *            the new settings represents in json format.
      */
-    public void updateSettings(String jsonSettings) {
-        try {
-            current = JsonUtils.fromJson(jsonSettings, DebugSettings.class);
-        } catch (JsonSyntaxException ex) {
-            logger.severe(String.format("Invalid json for debugSettings: %s, %s", jsonSettings, ex.getMessage()));
-        }
+    public void updateSettings(String jsonSettings) throws JsonSyntaxException {
+        current = JsonUtils.fromJson(jsonSettings, DebugSettings.class);
     }
 
     private DebugSettings() {

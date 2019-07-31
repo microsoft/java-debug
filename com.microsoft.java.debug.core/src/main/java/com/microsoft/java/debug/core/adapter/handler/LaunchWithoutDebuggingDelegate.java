@@ -21,7 +21,6 @@ import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import com.google.gson.JsonObject;
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -36,13 +35,13 @@ import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArgum
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
-public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+public class LaunchWithoutDebuggingDelegate extends AbstractLaunchDelegate {
     protected static final String TERMINAL_TITLE = "Java Process Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
     private Consumer<IDebugAdapterContext> terminateHandler;
 
-    public LaunchWithoutDebuggingDelegate(Consumer<IDebugAdapterContext> terminateHandler) {
+    public LaunchWithoutDebuggingDelegate(Consumer<IDebugAdapterContext> terminateHandler, Logger logger) {
+        super(logger);
         this.terminateHandler = terminateHandler;
     }
 
@@ -54,7 +53,7 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
         if (launchArguments.cwd != null && Files.isDirectory(Paths.get(launchArguments.cwd))) {
             workingDir = new File(launchArguments.cwd);
         }
-        Process debuggeeProcess = Runtime.getRuntime().exec(cmds, LaunchRequestHandler.constructEnvironmentVariables(launchArguments),
+        Process debuggeeProcess = Runtime.getRuntime().exec(cmds, constructEnvironmentVariables(launchArguments),
                 workingDir);
         new Thread() {
             public void run() {

@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
@@ -42,7 +41,11 @@ import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.event.VMStartEvent;
 
 public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger;
+
+    public ConfigurationDoneRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {
@@ -120,7 +123,10 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
 
         // record events of important types only, to get rid of noises.
         if (isImportantEvent) {
-            UsageDataSession.recordEvent(event);
+            UsageDataSession session = UsageDataSession.currentSession();
+            if (session != null) {
+                session.recordEvent(event);
+            }
         }
     }
 }

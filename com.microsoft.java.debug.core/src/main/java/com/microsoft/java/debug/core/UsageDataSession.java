@@ -1,13 +1,13 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
-* All rights reserved. This program and the accompanying materials
-* are made available under the terms of the Eclipse Public License v1.0
-* which accompanies this distribution, and is available at
-* http://www.eclipse.org/legal/epl-v10.html
-*
-* Contributors:
-*     Microsoft Corporation - initial API and implementation
-*******************************************************************************/
+ * Copyright (c) 2017 Microsoft Corporation and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Microsoft Corporation - initial API and implementation
+ *******************************************************************************/
 
 package com.microsoft.java.debug.core;
 
@@ -28,8 +28,8 @@ import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.sun.jdi.event.Event;
 
 public class UsageDataSession {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
+    private final Logger logger;
+    private final Logger usageDataLogger;
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
     private static final ThreadLocal<UsageDataSession> threadLocal = new InheritableThreadLocal<>();
 
@@ -48,7 +48,16 @@ public class UsageDataSession {
         return threadLocal.get() == null ? "" : threadLocal.get().sessionGuid;
     }
 
-    public UsageDataSession() {
+    public static UsageDataSession currentSession() {
+        return threadLocal.get();
+    }
+
+    /**
+     * Constructor.
+     */
+    public UsageDataSession(Logger logger, LoggerFactory factory) {
+        this.logger = logger;
+        this.usageDataLogger = factory.create(Configuration.USAGE_DATA_LOGGER_NAME);
         threadLocal.set(this);
     }
 
@@ -153,16 +162,13 @@ public class UsageDataSession {
     /**
      * Record JDI event.
      */
-    public static void recordEvent(Event event) {
+    public void recordEvent(Event event) {
         try {
-            UsageDataSession currentSession = threadLocal.get();
-            if (currentSession != null) {
-                Map<String, String> eventEntry = new HashMap<>();
-                eventEntry.put("timestamp", String.valueOf(System.currentTimeMillis()));
-                eventEntry.put("event", event.toString());
-                synchronized (currentSession.eventList) {
-                    currentSession.eventList.add(JsonUtils.toJson(eventEntry));
-                }
+            Map<String, String> eventEntry = new HashMap<>();
+            eventEntry.put("timestamp", String.valueOf(System.currentTimeMillis()));
+            eventEntry.put("event", event.toString());
+            synchronized (eventList) {
+                eventList.add(JsonUtils.toJson(eventEntry));
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, String.format("Exception on recording event: %s.", e.toString()), e);

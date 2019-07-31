@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.LoggerFactory;
 import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.protocol.AbstractProtocolServer;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
@@ -29,14 +30,22 @@ import com.microsoft.java.debug.core.protocol.Messages;
 import com.sun.jdi.VMDisconnectedException;
 
 public class ProtocolServer extends AbstractProtocolServer {
-    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
     private IDebugAdapter debugAdapter;
-    private UsageDataSession usageDataSession = new UsageDataSession();
+    private UsageDataSession usageDataSession;
 
     private Object lock = new Object();
     private boolean isDispatchingRequest = false;
     private ConcurrentLinkedQueue<DebugEvent> eventQueue = new ConcurrentLinkedQueue<>();
+
+
+    /**
+     * Constructor.
+     */
+    public ProtocolServer(InputStream input, OutputStream output, IProviderContext context, LoggerFactory factory) {
+        super(input, output, factory.create(Configuration.LOGGER_NAME));
+        debugAdapter = new DebugAdapter(this, context, logger);
+        usageDataSession = new UsageDataSession(logger, factory);
+    }
 
     /**
      * Constructs a protocol server instance based on the given input stream and output stream.
@@ -48,8 +57,7 @@ public class ProtocolServer extends AbstractProtocolServer {
      *              provider context for a series of provider implementation
      */
     public ProtocolServer(InputStream input, OutputStream output, IProviderContext context) {
-        super(input, output);
-        debugAdapter = new DebugAdapter(this, context);
+        this(input, output, context, Logger::getLogger);
     }
 
     /**
