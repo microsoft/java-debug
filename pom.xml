@@ -144,11 +144,11 @@
 			<id>activate-in-module</id>
 			<activation>
 				<file>
-					<exists>${basedir}/check_style.xml</exists>
+					<exists>${basedir}/../check_style.xml</exists>
 				</file>
 			</activation>
 			<properties>
-				<checkstyleDir>${basedir}</checkstyleDir>
+				<checkstyleDir>${basedir}../</checkstyleDir>
 			</properties>
 		</profile>
 	</profiles>
