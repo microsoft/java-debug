@@ -148,7 +148,7 @@
 				</file>
 			</activation>
 			<properties>
-				<checkstyleDir>${basedir}../</checkstyleDir>
+				<checkstyleDir>${basedir}/..</checkstyleDir>
 			</properties>
 		</profile>
 	</profiles>
