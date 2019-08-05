@@ -6,6 +6,7 @@ os:
 
 script: 
   - ./mvnw clean verify
+  - ./mvnw checkstyle:check
 
 cache:
   directories:

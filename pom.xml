@@ -12,6 +12,7 @@
         <base.name>Java Debug Server for Visual Studio Code</base.name>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <tycho-version>1.2.0</tycho-version>
+        <checkstyleDir>${basedir}</checkstyleDir>
     </properties>
 
     <licenses>
@@ -113,15 +114,6 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
                     <version>2.17</version>
-                    <executions>
-                        <execution>
-                            <id>validate</id>
-                            <phase>validate</phase>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                    </executions>
                     <dependencies>
                         <dependency>
                             <groupId>com.puppycrawl.tools</groupId>
@@ -135,8 +127,7 @@
                         </dependency>
                     </dependencies>
                     <configuration>
-                        <configLocation>${project.parent.basedir}/check_style.xml</configLocation>
-                        <propertyExpansion>basedir=${project.parent.basedir}</propertyExpansion>
+                        <configLocation>${checkstyleDir}/check_style.xml</configLocation>
                         <failOnViolation>true</failOnViolation>
                     </configuration>
                 </plugin>
@@ -148,6 +139,19 @@
             </plugins>
         </pluginManagement>
     </build>
+    <profiles>
+		<profile>
+			<id>activate-in-module</id>
+			<activation>
+				<file>
+					<exists>${basedir}/check_style.xml</exists>
+				</file>
+			</activation>
+			<properties>
+				<checkstyleDir>${basedir}</checkstyleDir>
+			</properties>
+		</profile>
+	</profiles>
     <repositories>
         <repository>
             <id>photon</id>
