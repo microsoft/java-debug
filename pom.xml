@@ -140,18 +140,18 @@
         </pluginManagement>
     </build>
     <profiles>
-		<profile>
-			<id>activate-in-module</id>
-			<activation>
-				<file>
-					<exists>${basedir}/../check_style.xml</exists>
-				</file>
-			</activation>
-			<properties>
-				<checkstyleDir>${basedir}/..</checkstyleDir>
-			</properties>
-		</profile>
-	</profiles>
+        <profile>
+            <id>activate-in-module</id>
+            <activation>
+                <file>
+                    <exists>${basedir}/../check_style.xml</exists>
+                </file>
+            </activation>
+            <properties>
+                <checkstyleDir>${basedir}/..</checkstyleDir>
+            </properties>
+        </profile>
+    </profiles>
     <repositories>
         <repository>
             <id>photon</id>
