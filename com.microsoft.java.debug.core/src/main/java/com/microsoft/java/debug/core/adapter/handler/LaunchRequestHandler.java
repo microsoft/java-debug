@@ -184,8 +184,10 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
      */
     public static String[] constructLaunchCommands(LaunchArguments launchArguments, boolean serverMode, String address) {
         String slash = System.getProperty("file.separator");
-
         List<String> launchCmds = new ArrayList<>();
+        if (launchArguments.launcherScript != null) {
+            launchCmds.add(launchArguments.launcherScript);
+        }
         final String javaHome = StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome) ? DebugSettings.getCurrent().javaHome
                 : System.getProperty("java.home");
         launchCmds.add(javaHome + slash + "bin" + slash + "java");
