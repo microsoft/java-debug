@@ -82,8 +82,9 @@ public class Requests {
         public Map<String, String> env;
         public boolean stopOnEntry;
         public boolean noDebug = false;
-        public CONSOLE console = CONSOLE.internalConsole;
+        public CONSOLE console = CONSOLE.integratedTerminal;
         public ShortenApproach shortenCommandLine = ShortenApproach.NONE;
+        public String launcherScript;
     }
 
     public static class AttachArguments extends LaunchBaseArguments {
