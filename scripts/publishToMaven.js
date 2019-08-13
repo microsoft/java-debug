@@ -2,7 +2,6 @@
  * Upload artifacts to a nexus staging repo.
  * 
  * Required binaries:
- * - fciv
  * - gpg
  * - curl
  * 
@@ -21,7 +20,7 @@ const artifactFolder = process.env.artifactFolder;
 const configs = {
     nexus_ossrhuser: process.env.nexus_ossrhuser,
     nexus_ossrhpass: process.env.nexus_ossrhpass,
-    nexus_stagingProfileId: "c31011ec6809b",
+    nexus_stagingProfileId: process.env.nexus_stagingProfileId,
     gpgpass: process.env.gpgpass,
     groupId: "com.microsoft.java",
     projectName: "java-debug",
@@ -54,12 +53,12 @@ function addChecksumsAndGpgSignature(configs, artifactFolder) {
         const files = fs.readdirSync(modulePath);
         for (let file of files) {
             // calc md5.
-            const md5 = childProcess.execSync(`fciv -md5 "${path.join(modulePath, file)}"`);
+            const md5 = childProcess.execSync(`md5sum "${path.join(modulePath, file)}"`);
             const md5Match = /([a-z0-9]{32})/.exec(md5.toString());
             fs.writeFileSync(path.join(modulePath, file + ".md5"), md5Match[0]);
 
             // calc sha1.
-            const sha1 = childProcess.execSync(`fciv -sha1 "${path.join(modulePath, file)}"`);
+            const sha1 = childProcess.execSync(`sha1sum "${path.join(modulePath, file)}"`);
             const sha1Match = /([a-z0-9]{40})/.exec(sha1.toString());
             fs.writeFileSync(path.join(modulePath, file + ".sha1"), sha1Match[0]);
             
