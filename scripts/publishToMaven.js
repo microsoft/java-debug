@@ -7,9 +7,11 @@
  * 
  * Required Environment Variables:
  * - artifactFolder: folder containing *.jar/*.pom files.
- * - nexus_ossrhuser: username.
- * - nexus_ossrhpass: password.
- * - nexus_stagingRepoId: identifier of the repo to promote.
+ * - releaseVersion: version of artifacts.
+ * - NEXUS_OSSRHUSER: username.
+ * - NEXUS_OSSRHPASS: password.
+ * - NEXUS_STAGINGPROFILEID: identifier of the repo to promote.
+ * - GPGPASS: passphrase of GPG key.
  */
 
 const childProcess = require('child_process');
@@ -18,10 +20,10 @@ const path = require('path');
 
 const artifactFolder = process.env.artifactFolder;
 const configs = {
-    nexus_ossrhuser: process.env.nexus_ossrhuser,
-    nexus_ossrhpass: process.env.nexus_ossrhpass,
-    nexus_stagingProfileId: process.env.nexus_stagingProfileId,
-    gpgpass: process.env.gpgpass,
+    nexus_ossrhuser: process.env.NEXUS_OSSRHUSER,
+    nexus_ossrhpass: process.env.NEXUS_OSSRHPASS,
+    nexus_stagingProfileId: process.env.NEXUS_STAGINGPROFILEID,
+    gpgpass: process.env.GPGPASS,
     groupId: "com.microsoft.java",
     projectName: "java-debug",
     releaseVersion: process.env.releaseVersion,    
