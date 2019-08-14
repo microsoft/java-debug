@@ -34,11 +34,11 @@ function promoteStaging(configs) {
     console.log("\n========Nexus: Promote=======");
     try {
         console.log(`Starting to promote staging repository ${configs.stagingRepoId} ...`);
-        console.log(`curl -X POST -d "<promoteRequest><data><stagedRepositoryId>${configs.stagingRepoId}</stagedRepositoryId></data></promoteRequest>" -H "Content-Type: application/xml" -u **:** -k https://oss.sonatype.org/service/local/staging/profiles/${configs.nexus_stagingProfileId}/promote`);
-        message = childProcess.execSync(`curl -X POST -d "<promoteRequest><data><stagedRepositoryId>${configs.stagingRepoId}</stagedRepositoryId></data></promoteRequest>" -H "Content-Type: application/xml" -u ${configs.nexus_ossrhuser}:${configs.nexus_ossrhpass} -k https://oss.sonatype.org/service/local/staging/profiles/${configs.nexus_stagingProfileId}/promote`);
+        console.log(`curl -i -X POST -d "<promoteRequest><data><stagedRepositoryId>${configs.stagingRepoId}</stagedRepositoryId></data></promoteRequest>" -H "Content-Type: application/xml" -u **:** -k https://oss.sonatype.org/service/local/staging/profiles/${configs.nexus_stagingProfileId}/promote`);
+        message = childProcess.execSync(`curl -i -X POST -d "<promoteRequest><data><stagedRepositoryId>${configs.stagingRepoId}</stagedRepositoryId></data></promoteRequest>" -H "Content-Type: application/xml" -u ${configs.nexus_ossrhuser}:${configs.nexus_ossrhpass} -k https://oss.sonatype.org/service/local/staging/profiles/${configs.nexus_stagingProfileId}/promote`);
         message = message.toString();
         console.log(message);
-        const match = /<stagedRepositoryId>([a-zA-Z0-9-_]+)<\/stagedRepositoryId>/.exec(message);
+        const match = /HTTP\/2 20[01]/.exec(message);
         if (match == null || match.length <= 1) {
             console.error("\n\n[Failure] Promoting staging repository failed.");
             console.error(message);

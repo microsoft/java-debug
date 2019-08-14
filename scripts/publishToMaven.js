@@ -194,16 +194,6 @@ function promoteStaging(configs) {
     console.log("\n\n");
 }
 
-function extractMd5(content) {
-    const group = /([a-z0-9]{32})/.exec(content);
-    return group[0]
- }
- 
- function extractSha1(content) {
-    const group = /([a-z0-9]{40})/.exec(content);
-    return group[0]
- }
-
 function extractStatus(message) {
     const group = /<type>([a-zA-Z0-9-_\.]+)<\/type>/.exec(message);
     return group[1];
