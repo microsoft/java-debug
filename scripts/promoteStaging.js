@@ -5,18 +5,19 @@
  * - curl
  * 
  * Required Environment Variables:
- * - nexus_ossrhuser: username.
- * - nexus_ossrhpass: password.
- * - nexus_stagingRepoId: identifier of the repo to promote.
+ * - NEXUS_OSSRHUSER: username.
+ * - NEXUS_OSSRHPASS: password.
+ * - NEXUS_STAGINGPROFILEID: identifier of the repo to promote.
+ * - NEXUS_STAGINGREPOID: id of staging repo with artifacts to promote.
  */
 
 const childProcess = require('child_process');
 
 const configs = {
-    nexus_ossrhuser: process.env.nexus_ossrhuser,
-    nexus_ossrhpass: process.env.nexus_ossrhpass,
-    nexus_stagingProfileId: "c31011ec6809b",
-    stagingRepoId: process.env.nexus_stagingRepoId,
+    nexus_ossrhuser: process.env.NEXUS_OSSRHUSER,
+    nexus_ossrhpass: process.env.NEXUS_OSSRHPASS,
+    nexus_stagingProfileId: process.env.NEXUS_STAGINGPROFILEID,
+    stagingRepoId: process.env.NEXUS_STAGINGREPOID,
     groupId: "com.microsoft.java",
     projectName: "java-debug",
     moduleNames: [
