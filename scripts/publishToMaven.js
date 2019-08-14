@@ -65,7 +65,7 @@ function addChecksumsAndGpgSignature(configs, artifactFolder) {
             fs.writeFileSync(path.join(modulePath, file + ".sha1"), sha1Match[0]);
             
             // gpg sign.
-            childProcess.execSync(`gpg --batch --passphrase "${configs.gpgpass}" -ab "${path.join(modulePath, file)}"`)
+            childProcess.execSync(`gpg --batch --pinentry-mode loopback --passphrase "${configs.gpgpass}" -ab "${path.join(modulePath, file)}"`)
         }
     }
     console.log("\n\n[Success] Checksum and gpg sign finished.");
