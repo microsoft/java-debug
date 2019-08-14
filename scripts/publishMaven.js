@@ -1,6 +1,6 @@
 /**
  * Usage:
- * node script.js -task [upload|promote]
+ * node publishMaven.js -task [upload|promote]
  * 
  * upload: Upload artifacts to a nexus staging repo.
  * promote: Promote a repo to get it picked up by Maven Central.
@@ -96,7 +96,7 @@ function promoteToCentral(configs) {
     console.log(`https://oss.sonatype.org/content/groups/public/${configs.groupId.replace(/\./g, "/")}`);
     console.log("\n\n");
     if (success) {
-        console.log("\n\n[Success] Nexus: Promote completion.");
+        console.log("\n\n[Success] Nexus: Promote succeeded.");
     } else {
         console.error("\n\n[Failure] Nexus: Promote failed.");
         process.exit(1)
@@ -122,9 +122,12 @@ function isReleased(configs) {
 }
 
 function checkPrerequisite(configs) {
-    if (!configs.releaseVersion) {
-        console.error("releaseVersion is not set.");
-        process.exit(1);
+    const props = ["releaseVersion", "artifactFolder", "NEXUS_OSSRHUSER", "NEXUS_OSSRHPASS", "NEXUS_STAGINGPROFILEID", "GPGPASS" ];
+    for (const prop of props) {
+        if (!configs[prop]) {
+            console.error(`${prop} is not set.`);
+            process.exit(1);
+        }
     }
 }
 
