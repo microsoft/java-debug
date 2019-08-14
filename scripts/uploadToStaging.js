@@ -36,10 +36,18 @@ const configs = {
 main(configs, artifactFolder);
 
 function main(configs, artifactFolder) {
+    checkPrerequisite(configs);
     addChecksumsAndGpgSignature(configs, artifactFolder);
     createStagingRepo(configs);
     deployToStagingRepo(configs, artifactFolder);
     closeStagingRepo(configs);
+}
+
+function checkPrerequisite(configs) {
+    if (!configs.releaseVersion) {
+        console.error("releaseVersion is not set.");
+        process.exit(1);
+    }
 }
 
 function addChecksumsAndGpgSignature(configs, artifactFolder) {
@@ -162,6 +170,7 @@ function closeStagingRepo(configs) {
         console.error(!message ? ex : message.toString());
         process.exit(1);
     }
+    fs.writeFileSync(".stagingRepoId", configs.stagingRepoId);
     console.log("\n\n[Success] Nexus: Staging completion.");
     console.log("Below is the staging repository url, you could use it to test deployment.");
     console.log(`https://oss.sonatype.org/content/repositories/${configs.stagingRepoId}`);

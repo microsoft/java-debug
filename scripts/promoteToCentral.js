@@ -38,25 +38,21 @@ function promoteStaging(configs) {
         message = childProcess.execSync(`curl -i -X POST -d "<promoteRequest><data><stagedRepositoryId>${configs.stagingRepoId}</stagedRepositoryId></data></promoteRequest>" -H "Content-Type: application/xml" -u ${configs.nexus_ossrhuser}:${configs.nexus_ossrhpass} -k https://oss.sonatype.org/service/local/staging/profiles/${configs.nexus_stagingProfileId}/promote`);
         message = message.toString();
         console.log(message);
-        const match = /HTTP\/2 20[01]/.exec(message);
-        if (match == null || match.length <= 1) {
-            console.error("\n\n[Failure] Promoting staging repository failed.");
-            console.error(message);
-            process.exit(1);
-        }
     } catch (ex) {
         console.error("\n\n[Failure] Promoting staging repository failed.");
         console.error(!message ? ex : message.toString());
         process.exit(1);
     }
-    if (isReleased(configs)) {
-        console.log("\n\n[Success] Nexus: Promote completion.");
-    } else {
-        console.error("\n\n[Failure] Nexus: Promote failed.");
-    }
+    const success = isReleased(configs);
     console.log("Below is the public repository url, you could manually validate it.");
     console.log(`https://oss.sonatype.org/content/groups/public/${configs.groupId.replace(/\./g, "/")}`);
     console.log("\n\n");
+    if (success) {
+        console.log("\n\n[Success] Nexus: Promote completion.");
+    } else {
+        console.error("\n\n[Failure] Nexus: Promote failed.");
+        process.exit(1)
+    }
 }
 
 function isReleased(configs) {
