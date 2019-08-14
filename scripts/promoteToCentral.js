@@ -49,8 +49,30 @@ function promoteStaging(configs) {
         console.error(!message ? ex : message.toString());
         process.exit(1);
     }
-    console.log("\n\n[Success] Nexus: Promote completion.");
+    if (isReleased(configs)) {
+        console.log("\n\n[Success] Nexus: Promote completion.");
+    } else {
+        console.error("\n\n[Failure] Nexus: Promote failed.");
+    }
     console.log("Below is the public repository url, you could manually validate it.");
     console.log(`https://oss.sonatype.org/content/groups/public/${configs.groupId.replace(/\./g, "/")}`);
     console.log("\n\n");
+}
+
+function isReleased(configs) {
+    let pollingCount = 0;
+    const MAX_POLLINGS = 30;
+    for (; pollingCount < MAX_POLLINGS; pollingCount++) {
+        console.log(`\nPolling the release operation finished or not...`);
+        console.log(`curl -X GET -H "Content-Type:application/xml" -u **:** -k https://oss.sonatype.org/service/local/staging/repository/${configs.stagingRepoId}`);
+        message = childProcess.execSync(`curl -X GET -H "Content-Type:application/xml" -u ${configs.nexus_ossrhuser}:${configs.nexus_ossrhpass} -k https://oss.sonatype.org/service/local/staging/repository/${configs.stagingRepoId}`);
+        const status = extractStatus(message.toString());
+        console.log(status);
+        if (status !== "closed") {
+            return true;
+        }
+        // use system sleep command to pause the program.
+        childProcess.execSync(`sleep 5s`);
+    }
+    return false;
 }
