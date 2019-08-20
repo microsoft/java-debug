@@ -237,14 +237,21 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
 
             int referenceId = 0;
+
+            boolean containerIsArray = containerNode.getProxiedVariable() instanceof ArrayReference;
+            String evaluateName;
+
             if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
-                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value);
+                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, javaVariable.name);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
+                evaluateName = varProxy.getEvaluateName();
+            } else {
+                evaluateName = VariableUtils.getEvaluateName(javaVariable.name, containerNode.getEvaluateName(), containerIsArray);
             }
 
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
                     variableFormatter.typeToString(value == null ? null : value.type(), options),
-                    referenceId, null);
+                    referenceId, evaluateName);
             typedVariables.indexedVariables = Math.max(indexedVariables, 0);
             String detailsValue = null;
             if (sizeValue != null) {

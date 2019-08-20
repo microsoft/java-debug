@@ -88,7 +88,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 }
                 long threadId = stackFrameReference.getThread().uniqueID();
                 if (value instanceof ObjectReference) {
-                    VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
+                    VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value, null, expression);
                     int indexedVariables = -1;
                     Value sizeValue = null;
                     if (value instanceof ArrayReference) {

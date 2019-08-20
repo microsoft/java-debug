@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter.variables;
 
 import java.util.Objects;
 
+import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ThreadReference;
 
 public class VariableProxy {
@@ -20,6 +21,7 @@ public class VariableProxy {
     private final String scopeName;
     private Object variable;
     private int hashCode;
+    private final String evaluateName;
 
     /**
      * Create a variable reference.
@@ -29,11 +31,20 @@ public class VariableProxy {
      *              the scope name
      * @param variable
      *              the variable object
+     * @param container
+     *              the variable container, if any
+     * @param evaluateName
+     *              the variable evaluate name for the container context, if any
      */
-    public VariableProxy(ThreadReference thread, String scopeName, Object variable) {
+    public VariableProxy(ThreadReference thread, String scopeName, Object variable, VariableProxy container, String evaluateName) {
         this.thread = thread;
         this.scopeName = scopeName;
         this.variable = variable;
+
+        this.evaluateName = VariableUtils.getEvaluateName(evaluateName,
+                container == null ? null : container.getEvaluateName(),
+                container != null && container.getProxiedVariable() instanceof ArrayReference);
+
         hashCode = Objects.hash(scopeName, thread, variable);
     }
 
@@ -77,5 +88,9 @@ public class VariableProxy {
 
     public Object getProxiedVariable() {
         return variable;
+    }
+
+    public String getEvaluateName() {
+        return evaluateName;
     }
 }
