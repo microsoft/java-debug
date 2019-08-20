@@ -250,6 +250,33 @@ public abstract class VariableUtils {
         }
     }
 
+    /**
+     * Get the name for evaluation of variable.
+     *
+     * @param name the variable name, if any
+     * @param containerName the container name, if any
+     * @param isArrayElement is the variable an array element?
+     */
+    public static String getEvaluateName(String name, String containerName, boolean isArrayElement) {
+        if (name == null) {
+            return null;
+        }
+
+        if (isArrayElement) {
+            if (containerName == null) {
+                return null;
+            }
+
+            return String.format("%s[%s]", containerName, name);
+        }
+
+        if (containerName == null) {
+            return name;
+        }
+
+        return String.format("%s.%s", containerName, name);
+    }
+
     private VariableUtils() {
 
     }

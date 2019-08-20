@@ -121,7 +121,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         if (newValue instanceof ObjectReference && VariableUtils.hasChildren(newValue, showStaticVariables)) {
             long threadId = ((VariableProxy) container).getThreadId();
             String scopeName = ((VariableProxy) container).getScope();
-            VariableProxy varProxy = new VariableProxy(((VariableProxy) container).getThread(), scopeName, newValue);
+            VariableProxy varProxy = new VariableProxy(((VariableProxy) container).getThread(), scopeName, newValue, (VariableProxy) container, name);
             referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
         }
 
