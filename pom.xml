@@ -154,9 +154,9 @@
     </profiles>
     <repositories>
         <repository>
-            <id>photon</id>
+            <id>201906</id>
             <layout>p2</layout>
-            <url>http://download.eclipse.org/releases/photon</url>
+            <url>http://download.eclipse.org/releases/2019-06/</url>
         </repository>
         <repository>
             <id>oss.sonatype.org</id>
@@ -174,6 +174,11 @@
             <id>JBOLL.TOOLS</id>
             <layout>p2</layout>
             <url>http://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.0-2018-05-16_00-46-30-H11</url>
-            </repository>
+        </repository>
+        <repository>
+            <id>orbit</id>
+            <layout>p2</layout>
+            <url>http://download.eclipse.org/tools/orbit/R-builds/R20170516192513/repository/</url>
+        </repository>
     </repositories>
 </project>
