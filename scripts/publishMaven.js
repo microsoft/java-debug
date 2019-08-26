@@ -123,7 +123,7 @@ function isReleased(configs) {
 }
 
 function checkPrerequisite(configs) {
-    const props = ["releaseVersion", "artifactFolder", "NEXUS_OSSRHUSER", "NEXUS_OSSRHPASS", "NEXUS_STAGINGPROFILEID", "GPGPASS" ];
+    const props = ["releaseVersion", "artifactFolder", "nexus_ossrhuser", "nexus_ossrhpass", "nexus_stagingProfileId", "gpgpass" ];
     for (const prop of props) {
         if (!configs[prop]) {
             console.error(`${prop} is not set.`);
