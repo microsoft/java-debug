@@ -24,7 +24,8 @@ const configs = {
         "java-debug-parent",
         "com.microsoft.java.debug.core",
         "com.microsoft.java.debug.plugin"
-    ]
+    ],
+    artifactFolder: artifactFolder
 };
 
 main(configs, artifactFolder);
