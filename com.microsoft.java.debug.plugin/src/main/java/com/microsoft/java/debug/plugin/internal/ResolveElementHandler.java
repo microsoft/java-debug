@@ -14,8 +14,6 @@ package com.microsoft.java.debug.plugin.internal;
 import java.util.Collections;
 import java.util.List;
 
-import com.microsoft.java.debug.core.DebugException;
-
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -25,8 +23,14 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
 
+import com.microsoft.java.debug.core.DebugException;
+
 public class ResolveElementHandler {
 
+    /**
+     * Resolve the Java element at the selected position.
+     * @return the resolved Java element information.
+     */
     public static Object resolveElementAtSelection(List<Object> arguments, IProgressMonitor monitor) throws DebugException {
         if (arguments == null || arguments.isEmpty() || arguments.size() < 3) {
             return Collections.emptyList();
@@ -55,7 +59,6 @@ public class ResolveElementHandler {
         return null;
     }
 
-    
     static class JavaElement {
         private String declaringType;
         private String projectName;
