@@ -32,7 +32,7 @@ public class ResolveElementHandler {
      * @return the resolved Java element information.
      */
     public static Object resolveElementAtSelection(List<Object> arguments, IProgressMonitor monitor) throws DebugException {
-        if (arguments == null || arguments.isEmpty() || arguments.size() < 3) {
+        if (arguments == null || arguments.size() < 3) {
             return Collections.emptyList();
         }
 
