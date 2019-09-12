@@ -13,6 +13,7 @@
             <command id="vscode.java.resolveMainMethod"/>
             <command id="vscode.java.inferLaunchCommandLength"/>
             <command id="vscode.java.checkProjectSettings"/>
+            <command id="vscode.java.resolveElementAtSelection"/>
        </delegateCommandHandler>
    </extension>
 </plugin>
