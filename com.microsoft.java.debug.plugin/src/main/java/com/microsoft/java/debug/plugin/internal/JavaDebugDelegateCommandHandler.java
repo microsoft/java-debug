@@ -31,6 +31,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static final String RESOLVE_MAINMETHOD = "vscode.java.resolveMainMethod";
     public static final String INFER_LAUNCH_COMMAND_LENGTH = "vscode.java.inferLaunchCommandLength";
     public static final String CHECK_PROJECT_SETTINGS = "vscode.java.checkProjectSettings";
+    public static final String RESOLVE_ELEMENT_AT_SELECTION = "vscode.java.resolveElementAtSelection";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -60,6 +61,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 return LaunchCommandHandler.getLaunchCommandLength(JsonUtils.fromJson((String) arguments.get(0), LaunchArguments.class));
             case CHECK_PROJECT_SETTINGS:
                 return ProjectSettingsChecker.check(JsonUtils.fromJson((String) arguments.get(0), ProjectSettingsChecker.ProjectSettingsCheckerParams.class));
+            case RESOLVE_ELEMENT_AT_SELECTION:
+                return ResolveElementHandler.resolveElementAtSelection(arguments, progress);
             default:
                 break;
         }

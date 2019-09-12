@@ -95,7 +95,7 @@ public class ResolveMainMethodHandler {
         return result;
     }
 
-    private static IMethod getMainMethod(IType type) throws JavaModelException {
+    public static IMethod getMainMethod(IType type) throws JavaModelException {
         for (IMethod method : type.getMethods()) {
             // Have at most one main method in the member methods of the type.
             if (method.isMainMethod()) {
