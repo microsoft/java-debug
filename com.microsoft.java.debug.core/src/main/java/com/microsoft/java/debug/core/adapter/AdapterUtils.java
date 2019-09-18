@@ -349,6 +349,7 @@ public class AdapterUtils {
     }
 
     private static Path tmpdir = null;
+
     private static synchronized Path getTmpDir() throws IOException {
         if (tmpdir == null) {
             try {
@@ -370,7 +371,7 @@ public class AdapterUtils {
     private static Path createTempFile(String baseName, String suffix) throws IOException {
         // loop until the temp file can be created
         SecurityManager sm = System.getSecurityManager();
-        for (int i = 0;;i++) {
+        for (int i = 0; ; i++) {
             Path tempFile = getTmpDir().resolve(baseName + (i == 0 ? "" : i) + suffix);
             try {
                 // delete the old temp file
