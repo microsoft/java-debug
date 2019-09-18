@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -44,6 +45,8 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
+
+import sun.security.action.GetPropertyAction;
 
 public class AdapterUtils {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
@@ -312,8 +315,9 @@ public class AdapterUtils {
         Attributes attributes = manifest.getMainAttributes();
         attributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
         // In jar manifest, the absolute path C:\a.jar should be converted to the url style file:///C:/a.jar
-        attributes.put(Attributes.Name.CLASS_PATH, String.join(" ", classpathUrls));
-        Path tempfile = Files.createTempFile("classpath_", ".jar");
+        String classpathValue = String.join(" ", classpathUrls);
+        attributes.put(Attributes.Name.CLASS_PATH, classpathValue);
+        Path tempfile = createTempFile("cp_" + getMd5(classpathValue), ".jar");
         JarOutputStream jar = new JarOutputStream(new FileOutputStream(tempfile.toFile()), manifest);
         jar.close();
 
@@ -338,9 +342,57 @@ public class AdapterUtils {
         }
 
         argfile = argfile.replace("\\", "\\\\");
-        Path tempfile = Files.createTempFile("java_", ".argfile");
+        Path tempfile = createTempFile("cp_" + getMd5(argfile), ".argfile");
         Files.write(tempfile, argfile.getBytes());
 
         return tempfile;
+    }
+
+    private static Path tmpdir = null;
+    private static synchronized Path getTmpDir() throws IOException {
+        if (tmpdir == null) {
+            try {
+                tmpdir = Paths.get(java.security.AccessController.doPrivileged(new GetPropertyAction("java.io.tmpdir")));
+            } catch (NullPointerException | InvalidPathException e) {
+                Path tmpfile = Files.createTempFile("", ".tmp");
+                tmpdir = tmpfile.getParent();
+                try {
+                    Files.deleteIfExists(tmpfile);
+                } catch (Exception ex) {
+                    // do nothing
+                }
+            }
+        }
+
+        return tmpdir;
+    }
+
+    private static Path createTempFile(String baseName, String suffix) throws IOException {
+        // loop until the temp file can be created
+        SecurityManager sm = System.getSecurityManager();
+        for (int i = 0;;i++) {
+            Path tempFile = getTmpDir().resolve(baseName + (i == 0 ? "" : i) + suffix);
+            try {
+                // delete the old temp file
+                Files.deleteIfExists(tempFile);
+            } catch (Exception e) {
+                // do nothing
+            }
+
+            if (!Files.exists(tempFile)) {
+                return Files.createFile(tempFile);
+            }
+        }
+    }
+
+    private static String getMd5(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] messageDigest = md.digest(input.getBytes());
+            BigInteger md5 = new BigInteger(1, messageDigest);
+            return md5.toString(Character.MAX_RADIX);
+        } catch (NoSuchAlgorithmException e) {
+            return Integer.toString(input.hashCode(), Character.MAX_RADIX);
+        }
     }
 }
