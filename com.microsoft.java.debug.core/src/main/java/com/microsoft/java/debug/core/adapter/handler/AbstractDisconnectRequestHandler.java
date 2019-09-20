@@ -50,6 +50,7 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
      * @param context the debug context
      */
     private void destroyResource(IDebugAdapterContext context) {
+        destroyProviders(context);
         if (shouldDestroyLaunchFiles(context)) {
             destroyLaunchFiles(context);
         }
@@ -97,4 +98,7 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
     }
 
     protected abstract void destroyDebugSession(Command command, Arguments arguments, Response response, IDebugAdapterContext context);
+
+    protected void destroyProviders(IDebugAdapterContext context) {
+    }
 }

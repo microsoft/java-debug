@@ -265,8 +265,16 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         }
         this.context = context;
         currentDebugSession = context.getDebugSession();
+    }
 
-        // TODO: Change IProvider interface for shutdown event
+    @Override
+    public void close() {
+        if (DebugSettings.getCurrent().hotCodeReplace != DebugSettings.HotCodeReplace.NEVER) {
+            // Remove the listener.
+            ResourcesPlugin.getWorkspace().removeResourceChangeListener(this);
+        }
+
+        eventSubject.onComplete();
     }
 
     @Override

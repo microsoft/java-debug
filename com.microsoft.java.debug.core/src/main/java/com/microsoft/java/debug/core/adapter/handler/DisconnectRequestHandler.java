@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
+import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
@@ -33,4 +34,11 @@ public class DisconnectRequestHandler extends AbstractDisconnectRequestHandler {
         }
     }
 
+    @Override
+    protected void destroyProviders(IDebugAdapterContext context) {
+        IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+        if (hcrProvider != null) {
+            hcrProvider.close();
+        }
+    }
 }
