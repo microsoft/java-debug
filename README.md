@@ -24,6 +24,17 @@ The Java Debug Server is the bridge between VSCode and JVM. The implementation i
 - com.microsoft.java.debug.core - the core logic of the debug server
 - com.microsoft.java.debug.plugin - wraps the debug server into an Eclipse plugin to work with Eclipse JDT Language Server
 
+## Installation
+
+### Windows:
+```
+mvnw.cmd clean install
+```
+### Linux and macOS:
+```
+./mvnw clean install
+```
+
 License
 -------
 EPL 1.0, See [LICENSE](LICENSE.txt) file.
