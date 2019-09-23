@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.LaunchMode;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -50,6 +51,7 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
      * @param context the debug context
      */
     private void destroyResource(IDebugAdapterContext context) {
+        destroyProviders(context);
         if (shouldDestroyLaunchFiles(context)) {
             destroyLaunchFiles(context);
         }
@@ -97,4 +99,11 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
     }
 
     protected abstract void destroyDebugSession(Command command, Arguments arguments, Response response, IDebugAdapterContext context);
+
+    protected void destroyProviders(IDebugAdapterContext context) {
+        IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+        if (hcrProvider != null) {
+            hcrProvider.close();
+        }
+    }
 }
