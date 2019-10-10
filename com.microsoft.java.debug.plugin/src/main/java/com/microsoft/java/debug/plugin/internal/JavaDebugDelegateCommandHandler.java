@@ -14,10 +14,6 @@ package com.microsoft.java.debug.plugin.internal;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.microsoft.java.debug.core.UsageDataStore;
-import com.microsoft.java.debug.core.protocol.JsonUtils;
-import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
-
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -25,6 +21,10 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
 import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 import org.eclipse.jdt.ls.core.internal.ResourceUtils;
+
+import com.microsoft.java.debug.core.UsageDataStore;
+import com.microsoft.java.debug.core.protocol.JsonUtils;
+import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 
 public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler {
     public static final String FETCH_USER_DATA = "vscode.java.fetchUsageData";
