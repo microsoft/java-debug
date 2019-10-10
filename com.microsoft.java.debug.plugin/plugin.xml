@@ -14,6 +14,7 @@
             <command id="vscode.java.inferLaunchCommandLength"/>
             <command id="vscode.java.checkProjectSettings"/>
             <command id="vscode.java.resolveElementAtSelection"/>
+            <command id="vscode.java.resolveBuildFiles"/>
        </delegateCommandHandler>
    </extension>
 </plugin>
