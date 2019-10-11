@@ -11,10 +11,16 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
+import org.eclipse.jdt.ls.core.internal.ProjectUtils;
+import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 
 import com.microsoft.java.debug.core.UsageDataStore;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
@@ -32,6 +38,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static final String INFER_LAUNCH_COMMAND_LENGTH = "vscode.java.inferLaunchCommandLength";
     public static final String CHECK_PROJECT_SETTINGS = "vscode.java.checkProjectSettings";
     public static final String RESOLVE_ELEMENT_AT_SELECTION = "vscode.java.resolveElementAtSelection";
+    public static final String RESOLVE_BUILD_FILES = "vscode.java.resolveBuildFiles";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -63,6 +70,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 return ProjectSettingsChecker.check(JsonUtils.fromJson((String) arguments.get(0), ProjectSettingsChecker.ProjectSettingsCheckerParams.class));
             case RESOLVE_ELEMENT_AT_SELECTION:
                 return ResolveElementHandler.resolveElementAtSelection(arguments, progress);
+            case RESOLVE_BUILD_FILES:
+                return getBuildFiles();
             default:
                 break;
         }
@@ -70,4 +79,22 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
         throw new UnsupportedOperationException(String.format("Java debug plugin doesn't support the command '%s'.", commandId));
     }
 
+    private List<String> getBuildFiles() {
+        List<String> result = new ArrayList<>();
+        List<IJavaProject> javaProjects = JdtUtils.listJavaProjects(ResourcesPlugin.getWorkspace().getRoot());
+        for (IJavaProject javaProject : javaProjects) {
+            IFile buildFile = null;
+            if (ProjectUtils.isMavenProject(javaProject.getProject())) {
+                buildFile = javaProject.getProject().getFile("pom.xml");
+            } else if (ProjectUtils.isGradleProject(javaProject.getProject())) {
+                buildFile = javaProject.getProject().getFile("build.gradle");
+            }
+
+            if (buildFile != null && buildFile.exists() && buildFile.getLocationURI() != null) {
+                result.add(ResourceUtils.fixURI(buildFile.getLocationURI()));
+            }
+        }
+
+        return result;
+    }
 }
