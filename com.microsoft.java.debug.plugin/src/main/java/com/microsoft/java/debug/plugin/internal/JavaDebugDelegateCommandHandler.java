@@ -24,6 +24,7 @@ import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.UsageDataStore;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
@@ -103,15 +104,15 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
         return result;
     }
 
-    private boolean isOnClasspath(List<Object> arguments) {
+    private boolean isOnClasspath(List<Object> arguments) throws DebugException {
         if (arguments.size() < 1) {
-            return true;
+            throw new DebugException("No file uri is specified.");
         }
 
         String uri = (String) arguments.get(0);
         final ICompilationUnit unit = JDTUtils.resolveCompilationUnit(uri);
         if (unit == null || unit.getResource() == null || !unit.getResource().exists()) {
-            return true;
+            throw new DebugException("The compilation unit " + uri + " doesn't exist.");
         }
 
         IJavaProject javaProject = unit.getJavaProject();
