@@ -148,7 +148,7 @@ public class DebugUtility {
 
         // For java 9 project, should specify "-m $MainClass".
         String[] mainClasses = mainClass.split("/");
-        if (StringUtils.isNotBlank(modulePaths) || mainClasses.length == 2) {
+        if (mainClasses.length == 2) {
             mainClass = "-m " + mainClass;
         }
         if (StringUtils.isNotBlank(programArguments)) {
