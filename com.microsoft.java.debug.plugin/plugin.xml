@@ -15,6 +15,7 @@
             <command id="vscode.java.checkProjectSettings"/>
             <command id="vscode.java.resolveElementAtSelection"/>
             <command id="vscode.java.resolveBuildFiles"/>
+            <command id="vscode.java.isOnClasspath"/>
        </delegateCommandHandler>
    </extension>
 </plugin>

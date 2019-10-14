@@ -17,11 +17,14 @@ import java.util.List;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
+import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 
+import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.UsageDataStore;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
@@ -39,6 +42,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static final String CHECK_PROJECT_SETTINGS = "vscode.java.checkProjectSettings";
     public static final String RESOLVE_ELEMENT_AT_SELECTION = "vscode.java.resolveElementAtSelection";
     public static final String RESOLVE_BUILD_FILES = "vscode.java.resolveBuildFiles";
+    public static final String IS_ON_CLASSPATH = "vscode.java.isOnClasspath";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -72,6 +76,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 return ResolveElementHandler.resolveElementAtSelection(arguments, progress);
             case RESOLVE_BUILD_FILES:
                 return getBuildFiles();
+            case IS_ON_CLASSPATH:
+                return isOnClasspath(arguments);
             default:
                 break;
         }
@@ -96,5 +102,20 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
         }
 
         return result;
+    }
+
+    private boolean isOnClasspath(List<Object> arguments) throws DebugException {
+        if (arguments.size() < 1) {
+            throw new DebugException("No file uri is specified.");
+        }
+
+        String uri = (String) arguments.get(0);
+        final ICompilationUnit unit = JDTUtils.resolveCompilationUnit(uri);
+        if (unit == null || unit.getResource() == null || !unit.getResource().exists()) {
+            throw new DebugException("The compilation unit " + uri + " doesn't exist.");
+        }
+
+        IJavaProject javaProject = unit.getJavaProject();
+        return javaProject == null || javaProject.isOnClasspath(unit);
     }
 }
