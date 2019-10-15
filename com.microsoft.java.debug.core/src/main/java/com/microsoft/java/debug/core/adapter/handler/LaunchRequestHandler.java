@@ -207,7 +207,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
         // For java 9 project, should specify "-m $MainClass".
         String[] mainClasses = launchArguments.mainClass.split("/");
-        if (ArrayUtils.isNotEmpty(launchArguments.modulePaths) || mainClasses.length == 2) {
+        if (mainClasses.length == 2) {
             launchCmds.add("-m");
         }
         launchCmds.add(launchArguments.mainClass);
