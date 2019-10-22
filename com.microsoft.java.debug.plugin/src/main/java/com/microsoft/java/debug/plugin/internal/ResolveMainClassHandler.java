@@ -39,6 +39,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 
@@ -149,7 +150,7 @@ public class ResolveMainClassHandler {
             return false;
         }
 
-        IFolder workspaceLinkFolder = project.getFolder("_");
+        IFolder workspaceLinkFolder = project.getFolder(ProjectUtils.WORKSPACE_LINK);
         return workspaceLinkFolder.exists() && ResourceUtils.isContainedIn(workspaceLinkFolder.getLocation(), rootPaths);
     }
 
