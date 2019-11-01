@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 import com.google.gson.annotations.SerializedName;
+import com.microsoft.java.debug.core.protocol.Types.DataBreakpoint;
 
 /**
  * The request arguments types defined by VSCode Debug Protocol.
@@ -288,6 +289,24 @@ public class Requests {
         public int column;
     }
 
+    public static class DataBreakpointInfoArguments extends Arguments {
+        /**
+         * Reference to the Variable container if the data breakpoint is requested for a child of the container.
+         */
+        public int variablesReference;
+        /**
+         * The name of the Variable's child to obtain data breakpoint information for. If variableReference isn’t provided, this can be an expression.
+         */
+        public String name;
+    }
+
+    public static class SetDataBreakpointsArguments extends Arguments {
+        /**
+         * The contents of this array replaces all existing data breakpoints. An empty array clears all data breakpoints.
+         */
+        public DataBreakpoint[] breakpoints;
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -314,6 +333,8 @@ public class Requests {
         RUNINTERMINAL("runInTerminal", RunInTerminalRequestArguments.class),
         REDEFINECLASSES("redefineClasses", RedefineClassesArguments.class),
         EXCEPTIONINFO("exceptionInfo", ExceptionInfoArguments.class),
+        DATABREAKPOINTINFO("dataBreakpointInfo", DataBreakpointInfoArguments.class),
+        SETDATABREAKPOINTS("setDataBreakpoints", SetDataBreakpointsArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;

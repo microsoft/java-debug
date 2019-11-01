@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2019 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -14,22 +14,27 @@ package com.microsoft.java.debug.core.adapter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.IWatchpoint;
 
-public class BreakpointManager {
+public class BreakpointManager implements IBreakpointManager {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     /**
      * A collection of breakpoints registered with this manager.
      */
     private List<IBreakpoint> breakpoints;
-    private HashMap<String, HashMap<String, IBreakpoint>> sourceToBreakpoints;
+    private Map<String, HashMap<String, IBreakpoint>> sourceToBreakpoints;
+    private Map<String, IWatchpoint> watchpoints;
     private AtomicInteger nextBreakpointId = new AtomicInteger(1);
 
     /**
@@ -38,33 +43,15 @@ public class BreakpointManager {
     public BreakpointManager() {
         this.breakpoints = Collections.synchronizedList(new ArrayList<>(5));
         this.sourceToBreakpoints = new HashMap<>();
+        this.watchpoints = new HashMap<>();
     }
 
-    /**
-     * Adds breakpoints to breakpoint manager.
-     * Deletes all breakpoints that are no longer listed.
-     * @param source
-     *              source path of breakpoints
-     * @param breakpoints
-     *              full list of breakpoints that locates in this source file
-     * @return the full breakpoint list that locates in the source file
-     */
+    @Override
     public IBreakpoint[] setBreakpoints(String source, IBreakpoint[] breakpoints) {
         return setBreakpoints(source, breakpoints, false);
     }
 
-    /**
-     * Adds breakpoints to breakpoint manager.
-     * Deletes all breakpoints that are no longer listed.
-     * In the case of modified source, delete everything.
-     * @param source
-     *              source path of breakpoints
-     * @param breakpoints
-     *              full list of breakpoints that locates in this source file
-     * @param sourceModified
-     *              the source file are modified or not.
-     * @return the full breakpoint list that locates in the source file
-     */
+    @Override
     public IBreakpoint[] setBreakpoints(String source, IBreakpoint[] breakpoints, boolean sourceModified) {
         List<IBreakpoint> result = new ArrayList<>();
         HashMap<String, IBreakpoint> breakpointMap = this.sourceToBreakpoints.get(source);
@@ -151,13 +138,12 @@ public class BreakpointManager {
         }
     }
 
+    @Override
     public IBreakpoint[] getBreakpoints() {
         return this.breakpoints.toArray(new IBreakpoint[0]);
     }
 
-    /**
-     * Gets the registered breakpoints at the source file.
-     */
+    @Override
     public IBreakpoint[] getBreakpoints(String source) {
         HashMap<String, IBreakpoint> breakpointMap = this.sourceToBreakpoints.get(source);
         if (breakpointMap == null) {
@@ -166,12 +152,60 @@ public class BreakpointManager {
         return breakpointMap.values().toArray(new IBreakpoint[0]);
     }
 
-    /**
-     * Cleanup all breakpoints and reset the breakpoint id counter.
-     */
-    public void reset() {
-        this.sourceToBreakpoints.clear();
-        this.breakpoints.clear();
-        this.nextBreakpointId.set(1);
+    @Override
+    public IWatchpoint[] setWatchpoints(IWatchpoint[] changedWatchpoints) {
+        List<IWatchpoint> result = new ArrayList<>();
+        List<IWatchpoint> toAdds = new ArrayList<>();
+        List<IWatchpoint> toRemoves = new ArrayList<>();
+
+        Set<String> reused = new HashSet<>();
+        for (IWatchpoint change : changedWatchpoints) {
+            if (change == null) {
+                result.add(change);
+                continue;
+            }
+
+            String key = getWatchpointKey(change);
+            IWatchpoint cache = watchpoints.get(key);
+            if (cache != null && Objects.equals(cache.accessType(), change.accessType())) {
+                reused.add(key);
+                result.add(cache);
+            } else {
+                toAdds.add(change);
+                result.add(change);
+            }
+        }
+
+        for (IWatchpoint cache : watchpoints.values()) {
+            if (!reused.contains(getWatchpointKey(cache))) {
+                toRemoves.add(cache);
+            }
+        }
+
+        for (IWatchpoint toRemove : toRemoves) {
+            try {
+                // Destroy the watch point on the debugee VM.
+                toRemove.close();
+                this.watchpoints.remove(getWatchpointKey(toRemove));
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, String.format("Remove the watch point exception: %s", e.toString()), e);
+            }
+        }
+
+        for (IWatchpoint toAdd : toAdds) {
+            toAdd.putProperty("id", this.nextBreakpointId.getAndIncrement());
+            this.watchpoints.put(getWatchpointKey(toAdd), toAdd);
+        }
+
+        return result.toArray(new IWatchpoint[0]);
+    }
+
+    private String getWatchpointKey(IWatchpoint watchpoint) {
+        return watchpoint.className() + "#" + watchpoint.fieldName();
+    }
+
+    @Override
+    public IWatchpoint[] getWatchpoints() {
+        return this.watchpoints.values().stream().filter(wp -> wp != null).toArray(IWatchpoint[]::new);
     }
 }

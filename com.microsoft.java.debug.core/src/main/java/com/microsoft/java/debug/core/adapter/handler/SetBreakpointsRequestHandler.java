@@ -27,7 +27,6 @@ import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.BreakpointManager;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent.EventType;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -55,8 +54,6 @@ import com.sun.jdi.event.StepEvent;
 public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-
-    private BreakpointManager manager = new BreakpointManager();
 
     private boolean registered = false;
 
@@ -127,7 +124,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, bpArguments.breakpoints, context);
             // See the VSCode bug https://github.com/Microsoft/vscode/issues/36471.
             // The source uri sometimes is encoded by VSCode, the debugger will decode it to keep the uri consistent.
-            IBreakpoint[] added = manager.setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
+            IBreakpoint[] added = context.getBreakpointManager()
+                                         .setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
                 // For newly added breakpoint, should install it to debuggee first.
                 if (toAdds[i] == added[i] && added[i].className() != null) {
@@ -161,8 +159,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private IBreakpoint getAssociatedEvaluatableBreakpoint(BreakpointEvent event) {
-        return Arrays.asList(manager.getBreakpoints()).stream().filter(
+    private IBreakpoint getAssociatedEvaluatableBreakpoint(IDebugAdapterContext context, BreakpointEvent event) {
+        return Arrays.asList(context.getBreakpointManager().getBreakpoints()).stream().filter(
             bp -> {
                 return bp instanceof IEvaluatableBreakpoint
                     && ((IEvaluatableBreakpoint) bp).containsEvaluatableExpression()
@@ -187,17 +185,19 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     }
 
                     // find the breakpoint related to this breakpoint event
-                    IBreakpoint expressionBP = getAssociatedEvaluatableBreakpoint((BreakpointEvent) event);
+                    IBreakpoint expressionBP = getAssociatedEvaluatableBreakpoint(context, (BreakpointEvent) event);
 
                     if (expressionBP != null) {
                         CompletableFuture.runAsync(() -> {
                             engine.evaluateForBreakpoint((IEvaluatableBreakpoint) expressionBP, bpThread).whenComplete((value, ex) -> {
-                                boolean resume = handleEvaluationResult(context, bpThread, expressionBP, value, ex);
+                                boolean resume = handleEvaluationResult(context, bpThread, (IEvaluatableBreakpoint) expressionBP, value, ex);
                                 // Clear the evaluation environment caused by above evaluation.
                                 engine.clearState(bpThread);
 
                                 if (resume) {
                                     debugEvent.eventSet.resume();
+                                } else {
+                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                                 }
                             });
                         });
@@ -210,7 +210,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private boolean handleEvaluationResult(IDebugAdapterContext context, ThreadReference bpThread, IBreakpoint breakpoint, Value value, Throwable ex) {
+    /**
+     * Check whether the condition expression is satisfied, and return a boolean value to determine to resume the thread or not.
+     */
+    public static boolean handleEvaluationResult(IDebugAdapterContext context, ThreadReference bpThread, IEvaluatableBreakpoint breakpoint,
+        Value value, Throwable ex) {
         if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
             if (ex != null) {
                 logger.log(Level.SEVERE, String.format("[Logpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
@@ -237,7 +241,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             if (resume) {
                 return true;
             } else {
-                context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
                 if (ex != null) {
                     logger.log(Level.SEVERE, String.format("[ConditionalBreakpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
                     context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
@@ -288,7 +291,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         if (typenames == null || typenames.isEmpty()) {
             return;
         }
-        IBreakpoint[] breakpoints = manager.getBreakpoints();
+        IBreakpoint[] breakpoints = context.getBreakpointManager().getBreakpoints();
 
         for (IBreakpoint breakpoint : breakpoints) {
             if (typenames.contains(breakpoint.className())) {

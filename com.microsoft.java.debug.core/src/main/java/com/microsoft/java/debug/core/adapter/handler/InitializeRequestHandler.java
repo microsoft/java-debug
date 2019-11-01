@@ -61,6 +61,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         };
         caps.exceptionBreakpointFilters = exceptionFilters;
         caps.supportsExceptionInfoRequest = true;
+        caps.supportsDataBreakpoints = true;
         response.body = caps;
         return CompletableFuture.completedFuture(response);
     }

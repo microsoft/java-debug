@@ -124,4 +124,6 @@ public interface IDebugAdapterContext {
     Path getArgsfile();
 
     IExceptionManager getExceptionManager();
+
+    IBreakpointManager getBreakpointManager();
 }
