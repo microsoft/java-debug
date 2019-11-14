@@ -158,7 +158,7 @@ public class BreakpointManager implements IBreakpointManager {
         List<IWatchpoint> toAdds = new ArrayList<>();
         List<IWatchpoint> toRemoves = new ArrayList<>();
 
-        Set<String> reused = new HashSet<>();
+        Set<String> visitedKeys = new HashSet<>();
         for (IWatchpoint change : changedWatchpoints) {
             if (change == null) {
                 result.add(change);
@@ -168,7 +168,7 @@ public class BreakpointManager implements IBreakpointManager {
             String key = getWatchpointKey(change);
             IWatchpoint cache = watchpoints.get(key);
             if (cache != null && Objects.equals(cache.accessType(), change.accessType())) {
-                reused.add(key);
+                visitedKeys.add(key);
                 result.add(cache);
             } else {
                 toAdds.add(change);
@@ -177,7 +177,7 @@ public class BreakpointManager implements IBreakpointManager {
         }
 
         for (IWatchpoint cache : watchpoints.values()) {
-            if (!reused.contains(getWatchpointKey(cache))) {
+            if (!visitedKeys.contains(getWatchpointKey(cache))) {
                 toRemoves.add(cache);
             }
         }

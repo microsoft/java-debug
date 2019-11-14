@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
@@ -31,10 +32,10 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 
 public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
-    private VirtualMachine vm = null;
-    private IEventHub eventHub = null;
-    private String className = null;
-    private String fieldName = null;
+    private final VirtualMachine vm;
+    private final IEventHub eventHub;
+    private final String className;
+    private final String fieldName;
     private String accessType = null;
     private String condition = null;
     private int hitCount;
@@ -54,6 +55,10 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
     }
 
     Watchpoint(VirtualMachine vm, IEventHub eventHub, String className, String fieldName, String accessType, String condition, int hitCount) {
+        Objects.requireNonNull(vm);
+        Objects.requireNonNull(eventHub);
+        Objects.requireNonNull(className);
+        Objects.requireNonNull(fieldName);
         this.vm = vm;
         this.eventHub = eventHub;
         this.className = className;
