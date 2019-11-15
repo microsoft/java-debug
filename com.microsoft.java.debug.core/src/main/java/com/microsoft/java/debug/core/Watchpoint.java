@@ -214,7 +214,7 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
 
     @Override
     public void setLogMessage(String logMessage) {
-        // do nothing
+        throw new UnsupportedOperationException("Log message feature is unsupported for watchpoint.");
     }
 
     @Override
