@@ -82,6 +82,11 @@ public class DebugSession implements IDebugSession {
     }
 
     @Override
+    public IWatchpoint createWatchPoint(String className, String fieldName, String accessType, String condition, int hitCount) {
+        return new Watchpoint(vm, this.getEventHub(), className, fieldName, accessType, condition, hitCount);
+    }
+
+    @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught) {
         EventRequestManager manager = vm.eventRequestManager();
         ArrayList<ExceptionRequest> legacy = new ArrayList<>(manager.exceptionRequests());

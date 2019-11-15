@@ -53,6 +53,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     private IStackFrameManager stackFrameManager = new StackFrameManager();
     private IExceptionManager exceptionManager = new ExceptionManager();
+    private IBreakpointManager breakpointManager = new BreakpointManager();
 
     public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
         this.providerContext = providerContext;
@@ -290,5 +291,10 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IExceptionManager getExceptionManager() {
         return this.exceptionManager;
+    }
+
+    @Override
+    public IBreakpointManager getBreakpointManager() {
+        return breakpointManager;
     }
 }

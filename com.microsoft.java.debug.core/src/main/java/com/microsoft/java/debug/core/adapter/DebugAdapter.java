@@ -23,6 +23,7 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.CompletionsHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.DataBreakpointInfoRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DisconnectRequestWithoutDebuggingHandler;
 import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
@@ -33,6 +34,7 @@ import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.RestartFrameHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetBreakpointsRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.SetDataBreakpointsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetExceptionBreakpointsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SetVariableRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
@@ -117,6 +119,8 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForDebug(new RestartFrameHandler());
         registerHandlerForDebug(new CompletionsHandler());
         registerHandlerForDebug(new ExceptionInfoRequestHandler());
+        registerHandlerForDebug(new DataBreakpointInfoRequestHandler());
+        registerHandlerForDebug(new SetDataBreakpointsRequestHandler());
 
         // NO_DEBUG mode only
         registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());

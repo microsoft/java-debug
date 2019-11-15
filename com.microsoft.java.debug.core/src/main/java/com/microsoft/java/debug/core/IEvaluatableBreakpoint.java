@@ -11,12 +11,20 @@
 
 package com.microsoft.java.debug.core;
 
-public interface IEvaluatableBreakpoint extends IBreakpoint {
+public interface IEvaluatableBreakpoint {
     boolean containsEvaluatableExpression();
 
     boolean containsConditionalExpression();
 
     boolean containsLogpointExpression();
+
+    String getCondition();
+
+    void setCondition(String condition);
+
+    String getLogMessage();
+
+    void setLogMessage(String logMessage);
 
     void setCompiledConditionalExpression(Object compiledExpression);
 

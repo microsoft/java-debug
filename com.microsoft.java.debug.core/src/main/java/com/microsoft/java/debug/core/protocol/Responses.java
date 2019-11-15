@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.protocol;
 
 import java.util.List;
 
+import com.microsoft.java.debug.core.protocol.Types.DataBreakpointAccessType;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionBreakMode;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionDetails;
 
@@ -204,6 +205,56 @@ public class Responses {
             } else {
                 breakpoints = bpts.toArray(new Types.Breakpoint[0]);
             }
+        }
+    }
+
+    public static class SetDataBreakpointsResponseBody extends SetBreakpointsResponseBody {
+        public SetDataBreakpointsResponseBody(List<Types.Breakpoint> bpts) {
+            super(bpts);
+        }
+    }
+
+    public static class DataBreakpointInfoResponseBody extends ResponseBody {
+        /**
+         * An identifier for the data on which a data breakpoint can be registered with the setDataBreakpoints request
+         * or null if no data breakpoint is available.
+         */
+        public String dataId;
+        /**
+         * UI string that describes on what data the breakpoint is set on or why a data breakpoint is not available.
+         */
+        public String description;
+        /**
+         * Optional attribute listing the available access types for a potential data breakpoint. A UI frontend could surface this information.
+         */
+        public DataBreakpointAccessType[] accessTypes;
+        /**
+         * Optional attribute indicating that a potential data breakpoint could be persisted across sessions.
+         */
+        public boolean canPersist;
+
+        public DataBreakpointInfoResponseBody(String dataId) {
+            this(dataId, null);
+        }
+
+        public DataBreakpointInfoResponseBody(String dataId, String description) {
+            this(dataId, description, null);
+        }
+
+        public DataBreakpointInfoResponseBody(String dataId, String description,
+                DataBreakpointAccessType[] accessTypes) {
+            this(dataId, description, accessTypes, false);
+        }
+
+        /**
+         * Constructor.
+         */
+        public DataBreakpointInfoResponseBody(String dataId, String description, DataBreakpointAccessType[] accessTypes,
+                boolean canPersist) {
+            this.dataId = dataId;
+            this.description = description;
+            this.accessTypes = accessTypes;
+            this.canPersist = canPersist;
         }
     }
 
