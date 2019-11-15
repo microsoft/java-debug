@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.CompletionContext;
@@ -152,8 +153,18 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
         data.put(CompletionResolveHandler.DATA_FIELD_PROPOSAL_ID, String.valueOf(index));
         $.setData(data);
         this.descriptionProvider.updateDescription(proposal, $);
+        adjustCompleteItem($);
         $.setSortText(SortTextHelper.computeSortText(proposal));
         return $;
+    }
+
+    private void adjustCompleteItem(CompletionItem item) {
+        if (item.getKind() == CompletionItemKind.Function) {
+            String text = item.getInsertText();
+            if (StringUtils.isNotBlank(text) && !text.endsWith(")")) {
+                item.setInsertText(text + "()");
+            }
+        }
     }
 
     @Override
