@@ -68,10 +68,12 @@ public class AdapterUtils {
      * @return the absolute file path
      */
     public static String sourceLookup(String[] sourcePaths, String sourceName) {
-        for (String path : sourcePaths) {
-            Path fullpath = Paths.get(path, sourceName);
-            if (Files.isRegularFile(fullpath)) {
-                return fullpath.toString();
+        if (sourcePaths != null) {
+            for (String path : sourcePaths) {
+                Path fullpath = Paths.get(path, sourceName);
+                if (Files.isRegularFile(fullpath)) {
+                    return fullpath.toString();
+                }
             }
         }
         return null;
