@@ -137,6 +137,6 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
 
     @Override
     public void preLaunch(LaunchArguments launchArguments, IDebugAdapterContext context) {
-        // TODO Auto-generated method stub
+        context.setSourcePaths(launchArguments.sourcePaths);
     }
 }
