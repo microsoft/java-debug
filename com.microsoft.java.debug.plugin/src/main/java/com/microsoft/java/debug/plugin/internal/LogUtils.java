@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,6 +31,21 @@ public final class LogUtils {
         logger.addHandler(new UsageDataLogHandler(Level.SEVERE));
         usageDataLogger.addHandler(new UsageDataLogHandler(Level.ALL));
         logger.setLevel(level);
+    }
+
+    /**
+     * Remove the logger handlers registered to the global logger.
+     */
+    public static void cleanupHandlers() {
+        Handler[] handlers = logger.getHandlers();
+        for (Handler handler : handlers) {
+            logger.removeHandler(handler);
+        }
+
+        Handler[] usageHandlers = usageDataLogger.getHandlers();
+        for (Handler handler : usageHandlers) {
+            usageDataLogger.removeHandler(handler);
+        }
     }
 
     /**
