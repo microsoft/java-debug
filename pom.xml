@@ -11,7 +11,7 @@
     <properties>
         <base.name>Java Debug Server for Visual Studio Code</base.name>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <tycho-version>1.2.0</tycho-version>
+        <tycho-version>1.5.1</tycho-version>
         <checkstyleDir>${basedir}</checkstyleDir>
     </properties>
 
