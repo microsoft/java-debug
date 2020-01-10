@@ -22,6 +22,7 @@ public final class DebugSettings {
     private static DebugSettings current = new DebugSettings();
 
     public int maxStringLength = 0;
+    public int numericPrecision = 0;
     public boolean showStaticVariables = false;
     public boolean showQualifiedNames = false;
     public boolean showHex = false;

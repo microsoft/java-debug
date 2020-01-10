@@ -248,6 +248,10 @@ public abstract class VariableUtils {
         if (DebugSettings.getCurrent().maxStringLength > 0) {
             options.put(StringObjectFormatter.MAX_STRING_LENGTH_OPTION, DebugSettings.getCurrent().maxStringLength);
         }
+
+        if (DebugSettings.getCurrent().numericPrecision > 0) {
+            options.put(NumericFormatter.NUMERIC_PRECISION_OPTION, DebugSettings.getCurrent().numericPrecision);
+        }
     }
 
     private VariableUtils() {
