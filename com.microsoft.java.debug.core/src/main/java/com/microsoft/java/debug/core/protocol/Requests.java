@@ -244,6 +244,10 @@ public class Requests {
         public long threadId;
     }
 
+    public static class ThreadOperationArguments extends Arguments {
+        public long threadId;
+    }
+
     public static class ScopesArguments extends Arguments {
         public int frameId;
     }
@@ -335,6 +339,10 @@ public class Requests {
         EXCEPTIONINFO("exceptionInfo", ExceptionInfoArguments.class),
         DATABREAKPOINTINFO("dataBreakpointInfo", DataBreakpointInfoArguments.class),
         SETDATABREAKPOINTS("setDataBreakpoints", SetDataBreakpointsArguments.class),
+        CONTINUEALL("continueAll", ThreadOperationArguments.class),
+        CONTINUEOTHERS("continueOthers", ThreadOperationArguments.class),
+        PAUSEALL("pauseAll", ThreadOperationArguments.class),
+        PAUSEOTHERS("pauseOthers", ThreadOperationArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;
