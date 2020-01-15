@@ -159,14 +159,9 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         List<ThreadReference> threads = DebugUtility.getAllThreadsSafely(context.getDebugSession());
         for (ThreadReference thread : threads) {
             long threadId = thread.uniqueID();
-            if (threadId != arguments.threadId && !thread.isSuspended()) {
-                try {
-                    thread.suspend();
-                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", threadId));
-                } catch (ObjectCollectedException ex) {
-                    // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM,
-                    // the suspend operation to this thread is meaningless.
-                }
+            if (threadId != arguments.threadId && !thread.isCollected() && !thread.isSuspended()) {
+                thread.suspend();
+                context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", threadId));
             }
         }
 
