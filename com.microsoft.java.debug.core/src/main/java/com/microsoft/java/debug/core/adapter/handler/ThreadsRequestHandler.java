@@ -29,6 +29,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.ContinueArguments;
 import com.microsoft.java.debug.core.protocol.Requests.PauseArguments;
+import com.microsoft.java.debug.core.protocol.Requests.ThreadOperationArguments;
 import com.microsoft.java.debug.core.protocol.Requests.ThreadsArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
@@ -40,13 +41,16 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
 
     @Override
     public List<Command> getTargetCommands() {
-        return Arrays.asList(Command.THREADS, Command.PAUSE, Command.CONTINUE);
+        return Arrays.asList(Command.THREADS, Command.PAUSE, Command.CONTINUE, Command.CONTINUEALL,
+                Command.CONTINUEOTHERS, Command.PAUSEALL, Command.PAUSEOTHERS);
     }
 
     @Override
-    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+    public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
+            IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION,
+                    "Debug Session doesn't exist.");
         }
 
         switch (command) {
@@ -56,6 +60,14 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
                 return this.pause((PauseArguments) arguments, response, context);
             case CONTINUE:
                 return this.resume((ContinueArguments) arguments, response, context);
+            case CONTINUEALL:
+                return this.resumeAll((ThreadOperationArguments) arguments, response, context);
+            case CONTINUEOTHERS:
+                return this.resumeOthers((ThreadOperationArguments) arguments, response, context);
+            case PAUSEALL:
+                return this.pauseAll((ThreadOperationArguments) arguments, response, context);
+            case PAUSEOTHERS:
+                return this.pauseOthers((ThreadOperationArguments) arguments, response, context);
             default:
                 return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.UNRECOGNIZED_REQUEST_FAILURE,
                         String.format("Unrecognized request: { _request: %s }", command.toString()));
@@ -111,6 +123,48 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getRecyclableIdPool().removeAllObjects();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
+        return CompletableFuture.completedFuture(response);
+    }
+
+    private CompletableFuture<Response> resumeAll(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
+        context.getExceptionManager().removeAllExceptions();
+        context.getDebugSession().resume();
+        context.getProtocolServer().sendEvent(new Events.ContinuedEvent(arguments.threadId, true));
+        context.getRecyclableIdPool().removeAllObjects();
+        return CompletableFuture.completedFuture(response);
+    }
+
+    private CompletableFuture<Response> resumeOthers(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
+        List<ThreadReference> threads = DebugUtility.getAllThreadsSafely(context.getDebugSession());
+        for (ThreadReference thread : threads) {
+            long threadId = thread.uniqueID();
+            if (threadId != arguments.threadId && thread.isSuspended()) {
+                context.getExceptionManager().removeException(threadId);
+                DebugUtility.resumeThread(thread);
+                context.getProtocolServer().sendEvent(new Events.ContinuedEvent(threadId));
+                checkThreadRunningAndRecycleIds(thread, context);
+            }
+        }
+
+        return CompletableFuture.completedFuture(response);
+    }
+
+    private CompletableFuture<Response> pauseAll(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
+        context.getDebugSession().suspend();
+        context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
+        return CompletableFuture.completedFuture(response);
+    }
+
+    private CompletableFuture<Response> pauseOthers(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
+        List<ThreadReference> threads = DebugUtility.getAllThreadsSafely(context.getDebugSession());
+        for (ThreadReference thread : threads) {
+            long threadId = thread.uniqueID();
+            if (threadId != arguments.threadId && !thread.isCollected() && !thread.isSuspended()) {
+                thread.suspend();
+                context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", threadId));
+            }
+        }
+
         return CompletableFuture.completedFuture(response);
     }
 
