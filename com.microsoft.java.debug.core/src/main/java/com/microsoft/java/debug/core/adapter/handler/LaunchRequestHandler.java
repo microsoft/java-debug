@@ -188,9 +188,14 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         if (launchArguments.launcherScript != null) {
             launchCmds.add(launchArguments.launcherScript);
         }
-        final String javaHome = StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome) ? DebugSettings.getCurrent().javaHome
-                : System.getProperty("java.home");
-        launchCmds.add(javaHome + slash + "bin" + slash + "java");
+
+        if (StringUtils.isNotBlank(launchArguments.javaExec)) {
+            launchCmds.add(launchArguments.javaExec);
+        } else {
+            final String javaHome = StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome) ? DebugSettings.getCurrent().javaHome
+                    : System.getProperty("java.home");
+            launchCmds.add(javaHome + slash + "bin" + slash + "java");
+        }
         if (StringUtils.isNotEmpty(address)) {
             launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));
         }

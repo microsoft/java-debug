@@ -86,6 +86,7 @@ public class Requests {
         public CONSOLE console = CONSOLE.integratedTerminal;
         public ShortenApproach shortenCommandLine = ShortenApproach.NONE;
         public String launcherScript;
+        public String javaExec;
     }
 
     public static class AttachArguments extends LaunchBaseArguments {

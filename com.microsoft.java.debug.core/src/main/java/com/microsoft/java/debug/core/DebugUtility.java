@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
@@ -79,6 +80,31 @@ public class DebugUtility {
     }
 
     /**
+     * Launch a debuggee in suspend mode.
+     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String, String[])
+     */
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String javaExec,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            List<String> modulePaths,
+            List<String> classPaths,
+            String cwd,
+            String[] envVars)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return DebugUtility.launch(vmManager,
+                javaExec,
+                mainClass,
+                programArguments,
+                vmArguments,
+                String.join(File.pathSeparator, modulePaths),
+                String.join(File.pathSeparator, classPaths),
+                cwd,
+                envVars);
+    }
+
+    /**
      * Launches a debuggee in suspend mode.
      *
      * @param vmManager
@@ -108,6 +134,50 @@ public class DebugUtility {
      *             with an error before a connection could be established.
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            String modulePaths,
+            String classPaths,
+            String cwd,
+            String[] envVars)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return launch(vmManager, null, mainClass, programArguments, vmArguments, modulePaths, classPaths, cwd, envVars);
+    }
+
+    /**
+     * Launches a debuggee in suspend mode.
+     *
+     * @param vmManager
+     *            the virtual machine manager.
+     * @param javaExec
+     *            the java executable path. If not defined, then resolve from java home.
+     * @param mainClass
+     *            the main class.
+     * @param programArguments
+     *            the program arguments.
+     * @param vmArguments
+     *            the vm arguments.
+     * @param modulePaths
+     *            the module paths.
+     * @param classPaths
+     *            the class paths.
+     * @param cwd
+     *            the working directory of the program.
+     * @param envVars
+     *            array of strings, each element of which has environment variable settings in the format name=value.
+     *            or null if the subprocess should inherit the environment of the current process.
+     * @return an instance of IDebugSession.
+     * @throws IOException
+     *             when unable to launch.
+     * @throws IllegalConnectorArgumentsException
+     *             when one of the arguments is invalid.
+     * @throws VMStartException
+     *             when the debuggee was successfully launched, but terminated
+     *             with an error before a connection could be established.
+     */
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String javaExec,
             String mainClass,
             String programArguments,
             String vmArguments,
@@ -164,7 +234,12 @@ public class DebugUtility {
             arguments.get(ENV).setValue(encodeArrayArgument(envVars));
         }
 
-        if (StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome)) {
+        if (isValidJavaExec(javaExec)) {
+            String vmExec = new File(javaExec).getName();
+            String javaHome = new File(javaExec).getParentFile().getParentFile().getAbsolutePath();
+            arguments.get(HOME).setValue(javaHome);
+            arguments.get(EXEC).setValue(vmExec);
+        } else if (StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome)) {
             arguments.get(HOME).setValue(DebugSettings.getCurrent().javaHome);
         }
 
@@ -177,6 +252,19 @@ public class DebugUtility {
         // See https://github.com/Microsoft/java-debug/issues/23
         vm.version();
         return new DebugSession(vm);
+    }
+
+    private static boolean isValidJavaExec(String javaExec) {
+        if (StringUtils.isBlank(javaExec)) {
+            return false;
+        }
+
+        File file = new File(javaExec);
+        if (!file.exists() || !file.isFile()) {
+            return false;
+        }
+
+        return Objects.equals(file.getParentFile().getName(), "bin");
     }
 
     /**

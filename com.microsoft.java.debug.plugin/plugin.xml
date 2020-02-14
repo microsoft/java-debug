@@ -16,6 +16,7 @@
             <command id="vscode.java.resolveElementAtSelection"/>
             <command id="vscode.java.resolveBuildFiles"/>
             <command id="vscode.java.isOnClasspath"/>
+            <command id="vscode.java.resolveJavaExecutable"/>
        </delegateCommandHandler>
    </extension>
 </plugin>

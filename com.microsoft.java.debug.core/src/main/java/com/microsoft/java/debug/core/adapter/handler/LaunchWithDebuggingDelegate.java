@@ -175,6 +175,7 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
 
         IDebugSession debugSession = DebugUtility.launch(
                 vmProvider.getVirtualMachineManager(),
+                launchArguments.javaExec,
                 launchArguments.mainClass,
                 launchArguments.args,
                 launchArguments.vmArgs,
