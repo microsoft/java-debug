@@ -18,6 +18,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -183,7 +184,6 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
      * @return the command arrays
      */
     public static String[] constructLaunchCommands(LaunchArguments launchArguments, boolean serverMode, String address) {
-        String slash = System.getProperty("file.separator");
         List<String> launchCmds = new ArrayList<>();
         if (launchArguments.launcherScript != null) {
             launchCmds.add(launchArguments.launcherScript);
@@ -194,7 +194,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         } else {
             final String javaHome = StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome) ? DebugSettings.getCurrent().javaHome
                     : System.getProperty("java.home");
-            launchCmds.add(javaHome + slash + "bin" + slash + "java");
+            launchCmds.add(Paths.get(javaHome, "bin", "java").toString());
         }
         if (StringUtils.isNotEmpty(address)) {
             launchCmds.add(String.format("-agentlib:jdwp=transport=dt_socket,server=%s,suspend=y,address=%s", serverMode ? "y" : "n", address));

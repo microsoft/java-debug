@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -27,7 +28,7 @@ import com.microsoft.java.debug.core.Configuration;
 
 public class ResolveJavaExecutableHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    private static final String[] candidateJavaExecs = {
+    private static final String[] javaExecCandidates = {
         "java",
         "java.exe",
         "javaw",
@@ -37,7 +38,7 @@ public class ResolveJavaExecutableHandler {
         "j9w",
         "j9w.exe"
     };
-    private static final String[] candidateJavaBins = {
+    private static final String[] javaBinCandidates = {
         File.separator,
         "bin" + File.separatorChar,
         "jre" + File.separatorChar + "bin" + File.separatorChar
@@ -84,12 +85,12 @@ public class ResolveJavaExecutableHandler {
 
     private static File findJavaExecutable(File vmInstallLocation) {
         boolean isBin = Objects.equals("bin", vmInstallLocation.getName());
-        for (int i = 0; i < candidateJavaExecs.length; i++) {
-            for (int j = 0; j < candidateJavaBins.length; j++) {
+        for (int i = 0; i < javaExecCandidates.length; i++) {
+            for (int j = 0; j < javaBinCandidates.length; j++) {
                 if (!isBin && j == 0) {
                     continue;
                 }
-                File javaFile = new File(vmInstallLocation, candidateJavaBins[j] + candidateJavaExecs[i]);
+                File javaFile = new File(vmInstallLocation, Paths.get(javaBinCandidates[j], javaExecCandidates[i]).toString());
                 if (javaFile.isFile()) {
                     return javaFile;
                 }

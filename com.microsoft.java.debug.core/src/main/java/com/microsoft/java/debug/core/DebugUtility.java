@@ -17,6 +17,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +59,7 @@ public class DebugUtility {
 
     /**
      * Launch a debuggee in suspend mode.
-     * @see #launch(VirtualMachineManager, String, String, String, String, String)
+     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[])
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
             String mainClass,
@@ -81,27 +82,27 @@ public class DebugUtility {
 
     /**
      * Launch a debuggee in suspend mode.
-     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String, String[])
+     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[], String)
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
-            String javaExec,
             String mainClass,
             String programArguments,
             String vmArguments,
             List<String> modulePaths,
             List<String> classPaths,
             String cwd,
-            String[] envVars)
+            String[] envVars,
+            String javaExec)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         return DebugUtility.launch(vmManager,
-                javaExec,
                 mainClass,
                 programArguments,
                 vmArguments,
                 String.join(File.pathSeparator, modulePaths),
                 String.join(File.pathSeparator, classPaths),
                 cwd,
-                envVars);
+                envVars,
+                javaExec);
     }
 
     /**
@@ -142,7 +143,7 @@ public class DebugUtility {
             String cwd,
             String[] envVars)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return launch(vmManager, null, mainClass, programArguments, vmArguments, modulePaths, classPaths, cwd, envVars);
+        return launch(vmManager, mainClass, programArguments, vmArguments, modulePaths, classPaths, cwd, envVars, null);
     }
 
     /**
@@ -150,8 +151,6 @@ public class DebugUtility {
      *
      * @param vmManager
      *            the virtual machine manager.
-     * @param javaExec
-     *            the java executable path. If not defined, then resolve from java home.
      * @param mainClass
      *            the main class.
      * @param programArguments
@@ -167,6 +166,8 @@ public class DebugUtility {
      * @param envVars
      *            array of strings, each element of which has environment variable settings in the format name=value.
      *            or null if the subprocess should inherit the environment of the current process.
+     * @param javaExec
+     *            the java executable path. If not defined, then resolve from java home.
      * @return an instance of IDebugSession.
      * @throws IOException
      *             when unable to launch.
@@ -177,14 +178,14 @@ public class DebugUtility {
      *             with an error before a connection could be established.
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
-            String javaExec,
             String mainClass,
             String programArguments,
             String vmArguments,
             String modulePaths,
             String classPaths,
             String cwd,
-            String[] envVars)
+            String[] envVars,
+            String javaExec)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
@@ -264,7 +265,8 @@ public class DebugUtility {
             return false;
         }
 
-        return Objects.equals(file.getParentFile().getName(), "bin");
+        return Files.isExecutable(file.toPath())
+            && Objects.equals(file.getParentFile().getName(), "bin");
     }
 
     /**

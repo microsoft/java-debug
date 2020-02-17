@@ -175,14 +175,14 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
 
         IDebugSession debugSession = DebugUtility.launch(
                 vmProvider.getVirtualMachineManager(),
-                launchArguments.javaExec,
                 launchArguments.mainClass,
                 launchArguments.args,
                 launchArguments.vmArgs,
                 Arrays.asList(launchArguments.modulePaths),
                 Arrays.asList(launchArguments.classPaths),
                 launchArguments.cwd,
-                LaunchRequestHandler.constructEnvironmentVariables(launchArguments));
+                LaunchRequestHandler.constructEnvironmentVariables(launchArguments),
+                launchArguments.javaExec);
         context.setDebugSession(debugSession);
 
         logger.info("Launching debuggee VM succeeded.");
