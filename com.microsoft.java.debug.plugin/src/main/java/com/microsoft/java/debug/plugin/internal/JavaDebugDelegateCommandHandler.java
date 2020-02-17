@@ -43,6 +43,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static final String RESOLVE_ELEMENT_AT_SELECTION = "vscode.java.resolveElementAtSelection";
     public static final String RESOLVE_BUILD_FILES = "vscode.java.resolveBuildFiles";
     public static final String IS_ON_CLASSPATH = "vscode.java.isOnClasspath";
+    public static final String RESOLVE_JAVA_EXECUTABLE = "vscode.java.resolveJavaExecutable";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -78,6 +79,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 return getBuildFiles();
             case IS_ON_CLASSPATH:
                 return isOnClasspath(arguments);
+            case RESOLVE_JAVA_EXECUTABLE:
+                return ResolveJavaExecutableHandler.resolveJavaExecutable(arguments);
             default:
                 break;
         }
