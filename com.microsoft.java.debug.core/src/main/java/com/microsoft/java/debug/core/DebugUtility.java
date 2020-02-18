@@ -545,7 +545,6 @@ public class DebugUtility {
         return AdapterUtils.isWindows() ? parseArgumentsWindows(cmdStr) : parseArgumentsNonWindows(cmdStr);
     }
 
-
     /**
      * Parses the given command line into separate arguments for mac/linux platform.
      * This piece of code is mainly copied from
@@ -626,7 +625,6 @@ public class DebugUtility {
 
         return result;
     }
-
 
     /**
      * Parses the given command line into separate arguments for windows platform.

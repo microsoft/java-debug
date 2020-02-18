@@ -180,7 +180,6 @@ public class JdtUtils {
         return classpathEntry.isTest();
     }
 
-
     /**
      * Compute the possible source containers that the specified project could be associated with.
      * <p>
