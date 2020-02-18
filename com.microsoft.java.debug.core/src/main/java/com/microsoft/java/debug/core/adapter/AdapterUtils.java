@@ -263,7 +263,6 @@ public class AdapterUtils {
         return new DebugException(message, errorCode.getId(), true);
     }
 
-
     /**
      * Calculate SHA-256 Digest of given string.
      * @param content
