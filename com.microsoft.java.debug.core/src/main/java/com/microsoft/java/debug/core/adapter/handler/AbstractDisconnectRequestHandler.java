@@ -91,7 +91,7 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
             }
 
             try {
-                TimeUnit.SECONDS.sleep(1);
+                TimeUnit.MILLISECONDS.sleep(100);
             } catch (InterruptedException e) {
                 // do nothing.
             }
