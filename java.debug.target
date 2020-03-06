@@ -7,20 +7,20 @@
             <unit id="org.apache.commons.io" version="2.2.0.v201405211200"/>
             <unit id="org.apache.commons.lang3" version="3.1.0.v201403281430"/>
             <unit id="org.apache.log4j" version="1.2.15.v201012070815"/>
-            <repository location="http://download.eclipse.org/tools/orbit/R-builds/R20170516192513/repository"/>
+            <repository location="https://download.eclipse.org/tools/orbit/R-builds/R20170516192513/repository"/>
         </location>
         <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
             <unit id="org.eclipse.xtend.sdk.feature.group" version="0.0.0"/>
             <unit id="org.eclipse.xtext.sdk.feature.group" version="0.0.0"/>
-            <repository location="http://download.eclipse.org/releases/2019-06/"/>
+            <repository location="https://download.eclipse.org/releases/2019-12/"/>
         </location>
         <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
             <unit id="org.jboss.tools.maven.apt.core" version="0.0.0"/>
-            <repository location="http://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.2-2018-12-24_15-46-05-H18/"/>
+            <repository location="https://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.2-2018-12-24_15-46-05-H18/"/>
         </location>
         <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
             <unit id="org.eclipse.jdt.ls.core" version="0.0.0"/>
-            <repository location="http://download.eclipse.org/jdtls/snapshots/repository/latest/"/>
+            <repository location="https://download.eclipse.org/jdtls/snapshots/repository/latest/"/>
         </location>
     </locations>
 </target>
