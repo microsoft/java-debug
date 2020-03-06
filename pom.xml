@@ -6,7 +6,7 @@
     <name>${base.name} :: Parent</name>
     <description>The Java Debug Server is an implementation of Visual Studio Code (VSCode) Debug Protocol. It can be used in Visual Studio Code to debug Java programs.</description>
     <url>https://github.com/Microsoft/java-debug</url>
-    <version>0.25.0</version>
+    <version>0.25.1</version>
     <packaging>pom</packaging>
     <properties>
         <base.name>Java Debug Server for Visual Studio Code</base.name>
@@ -154,9 +154,9 @@
     </profiles>
     <repositories>
         <repository>
-            <id>201906</id>
+            <id>201912</id>
             <layout>p2</layout>
-            <url>http://download.eclipse.org/releases/2019-06/</url>
+            <url>https://download.eclipse.org/releases/2019-12/</url>
         </repository>
         <repository>
             <id>oss.sonatype.org</id>
@@ -168,17 +168,17 @@
         <repository>
             <id>JDT.LS</id>
             <layout>p2</layout>
-            <url>http://download.eclipse.org/jdtls/snapshots/repository/latest/</url>
+            <url>https://download.eclipse.org/jdtls/snapshots/repository/latest/</url>
         </repository>
         <repository>
             <id>JBOLL.TOOLS</id>
             <layout>p2</layout>
-            <url>http://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.0-2018-05-16_00-46-30-H11</url>
+            <url>https://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.0-2018-05-16_00-46-30-H11</url>
         </repository>
         <repository>
             <id>orbit</id>
             <layout>p2</layout>
-            <url>http://download.eclipse.org/tools/orbit/R-builds/R20170516192513/repository/</url>
+            <url>https://download.eclipse.org/tools/orbit/R-builds/R20170516192513/repository/</url>
         </repository>
     </repositories>
 </project>
