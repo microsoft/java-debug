@@ -40,6 +40,7 @@ public abstract class AbstractDisconnectRequestHandler implements IDebugRequestH
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
+        context.setVmTerminated();
         destroyDebugSession(command, arguments, response, context);
         destroyResource(context);
         return CompletableFuture.completedFuture(response);

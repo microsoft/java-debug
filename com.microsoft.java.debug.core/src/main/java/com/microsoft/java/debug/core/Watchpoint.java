@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
@@ -21,9 +22,11 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.sun.jdi.Field;
 import com.sun.jdi.ReferenceType;
+import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.ClassPrepareEvent;
+import com.sun.jdi.event.ThreadDeathEvent;
 import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.WatchpointRequest;
@@ -41,6 +44,7 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
     private int hitCount;
     private HashMap<Object, Object> propertyMap = new HashMap<>();
     private Object compiledConditionalExpression = null;
+    private Map<Long, Object> compiledExpressions = new HashMap<>();
 
     // IDebugResource
     private List<EventRequest> requests = new ArrayList<>();
@@ -116,6 +120,7 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
     public void setCondition(String condition) {
         this.condition = condition;
         setCompiledConditionalExpression(null);
+        compiledExpressions.clear();
     }
 
     @Override
@@ -147,6 +152,14 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
 
     @Override
     public CompletableFuture<IWatchpoint> install() {
+        Disposable subscription = eventHub.events()
+            .filter(debugEvent -> debugEvent.event instanceof ThreadDeathEvent)
+            .subscribe(debugEvent -> {
+                ThreadReference deathThread = ((ThreadDeathEvent) debugEvent.event).thread();
+                compiledExpressions.remove(deathThread.uniqueID());
+            });
+        subscriptions.add(subscription);
+
         // It's possible that different class loaders create new class with the same name.
         // Here to listen to future class prepare events to handle such case.
         ClassPrepareRequest classPrepareRequest = vm.eventRequestManager().createClassPrepareRequest();
@@ -155,7 +168,7 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
         requests.add(classPrepareRequest);
 
         CompletableFuture<IWatchpoint> future = new CompletableFuture<>();
-        Disposable subscription = eventHub.events()
+        subscription = eventHub.events()
             .filter(debugEvent -> debugEvent.event instanceof ClassPrepareEvent && (classPrepareRequest.equals(debugEvent.event.request())))
             .subscribe(debugEvent -> {
                 ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
@@ -248,5 +261,15 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
     @Override
     public Object getCompiledLogpointExpression() {
         return null;
+    }
+
+    @Override
+    public Object getCompiledExpression(long threadId) {
+        return compiledExpressions.get(threadId);
+    }
+
+    @Override
+    public void setCompiledExpression(long threadId, Object compiledExpression) {
+        compiledExpressions.put(threadId, compiledExpression);
     }
 }
