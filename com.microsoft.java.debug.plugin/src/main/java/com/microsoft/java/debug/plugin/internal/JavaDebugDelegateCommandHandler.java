@@ -44,6 +44,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static final String RESOLVE_BUILD_FILES = "vscode.java.resolveBuildFiles";
     public static final String IS_ON_CLASSPATH = "vscode.java.isOnClasspath";
     public static final String RESOLVE_JAVA_EXECUTABLE = "vscode.java.resolveJavaExecutable";
+    public static final String FETCH_PLATFORM_SETTINGS = "vscode.java.fetchPlatformSettings";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -81,6 +82,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 return isOnClasspath(arguments);
             case RESOLVE_JAVA_EXECUTABLE:
                 return ResolveJavaExecutableHandler.resolveJavaExecutable(arguments);
+            case FETCH_PLATFORM_SETTINGS:
+                return PlatformSettings.getPlatformSettings();
             default:
                 break;
         }
