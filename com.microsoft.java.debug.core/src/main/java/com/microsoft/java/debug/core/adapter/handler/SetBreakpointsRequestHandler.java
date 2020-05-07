@@ -47,6 +47,7 @@ import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
+import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.StepEvent;
@@ -241,11 +242,15 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             if (resume) {
                 return true;
             } else {
-                if (ex != null) {
-                    logger.log(Level.SEVERE, String.format("[ConditionalBreakpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
-                    context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
-                            Events.UserNotificationEvent.NotificationType.ERROR,
-                            String.format("Breakpoint condition '%s' error: %s", breakpoint.getCondition(), ex.getMessage())));
+                if (context.isVmTerminated()) {
+                    // do nothing
+                } else if (ex != null) {
+                    if (!(ex instanceof VMDisconnectedException || ex.getCause() instanceof VMDisconnectedException)) {
+                        logger.log(Level.SEVERE, String.format("[ConditionalBreakpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);
+                        context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
+                                Events.UserNotificationEvent.NotificationType.ERROR,
+                                String.format("Breakpoint condition '%s' error: %s", breakpoint.getCondition(), ex.getMessage())));
+                    }
                 } else if (value == null || resultNotBoolean) {
                     context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
                             Events.UserNotificationEvent.NotificationType.WARNING,

@@ -26,11 +26,44 @@ public interface IEvaluatableBreakpoint {
 
     void setLogMessage(String logMessage);
 
+    /**
+     * please use {@link #setCompiledExpression(long, Object)} instead.
+     */
+    @Deprecated
     void setCompiledConditionalExpression(Object compiledExpression);
 
+    /**
+     * please use {@link #getCompiledExpression(long)} instead.
+     */
+    @Deprecated
     Object getCompiledConditionalExpression();
 
+    /**
+     * please use {@link #setCompiledExpression(long, Object)} instead.
+     */
+    @Deprecated
     void setCompiledLogpointExpression(Object compiledExpression);
 
+    /**
+     * please use {@link #getCompiledExpression(long)} instead.
+     */
+    @Deprecated
     Object getCompiledLogpointExpression();
+
+    /**
+     * Sets the compiled expression for a thread.
+     *
+     * @param threadId - thread the breakpoint is hit in
+     * @param compiledExpression - associated compiled expression
+     */
+    void setCompiledExpression(long threadId, Object compiledExpression);
+
+    /**
+     * Returns existing compiled expression for the given thread or
+     * <code>null</code>.
+     *
+     * @param threadId thread the breakpoint was hit in
+     * @return compiled expression or <code>null</code>
+     */
+    Object getCompiledExpression(long threadId);
 }
