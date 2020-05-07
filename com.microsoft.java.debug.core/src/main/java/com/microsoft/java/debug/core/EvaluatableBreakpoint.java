@@ -13,9 +13,9 @@ package com.microsoft.java.debug.core;
 
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.jdi.event.ThreadDeathEvent;
 import com.sun.jdi.ThreadReference;
@@ -27,7 +27,7 @@ public class EvaluatableBreakpoint extends Breakpoint implements IEvaluatableBre
     private IEventHub eventHub = null;
     private Object compiledConditionalExpression = null;
     private Object compiledLogpointExpression = null;
-    private Map<Long, Object> compiledExpressions = new HashMap<>();
+    private Map<Long, Object> compiledExpressions = new ConcurrentHashMap<>();
 
     EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber) {
         this(vm, eventHub, className, lineNumber, 0, null);

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -44,7 +45,7 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
     private int hitCount;
     private HashMap<Object, Object> propertyMap = new HashMap<>();
     private Object compiledConditionalExpression = null;
-    private Map<Long, Object> compiledExpressions = new HashMap<>();
+    private Map<Long, Object> compiledExpressions = new ConcurrentHashMap<>();
 
     // IDebugResource
     private List<EventRequest> requests = new ArrayList<>();
