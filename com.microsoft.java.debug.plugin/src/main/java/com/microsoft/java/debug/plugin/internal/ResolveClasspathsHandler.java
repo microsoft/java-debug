@@ -289,7 +289,8 @@ public class ResolveClasspathsHandler {
         private String sourcepathProvider;
         private LaunchConfigurationInfo launchInfo;
 
-        protected JavaApplicationLaunchConfiguration(IProject project, String mainType, boolean excludeTestCode, List<IResource> mappedResources) throws CoreException {
+        protected JavaApplicationLaunchConfiguration(IProject project, String mainType, boolean excludeTestCode, List<IResource> mappedResources)
+            throws CoreException {
             super(String.valueOf(new Date().getTime()), null, false);
             this.project = project;
             this.mainType = mainType;
