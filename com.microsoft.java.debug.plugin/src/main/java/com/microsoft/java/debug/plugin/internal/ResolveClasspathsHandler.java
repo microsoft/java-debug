@@ -182,7 +182,7 @@ public class ResolveClasspathsHandler {
         IJavaElement testElement = findMainClassInTestFolders(project, mainClass);
         List<IResource> mappedResources = (testElement != null && testElement.getResource() != null)
                 ? Arrays.asList(testElement.getResource()) : Collections.EMPTY_LIST;
-        return computeClassPath(project, testElement == null, mappedResources);
+        return computeClassPath(project, mainClass, testElement == null, mappedResources);
     }
 
     /**
@@ -195,13 +195,13 @@ public class ResolveClasspathsHandler {
      * @throws CoreException
      *             CoreException
      */
-    private static String[][] computeClassPath(IJavaProject javaProject, boolean excludeTestCode, List<IResource> mappedResources)
+    private static String[][] computeClassPath(IJavaProject javaProject, String mainType, boolean excludeTestCode, List<IResource> mappedResources)
             throws CoreException {
         if (javaProject == null) {
             throw new IllegalArgumentException("javaProject is null");
         }
 
-        ILaunchConfiguration launchConfig = new JavaApplicationLaunchConfiguration(javaProject.getProject(), excludeTestCode, mappedResources);
+        ILaunchConfiguration launchConfig = new JavaApplicationLaunchConfiguration(javaProject.getProject(), mainType, excludeTestCode, mappedResources);
         IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(launchConfig);
         IRuntimeClasspathEntry[] resolved = JavaRuntime.resolveRuntimeClasspath(unresolved, launchConfig);
         Set<String> classpaths = new LinkedHashSet<>();
@@ -282,15 +282,18 @@ public class ResolveClasspathsHandler {
                 + "</listAttribute>\n"
                 + "</launchConfiguration>";
         private IProject project;
+        private String mainType;
         private boolean excludeTestCode;
         private List<IResource> mappedResources;
         private String classpathProvider;
         private String sourcepathProvider;
         private LaunchConfigurationInfo launchInfo;
 
-        protected JavaApplicationLaunchConfiguration(IProject project, boolean excludeTestCode, List<IResource> mappedResources) throws CoreException {
+        protected JavaApplicationLaunchConfiguration(IProject project, String mainType, boolean excludeTestCode, List<IResource> mappedResources)
+            throws CoreException {
             super(String.valueOf(new Date().getTime()), null, false);
             this.project = project;
+            this.mainType = mainType;
             this.excludeTestCode = excludeTestCode;
             this.mappedResources = mappedResources;
             if (ProjectUtils.isMavenProject(project)) {
@@ -319,6 +322,8 @@ public class ResolveClasspathsHandler {
                 return classpathProvider;
             } else if (IJavaLaunchConfigurationConstants.ATTR_SOURCE_PATH_PROVIDER.equalsIgnoreCase(attributeName)) {
                 return sourcepathProvider;
+            } else if (IJavaLaunchConfigurationConstants.ATTR_MAIN_TYPE_NAME.equalsIgnoreCase(attributeName)) {
+                return mainType;
             }
 
             return super.getAttribute(attributeName, defaultValue);
