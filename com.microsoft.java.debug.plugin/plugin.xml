@@ -18,6 +18,7 @@
             <command id="vscode.java.isOnClasspath"/>
             <command id="vscode.java.resolveJavaExecutable"/>
             <command id="vscode.java.fetchPlatformSettings"/>
+            <command id="vscode.java.resolveClassFilters"/>
        </delegateCommandHandler>
    </extension>
 </plugin>

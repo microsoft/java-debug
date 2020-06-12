@@ -88,6 +88,11 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught) {
+        setExceptionBreakpoints(notifyCaught, notifyUncaught, null, null);
+    }
+
+    @Override
+    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] classFilters, String[] classExclusionFilters) {
         EventRequestManager manager = vm.eventRequestManager();
         ArrayList<ExceptionRequest> legacy = new ArrayList<>(manager.exceptionRequests());
         manager.deleteEventRequests(legacy);
@@ -108,6 +113,16 @@ public class DebugSession implements IDebugSession {
             // get only the uncaught exceptions
             ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
             request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+            if (classFilters != null) {
+                for (String classFilter : classFilters) {
+                    request.addClassFilter(classFilter);
+                }
+            }
+            if (classExclusionFilters != null) {
+                for (String exclusionFilter : classExclusionFilters) {
+                    request.addClassExclusionFilter(exclusionFilter);
+                }
+            }
             request.enable();
         }
     }

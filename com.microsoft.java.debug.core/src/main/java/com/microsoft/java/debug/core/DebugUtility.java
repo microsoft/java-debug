@@ -313,7 +313,21 @@ public class DebugUtility {
      * @return the new step request.
      */
     public static StepRequest createStepOverRequest(ThreadReference thread, String[] stepFilters) {
-        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OVER, stepFilters);
+        return createStepOverRequest(thread, null, stepFilters);
+    }
+
+    /**
+     * Create a step over request on the specified thread.
+     * @param thread
+     *              the target thread.
+     * @param classFilters
+     *              restricts the step event to those matching the given class patterns when stepping.
+     * @param classExclusionFilters
+     *              restricts the step event to those not matching the given class patterns when stepping.
+     * @return the new step request.
+     */
+    public static StepRequest createStepOverRequest(ThreadReference thread, String[] classFilters, String[] classExclusionFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OVER, classFilters, classExclusionFilters);
     }
 
     /**
@@ -325,7 +339,21 @@ public class DebugUtility {
      * @return the new step request.
      */
     public static StepRequest createStepIntoRequest(ThreadReference thread, String[] stepFilters) {
-        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
+        return createStepIntoRequest(thread, null, stepFilters);
+    }
+
+    /**
+     * Create a step into request on the specified thread.
+     * @param thread
+     *              the target thread.
+     * @param classFilters
+     *              restricts the step event to those matching the given class patterns when stepping.
+     * @param classExclusionFilters
+     *              restricts the step event to those not matching the given class patterns when stepping.
+     * @return the new step request.
+     */
+    public static StepRequest createStepIntoRequest(ThreadReference thread, String[] classFilters, String[] classExclusionFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_INTO, classFilters, classExclusionFilters);
     }
 
     /**
@@ -337,14 +365,33 @@ public class DebugUtility {
      * @return the new step request.
      */
     public static StepRequest createStepOutRequest(ThreadReference thread, String[] stepFilters) {
-        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OUT, stepFilters);
+        return createStepOutRequest(thread, null, stepFilters);
     }
 
-    private static StepRequest createStepRequest(ThreadReference thread, int stepSize, int stepDepth, String[] stepFilters) {
+    /**
+     * Create a step out request on the specified thread.
+     * @param thread
+     *              the target thread.
+     * @param classFilters
+     *              restricts the step event to those matching the given class patterns when stepping.
+     * @param classExclusionFilters
+     *              restricts the step event to those not matching the given class patterns when stepping.
+     * @return the new step request.
+     */
+    public static StepRequest createStepOutRequest(ThreadReference thread, String[] classFilters, String[] classExclusionFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OUT, classFilters, classExclusionFilters);
+    }
+
+    private static StepRequest createStepRequest(ThreadReference thread, int stepSize, int stepDepth, String[] classFilters, String[] classExclusionFilters) {
         StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize, stepDepth);
-        if (stepFilters != null) {
-            for (String stepFilter : stepFilters) {
-                request.addClassExclusionFilter(stepFilter);
+        if (classFilters != null) {
+            for (String classFilter : classFilters) {
+                request.addClassFilter(classFilter);
+            }
+        }
+        if (classExclusionFilters != null) {
+            for (String exclusionFilter : classExclusionFilters) {
+                request.addClassExclusionFilter(exclusionFilter);
             }
         }
         request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
