@@ -53,6 +53,7 @@ import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.util.IClassFileReader;
 import org.eclipse.jdt.core.util.ISourceAttribute;
 import org.eclipse.jdt.internal.core.util.Util;
+import org.eclipse.jdt.ls.core.internal.JobHelpers;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -60,6 +61,8 @@ import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.StackFrameUtility;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
@@ -300,14 +303,21 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     @Override
     public CompletableFuture<List<String>> redefineClasses() {
+        JobHelpers.waitForBuildJobs(10 * 1000);
         return CompletableFuture.supplyAsync(() -> {
             List<String> classNames = new ArrayList<>();
+            boolean success;
             synchronized (this) {
                 classNames.addAll(deltaClassNames);
-                doHotCodeReplace(deltaResources, deltaClassNames);
+                success = doHotCodeReplace(deltaResources, deltaClassNames);
                 deltaResources.clear();
                 deltaClassNames.clear();
             }
+
+            if (!classNames.isEmpty() && !success) {
+                throw AdapterUtils.createCompletionException("Failed to hot reload the changed classes", ErrorCode.HCR_FAILURE);
+            }
+
             return classNames;
         });
     }
@@ -325,27 +335,29 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         eventSubject.onNext(new HotCodeReplaceEvent(type, message, data));
     }
 
-    private void doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
+    private boolean doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
         if (context == null || currentDebugSession == null) {
-            return;
+            return false;
         }
 
         if (resourcesToReplace == null || qualifiedNamesToReplace == null || qualifiedNamesToReplace.isEmpty()
                 || resourcesToReplace.isEmpty()) {
-            return;
+            return false;
         }
 
         filterNotLoadedTypes(resourcesToReplace, qualifiedNamesToReplace);
         if (qualifiedNamesToReplace.isEmpty()) {
-            return;
+            return false;
             // If none of the changed types are loaded, do nothing.
         }
 
         // Not supported scenario:
         if (!currentDebugSession.getVM().canRedefineClasses()) {
-            return;
+            publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM doesn't support hot reload classes");
+            return false;
         }
 
+        boolean success = true;
         publishEvent(HotCodeReplaceEvent.EventType.STARTING, "Start hot code replacement procedure...");
 
         try {
@@ -367,6 +379,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
             if (containsObsoleteMethods()) {
                 publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM contains obsolete methods");
+                success = false;
             }
 
             if (currentDebugSession.getVM().canPopFrames() && framesPopped) {
@@ -376,11 +389,13 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
         } catch (DebugException e) {
             logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
+            success = false;
         } finally {
             publishEvent(HotCodeReplaceEvent.EventType.END, "Completed hot code replace", qualifiedNamesToReplace);
+            threadFrameMap.clear();
         }
 
-        threadFrameMap.clear();
+        return success;
     }
 
     private void filterNotLoadedTypes(List<IResource> resources, List<String> qualifiedNames) {
