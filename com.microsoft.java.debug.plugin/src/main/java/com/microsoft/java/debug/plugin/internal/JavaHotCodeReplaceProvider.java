@@ -26,8 +26,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -99,9 +101,9 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private PublishSubject<HotCodeReplaceEvent> eventSubject = PublishSubject.<HotCodeReplaceEvent>create();
 
-    private List<IResource> deltaResources = new ArrayList<>();
+    private Set<IResource> deltaResources = new LinkedHashSet<>();
 
-    private List<String> deltaClassNames = new ArrayList<>();
+    private Set<String> deltaClassNames = new LinkedHashSet<>();
 
     /**
      * Visitor for resource deltas.
@@ -306,16 +308,18 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         JobHelpers.waitForBuildJobs(10 * 1000);
         return CompletableFuture.supplyAsync(() -> {
             List<String> classNames = new ArrayList<>();
-            boolean success;
+            List<IResource> resources = new ArrayList<>();
+            String errorMessage = null;
             synchronized (this) {
                 classNames.addAll(deltaClassNames);
-                success = doHotCodeReplace(deltaResources, deltaClassNames);
+                resources.addAll(deltaResources);
                 deltaResources.clear();
                 deltaClassNames.clear();
+                errorMessage = doHotCodeReplace(resources, classNames);
             }
 
-            if (!classNames.isEmpty() && !success) {
-                throw AdapterUtils.createCompletionException("Failed to hot reload the changed classes", ErrorCode.HCR_FAILURE);
+            if (!classNames.isEmpty() && errorMessage != null) {
+                throw AdapterUtils.createCompletionException(errorMessage, ErrorCode.HCR_FAILURE);
             }
 
             return classNames;
@@ -335,29 +339,29 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         eventSubject.onNext(new HotCodeReplaceEvent(type, message, data));
     }
 
-    private boolean doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
+    private String doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
         if (context == null || currentDebugSession == null) {
-            return false;
+            return null;
         }
 
         if (resourcesToReplace == null || qualifiedNamesToReplace == null || qualifiedNamesToReplace.isEmpty()
                 || resourcesToReplace.isEmpty()) {
-            return false;
+            return null;
         }
 
         filterNotLoadedTypes(resourcesToReplace, qualifiedNamesToReplace);
         if (qualifiedNamesToReplace.isEmpty()) {
-            return false;
+            return null;
             // If none of the changed types are loaded, do nothing.
         }
 
         // Not supported scenario:
         if (!currentDebugSession.getVM().canRedefineClasses()) {
             publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM doesn't support hot reload classes");
-            return false;
+            return "JVM doesn't support hot reload classes";
         }
 
-        boolean success = true;
+        String errorMessage = null;
         publishEvent(HotCodeReplaceEvent.EventType.STARTING, "Start hot code replacement procedure...");
 
         try {
@@ -379,7 +383,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
             if (containsObsoleteMethods()) {
                 publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM contains obsolete methods");
-                success = false;
+                errorMessage = "JVM contains obsolete methods";
             }
 
             if (currentDebugSession.getVM().canPopFrames() && framesPopped) {
@@ -389,13 +393,13 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
         } catch (DebugException e) {
             logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
-            success = false;
+            errorMessage = e.getMessage();
         } finally {
             publishEvent(HotCodeReplaceEvent.EventType.END, "Completed hot code replace", qualifiedNamesToReplace);
             threadFrameMap.clear();
         }
 
-        return success;
+        return errorMessage;
     }
 
     private void filterNotLoadedTypes(List<IResource> resources, List<String> qualifiedNames) {
