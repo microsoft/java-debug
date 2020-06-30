@@ -134,16 +134,6 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     if (threadState.pendingStepType == Command.STEPIN) {
                         int currentStackDepth = thread.frameCount();
                         Location currentStepLocation = getTopFrame(thread).location();
-                        // // Check if the step into operation stepped through the filtered code and stopped at an un-filtered location.
-                        // if (threadState.stackDepth + 1 < thread.frameCount()) {
-                        //     // Create another stepOut request to return back where we started the step into.
-                        //     threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
-                        //         context.getStepFilters().allowClasses,
-                        //         context.getStepFilters().skipClasses);
-                        //     threadState.pendingStepRequest.enable();
-                        //     debugEvent.shouldResume = true;
-                        //     return;
-                        // }
 
                         // If the ending step location is filtered, or same as the original location where the step into operation is originated,
                         // do another step of the same kind.
