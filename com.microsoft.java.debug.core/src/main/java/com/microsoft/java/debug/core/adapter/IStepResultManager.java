@@ -14,9 +14,11 @@ package com.microsoft.java.debug.core.adapter;
 import com.microsoft.java.debug.core.JdiMethodResult;
 
 public interface IStepResultManager {
+    JdiMethodResult setMethodResult(long threadId, JdiMethodResult methodResult);
+
     JdiMethodResult getMethodResult(long threadId);
 
     JdiMethodResult removeMethodResult(long threadId);
 
-    JdiMethodResult setMethodResult(long threadId, JdiMethodResult methodResult);
+    void removeAllMethodResults();
 }

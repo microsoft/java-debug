@@ -21,6 +21,11 @@ public class StepResultManager implements IStepResultManager {
     private Map<Long, JdiMethodResult> methodResults = Collections.synchronizedMap(new HashMap<>());
 
     @Override
+    public JdiMethodResult setMethodResult(long threadId, JdiMethodResult methodResult) {
+        return this.methodResults.put(threadId, methodResult);
+    }
+
+    @Override
     public JdiMethodResult getMethodResult(long threadId) {
         return this.methodResults.get(threadId);
     }
@@ -31,7 +36,7 @@ public class StepResultManager implements IStepResultManager {
     }
 
     @Override
-    public JdiMethodResult setMethodResult(long threadId, JdiMethodResult methodResult) {
-        return this.methodResults.put(threadId, methodResult);
+    public void removeAllMethodResults() {
+        this.methodResults.clear();
     }
 }
