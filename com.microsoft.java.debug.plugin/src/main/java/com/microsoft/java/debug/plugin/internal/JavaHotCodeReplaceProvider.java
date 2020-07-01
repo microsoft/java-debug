@@ -26,8 +26,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -53,6 +55,7 @@ import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.util.IClassFileReader;
 import org.eclipse.jdt.core.util.ISourceAttribute;
 import org.eclipse.jdt.internal.core.util.Util;
+import org.eclipse.jdt.ls.core.internal.JobHelpers;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -60,6 +63,8 @@ import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.StackFrameUtility;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
@@ -96,9 +101,9 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private PublishSubject<HotCodeReplaceEvent> eventSubject = PublishSubject.<HotCodeReplaceEvent>create();
 
-    private List<IResource> deltaResources = new ArrayList<>();
+    private Set<IResource> deltaResources = new LinkedHashSet<>();
 
-    private List<String> deltaClassNames = new ArrayList<>();
+    private Set<String> deltaClassNames = new LinkedHashSet<>();
 
     /**
      * Visitor for resource deltas.
@@ -300,14 +305,23 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     @Override
     public CompletableFuture<List<String>> redefineClasses() {
+        JobHelpers.waitForBuildJobs(10 * 1000);
         return CompletableFuture.supplyAsync(() -> {
             List<String> classNames = new ArrayList<>();
+            List<IResource> resources = new ArrayList<>();
+            String errorMessage = null;
             synchronized (this) {
                 classNames.addAll(deltaClassNames);
-                doHotCodeReplace(deltaResources, deltaClassNames);
+                resources.addAll(deltaResources);
                 deltaResources.clear();
                 deltaClassNames.clear();
+                errorMessage = doHotCodeReplace(resources, classNames);
             }
+
+            if (!classNames.isEmpty() && errorMessage != null) {
+                throw AdapterUtils.createCompletionException(errorMessage, ErrorCode.HCR_FAILURE);
+            }
+
             return classNames;
         });
     }
@@ -325,27 +339,29 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         eventSubject.onNext(new HotCodeReplaceEvent(type, message, data));
     }
 
-    private void doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
+    private String doHotCodeReplace(List<IResource> resourcesToReplace, List<String> qualifiedNamesToReplace) {
         if (context == null || currentDebugSession == null) {
-            return;
+            return null;
         }
 
         if (resourcesToReplace == null || qualifiedNamesToReplace == null || qualifiedNamesToReplace.isEmpty()
                 || resourcesToReplace.isEmpty()) {
-            return;
+            return null;
         }
 
         filterNotLoadedTypes(resourcesToReplace, qualifiedNamesToReplace);
         if (qualifiedNamesToReplace.isEmpty()) {
-            return;
+            return null;
             // If none of the changed types are loaded, do nothing.
         }
 
         // Not supported scenario:
         if (!currentDebugSession.getVM().canRedefineClasses()) {
-            return;
+            publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM doesn't support hot reload classes");
+            return "JVM doesn't support hot reload classes";
         }
 
+        String errorMessage = null;
         publishEvent(HotCodeReplaceEvent.EventType.STARTING, "Start hot code replacement procedure...");
 
         try {
@@ -367,6 +383,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
             if (containsObsoleteMethods()) {
                 publishEvent(HotCodeReplaceEvent.EventType.ERROR, "JVM contains obsolete methods");
+                errorMessage = "JVM contains obsolete methods";
             }
 
             if (currentDebugSession.getVM().canPopFrames() && framesPopped) {
@@ -376,11 +393,13 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             }
         } catch (DebugException e) {
             logger.log(Level.SEVERE, "Failed to complete hot code replace: " + e.getMessage(), e);
+            errorMessage = e.getMessage();
         } finally {
             publishEvent(HotCodeReplaceEvent.EventType.END, "Completed hot code replace", qualifiedNamesToReplace);
+            threadFrameMap.clear();
         }
 
-        threadFrameMap.clear();
+        return errorMessage;
     }
 
     private void filterNotLoadedTypes(List<IResource> resources, List<String> qualifiedNames) {

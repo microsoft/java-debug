@@ -59,8 +59,12 @@ public class HotCodeReplaceHandler implements IDebugRequestHandler {
 
         IHotCodeReplaceProvider provider = context.getProvider(IHotCodeReplaceProvider.class);
 
-        return provider.redefineClasses().thenApply(classNames -> {
+        return provider.redefineClasses().thenCompose(classNames -> {
             response.body = new Responses.RedefineClassesResponse(classNames.toArray(new String[0]));
+            return CompletableFuture.completedFuture(response);
+        }).exceptionally(ex -> {
+            String errorMessage = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+            response.body = new Responses.RedefineClassesResponse(new String[0], errorMessage);
             return response;
         });
     }

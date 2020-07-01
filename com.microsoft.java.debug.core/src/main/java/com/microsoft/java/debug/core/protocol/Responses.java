@@ -299,12 +299,21 @@ public class Responses {
 
     public static class RedefineClassesResponse extends ResponseBody {
         public String[] changedClasses = new String[0];
+        public String errorMessage = null;
 
         /**
          * Constructor.
          */
         public RedefineClassesResponse(String[] changedClasses) {
+            this(changedClasses, null);
+        }
+
+        /**
+         * Constructor.
+         */
+        public RedefineClassesResponse(String[] changedClasses, String errorMessage) {
             this.changedClasses = changedClasses;
+            this.errorMessage = errorMessage;
         }
     }
 }
