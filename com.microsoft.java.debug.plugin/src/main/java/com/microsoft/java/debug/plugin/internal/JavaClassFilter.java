@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 
 public class JavaClassFilter {
@@ -125,7 +126,7 @@ public class JavaClassFilter {
         if (root.getRawClasspathEntry() != null) {
             IPath path = root.getRawClasspathEntry().getPath();
             return path != null && path.segmentCount() > 0
-                && Objects.equals("org.eclipse.jdt.launching.JRE_CONTAINER", path.segment(0));
+                && Objects.equals(JavaRuntime.JRE_CONTAINER, path.segment(0));
         }
 
         return false;
@@ -237,35 +238,35 @@ public class JavaClassFilter {
             }
 
             String[] names = name.split("\\.");
-            TrieNode parent = this.root;
+            TrieNode currentNode = this.root;
             for (int i = 0; i < names.length; i++) {
                 TrieNode node;
-                if (parent.children.containsKey(names[i])) {
-                    node = parent.children.get(names[i]);
+                if (currentNode.children.containsKey(names[i])) {
+                    node = currentNode.children.get(names[i]);
                 } else {
                     node = new TrieNode(names[i]);
-                    parent.children.put(names[i], node);
+                    currentNode.children.put(names[i], node);
                 }
 
-                parent = node;
+                currentNode = node;
             }
 
-            parent.isLeaf = true;
+            currentNode.isLeaf = true;
         }
 
         public boolean isPrefix(String name) {
             String[] names = name.split("\\.");
-            TrieNode parent = this.root;
+            TrieNode currentNode = this.root;
             for (int i = 0; i < names.length; i++) {
-                TrieNode node = parent.children.get(names[i]);
+                TrieNode node = currentNode.children.get(names[i]);
                 if (node == null) {
                     break;
                 }
 
-                parent = node;
+                currentNode = node;
             }
 
-            return parent != this.root && parent.isLeaf;
+            return currentNode != this.root && currentNode.isLeaf;
         }
 
         /**
