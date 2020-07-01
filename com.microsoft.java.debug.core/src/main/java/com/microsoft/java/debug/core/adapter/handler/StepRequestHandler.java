@@ -76,13 +76,14 @@ public class StepRequestHandler implements IDebugRequestHandler {
 
                 if (command == Command.STEPIN) {
                     threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
-                            context.getStepFilters().classNameFilters);
+                        context.getStepFilters().allowClasses,
+                        context.getStepFilters().skipClasses);
                 } else if (command == Command.STEPOUT) {
                     threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
-                            context.getStepFilters().classNameFilters);
+                        context.getStepFilters().allowClasses,
+                        context.getStepFilters().skipClasses);
                 } else {
-                    threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread,
-                            context.getStepFilters().classNameFilters);
+                    threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread, null);
                 }
                 threadState.pendingStepRequest.enable();
                 DebugUtility.resumeThread(thread);
@@ -133,21 +134,14 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     if (threadState.pendingStepType == Command.STEPIN) {
                         int currentStackDepth = thread.frameCount();
                         Location currentStepLocation = getTopFrame(thread).location();
-                        // Check if the step into operation stepped through the filtered code and stopped at an un-filtered location.
-                        if (threadState.stackDepth + 1 < thread.frameCount()) {
-                            // Create another stepOut request to return back where we started the step into.
-                            threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
-                                    context.getStepFilters().classNameFilters);
-                            threadState.pendingStepRequest.enable();
-                            debugEvent.shouldResume = true;
-                            return;
-                        }
+
                         // If the ending step location is filtered, or same as the original location where the step into operation is originated,
                         // do another step of the same kind.
                         if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, context)
                                 || shouldDoExtraStepInto(threadState.stackDepth, threadState.stepLocation, currentStackDepth, currentStepLocation)) {
                             threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
-                                    context.getStepFilters().classNameFilters);
+                                context.getStepFilters().allowClasses,
+                                context.getStepFilters().skipClasses);
                             threadState.pendingStepRequest.enable();
                             debugEvent.shouldResume = true;
                             return;
@@ -169,7 +163,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
         if (filters == null) {
             return false;
         }
-        return ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
+        return ArrayUtils.isNotEmpty(filters.allowClasses) || ArrayUtils.isNotEmpty(filters.skipClasses)
+               || ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
                || filters.skipStaticInitializers || filters.skipSynthetics;
     }
 
