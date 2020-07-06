@@ -51,6 +51,8 @@ import sun.security.action.GetPropertyAction;
 public class AdapterUtils {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
     private static final Pattern ENCLOSING_CLASS_REGEX = Pattern.compile("^([^\\$]*)");
+    public static final boolean isWin = isWindows();
+    public static final boolean isMac = OS_NAME.contains("mac") || OS_NAME.contains("darwin");
 
     /**
      * Check if the OS is windows or not.

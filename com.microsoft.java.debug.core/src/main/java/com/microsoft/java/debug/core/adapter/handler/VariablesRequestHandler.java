@@ -110,7 +110,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 long threadId = stackFrameReference.getThread().uniqueID();
                 JdiMethodResult result = context.getStepResultManager().getMethodResult(threadId);
                 if (result != null) {
-                    childrenList.add(new Variable("⎯►" + result.method.name() + "()", result.value));
+                    String returnIcon = (AdapterUtils.isWin || AdapterUtils.isMac) ? "⎯►" : "->";
+                    childrenList.add(new Variable(returnIcon + result.method.name() + "()", result.value));
                 }
                 childrenList.addAll(VariableUtils.listLocalVariables(frame));
                 Variable thisVariable = VariableUtils.getThisVariable(frame);
