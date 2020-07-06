@@ -95,9 +95,11 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private CompletableFuture<Response> pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         if (thread != null) {
+            context.getStepResultManager().removeMethodResult(arguments.threadId);
             thread.suspend();
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
         } else {
+            context.getStepResultManager().removeAllMethodResults();
             context.getDebugSession().suspend();
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
@@ -113,11 +115,13 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
          * be resumed (through ThreadReference#resume() or VirtualMachine#resume()) the same number of times it has been suspended.
          */
         if (thread != null) {
+            context.getStepResultManager().removeMethodResult(arguments.threadId);
             context.getExceptionManager().removeException(arguments.threadId);
             allThreadsContinued = false;
             DebugUtility.resumeThread(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         } else {
+            context.getStepResultManager().removeAllMethodResults();
             context.getExceptionManager().removeAllExceptions();
             context.getDebugSession().resume();
             context.getRecyclableIdPool().removeAllObjects();

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
+import com.microsoft.java.debug.core.JdiMethodResult;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -106,7 +107,13 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     ErrorCode.GET_VARIABLE_FAILURE);
             }
             try {
-                childrenList = VariableUtils.listLocalVariables(frame);
+                long threadId = stackFrameReference.getThread().uniqueID();
+                JdiMethodResult result = context.getStepResultManager().getMethodResult(threadId);
+                if (result != null) {
+                    String returnIcon = (AdapterUtils.isWin || AdapterUtils.isMac) ? "⎯►" : "->";
+                    childrenList.add(new Variable(returnIcon + result.method.name() + "()", result.value));
+                }
+                childrenList.addAll(VariableUtils.listLocalVariables(frame));
                 Variable thisVariable = VariableUtils.getThisVariable(frame);
                 if (thisVariable != null) {
                     childrenList.add(thisVariable);
