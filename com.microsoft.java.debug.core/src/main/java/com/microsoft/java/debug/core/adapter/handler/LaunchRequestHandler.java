@@ -258,12 +258,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         return resultFuture;
     }
 
-    private static final Pattern STACKTRACE_PATTERN = Pattern.compile("\\s+at\\s+(([\\w$]+\\.)*[\\w$]+)\\(([\\w-$]+\\.java:\\d+)\\)");
+    private static final Pattern STACKTRACE_PATTERN = Pattern.compile("\\s+at\\s+([\\w$\\.]+\\/)?(([\\w$]+\\.)*[\\w$]+)\\(([\\w-$]+\\.java:\\d+)\\)");
 
     private static OutputEvent convertToOutputEvent(String message, Category category, IDebugAdapterContext context) {
         Matcher matcher = STACKTRACE_PATTERN.matcher(message);
         if (matcher.find()) {
-            String methodField = matcher.group(1);
+            String methodField = matcher.group(2);
             String locationField = matcher.group(matcher.groupCount());
             String fullyQualifiedName = methodField.substring(0, methodField.lastIndexOf("."));
             String packageName = fullyQualifiedName.lastIndexOf(".") > -1 ? fullyQualifiedName.substring(0, fullyQualifiedName.lastIndexOf(".")) : "";
