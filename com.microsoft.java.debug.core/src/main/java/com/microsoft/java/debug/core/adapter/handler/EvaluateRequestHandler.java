@@ -120,9 +120,13 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
                     }
 
-                    response.body = new Responses.EvaluateResponseBody((detailsString == null) ? valueString : valueString + " " + detailsString,
-                            referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
-                            Math.max(indexedVariables, 0));
+                    if ("clipboard".equals(evalArguments.context) && detailsString != null) {
+                        response.body = new Responses.EvaluateResponseBody(detailsString, -1, "String", 0);
+                    } else {
+                        response.body = new Responses.EvaluateResponseBody((detailsString == null) ? valueString : valueString + " " + detailsString,
+                                referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
+                                Math.max(indexedVariables, 0));
+                    }
                     return response;
                 }
                 // for primitive value

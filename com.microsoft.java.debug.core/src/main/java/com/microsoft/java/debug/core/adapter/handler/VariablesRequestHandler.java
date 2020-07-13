@@ -98,6 +98,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList = new ArrayList<>();
         IStackFrameManager stackFrameManager = context.getStackFrameManager();
+        String containerEvaluateName = containerNode.getEvaluateName();
+        boolean isUnboundedTypeContainer = containerNode.isUnboundedType();
         if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
             StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
             StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
@@ -111,7 +113,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 JdiMethodResult result = context.getStepResultManager().getMethodResult(threadId);
                 if (result != null) {
                     String returnIcon = (AdapterUtils.isWin || AdapterUtils.isMac) ? "⎯►" : "->";
-                    childrenList.add(new Variable(returnIcon + result.method.name() + "()", result.value));
+                    childrenList.add(new Variable(returnIcon + result.method.name() + "()", result.value, null));
                 }
                 childrenList.addAll(VariableUtils.listLocalVariables(frame));
                 Variable thisVariable = VariableUtils.getThisVariable(frame);
@@ -132,11 +134,17 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
                 if (DebugSettings.getCurrent().showLogicalStructure && evaluationEngine != null) {
                     JavaLogicalStructure logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
+                    if (isUnboundedTypeContainer && logicalStructure != null && containerEvaluateName != null) {
+                        containerEvaluateName = "((" + logicalStructure.getFullyQualifiedName() + ")" + containerEvaluateName + ")";
+                        isUnboundedTypeContainer = false;
+                    }
                     while (logicalStructure != null) {
                         LogicalStructureExpression valueExpression = logicalStructure.getValueExpression();
                         LogicalVariable[] logicalVariables = logicalStructure.getVariables();
                         try {
                             if (valueExpression != null) {
+                                containerEvaluateName = containerEvaluateName == null ? null : containerEvaluateName + "." + valueExpression.evaluateName;
+                                isUnboundedTypeContainer = valueExpression.returnUnboundedType;
                                 Value value = logicalStructure.getValue(containerObj, containerNode.getThread(), evaluationEngine);
                                 if (value instanceof ObjectReference) {
                                     containerObj = (ObjectReference) value;
@@ -149,7 +157,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                                 for (LogicalVariable logicalVariable : logicalVariables) {
                                     String name = logicalVariable.getName();
                                     Value value = logicalVariable.getValue(containerObj, containerNode.getThread(), evaluationEngine);
-                                    childrenList.add(new Variable(name, value));
+                                    Variable variable = new Variable(name, value, logicalVariable.getEvaluateName());
+                                    variable.setUnboundedType(logicalVariable.returnUnboundedType());
+                                    childrenList.add(variable);
                                 }
                             }
                         } catch (IllegalArgumentException | CancellationException | InterruptedException | ExecutionException e) {
@@ -236,17 +246,32 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 }
             }
 
-            int referenceId = 0;
-
-            boolean containerIsArray = containerNode.getProxiedVariable() instanceof ArrayReference;
-            String evaluateName;
-
-            if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
-                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, javaVariable.name);
-                referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
-                evaluateName = varProxy.getEvaluateName();
+            String evaluateName = null;
+            if (javaVariable.evaluateName == null || (containerEvaluateName == null && containerNode.getProxiedVariable() instanceof ObjectReference)) {
+                // Disable evaluate on the method return value.
+                evaluateName = null;
+            } else if (isUnboundedTypeContainer && !containerNode.isIndexedVariable()) {
+                // The type name returned by JDI is the binary name, which uses '$' as the separator of
+                // inner class e.g. Foo$Bar. But the evaluation expression only accepts using '.' as the class
+                // name separator.
+                String typeName = ((ObjectReference) containerNode.getProxiedVariable()).referenceType().name();
+                // TODO: This replacement will possibly change the $ in the class name itself.
+                typeName = typeName.replaceAll("\\$", ".");
+                evaluateName = VariableUtils.getEvaluateName(javaVariable.evaluateName, "((" + typeName + ")" + containerEvaluateName + ")", false);
             } else {
-                evaluateName = VariableUtils.getEvaluateName(javaVariable.name, containerNode.getEvaluateName(), containerIsArray);
+                if (containerEvaluateName != null && containerEvaluateName.contains("%s")) {
+                    evaluateName = String.format(containerEvaluateName, javaVariable.evaluateName);
+                } else {
+                    evaluateName = VariableUtils.getEvaluateName(javaVariable.evaluateName, containerEvaluateName, containerNode.isIndexedVariable());
+                }
+            }
+
+            int referenceId = 0;
+            if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
+                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
+                referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
+                varProxy.setIndexedVariable(indexedVariables >= 0);
+                varProxy.setUnboundedType(javaVariable.isUnboundedType());
             }
 
             Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),

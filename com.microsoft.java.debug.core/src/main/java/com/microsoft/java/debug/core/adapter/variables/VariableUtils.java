@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter.variables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -76,8 +77,10 @@ public abstract class VariableUtils {
         Type type = obj.type();
         if (type instanceof ArrayType) {
             int arrayIndex = 0;
+            boolean isUnboundedArrayType = Objects.equals(type.signature(), "[Ljava/lang/Object;");
             for (Value elementValue : ((ArrayReference) obj).getValues()) {
                 Variable ele = new Variable(String.valueOf(arrayIndex++), elementValue);
+                ele.setUnboundedType(isUnboundedArrayType);
                 res.add(ele);
             }
             return res;
@@ -126,8 +129,11 @@ public abstract class VariableUtils {
         Type type = obj.type();
         if (type instanceof ArrayType) {
             int arrayIndex = start;
+            boolean isUnboundedArrayType = Objects.equals(type.signature(), "[Ljava/lang/Object;");
             for (Value elementValue : ((ArrayReference) obj).getValues(start, count)) {
-                res.add(new Variable(String.valueOf(arrayIndex++), elementValue));
+                Variable variable = new Variable(String.valueOf(arrayIndex++), elementValue);
+                variable.setUnboundedType(isUnboundedArrayType);
+                res.add(variable);
             }
             return res;
         }

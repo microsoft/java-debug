@@ -346,5 +346,6 @@ public class Types {
         public boolean supportsExceptionInfoRequest;
         public ExceptionBreakpointFilter[] exceptionBreakpointFilters = new ExceptionBreakpointFilter[0];
         public boolean supportsDataBreakpoints;
+        public boolean supportsClipboardContext;
     }
 }

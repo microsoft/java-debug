@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019 Microsoft Corporation and others.
+ * Copyright (c) 2019-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -30,18 +30,30 @@ public class JavaLogicalStructureManager {
 
     static {
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map",
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"entrySet", "()Ljava/util/Set;"}),
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"size", "()I"}),
-                new LogicalVariable[0]));
-        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map$Entry", null, null, new LogicalVariable[] {
-            new LogicalVariable("key", new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"getKey", "()Ljava/lang/Object;"})),
-            new LogicalVariable("value",
-                    new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"getValue", "()Ljava/lang/Object;"}))
-        }));
+            new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"entrySet", "()Ljava/util/Set;"}, "entrySet()"),
+            new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"size", "()I"}),
+            new LogicalVariable[0]
+        ));
+        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Map$Entry", "java.util.Map.Entry", null, null,
+            new LogicalVariable[] {
+                new LogicalVariable("key",
+                    new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"getKey", "()Ljava/lang/Object;"}, "getKey()", true)
+                ),
+                new LogicalVariable("value",
+                    new LogicalStructureExpression(LogicalStructureExpressionType.METHOD,
+                        new String[] {"getValue", "()Ljava/lang/Object;"}, "getValue()", true)
+                )}
+        ));
+        supportedLogicalStructures.add(new JavaLogicalStructure("java.util.List",
+            new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"toArray", "()[Ljava/lang/Object;"}, "get(%s)", true),
+            new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"size", "()I"}),
+            new LogicalVariable[0]
+        ));
         supportedLogicalStructures.add(new JavaLogicalStructure("java.util.Collection",
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"toArray", "()[Ljava/lang/Object;"}),
-                new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"size", "()I"}),
-                new LogicalVariable[0]));
+            new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"toArray", "()[Ljava/lang/Object;"}, "toArray()", true),
+            new LogicalStructureExpression(LogicalStructureExpressionType.METHOD, new String[] {"size", "()I"}),
+            new LogicalVariable[0]
+        ));
     }
 
     /**
