@@ -149,8 +149,10 @@ public abstract class VariableUtils {
             return res;
         }
         try {
-            for (LocalVariable localVariable : stackFrame.visibleVariables()) {
-                Variable var = new Variable(localVariable.name(), stackFrame.getValue(localVariable));
+            List<LocalVariable> localVariables = stackFrame.visibleVariables();
+            Map<LocalVariable, Value> values = stackFrame.getValues(localVariables);
+            for (LocalVariable localVariable : localVariables) {
+                Variable var = new Variable(localVariable.name(), values.get(localVariable));
                 var.local = localVariable;
                 res.add(var);
             }
