@@ -13,6 +13,8 @@ package com.microsoft.java.debug.core.adapter.variables;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Objects;
+
 import com.sun.jdi.Field;
 import com.sun.jdi.LocalVariable;
 import com.sun.jdi.Type;
@@ -62,17 +64,38 @@ public class Variable {
     public int argumentIndex;
 
     /**
+     * The variable evaluate name for the container context. Defaults to the variable name.
+     */
+    public String evaluateName;
+
+    /**
+     * Indicates whether this variable's type is determined at runtime.
+     */
+    private boolean isUnboundedType = false;
+
+    /**
      * The constructor of <code>JavaVariable</code>.
      * @param name the name of this variable.
      * @param value the JDI value
      */
     public Variable(String name, Value value) {
+        this(name, value, name);
+    }
+
+    /**
+     * The constructor of <code>JavaVariable</code>.
+     * @param name the name of this variable.
+     * @param value the JDI value
+     * @param evaluateName the variable evaluate name for the container context if any
+     */
+    public Variable(String name, Value value, String evaluateName) {
         if (StringUtils.isBlank(name)) {
             throw new IllegalArgumentException("Name is required for a java variable.");
         }
         this.name = name;
         this.value = value;
         this.argumentIndex = -1;
+        this.evaluateName = evaluateName;
     }
 
     /**
@@ -85,5 +108,17 @@ public class Variable {
             return this.field.declaringType();
         }
         return null;
+    }
+
+    public void setUnboundedType(boolean isUnboundedType) {
+        this.isUnboundedType = isUnboundedType;
+    }
+
+    public boolean isUnboundedType() {
+        if (isUnboundedType) {
+            return true;
+        }
+
+        return field != null && Objects.equals(field.signature(), "Ljava/lang/Object;");
     }
 }

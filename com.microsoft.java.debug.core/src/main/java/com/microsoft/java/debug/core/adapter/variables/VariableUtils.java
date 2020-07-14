@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core.adapter.variables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -76,8 +77,10 @@ public abstract class VariableUtils {
         Type type = obj.type();
         if (type instanceof ArrayType) {
             int arrayIndex = 0;
+            boolean isUnboundedArrayType = Objects.equals(type.signature(), "[Ljava/lang/Object;");
             for (Value elementValue : ((ArrayReference) obj).getValues()) {
                 Variable ele = new Variable(String.valueOf(arrayIndex++), elementValue);
+                ele.setUnboundedType(isUnboundedArrayType);
                 res.add(ele);
             }
             return res;
@@ -126,8 +129,11 @@ public abstract class VariableUtils {
         Type type = obj.type();
         if (type instanceof ArrayType) {
             int arrayIndex = start;
+            boolean isUnboundedArrayType = Objects.equals(type.signature(), "[Ljava/lang/Object;");
             for (Value elementValue : ((ArrayReference) obj).getValues(start, count)) {
-                res.add(new Variable(String.valueOf(arrayIndex++), elementValue));
+                Variable variable = new Variable(String.valueOf(arrayIndex++), elementValue);
+                variable.setUnboundedType(isUnboundedArrayType);
+                res.add(variable);
             }
             return res;
         }
@@ -254,6 +260,33 @@ public abstract class VariableUtils {
         if (DebugSettings.getCurrent().numericPrecision > 0) {
             options.put(NumericFormatter.NUMERIC_PRECISION_OPTION, DebugSettings.getCurrent().numericPrecision);
         }
+    }
+
+    /**
+     * Get the name for evaluation of variable.
+     *
+     * @param name the variable name, if any
+     * @param containerName the container name, if any
+     * @param isArrayElement is the variable an array element?
+     */
+    public static String getEvaluateName(String name, String containerName, boolean isArrayElement) {
+        if (name == null) {
+            return null;
+        }
+
+        if (isArrayElement) {
+            if (containerName == null) {
+                return null;
+            }
+
+            return String.format("%s[%s]", containerName, name);
+        }
+
+        if (containerName == null) {
+            return name;
+        }
+
+        return String.format("%s.%s", containerName, name);
     }
 
     private VariableUtils() {
