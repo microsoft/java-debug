@@ -308,14 +308,12 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         JobHelpers.waitForBuildJobs(10 * 1000);
         return CompletableFuture.supplyAsync(() -> {
             List<String> classNames = new ArrayList<>();
-            List<IResource> resources = new ArrayList<>();
             String errorMessage = null;
             synchronized (this) {
                 classNames.addAll(deltaClassNames);
-                resources.addAll(deltaResources);
+                errorMessage = doHotCodeReplace(new ArrayList<>(deltaResources), new ArrayList<>(deltaClassNames));
                 deltaResources.clear();
                 deltaClassNames.clear();
-                errorMessage = doHotCodeReplace(resources, classNames);
             }
 
             if (!classNames.isEmpty() && errorMessage != null) {
