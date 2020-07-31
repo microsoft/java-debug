@@ -26,10 +26,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -101,9 +100,9 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private PublishSubject<HotCodeReplaceEvent> eventSubject = PublishSubject.<HotCodeReplaceEvent>create();
 
-    private Set<IResource> deltaResources = new LinkedHashSet<>();
+    private List<IResource> deltaResources = new ArrayList<>();
 
-    private Set<String> deltaClassNames = new LinkedHashSet<>();
+    private List<String> deltaClassNames = new ArrayList<>();
 
     /**
      * Visitor for resource deltas.
@@ -290,8 +289,23 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
                 List<IResource> resources = visitor.getChangedClassFiles();
                 List<String> classNames = visitor.getQualifiedNamesList();
                 synchronized (this) {
-                    deltaResources.addAll(resources);
-                    deltaClassNames.addAll(classNames);
+                    for (int i = 0; i < classNames.size(); i++) {
+                        String className = classNames.get(i);
+                        IResource resource = resources.get(i);
+                        boolean duplicate = false;
+                        for (int j = 0; j < deltaClassNames.size(); j++) {
+                            if (Objects.equals(deltaClassNames.get(j), className)
+                                && JdtUtils.isSameFile(deltaResources.get(j), resource)) {
+                                duplicate = true;
+                                break;
+                            } 
+                        }
+
+                        if (!duplicate) {
+                            deltaClassNames.add(className);
+                            deltaResources.add(resource);
+                        }
+                    }
                 }
                 publishEvent(HotCodeReplaceEvent.EventType.BUILD_COMPLETE, "Build completed.");
             }
@@ -311,7 +325,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             String errorMessage = null;
             synchronized (this) {
                 classNames.addAll(deltaClassNames);
-                errorMessage = doHotCodeReplace(new ArrayList<>(deltaResources), new ArrayList<>(deltaClassNames));
+                errorMessage = doHotCodeReplace(deltaResources, deltaClassNames);
                 deltaResources.clear();
                 deltaClassNames.clear();
             }
