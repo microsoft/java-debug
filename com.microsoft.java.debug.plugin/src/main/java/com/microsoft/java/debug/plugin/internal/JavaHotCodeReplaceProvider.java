@@ -298,7 +298,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
                                 && JdtUtils.isSameFile(deltaResources.get(j), resource)) {
                                 duplicate = true;
                                 break;
-                            } 
+                            }
                         }
 
                         if (!duplicate) {
