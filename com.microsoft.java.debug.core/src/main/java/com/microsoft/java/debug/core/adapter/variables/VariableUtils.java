@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2019 Microsoft Corporation and others.
+ * Copyright (c) 2017-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -55,12 +56,11 @@ public abstract class VariableUtils {
         if (value == null || !(value instanceof ObjectReference)) {
             return false;
         }
-        Type type = value.type();
+        ReferenceType type = ((ObjectReference) value).referenceType();
         if (type instanceof ArrayType) {
             return ((ArrayReference) value).length() > 0;
         }
-        return value.type() instanceof ReferenceType && ((ReferenceType) type).allFields().stream()
-                .filter(t -> includeStatic || !t.isStatic()).toArray().length > 0;
+        return type.allFields().stream().anyMatch(t -> includeStatic || !t.isStatic());
     }
 
     /**
@@ -74,7 +74,7 @@ public abstract class VariableUtils {
      */
     public static List<Variable> listFieldVariables(ObjectReference obj, boolean includeStatic) throws AbsentInformationException {
         List<Variable> res = new ArrayList<>();
-        Type type = obj.type();
+        ReferenceType type = obj.referenceType();
         if (type instanceof ArrayType) {
             int arrayIndex = 0;
             boolean isUnboundedArrayType = Objects.equals(type.signature(), "[Ljava/lang/Object;");
@@ -85,7 +85,7 @@ public abstract class VariableUtils {
             }
             return res;
         }
-        List<Field> fields = obj.referenceType().allFields().stream().filter(t -> includeStatic || !t.isStatic())
+        List<Field> fields = type.allFields().stream().filter(t -> includeStatic || !t.isStatic())
                 .sorted((a, b) -> {
                     try {
                         boolean v1isStatic = a.isStatic();
@@ -102,11 +102,16 @@ public abstract class VariableUtils {
                         return -1;
                     }
                 }).collect(Collectors.toList());
-        fields.forEach(f -> {
-            Variable var = new Variable(f.name(), obj.getValue(f));
-            var.field = f;
-            res.add(var);
-        });
+
+        bulkFetchValues(fields, DebugSettings.getCurrent().limitOfVariablesPerJdwpRequest, (currentPage -> {
+            Map<Field, Value> fieldValues = obj.getValues(currentPage);
+            for (Field currentField : currentPage) {
+                Variable var = new Variable(currentField.name(), fieldValues.get(currentField));
+                var.field = currentField;
+                res.add(var);
+            }
+        }));
+
         return res;
     }
 
@@ -155,13 +160,18 @@ public abstract class VariableUtils {
             return res;
         }
         try {
-            List<LocalVariable> localVariables = stackFrame.visibleVariables();
-            Map<LocalVariable, Value> values = stackFrame.getValues(localVariables);
-            for (LocalVariable localVariable : localVariables) {
-                Variable var = new Variable(localVariable.name(), values.get(localVariable));
-                var.local = localVariable;
-                res.add(var);
-            }
+            List<LocalVariable> visibleVariables = stackFrame.visibleVariables();
+            // When using the API StackFrame.getValues() to batch fetch the variable values, the JDI
+            // probably throws timeout exception if the variables to be passed at one time are large.
+            // So use paging to fetch the values in chunks.
+            bulkFetchValues(visibleVariables, DebugSettings.getCurrent().limitOfVariablesPerJdwpRequest, (currentPage -> {
+                Map<LocalVariable, Value> values = stackFrame.getValues(currentPage);
+                for (LocalVariable localVariable : currentPage) {
+                    Variable var = new Variable(localVariable.name(), values.get(localVariable));
+                    var.local = localVariable;
+                    res.add(var);
+                }
+            }));
         } catch (AbsentInformationException ex) {
             // avoid listing variable on native methods
 
@@ -228,11 +238,16 @@ public abstract class VariableUtils {
     public static List<Variable> listStaticVariables(StackFrame stackFrame) {
         List<Variable> res = new ArrayList<>();
         ReferenceType type = stackFrame.location().declaringType();
-        type.allFields().stream().filter(TypeComponent::isStatic).forEach(field -> {
-            Variable staticVar = new Variable(field.name(), type.getValue(field));
-            staticVar.field = field;
-            res.add(staticVar);
-        });
+        List<Field> fields = type.allFields().stream().filter(TypeComponent::isStatic).collect(Collectors.toList());
+        bulkFetchValues(fields, DebugSettings.getCurrent().limitOfVariablesPerJdwpRequest, (currentPage -> {
+            Map<Field, Value> fieldValues = type.getValues(currentPage);
+            for (Field currentField : currentPage) {
+                Variable var = new Variable(currentField.name(), fieldValues.get(currentField));
+                var.field = currentField;
+                res.add(var);
+            }
+        }));
+
         return res;
     }
 
@@ -287,6 +302,18 @@ public abstract class VariableUtils {
         }
 
         return String.format("%s.%s", containerName, name);
+    }
+
+    private static <T> void bulkFetchValues(List<T> elements, int numberPerPage, Consumer<List<T>> consumer) {
+        int size = elements.size();
+        numberPerPage = numberPerPage < 1 ? 1 : numberPerPage;
+        int page = size / numberPerPage + Math.min(size % numberPerPage, 1);
+        for (int i = 0; i < page; i++) {
+            int pageStart = i * numberPerPage;
+            int pageEnd = Math.min(pageStart + numberPerPage, size);
+            List<T> currentPage = elements.subList(pageStart, pageEnd);
+            consumer.accept(currentPage);
+        }
     }
 
     private VariableUtils() {

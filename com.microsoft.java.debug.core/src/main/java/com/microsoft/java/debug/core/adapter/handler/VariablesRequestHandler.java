@@ -232,13 +232,14 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             Value sizeValue = null;
             if (value instanceof ArrayReference) {
                 indexedVariables = ((ArrayReference) value).length();
-            } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure
-                    && evaluationEngine != null
-                    && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
+            } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure && evaluationEngine != null) {
                 try {
-                    sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, containerNode.getThread(), evaluationEngine);
-                    if (sizeValue != null && sizeValue instanceof IntegerValue) {
-                        indexedVariables = ((IntegerValue) sizeValue).value();
+                    JavaLogicalStructure structure = JavaLogicalStructureManager.getLogicalStructure((ObjectReference) value);
+                    if (structure != null && structure.getSizeExpression() != null) {
+                        sizeValue = structure.getSize((ObjectReference) value, containerNode.getThread(), evaluationEngine);
+                        if (sizeValue != null && sizeValue instanceof IntegerValue) {
+                            indexedVariables = ((IntegerValue) sizeValue).value();
+                        }
                     }
                 } catch (CancellationException | IllegalArgumentException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
                     logger.log(Level.INFO,
@@ -267,7 +268,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
 
             int referenceId = 0;
-            if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
+            if (indexedVariables > 0 || (indexedVariables < 0 && value instanceof ObjectReference)) {
                 VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
                 varProxy.setIndexedVariable(indexedVariables >= 0);
@@ -290,6 +291,11 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
             list.add(typedVariables);
         }
+
+        if (list.isEmpty() && containerNode.getProxiedVariable() instanceof ObjectReference) {
+            list.add(new Types.Variable("Class has no fields", "", null, 0, null));
+        }
+
         response.body = new Responses.VariablesResponseBody(list);
 
         return CompletableFuture.completedFuture(response);
