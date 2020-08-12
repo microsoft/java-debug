@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2019 Microsoft Corporation and others.
+ * Copyright (c) 2017-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -41,6 +41,7 @@ public final class DebugSettings {
     public StepFilters stepFilters = new StepFilters();
     public ClassFilters exceptionFilters = new ClassFilters();
     public boolean exceptionFiltersUpdated = false;
+    public int limitOfVariablesPerJdwpRequest = 100;
 
     public static DebugSettings getCurrent() {
         return current;
