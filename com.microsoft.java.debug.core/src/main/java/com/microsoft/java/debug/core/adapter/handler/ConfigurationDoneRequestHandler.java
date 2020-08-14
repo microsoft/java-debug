@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -27,6 +27,7 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -43,6 +44,7 @@ import com.sun.jdi.event.VMStartEvent;
 
 public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private VMHandler vmHandler = new VMHandler();
 
     @Override
     public List<Command> getTargetCommands() {
@@ -52,6 +54,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
+        vmHandler.setVmProvider(context.getProvider(IVirtualMachineManagerProvider.class));
         if (debugSession != null) {
             // This is a global event handler to handle the JDI Event from Virtual Machine.
             debugSession.getEventHub().events().subscribe(debugEvent -> {
@@ -76,9 +79,11 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 });
             }
         } else if (event instanceof VMDeathEvent) {
+            vmHandler.disconnectVirtualMachine(event.virtualMachine());
             context.setVmTerminated();
             context.getProtocolServer().sendEvent(new Events.ExitedEvent(0));
         } else if (event instanceof VMDisconnectEvent) {
+            vmHandler.disconnectVirtualMachine(event.virtualMachine());
             if (context.isAttached()) {
                 context.setVmTerminated();
                 context.getProtocolServer().sendEvent(new Events.TerminatedEvent());

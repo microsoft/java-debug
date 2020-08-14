@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -42,6 +42,7 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
 public class AttachRequestHandler implements IDebugRequestHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    private VMHandler vmHandler = new VMHandler();
 
     @Override
     public List<Command> getTargetCommands() {
@@ -57,12 +58,14 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         context.setStepFilters(attachArguments.stepFilters);
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
+        vmHandler.setVmProvider(vmProvider);
 
         try {
             logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .", attachArguments.hostName, attachArguments.port));
             IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), attachArguments.hostName, attachArguments.port,
                     attachArguments.timeout);
             context.setDebugSession(debugSession);
+            vmHandler.connectVirtualMachine(debugSession.getVM());
             logger.info("Attaching to debuggee VM succeeded.");
 
             // If the debugger and debuggee run at the different JVM platforms, show a warning message.

@@ -42,6 +42,7 @@ public final class DebugSettings {
     public ClassFilters exceptionFilters = new ClassFilters();
     public boolean exceptionFiltersUpdated = false;
     public int limitOfVariablesPerJdwpRequest = 100;
+    public int jdwpRequestTimeout = 3000;
 
     public static DebugSettings getCurrent() {
         return current;
