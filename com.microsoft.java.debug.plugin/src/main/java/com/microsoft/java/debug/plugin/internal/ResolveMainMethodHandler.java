@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Microsoft Corporation and others.
+ * Copyright (c) 2018-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,7 +18,7 @@ import java.util.List;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.Flags;
@@ -42,8 +42,8 @@ public class ResolveMainMethodHandler {
      * Resolve the main methods from the current file.
      * @return an array of main methods.
      */
-    public static Object resolveMainMethods(List<Object> arguments) throws DebugException {
-        if (arguments == null || arguments.isEmpty()) {
+    public static Object resolveMainMethods(List<Object> arguments, IProgressMonitor monitor) throws DebugException {
+        if (monitor.isCanceled() || arguments == null || arguments.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -51,16 +51,20 @@ public class ResolveMainMethodHandler {
         // trigger a background job to update the change to the CompilationUnit. Because of race condition, the resolveMainMethods may read
         // an old CompilationUnit. So add some waiting logic to wait the Document Update to finish first.
         try {
-            Job.getJobManager().join(DocumentLifeCycleHandler.DOCUMENT_LIFE_CYCLE_JOBS, new NullProgressMonitor());
-        } catch (OperationCanceledException ignorable) {
-            // Do nothing.
+            Job.getJobManager().join(DocumentLifeCycleHandler.DOCUMENT_LIFE_CYCLE_JOBS, monitor);
+        } catch (OperationCanceledException e) {
+            return Collections.emptyList();
         } catch (InterruptedException e) {
             // Do nothing.
         }
 
+        if (monitor.isCanceled()) {
+            return Collections.emptyList();
+        }
+
         String uri = (String) arguments.get(0);
         final ICompilationUnit unit = JDTUtils.resolveCompilationUnit(uri);
-        if (unit == null || unit.getResource() == null || !unit.getResource().exists()) {
+        if (monitor.isCanceled() || unit == null || unit.getResource() == null || !unit.getResource().exists()) {
             return Collections.emptyList();
         }
 

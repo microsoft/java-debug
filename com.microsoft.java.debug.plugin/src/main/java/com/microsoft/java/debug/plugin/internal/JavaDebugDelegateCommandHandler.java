@@ -70,7 +70,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
             case VALIDATE_LAUNCHCONFIG:
                 return new ResolveMainClassHandler().validateLaunchConfig(arguments);
             case RESOLVE_MAINMETHOD:
-                return ResolveMainMethodHandler.resolveMainMethods(arguments);
+                return ResolveMainMethodHandler.resolveMainMethods(arguments, progress);
             case INFER_LAUNCH_COMMAND_LENGTH:
                 return LaunchCommandHandler.getLaunchCommandLength(JsonUtils.fromJson((String) arguments.get(0), LaunchArguments.class));
             case CHECK_PROJECT_SETTINGS:
