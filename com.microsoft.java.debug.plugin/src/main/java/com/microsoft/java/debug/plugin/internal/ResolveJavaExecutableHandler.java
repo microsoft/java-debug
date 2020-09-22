@@ -90,7 +90,9 @@ public class ResolveJavaExecutableHandler {
                 if (!isBin && j == 0) {
                     continue;
                 }
-                File javaFile = new File(vmInstallLocation, Paths.get(javaBinCandidates[j], javaExecCandidates[i]).toString());
+
+                String execRelativePath = j == 0 ? javaExecCandidates[i] : Paths.get(javaBinCandidates[j], javaExecCandidates[i]).toString();
+                File javaFile = new File(vmInstallLocation, execRelativePath);
                 if (javaFile.isFile()) {
                     return javaFile;
                 }
