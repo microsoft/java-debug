@@ -61,26 +61,33 @@ public class ResolveJavaExecutableHandler {
                 }
             }
 
-            if (targetProject == null) {
-                return null;
-            }
-
-            IVMInstall vmInstall = JavaRuntime.getVMInstall(targetProject);
-            if (vmInstall == null || vmInstall.getInstallLocation() == null) {
-                return null;
-            }
-
-            File exe = findJavaExecutable(vmInstall.getInstallLocation());
-            if (exe == null) {
-                return null;
-            }
-
-            return exe.getAbsolutePath();
+            return resolveJavaExecutable(targetProject);
         } catch (CoreException e) {
             logger.log(Level.SEVERE, "Failed to resolve java executable: " + e.getMessage(), e);
         }
 
         return null;
+    }
+
+    /**
+     * Resolve the Java executable path from the project's Java runtime.
+     */
+    public static String resolveJavaExecutable(IJavaProject javaProject) throws CoreException {
+        if (javaProject == null) {
+            return null;
+        }
+
+        IVMInstall vmInstall = JavaRuntime.getVMInstall(javaProject);
+        if (vmInstall == null || vmInstall.getInstallLocation() == null) {
+            return null;
+        }
+
+        File exe = findJavaExecutable(vmInstall.getInstallLocation());
+        if (exe == null) {
+            return null;
+        }
+
+        return exe.getAbsolutePath();
     }
 
     private static File findJavaExecutable(File vmInstallLocation) {

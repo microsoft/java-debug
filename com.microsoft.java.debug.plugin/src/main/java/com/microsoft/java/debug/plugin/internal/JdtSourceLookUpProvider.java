@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -20,16 +20,22 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
@@ -178,6 +184,37 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // do nothing.
             }
         }
+        return null;
+    }
+
+    private static final Pattern JAVA_VERSION_PATTERN = Pattern.compile("version \"(.*)\"");
+
+    @Override
+    public String getJavaRuntimeVersion(String projectName) {
+        IJavaProject project = JdtUtils.getJavaProject(projectName);
+        if (project != null) {
+            try {
+                String javaExecPath = ResolveJavaExecutableHandler.resolveJavaExecutable(project);
+                if (StringUtils.isBlank(javaExecPath)) {
+                    return null;
+                }
+
+                ProcessBuilder builder = new ProcessBuilder(Arrays.asList(javaExecPath, "-version"));
+                Process process = builder.start();
+                process.waitFor();
+                BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                String output = null;
+                while ((output = stdInput.readLine()) != null) {
+                    Matcher matcher = JAVA_VERSION_PATTERN.matcher(output);
+                    if (matcher.find()) {
+                        return matcher.group(1);
+                    }
+                }
+            } catch (CoreException | IOException | InterruptedException e) {
+                logger.log(Level.SEVERE, "Failed to resolve Java executable: " + e.getMessage(), e);
+            }
+        }
+
         return null;
     }
 
