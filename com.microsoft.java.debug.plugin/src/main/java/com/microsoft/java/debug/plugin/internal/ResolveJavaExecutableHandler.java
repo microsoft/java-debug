@@ -12,7 +12,6 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.io.File;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -98,8 +97,7 @@ public class ResolveJavaExecutableHandler {
                     continue;
                 }
 
-                String execRelativePath = j == 0 ? javaExecCandidates[i] : Paths.get(javaBinCandidates[j], javaExecCandidates[i]).toString();
-                File javaFile = new File(vmInstallLocation, execRelativePath);
+                File javaFile = new File(vmInstallLocation, javaBinCandidates[j] + javaExecCandidates[i]);
                 if (javaFile.isFile()) {
                     return javaFile;
                 }

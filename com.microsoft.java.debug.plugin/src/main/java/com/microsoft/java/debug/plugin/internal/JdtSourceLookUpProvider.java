@@ -20,29 +20,12 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.debug.core.sourcelookup.ISourceContainer;
-import org.eclipse.jdt.core.IBuffer;
-import org.eclipse.jdt.core.IClassFile;
-import org.eclipse.jdt.core.IJavaElement;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.ITypeRoot;
-import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTParser;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -50,6 +33,26 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.debug.core.sourcelookup.ISourceContainer;
+import org.eclipse.jdt.core.IBuffer;
+import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
+import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
+import org.eclipse.jdt.launching.IVMInstall;
+import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.jdt.launching.LibraryLocation;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -187,31 +190,19 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return null;
     }
 
-    private static final Pattern JAVA_VERSION_PATTERN = Pattern.compile("version \"(.*)\"");
-
     @Override
     public String getJavaRuntimeVersion(String projectName) {
         IJavaProject project = JdtUtils.getJavaProject(projectName);
         if (project != null) {
             try {
-                String javaExecPath = ResolveJavaExecutableHandler.resolveJavaExecutable(project);
-                if (StringUtils.isBlank(javaExecPath)) {
+                IVMInstall vmInstall = JavaRuntime.getVMInstall(project);
+                if (vmInstall == null || vmInstall.getInstallLocation() == null) {
                     return null;
                 }
 
-                ProcessBuilder builder = new ProcessBuilder(Arrays.asList(javaExecPath, "-version"));
-                Process process = builder.start();
-                process.waitFor();
-                BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-                String output = null;
-                while ((output = stdInput.readLine()) != null) {
-                    Matcher matcher = JAVA_VERSION_PATTERN.matcher(output);
-                    if (matcher.find()) {
-                        return matcher.group(1);
-                    }
-                }
-            } catch (CoreException | IOException | InterruptedException e) {
-                logger.log(Level.SEVERE, "Failed to resolve Java executable: " + e.getMessage(), e);
+                return resolveSystemLibraryVersion(project, vmInstall);
+            } catch (CoreException e) {
+                logger.log(Level.SEVERE, "Failed to get Java runtime version for project '" + projectName + "': " + e.getMessage(), e);
             }
         }
 
@@ -317,4 +308,21 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return builder.toString();
     }
 
+    private static String resolveSystemLibraryVersion(IJavaProject project, IVMInstall vmInstall) throws JavaModelException {
+        LibraryLocation[] libraries = JavaRuntime.getLibraryLocations(vmInstall);
+        if (libraries != null && libraries.length > 0) {
+            IPackageFragmentRoot root = project.findPackageFragmentRoot(libraries[0].getSystemLibraryPath());
+            if (!(root instanceof JarPackageFragmentRoot)) {
+                return null;
+            }
+            Manifest manifest = ((JarPackageFragmentRoot) root).getManifest();
+            if (manifest == null) {
+                return null;
+            }
+            Attributes attributes = manifest.getMainAttributes();
+            return attributes.getValue("Implementation-Version");
+        }
+
+        return null;
+    }
 }
