@@ -12,7 +12,6 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.io.File;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -61,26 +60,33 @@ public class ResolveJavaExecutableHandler {
                 }
             }
 
-            if (targetProject == null) {
-                return null;
-            }
-
-            IVMInstall vmInstall = JavaRuntime.getVMInstall(targetProject);
-            if (vmInstall == null || vmInstall.getInstallLocation() == null) {
-                return null;
-            }
-
-            File exe = findJavaExecutable(vmInstall.getInstallLocation());
-            if (exe == null) {
-                return null;
-            }
-
-            return exe.getAbsolutePath();
+            return resolveJavaExecutable(targetProject);
         } catch (CoreException e) {
             logger.log(Level.SEVERE, "Failed to resolve java executable: " + e.getMessage(), e);
         }
 
         return null;
+    }
+
+    /**
+     * Resolve the Java executable path from the project's Java runtime.
+     */
+    public static String resolveJavaExecutable(IJavaProject javaProject) throws CoreException {
+        if (javaProject == null) {
+            return null;
+        }
+
+        IVMInstall vmInstall = JavaRuntime.getVMInstall(javaProject);
+        if (vmInstall == null || vmInstall.getInstallLocation() == null) {
+            return null;
+        }
+
+        File exe = findJavaExecutable(vmInstall.getInstallLocation());
+        if (exe == null) {
+            return null;
+        }
+
+        return exe.getAbsolutePath();
     }
 
     private static File findJavaExecutable(File vmInstallLocation) {
@@ -91,8 +97,7 @@ public class ResolveJavaExecutableHandler {
                     continue;
                 }
 
-                String execRelativePath = j == 0 ? javaExecCandidates[i] : Paths.get(javaBinCandidates[j], javaExecCandidates[i]).toString();
-                File javaFile = new File(vmInstallLocation, execRelativePath);
+                File javaFile = new File(vmInstallLocation, javaBinCandidates[j] + javaExecCandidates[i]);
                 if (javaFile.isFile()) {
                     return javaFile;
                 }
