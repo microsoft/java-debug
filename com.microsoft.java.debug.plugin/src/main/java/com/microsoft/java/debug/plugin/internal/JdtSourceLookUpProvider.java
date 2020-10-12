@@ -178,14 +178,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         if (sourceElement instanceof IResource) {
             return getFileURI((IResource) sourceElement);
         } else if (sourceElement instanceof IClassFile) {
-            try {
-                IClassFile file = (IClassFile) sourceElement;
-                if (file.getBuffer() != null) {
-                    return getFileURI(file);
-                }
-            } catch (JavaModelException e) {
-                // do nothing.
-            }
+            return getFileURI((IClassFile) sourceElement);
         }
         return null;
     }

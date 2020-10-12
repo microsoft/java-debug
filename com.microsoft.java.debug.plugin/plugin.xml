@@ -19,6 +19,7 @@
             <command id="vscode.java.resolveJavaExecutable"/>
             <command id="vscode.java.fetchPlatformSettings"/>
             <command id="vscode.java.resolveClassFilters"/>
+            <command id="vscode.java.resolveSourceUri"/>
        </delegateCommandHandler>
    </extension>
 </plugin>

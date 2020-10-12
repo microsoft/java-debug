@@ -258,7 +258,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         return resultFuture;
     }
 
-    private static final Pattern STACKTRACE_PATTERN = Pattern.compile("\\s+at\\s+([\\w$\\.]+\\/)?(([\\w$]+\\.)*[\\w$]+)\\(([\\w-$]+\\.java:\\d+)\\)");
+    private static final Pattern STACKTRACE_PATTERN = Pattern.compile("\\s+at\\s+([\\w$\\.]+\\/)?(([\\w$]+\\.)+[<\\w$>]+)\\(([\\w-$]+\\.java:\\d+)\\)");
 
     private static OutputEvent convertToOutputEvent(String message, Category category, IDebugAdapterContext context) {
         Matcher matcher = STACKTRACE_PATTERN.matcher(message);
