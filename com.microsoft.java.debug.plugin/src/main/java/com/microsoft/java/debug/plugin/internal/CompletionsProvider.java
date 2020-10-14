@@ -69,7 +69,8 @@ public class CompletionsProvider implements ICompletionsProvider {
 
                 collector.setAllowsRequiredProposals(CompletionProposal.TYPE_REF, CompletionProposal.TYPE_REF, true);
 
-                type.codeComplete(snippet.toCharArray(), offset, snippet.length(), null, null, null, frame.location().method().isStatic(), collector);
+                int position = getInsertPosition(snippet, line, column);
+                type.codeComplete(snippet.toCharArray(), offset, position, null, null, null, frame.location().method().isStatic(), collector);
 
                 List<org.eclipse.lsp4j.CompletionItem> items = collector.getCompletionItems();
 
@@ -85,6 +86,17 @@ public class CompletionsProvider implements ICompletionsProvider {
         }
 
         return res;
+    }
+
+    private int getInsertPosition(String snippet, int line, int column) {
+        int lineInSnippet = context.isClientLinesStartAt1() ? line - 1 : line;
+        int offsetInSnippet = -1;
+        for (int i = 0; i < lineInSnippet; i++) {
+            offsetInSnippet = snippet.indexOf('\n', offsetInSnippet + 1);
+        }
+
+        offsetInSnippet++;
+        return offsetInSnippet + column + (context.isClientColumnsStartAt1() ?  -1 : 0);
     }
 
     private IType resolveType(StackFrame frame) throws CoreException, DebugException {
