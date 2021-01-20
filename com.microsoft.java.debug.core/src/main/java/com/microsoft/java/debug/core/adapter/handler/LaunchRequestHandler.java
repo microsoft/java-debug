@@ -130,7 +130,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         } else if (launchArguments.shortenCommandLine == ShortenApproach.ARGFILE) {
             try {
                 Path tempfile = AdapterUtils.generateArgfile(launchArguments.classPaths, launchArguments.modulePaths);
-                launchArguments.vmArgs += " @" + tempfile.toAbsolutePath().toString();
+                launchArguments.vmArgs += " \"@" + tempfile.toAbsolutePath().toString() + "\"";
                 launchArguments.classPaths = new String[0];
                 launchArguments.modulePaths = new String[0];
                 context.setArgsfile(tempfile);
