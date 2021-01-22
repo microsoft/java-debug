@@ -278,6 +278,10 @@ public class Types {
         public String label;
         public String text;
         public String type;
+        /**
+         * A string that should be used when comparing this item with other items.
+         */
+        public String sortText;
 
         public int start;
         public int number;

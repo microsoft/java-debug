@@ -115,6 +115,11 @@ public class CompletionsProvider implements ICompletionsProvider {
         if (lspItem.getKind() != null) {
             item.type = lspItem.getKind().name().toLowerCase();
         }
+
+        if (lspItem.getSortText() != null) {
+            item.sortText = lspItem.getSortText();
+        }
+
         return item;
     }
 }
