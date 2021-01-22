@@ -292,6 +292,7 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
                     char[] declaringType = getDeclaringType(proposal);
                     return declaringType != null && org.eclipse.jdt.ls.core.internal.contentassist.TypeFilter.isFiltered(declaringType);
                 }
+                default: // do nothing
             }
         } catch (Exception e) {
             // do nothing
