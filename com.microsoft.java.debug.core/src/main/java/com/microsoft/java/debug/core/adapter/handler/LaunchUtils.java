@@ -44,7 +44,7 @@ public class LaunchUtils {
      * @return the file path of the generate classpath.jar
      * @throws IOException Some errors occur during generating the classpath.jar
      */
-    public synchronized static Path generateClasspathJar(String[] classPaths) throws IOException {
+    public static synchronized Path generateClasspathJar(String[] classPaths) throws IOException {
         List<String> classpathUrls = new ArrayList<>();
         for (String classpath : classPaths) {
             classpathUrls.add(AdapterUtils.toUrl(classpath));
@@ -73,7 +73,7 @@ public class LaunchUtils {
      * @return the file path of the generated argfile
      * @throws IOException Some errors occur during generating the argfile
      */
-    public synchronized static Path generateArgfile(String[] classPaths, String[] modulePaths) throws IOException {
+    public static synchronized Path generateArgfile(String[] classPaths, String[] modulePaths) throws IOException {
         String argfile = "";
         if (ArrayUtils.isNotEmpty(classPaths)) {
             argfile = "-classpath \"" + String.join(File.pathSeparator, classPaths) + "\"";
