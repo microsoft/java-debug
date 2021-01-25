@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2018 Microsoft Corporation and others.
+* Copyright (c) 2018-2021 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -115,7 +115,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         if (launchArguments.shortenCommandLine == ShortenApproach.JARMANIFEST) {
             if (ArrayUtils.isNotEmpty(launchArguments.classPaths)) {
                 try {
-                    Path tempfile = AdapterUtils.generateClasspathJar(launchArguments.classPaths);
+                    Path tempfile = LaunchUtils.generateClasspathJar(launchArguments.classPaths);
                     launchArguments.vmArgs += " -cp \"" + tempfile.toAbsolutePath().toString() + "\"";
                     launchArguments.classPaths = new String[0];
                     context.setClasspathJar(tempfile);
@@ -129,7 +129,7 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             }
         } else if (launchArguments.shortenCommandLine == ShortenApproach.ARGFILE) {
             try {
-                Path tempfile = AdapterUtils.generateArgfile(launchArguments.classPaths, launchArguments.modulePaths);
+                Path tempfile = LaunchUtils.generateArgfile(launchArguments.classPaths, launchArguments.modulePaths);
                 launchArguments.vmArgs += " \"@" + tempfile.toAbsolutePath().toString() + "\"";
                 launchArguments.classPaths = new String[0];
                 launchArguments.modulePaths = new String[0];
@@ -140,6 +140,8 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         return launch(launchArguments, response, context).thenCompose(res -> {
+            LaunchUtils.releaseTempLaunchFile(context.getClasspathJar());
+            LaunchUtils.releaseTempLaunchFile(context.getArgsfile());
             if (res.success) {
                 activeLaunchHandler.postLaunch(launchArguments, context);
             }
