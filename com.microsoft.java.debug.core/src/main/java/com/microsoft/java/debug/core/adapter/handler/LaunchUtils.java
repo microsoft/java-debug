@@ -16,15 +16,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -32,8 +31,6 @@ import java.util.jar.Manifest;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 
 import org.apache.commons.lang3.ArrayUtils;
-
-import sun.security.action.GetPropertyAction;
 
 public class LaunchUtils {
     private static Set<Path> tempFilesInUse = new HashSet<>();
@@ -109,16 +106,12 @@ public class LaunchUtils {
 
     private static synchronized Path getTmpDir() throws IOException {
         if (tmpdir == null) {
+            Path tmpfile = Files.createTempFile("", UUID.randomUUID().toString());
+            tmpdir = tmpfile.getParent();
             try {
-                tmpdir = Paths.get(java.security.AccessController.doPrivileged(new GetPropertyAction("java.io.tmpdir")));
-            } catch (NullPointerException | InvalidPathException e) {
-                Path tmpfile = Files.createTempFile("", ".tmp");
-                tmpdir = tmpfile.getParent();
-                try {
-                    Files.deleteIfExists(tmpfile);
-                } catch (Exception ex) {
-                    // do nothing
-                }
+                Files.deleteIfExists(tmpfile);
+            } catch (Exception ex) {
+                // do nothing
             }
         }
 
