@@ -28,6 +28,7 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.UsageDataStore;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
+import com.microsoft.java.debug.plugin.internal.InlineValueHandler.InlineParams;
 
 public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler {
     public static final String FETCH_USER_DATA = "vscode.java.fetchUsageData";
@@ -47,6 +48,7 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
     public static final String FETCH_PLATFORM_SETTINGS = "vscode.java.fetchPlatformSettings";
     public static final String RESOLVE_CLASSFILTERS = "vscode.java.resolveClassFilters";
     public static final String RESOLVE_SOURCEURI = "vscode.java.resolveSourceUri";
+    public static final String RESOLVE_INLINEVARIABLES = "vscode.java.resolveInlineVariables";
 
     @Override
     public Object executeCommand(String commandId, List<Object> arguments, IProgressMonitor progress) throws Exception {
@@ -90,6 +92,8 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 return JavaClassFilter.resolveClassFilters(arguments);
             case RESOLVE_SOURCEURI:
                 return ResolveSourceMappingHandler.resolveSourceUri(arguments);
+            case RESOLVE_INLINEVARIABLES:
+                return InlineValueHandler.resolveInlineVariables(JsonUtils.fromJson((String) arguments.get(0), InlineParams.class), progress);
             default:
                 break;
         }

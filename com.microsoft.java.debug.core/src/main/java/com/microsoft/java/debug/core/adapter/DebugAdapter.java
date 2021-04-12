@@ -30,6 +30,7 @@ import com.microsoft.java.debug.core.adapter.handler.EvaluateRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ExceptionInfoRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.HotCodeReplaceHandler;
 import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.InlineValuesRequestHanlder;
 import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.RestartFrameHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
@@ -121,6 +122,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForDebug(new ExceptionInfoRequestHandler());
         registerHandlerForDebug(new DataBreakpointInfoRequestHandler());
         registerHandlerForDebug(new SetDataBreakpointsRequestHandler());
+        registerHandlerForDebug(new InlineValuesRequestHanlder());
 
         // NO_DEBUG mode only
         registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());
