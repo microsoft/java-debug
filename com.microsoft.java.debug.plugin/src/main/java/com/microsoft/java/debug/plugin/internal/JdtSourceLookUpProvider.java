@@ -61,6 +61,17 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private ISourceContainer[] sourceContainers = null;
 
     private HashMap<String, Object> options = new HashMap<String, Object>();
+    private String latestJavaVersion = null;
+    private int latestASTLevel;
+
+    public JdtSourceLookUpProvider() {
+        // Get the latest supported Java version by JDT tooling.
+        this.latestJavaVersion = JavaCore.latestSupportedJavaVersion();
+        // Get the mapped AST level for the latest Java version.
+        Map<String, String> javaOptions = JavaCore.getOptions();
+        javaOptions.put(JavaCore.COMPILER_SOURCE, latestJavaVersion);
+        this.latestASTLevel = new AST(javaOptions).apiLevel();
+    }
 
     @Override
     public void initialize(IDebugAdapterContext context, Map<String, Object> props) {
@@ -101,8 +112,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new String[0];
         }
 
-        // Currently the highest version the debugger supports is JavaSE-13  Edition (JLS13).
-        final ASTParser parser = ASTParser.newParser(AST.JLS13);
+        final ASTParser parser = ASTParser.newParser(this.latestASTLevel);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
@@ -131,9 +141,10 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * the user need specify the compiler options explicitly.
              */
             Map<String, String> javaOptions = JavaCore.getOptions();
-            javaOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_13);
-            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_13);
-            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_13);
+            javaOptions.put(JavaCore.COMPILER_SOURCE, this.latestJavaVersion);
+            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, this.latestJavaVersion);
+            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
+            javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
             parser.setCompilerOptions(javaOptions);
             astUnit = (CompilationUnit) parser.createAST(null);
         } else {
