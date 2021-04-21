@@ -11,6 +11,7 @@
 
 package com.microsoft.java.debug.core.protocol;
 
+import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.Types.Source;
 
 /**
@@ -242,6 +243,44 @@ public class Events {
             super("usernotification");
             this.notificationType = notifyType;
             this.message = message;
+        }
+    }
+
+    public static enum InvalidatedAreas {
+        @SerializedName("all")
+        ALL,
+        @SerializedName("stacks")
+        STACKS,
+        @SerializedName("threads")
+        THREADS,
+        @SerializedName("variables")
+        VARIABLES;
+    }
+
+    public static class InvalidatedEvent extends DebugEvent {
+        public InvalidatedAreas[] areas;
+        public long threadId;
+        public int frameId;
+
+        public InvalidatedEvent() {
+            super("invalidated");
+        }
+
+        public InvalidatedEvent(InvalidatedAreas area) {
+            super("invalidated");
+            this.areas = new InvalidatedAreas[]{area};
+        }
+
+        public InvalidatedEvent(InvalidatedAreas area, long threadId) {
+            super("invalidated");
+            this.areas = new InvalidatedAreas[]{area};
+            this.threadId = threadId;
+        }
+
+        public InvalidatedEvent(InvalidatedAreas area, int frameId) {
+            super("invalidated");
+            this.areas = new InvalidatedAreas[]{area};
+            this.frameId = frameId;
         }
     }
 }
