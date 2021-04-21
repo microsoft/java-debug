@@ -544,12 +544,8 @@ public class InlineValueHandler {
         private boolean isUnreachableNode(ASTNode node) {
             Position startPosition = getStartPosition(node);
             Position endPosition = getEndPosition(node);
-            if (compare(startPosition, stoppedSourceRange.getEnd()) > 0 || compare(endPosition, stoppedSourceRange.getEnd()) < 0) {
-                // Unreachable node.
-                return true;
-            }
-
-            return false;
+            return compare(startPosition, stoppedSourceRange.getEnd()) > 0
+                || compare(endPosition, stoppedSourceRange.getEnd()) < 0;
         }
 
         private boolean isEnclosed(Range range, Position position) {
@@ -560,13 +556,7 @@ public class InlineValueHandler {
             if (p1.getLine() < p2.getLine()) {
                 return -1;
             } else if (p1.getLine() == p2.getLine()) {
-                if (p1.getCharacter() < p2.getCharacter()) {
-                    return -1;
-                } else if (p1.getCharacter() == p2.getCharacter()) {
-                    return 0;
-                }
-
-                return 1;
+                return p1.getCharacter() - p2.getCharacter();
             }
 
             return 1;

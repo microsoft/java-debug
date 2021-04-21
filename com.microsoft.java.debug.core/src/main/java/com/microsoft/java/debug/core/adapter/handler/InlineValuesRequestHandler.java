@@ -52,7 +52,7 @@ import com.sun.jdi.Value;
 
 import org.apache.commons.lang3.math.NumberUtils;
 
-public class InlineValuesRequestHanlder implements IDebugRequestHandler {
+public class InlineValuesRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
     @Override
@@ -214,10 +214,10 @@ public class InlineValuesRequestHanlder implements IDebugRequestHandler {
                         boolean isMatchedField = isInlineFieldVariable
                             && Objects.equals(fieldName, inlineVariable.expression)
                             && Objects.equals(typeName, inlineVariable.declaringClass);
-                        boolean isMathcedCapturedVariable = !isInlineFieldVariable
+                        boolean isMatchedCapturedVariable = !isInlineFieldVariable
                             && isSyntheticField
                             && isCapturedLocalVariable(fieldName, inlineVariable.expression);
-                        isMatch = isMatchedField || isMathcedCapturedVariable;
+                        isMatch = isMatchedField || isMatchedCapturedVariable;
 
                         if (!isMatch && isSyntheticField && enclosingInstance == null && isCapturedThisVariable(fieldName)) {
                             Value value = thisObj.getValue(field);
