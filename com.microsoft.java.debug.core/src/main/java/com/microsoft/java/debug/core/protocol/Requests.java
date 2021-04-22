@@ -297,6 +297,14 @@ public class Requests {
         public ValueFormat format;
     }
 
+    public static class RefreshVariablesArguments extends Arguments {
+        public boolean showStaticVariables = false;
+        public boolean showQualifiedNames = false;
+        public boolean showHex = false;
+        public boolean showLogicalStructure = true;
+        public boolean showToString = true;
+    }
+
     public static class SourceArguments extends Arguments {
         public int sourceReference;
     }
@@ -401,6 +409,7 @@ public class Requests {
         PAUSEALL("pauseAll", ThreadOperationArguments.class),
         PAUSEOTHERS("pauseOthers", ThreadOperationArguments.class),
         INLINEVALUES("inlineValues", InlineValuesArguments.class),
+        REFRESHVARIABLES("refreshVariables", RefreshVariablesArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;
