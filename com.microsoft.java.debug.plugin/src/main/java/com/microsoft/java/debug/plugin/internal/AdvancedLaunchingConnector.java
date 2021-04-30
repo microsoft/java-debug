@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2021 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -117,39 +117,38 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         return DebugUtility.parseArguments(execString.toString()).toArray(new String[0]);
     }
 
-    static abstract class JDIArgumentImpl implements Argument {
+    abstract class JDIArgumentImpl implements Argument {
         private static final long serialVersionUID = 8850533280769854833L;
-        private String fName;
-        private String fDescription;
-        private String fLabel;
-        private boolean fMustSpecify;
+        private String name;
+        private String description;
+        private String label;
+        private boolean mustSpecify;
 
-        protected JDIArgumentImpl(String name, String description, String label,
-                boolean mustSpecify) {
-            fName = name;
-            fLabel = label;
-            fDescription = description;
-            fMustSpecify = mustSpecify;
+        protected JDIArgumentImpl(String name, String description, String label, boolean mustSpecify) {
+            this.name = name;
+            this.description = description;
+            this.label = label;
+            this.mustSpecify = mustSpecify;
         }
 
         @Override
         public String name() {
-            return fName;
+            return name;
         }
 
         @Override
         public String description() {
-            return fDescription;
+            return description;
         }
 
         @Override
         public String label() {
-            return fLabel;
+            return label;
         }
 
         @Override
         public boolean mustSpecify() {
-            return fMustSpecify;
+            return mustSpecify;
         }
 
         @Override
@@ -163,25 +162,24 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
 
         @Override
         public abstract String toString();
-        }
+    }
 
-    static class JDIStringArgumentImpl extends JDIArgumentImpl implements StringArgument {
+    class JDIStringArgumentImpl extends JDIArgumentImpl implements StringArgument {
         private static final long serialVersionUID = 6009335074727417445L;
-        private String fValue;
+        private String value;
 
-        protected JDIStringArgumentImpl(String name, String description,
-                String label, boolean mustSpecify) {
+        protected JDIStringArgumentImpl(String name, String description, String label, boolean mustSpecify) {
             super(name, description, label, mustSpecify);
         }
 
         @Override
         public String value() {
-            return fValue;
+            return value;
         }
 
         @Override
         public void setValue(String value) {
-            fValue = value;
+            this.value = value;
         }
 
         @Override
@@ -191,7 +189,7 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
 
         @Override
         public String toString() {
-            return fValue;
+            return value;
         }
     }
 }
