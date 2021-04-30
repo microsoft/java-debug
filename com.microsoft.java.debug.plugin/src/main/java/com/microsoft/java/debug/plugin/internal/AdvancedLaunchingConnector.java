@@ -44,11 +44,11 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
     public Map<String, Argument> defaultArguments() {
         Map<String, Argument> defaultArgs = super.defaultArguments();
 
-        Argument cwdArg = new AdvancedStringArgumentImpl(DebugUtility.CWD, "Current working directory", DebugUtility.CWD, false);
+        Argument cwdArg = new JDIStringArgumentImpl(DebugUtility.CWD, "Current working directory", DebugUtility.CWD, false);
         cwdArg.setValue(null);
         defaultArgs.put(DebugUtility.CWD, cwdArg);
 
-        Argument envArg = new AdvancedStringArgumentImpl(DebugUtility.ENV, "Environment variables", DebugUtility.ENV, false);
+        Argument envArg = new JDIStringArgumentImpl(DebugUtility.ENV, "Environment variables", DebugUtility.ENV, false);
         envArg.setValue(null);
         defaultArgs.put(DebugUtility.ENV, envArg);
 
@@ -117,11 +117,81 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         return DebugUtility.parseArguments(execString.toString()).toArray(new String[0]);
     }
 
-    class AdvancedStringArgumentImpl extends StringArgumentImpl implements StringArgument {
-        private static final long serialVersionUID = 1L;
+    static abstract class JDIArgumentImpl implements Argument {
+        private static final long serialVersionUID = 8850533280769854833L;
+        private String fName;
+        private String fDescription;
+        private String fLabel;
+        private boolean fMustSpecify;
 
-        protected AdvancedStringArgumentImpl(String name, String description, String label, boolean mustSpecify) {
+        protected JDIArgumentImpl(String name, String description, String label,
+                boolean mustSpecify) {
+            fName = name;
+            fLabel = label;
+            fDescription = description;
+            fMustSpecify = mustSpecify;
+        }
+
+        @Override
+        public String name() {
+            return fName;
+        }
+
+        @Override
+        public String description() {
+            return fDescription;
+        }
+
+        @Override
+        public String label() {
+            return fLabel;
+        }
+
+        @Override
+        public boolean mustSpecify() {
+            return fMustSpecify;
+        }
+
+        @Override
+        public abstract String value();
+
+        @Override
+        public abstract void setValue(String value);
+
+        @Override
+        public abstract boolean isValid(String value);
+
+        @Override
+        public abstract String toString();
+        }
+
+    static class JDIStringArgumentImpl extends JDIArgumentImpl implements StringArgument {
+        private static final long serialVersionUID = 6009335074727417445L;
+        private String fValue;
+
+        protected JDIStringArgumentImpl(String name, String description,
+                String label, boolean mustSpecify) {
             super(name, description, label, mustSpecify);
+        }
+
+        @Override
+        public String value() {
+            return fValue;
+        }
+
+        @Override
+        public void setValue(String value) {
+            fValue = value;
+        }
+
+        @Override
+        public boolean isValid(String value) {
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return fValue;
         }
     }
 }
