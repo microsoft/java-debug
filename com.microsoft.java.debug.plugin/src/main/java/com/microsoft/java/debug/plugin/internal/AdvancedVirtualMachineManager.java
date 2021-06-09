@@ -21,6 +21,7 @@ import com.microsoft.java.debug.core.adapter.IVirtualMachineManager;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.VirtualMachineManager;
 import com.sun.jdi.connect.LaunchingConnector;
+import com.sun.jdi.connect.ListeningConnector;
 
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
@@ -43,6 +44,14 @@ public class AdvancedVirtualMachineManager extends VirtualMachineManagerImpl
         List<LaunchingConnector> connectors = new ArrayList<>();
         connectors.add(new AdvancedLaunchingConnector(this));
         connectors.addAll(super.launchingConnectors());
+        return connectors;
+    }
+
+    @Override
+    public List<ListeningConnector> listeningConnectors() {
+        List<ListeningConnector> connectors = new ArrayList<>();
+        connectors.add(new AdvancedListeningConnector(this));
+        connectors.addAll(super.listeningConnectors());
         return connectors;
     }
 
