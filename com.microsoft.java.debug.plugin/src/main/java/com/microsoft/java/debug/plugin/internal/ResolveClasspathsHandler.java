@@ -326,7 +326,12 @@ public class ResolveClasspathsHandler {
                 classpathProvider = "org.eclipse.m2e.launchconfig.classpathProvider";
                 sourcepathProvider = "org.eclipse.m2e.launchconfig.sourcepathProvider";
             } else if (ProjectUtils.isGradleProject(project)) {
-                classpathProvider = "org.eclipse.buildship.core.classpathprovider";
+                if (excludeTestCode && mappedResources.isEmpty()) {
+                    // use default StandardClasspathProvider for Gradle 'runtime' classpath.
+                    // see: https://github.com/microsoft/vscode-java-debug/issues/1008
+                } else {
+                    classpathProvider = "org.eclipse.buildship.core.classpathprovider";
+                }
             }
 
             // Since MavenRuntimeClasspathProvider will only including test entries when:
