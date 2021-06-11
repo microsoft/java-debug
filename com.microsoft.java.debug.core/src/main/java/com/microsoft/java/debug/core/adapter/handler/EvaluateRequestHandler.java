@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -31,6 +31,7 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.adapter.variables.VariableDetailUtils;
@@ -91,18 +92,19 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                 }
                 long threadId = stackFrameReference.getThread().uniqueID();
                 if (value instanceof ObjectReference) {
-                    VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value);
+                    VariableProxy varProxy = new VariableProxy(stackFrameReference.getThread(), "eval", value, null, expression);
                     int indexedVariables = -1;
                     Value sizeValue = null;
                     if (value instanceof ArrayReference) {
                         indexedVariables = ((ArrayReference) value).length();
-                    } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure
-                            && engine != null
-                            && JavaLogicalStructureManager.isIndexedVariable((ObjectReference) value)) {
+                    } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure && engine != null) {
                         try {
-                            sizeValue = JavaLogicalStructureManager.getLogicalSize((ObjectReference) value, stackFrameReference.getThread(), engine);
-                            if (sizeValue != null && sizeValue instanceof IntegerValue) {
-                                indexedVariables = ((IntegerValue) sizeValue).value();
+                            JavaLogicalStructure structure = JavaLogicalStructureManager.getLogicalStructure((ObjectReference) value);
+                            if (structure != null && structure.getSizeExpression() != null) {
+                                sizeValue = structure.getSize((ObjectReference) value, stackFrameReference.getThread(), engine);
+                                if (sizeValue != null && sizeValue instanceof IntegerValue) {
+                                    indexedVariables = ((IntegerValue) sizeValue).value();
+                                }
                             }
                         } catch (CancellationException | IllegalArgumentException | InterruptedException
                                 | ExecutionException | UnsupportedOperationException e) {
@@ -111,7 +113,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         }
                     }
                     int referenceId = 0;
-                    if (indexedVariables > 0 || (indexedVariables < 0 && VariableUtils.hasChildren(value, showStaticVariables))) {
+                    if (indexedVariables > 0 || (indexedVariables < 0 && value instanceof ObjectReference)) {
                         referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
                     }
 
@@ -123,9 +125,13 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
                     }
 
-                    response.body = new Responses.EvaluateResponseBody((detailsString == null) ? valueString : valueString + " " + detailsString,
-                            referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
-                            Math.max(indexedVariables, 0));
+                    if ("clipboard".equals(evalArguments.context) && detailsString != null) {
+                        response.body = new Responses.EvaluateResponseBody(detailsString, -1, "String", 0);
+                    } else {
+                        response.body = new Responses.EvaluateResponseBody((detailsString == null) ? valueString : valueString + " " + detailsString,
+                                referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
+                                Math.max(indexedVariables, 0));
+                    }
                     return response;
                 }
                 // for primitive value

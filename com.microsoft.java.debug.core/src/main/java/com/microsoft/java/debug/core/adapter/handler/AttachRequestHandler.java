@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -39,8 +39,11 @@ import com.microsoft.java.debug.core.protocol.Requests.AttachArguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 
+import org.apache.commons.lang3.StringUtils;
+
 public class AttachRequestHandler implements IDebugRequestHandler {
     private final Logger logger;
+    private VMHandler vmHandler = new VMHandler();
 
     public AttachRequestHandler(Logger logger) {
         this.logger = logger;
@@ -60,27 +63,15 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         context.setStepFilters(attachArguments.stepFilters);
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
-
+        vmHandler.setVmProvider(vmProvider);
+        IDebugSession debugSession = null;
         try {
             logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .", attachArguments.hostName, attachArguments.port));
-            IDebugSession debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), attachArguments.hostName, attachArguments.port,
+            debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), attachArguments.hostName, attachArguments.port,
                     attachArguments.timeout, logger);
             context.setDebugSession(debugSession);
+            vmHandler.connectVirtualMachine(debugSession.getVM());
             logger.info("Attaching to debuggee VM succeeded.");
-
-            // If the debugger and debuggee run at the different JVM platforms, show a warning message.
-            if (debugSession != null) {
-                String debuggeeVersion = debugSession.getVM().version();
-                String debuggerVersion = System.getProperty("java.version");
-                if (!debuggerVersion.equals(debuggeeVersion)) {
-                    String warnMessage = String.format("[Warn] The debugger and the debuggee are running in different versions of JVMs. "
-                        + "You could see wrong source mapping results.\n"
-                        + "Debugger JVM version: %s\n"
-                        + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
-                    logger.warning(warnMessage);
-                    context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
-                }
-            }
         } catch (IOException | IllegalConnectorArgumentsException e) {
             throw AdapterUtils.createCompletionException(
                 String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()),
@@ -96,6 +87,20 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         // TODO: Clean up the initialize mechanism
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
         sourceProvider.initialize(context, options);
+        // If the debugger and debuggee run at the different JVM platforms, show a warning message.
+        if (debugSession != null) {
+            String debuggeeVersion = debugSession.getVM().version();
+            String debuggerVersion = sourceProvider.getJavaRuntimeVersion(attachArguments.projectName);
+            if (StringUtils.isNotBlank(debuggerVersion) && !debuggerVersion.equals(debuggeeVersion)) {
+                String warnMessage = String.format("[Warn] The debugger and the debuggee are running in different versions of JVMs. "
+                    + "You could see wrong source mapping results.\n"
+                    + "Debugger JVM version: %s\n"
+                    + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
+                logger.warning(warnMessage);
+                context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
+            }
+        }
+
         IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
         evaluationProvider.initialize(context, options);
         IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);

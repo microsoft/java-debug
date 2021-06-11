@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019 Microsoft Corporation and others.
+ * Copyright (c) 2019-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,24 +26,48 @@ import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 
 public class JavaLogicalStructure {
+    // The binary type name. For inner type, the binary name uses '$' as the separator, e.g. java.util.Map$Entry.
     private final String type;
+    // The fully qualified name, which uses '.' as the separator, e.g. java.util.Map.Entry.
+    private final String fullyQualifiedName;
     private final LogicalStructureExpression valueExpression;
     private final LogicalStructureExpression sizeExpression;
     private final LogicalVariable[] variables;
+    // Indicates whether the specified type is an interface.
+    private final boolean isInterface;
 
     /**
      * Constructor.
      */
     public JavaLogicalStructure(String type, LogicalStructureExpression valueExpression, LogicalStructureExpression sizeExpression,
             LogicalVariable[] variables) {
+        this(type, type, valueExpression, sizeExpression, variables);
+    }
+
+    /**
+     * Constructor.
+     */
+    public JavaLogicalStructure(String type, String fullyQualifiedName, LogicalStructureExpression valueExpression, LogicalStructureExpression sizeExpression,
+            LogicalVariable[] variables) {
+        this(type, type, true, valueExpression, sizeExpression, variables);
+    }
+
+    public JavaLogicalStructure(String type, String fullyQualifiedName, boolean isInterface, LogicalStructureExpression valueExpression,
+        LogicalStructureExpression sizeExpression, LogicalVariable[] variables) {
         this.valueExpression = valueExpression;
         this.type = type;
+        this.fullyQualifiedName = fullyQualifiedName;
+        this.isInterface = isInterface;
         this.sizeExpression = sizeExpression;
         this.variables = variables;
     }
 
     public String getType() {
         return type;
+    }
+
+    public String getFullyQualifiedName() {
+        return fullyQualifiedName;
     }
 
     public LogicalStructureExpression getValueExpression() {
@@ -68,18 +92,24 @@ public class JavaLogicalStructure {
         }
 
         ClassType classType = (ClassType) variableType;
-        while (classType != null) {
-            if (Objects.equals(type, classType.name())) {
-                return true;
-            }
-
-            classType = classType.superclass();
+        if (Objects.equals(type, classType.name())) {
+            return true;
         }
 
-        List<InterfaceType> interfaceTypes = ((ClassType) variableType).allInterfaces();
-        for (InterfaceType interfaceType : interfaceTypes) {
-            if (Objects.equals(type, interfaceType.name())) {
-                return true;
+        if (isInterface) {
+            List<InterfaceType> interfaceTypes = ((ClassType) variableType).allInterfaces();
+            for (InterfaceType interfaceType : interfaceTypes) {
+                if (Objects.equals(type, interfaceType.name())) {
+                    return true;
+                }
+            }
+        } else {
+            while (classType != null) {
+                if (Objects.equals(type, classType.name())) {
+                    return true;
+                }
+
+                classType = classType.superclass();
             }
         }
 
@@ -152,18 +182,50 @@ public class JavaLogicalStructure {
                 throws CancellationException, IllegalArgumentException, InterruptedException, ExecutionException {
             return JavaLogicalStructure.getValue(thisObject, valueExpression, thread, evaluationEngine);
         }
+
+        public String getEvaluateName() {
+            if (valueExpression == null || valueExpression.evaluateName == null) {
+                return name;
+            }
+
+            return valueExpression.evaluateName;
+        }
+
+        public boolean returnUnboundedType() {
+            return valueExpression != null && valueExpression.returnUnboundedType;
+        }
     }
 
     public static class LogicalStructureExpression {
         public LogicalStructureExpressionType type;
         public String[] value;
+        public String evaluateName;
+        public boolean returnUnboundedType = false;
 
         /**
          *  Constructor.
          */
         public LogicalStructureExpression(LogicalStructureExpressionType type, String[] value) {
+            this(type, value, null);
+        }
+
+        /**
+         *  Constructor.
+         */
+        public LogicalStructureExpression(LogicalStructureExpressionType type, String[] value, String evaluateName) {
             this.type = type;
             this.value = value;
+            this.evaluateName = evaluateName;
+        }
+
+        /**
+         *  Constructor.
+         */
+        public LogicalStructureExpression(LogicalStructureExpressionType type, String[] value, String evaluateName, boolean returnUnboundedType) {
+            this.type = type;
+            this.value = value;
+            this.evaluateName = evaluateName;
+            this.returnUnboundedType = returnUnboundedType;
         }
     }
 

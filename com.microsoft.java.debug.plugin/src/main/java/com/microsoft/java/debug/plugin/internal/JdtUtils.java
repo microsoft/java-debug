@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
@@ -179,7 +180,6 @@ public class JdtUtils {
         }
         return classpathEntry.isTest();
     }
-
 
     /**
      * Compute the possible source containers that the specified project could be associated with.
@@ -399,5 +399,20 @@ public class JdtUtils {
             name.append("[]"); //$NON-NLS-1$
         }
         return name.toString();
+    }
+
+    /**
+     * Check whether two resources point to the same physical file.
+     */
+    public static boolean isSameFile(IResource resource1, IResource resource2) {
+        if (resource1 == null || resource2 == null) {
+            return false;
+        }
+
+        if (Objects.equals(resource1, resource2)) {
+            return true;
+        }
+
+        return Objects.equals(resource1.getLocation(), resource2.getLocation());
     }
 }

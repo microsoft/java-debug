@@ -6,12 +6,13 @@
     <name>${base.name} :: Parent</name>
     <description>The Java Debug Server is an implementation of Visual Studio Code (VSCode) Debug Protocol. It can be used in Visual Studio Code to debug Java programs.</description>
     <url>https://github.com/Microsoft/java-debug</url>
-    <version>0.20.0</version>
+    <version>0.32.0</version>
     <packaging>pom</packaging>
     <properties>
         <base.name>Java Debug Server for Visual Studio Code</base.name>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <tycho-version>1.2.0</tycho-version>
+        <tycho-version>1.5.1</tycho-version>
+        <checkstyleDir>${basedir}</checkstyleDir>
     </properties>
 
     <licenses>
@@ -112,21 +113,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
-                    <version>2.17</version>
-                    <executions>
-                        <execution>
-                            <id>validate</id>
-                            <phase>validate</phase>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                    </executions>
+                    <version>3.1.0</version>
                     <dependencies>
                         <dependency>
                             <groupId>com.puppycrawl.tools</groupId>
                             <artifactId>checkstyle</artifactId>
-                            <version>8.18</version>
+                            <version>8.29</version>
                         </dependency>
                         <dependency>
                             <groupId>com.github.sevntu-checkstyle</groupId>
@@ -135,8 +127,7 @@
                         </dependency>
                     </dependencies>
                     <configuration>
-                        <configLocation>${project.parent.basedir}/check_style.xml</configLocation>
-                        <propertyExpansion>basedir=${project.parent.basedir}</propertyExpansion>
+                        <configLocation>${checkstyleDir}/check_style.xml</configLocation>
                         <failOnViolation>true</failOnViolation>
                     </configuration>
                 </plugin>
@@ -148,11 +139,24 @@
             </plugins>
         </pluginManagement>
     </build>
+    <profiles>
+        <profile>
+            <id>activate-in-module</id>
+            <activation>
+                <file>
+                    <exists>${basedir}/../check_style.xml</exists>
+                </file>
+            </activation>
+            <properties>
+                <checkstyleDir>${basedir}/..</checkstyleDir>
+            </properties>
+        </profile>
+    </profiles>
     <repositories>
         <repository>
-            <id>photon</id>
+            <id>201912</id>
             <layout>p2</layout>
-            <url>http://download.eclipse.org/releases/photon</url>
+            <url>https://download.eclipse.org/releases/2019-12/</url>
         </repository>
         <repository>
             <id>oss.sonatype.org</id>
@@ -164,12 +168,17 @@
         <repository>
             <id>JDT.LS</id>
             <layout>p2</layout>
-            <url>http://download.eclipse.org/jdtls/snapshots/repository/latest/</url>
+            <url>https://download.eclipse.org/jdtls/snapshots/repository/latest/</url>
         </repository>
         <repository>
             <id>JBOLL.TOOLS</id>
             <layout>p2</layout>
-            <url>http://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.0-2018-05-16_00-46-30-H11</url>
-            </repository>
+            <url>https://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.0-2018-05-16_00-46-30-H11</url>
+        </repository>
+        <repository>
+            <id>orbit</id>
+            <layout>p2</layout>
+            <url>https://download.eclipse.org/tools/orbit/R-builds/R20170516192513/repository/</url>
+        </repository>
     </repositories>
 </project>

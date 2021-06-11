@@ -17,9 +17,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
@@ -58,7 +60,7 @@ public class DebugUtility {
 
     /**
      * Launch a debuggee in suspend mode.
-     * @see #launch(VirtualMachineManager, String, String, String, String, String)
+     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[])
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
             String mainClass,
@@ -79,6 +81,31 @@ public class DebugUtility {
                 cwd,
                 envVars,
                 logger);
+    }
+
+    /**
+     * Launch a debuggee in suspend mode.
+     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[], String)
+     */
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            List<String> modulePaths,
+            List<String> classPaths,
+            String cwd,
+            String[] envVars,
+            String javaExec)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return DebugUtility.launch(vmManager,
+                mainClass,
+                programArguments,
+                vmArguments,
+                String.join(File.pathSeparator, modulePaths),
+                String.join(File.pathSeparator, classPaths),
+                cwd,
+                envVars,
+                javaExec);
     }
 
     /**
@@ -120,6 +147,50 @@ public class DebugUtility {
             String[] envVars,
             Logger logger)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
+        return launch(vmManager, mainClass, programArguments, vmArguments, modulePaths, classPaths, cwd, envVars, null);
+    }
+
+    /**
+     * Launches a debuggee in suspend mode.
+     *
+     * @param vmManager
+     *            the virtual machine manager.
+     * @param mainClass
+     *            the main class.
+     * @param programArguments
+     *            the program arguments.
+     * @param vmArguments
+     *            the vm arguments.
+     * @param modulePaths
+     *            the module paths.
+     * @param classPaths
+     *            the class paths.
+     * @param cwd
+     *            the working directory of the program.
+     * @param envVars
+     *            array of strings, each element of which has environment variable settings in the format name=value.
+     *            or null if the subprocess should inherit the environment of the current process.
+     * @param javaExec
+     *            the java executable path. If not defined, then resolve from java home.
+     * @return an instance of IDebugSession.
+     * @throws IOException
+     *             when unable to launch.
+     * @throws IllegalConnectorArgumentsException
+     *             when one of the arguments is invalid.
+     * @throws VMStartException
+     *             when the debuggee was successfully launched, but terminated
+     *             with an error before a connection could be established.
+     */
+    public static IDebugSession launch(VirtualMachineManager vmManager,
+            String mainClass,
+            String programArguments,
+            String vmArguments,
+            String modulePaths,
+            String classPaths,
+            String cwd,
+            String[] envVars,
+            String javaExec)
+            throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);
 
@@ -152,7 +223,7 @@ public class DebugUtility {
 
         // For java 9 project, should specify "-m $MainClass".
         String[] mainClasses = mainClass.split("/");
-        if (StringUtils.isNotBlank(modulePaths) || mainClasses.length == 2) {
+        if (mainClasses.length == 2) {
             mainClass = "-m " + mainClass;
         }
         if (StringUtils.isNotBlank(programArguments)) {
@@ -168,7 +239,12 @@ public class DebugUtility {
             arguments.get(ENV).setValue(encodeArrayArgument(envVars));
         }
 
-        if (StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome)) {
+        if (isValidJavaExec(javaExec)) {
+            String vmExec = new File(javaExec).getName();
+            String javaHome = new File(javaExec).getParentFile().getParentFile().getAbsolutePath();
+            arguments.get(HOME).setValue(javaHome);
+            arguments.get(EXEC).setValue(vmExec);
+        } else if (StringUtils.isNotEmpty(DebugSettings.getCurrent().javaHome)) {
             arguments.get(HOME).setValue(DebugSettings.getCurrent().javaHome);
         }
 
@@ -181,6 +257,20 @@ public class DebugUtility {
         // See https://github.com/Microsoft/java-debug/issues/23
         vm.version();
         return new DebugSession(vm, logger);
+    }
+
+    private static boolean isValidJavaExec(String javaExec) {
+        if (StringUtils.isBlank(javaExec)) {
+            return false;
+        }
+
+        File file = new File(javaExec);
+        if (!file.exists() || !file.isFile()) {
+            return false;
+        }
+
+        return Files.isExecutable(file.toPath())
+            && Objects.equals(file.getParentFile().getName(), "bin");
     }
 
     /**
@@ -227,7 +317,21 @@ public class DebugUtility {
      * @return the new step request.
      */
     public static StepRequest createStepOverRequest(ThreadReference thread, String[] stepFilters) {
-        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OVER, stepFilters);
+        return createStepOverRequest(thread, null, stepFilters);
+    }
+
+    /**
+     * Create a step over request on the specified thread.
+     * @param thread
+     *              the target thread.
+     * @param classFilters
+     *              restricts the step event to those matching the given class patterns when stepping.
+     * @param classExclusionFilters
+     *              restricts the step event to those not matching the given class patterns when stepping.
+     * @return the new step request.
+     */
+    public static StepRequest createStepOverRequest(ThreadReference thread, String[] classFilters, String[] classExclusionFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OVER, classFilters, classExclusionFilters);
     }
 
     /**
@@ -239,7 +343,21 @@ public class DebugUtility {
      * @return the new step request.
      */
     public static StepRequest createStepIntoRequest(ThreadReference thread, String[] stepFilters) {
-        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_INTO, stepFilters);
+        return createStepIntoRequest(thread, null, stepFilters);
+    }
+
+    /**
+     * Create a step into request on the specified thread.
+     * @param thread
+     *              the target thread.
+     * @param classFilters
+     *              restricts the step event to those matching the given class patterns when stepping.
+     * @param classExclusionFilters
+     *              restricts the step event to those not matching the given class patterns when stepping.
+     * @return the new step request.
+     */
+    public static StepRequest createStepIntoRequest(ThreadReference thread, String[] classFilters, String[] classExclusionFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_INTO, classFilters, classExclusionFilters);
     }
 
     /**
@@ -251,14 +369,33 @@ public class DebugUtility {
      * @return the new step request.
      */
     public static StepRequest createStepOutRequest(ThreadReference thread, String[] stepFilters) {
-        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OUT, stepFilters);
+        return createStepOutRequest(thread, null, stepFilters);
     }
 
-    private static StepRequest createStepRequest(ThreadReference thread, int stepSize, int stepDepth, String[] stepFilters) {
+    /**
+     * Create a step out request on the specified thread.
+     * @param thread
+     *              the target thread.
+     * @param classFilters
+     *              restricts the step event to those matching the given class patterns when stepping.
+     * @param classExclusionFilters
+     *              restricts the step event to those not matching the given class patterns when stepping.
+     * @return the new step request.
+     */
+    public static StepRequest createStepOutRequest(ThreadReference thread, String[] classFilters, String[] classExclusionFilters) {
+        return createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OUT, classFilters, classExclusionFilters);
+    }
+
+    private static StepRequest createStepRequest(ThreadReference thread, int stepSize, int stepDepth, String[] classFilters, String[] classExclusionFilters) {
         StepRequest request = thread.virtualMachine().eventRequestManager().createStepRequest(thread, stepSize, stepDepth);
-        if (stepFilters != null) {
-            for (String stepFilter : stepFilters) {
-                request.addClassExclusionFilter(stepFilter);
+        if (classFilters != null) {
+            for (String classFilter : classFilters) {
+                request.addClassFilter(classFilter);
+            }
+        }
+        if (classExclusionFilters != null) {
+            for (String exclusionFilter : classExclusionFilters) {
+                request.addClassExclusionFilter(exclusionFilter);
             }
         }
         request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
@@ -459,7 +596,6 @@ public class DebugUtility {
         return AdapterUtils.isWindows() ? parseArgumentsWindows(cmdStr) : parseArgumentsNonWindows(cmdStr);
     }
 
-
     /**
      * Parses the given command line into separate arguments for mac/linux platform.
      * This piece of code is mainly copied from
@@ -540,7 +676,6 @@ public class DebugUtility {
 
         return result;
     }
-
 
     /**
      * Parses the given command line into separate arguments for windows platform.

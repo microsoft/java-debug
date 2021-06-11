@@ -70,6 +70,9 @@ public class ResolveClasspathsHandler {
      */
     public String[][] resolveClasspaths(List<Object> arguments) throws Exception {
         try {
+            if (arguments.size() == 3) {
+                return computeClassPath((String) arguments.get(0), (String) arguments.get(1), (String) arguments.get(2));
+            }
             return computeClassPath((String) arguments.get(0), (String) arguments.get(1));
         } catch (CoreException e) {
             logger.log(Level.SEVERE, "Failed to resolve classpath: " + e.getMessage(), e);
@@ -159,6 +162,23 @@ public class ResolveClasspathsHandler {
      *             CoreException
      */
     private static String[][] computeClassPath(String mainClass, String projectName) throws CoreException {
+        return computeClassPath(mainClass, projectName, null);
+    }
+
+    /**
+     * Accord to the project name and the main class, compute runtime classpath.
+     *
+     * @param mainClass
+     *            fully qualified class name
+     * @param projectName
+     *            project name
+     * @param scope
+     *            scope of the classpath
+     * @return class path
+     * @throws CoreException
+     *             CoreException
+     */
+    private static String[][] computeClassPath(String mainClass, String projectName, String scope) throws CoreException {
         IJavaProject project = null;
         // if type exists in multiple projects, debug configuration need provide
         // project name.
@@ -179,10 +199,16 @@ public class ResolveClasspathsHandler {
             project = projects.get(0);
         }
 
+        if ("test".equals(scope)) {
+            return computeClassPath(project, mainClass, false /*excludeTestCode*/, Collections.EMPTY_LIST);
+        } else if ("runtime".equals(scope)) {
+            return computeClassPath(project, mainClass, true /*excludeTestCode*/, Collections.EMPTY_LIST);
+        }
+
         IJavaElement testElement = findMainClassInTestFolders(project, mainClass);
         List<IResource> mappedResources = (testElement != null && testElement.getResource() != null)
                 ? Arrays.asList(testElement.getResource()) : Collections.EMPTY_LIST;
-        return computeClassPath(project, testElement == null, mappedResources);
+        return computeClassPath(project, mainClass, testElement == null, mappedResources);
     }
 
     /**
@@ -195,13 +221,13 @@ public class ResolveClasspathsHandler {
      * @throws CoreException
      *             CoreException
      */
-    private static String[][] computeClassPath(IJavaProject javaProject, boolean excludeTestCode, List<IResource> mappedResources)
+    private static String[][] computeClassPath(IJavaProject javaProject, String mainType, boolean excludeTestCode, List<IResource> mappedResources)
             throws CoreException {
         if (javaProject == null) {
             throw new IllegalArgumentException("javaProject is null");
         }
 
-        ILaunchConfiguration launchConfig = new JavaApplicationLaunchConfiguration(javaProject.getProject(), excludeTestCode, mappedResources);
+        ILaunchConfiguration launchConfig = new JavaApplicationLaunchConfiguration(javaProject.getProject(), mainType, excludeTestCode, mappedResources);
         IRuntimeClasspathEntry[] unresolved = JavaRuntime.computeUnresolvedRuntimeClasspath(launchConfig);
         IRuntimeClasspathEntry[] resolved = JavaRuntime.resolveRuntimeClasspath(unresolved, launchConfig);
         Set<String> classpaths = new LinkedHashSet<>();
@@ -275,22 +301,25 @@ public class ResolveClasspathsHandler {
 
     private static class JavaApplicationLaunchConfiguration extends LaunchConfiguration {
         public static final String JAVA_APPLICATION_LAUNCH = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
-                + "<launchConfiguration type=\"org.eclipse.jdt.launching.localJavaApplication\">\n"
+                + "<launchConfiguration type=\"%s\">\n"
                 + "<listAttribute key=\"org.eclipse.debug.core.MAPPED_RESOURCE_PATHS\">\n"
                 + "</listAttribute>\n"
                 + "<listAttribute key=\"org.eclipse.debug.core.MAPPED_RESOURCE_TYPES\">\n"
                 + "</listAttribute>\n"
                 + "</launchConfiguration>";
         private IProject project;
+        private String mainType;
         private boolean excludeTestCode;
         private List<IResource> mappedResources;
         private String classpathProvider;
         private String sourcepathProvider;
         private LaunchConfigurationInfo launchInfo;
 
-        protected JavaApplicationLaunchConfiguration(IProject project, boolean excludeTestCode, List<IResource> mappedResources) throws CoreException {
+        protected JavaApplicationLaunchConfiguration(IProject project, String mainType, boolean excludeTestCode, List<IResource> mappedResources)
+            throws CoreException {
             super(String.valueOf(new Date().getTime()), null, false);
             this.project = project;
+            this.mainType = mainType;
             this.excludeTestCode = excludeTestCode;
             this.mappedResources = mappedResources;
             if (ProjectUtils.isMavenProject(project)) {
@@ -299,7 +328,18 @@ public class ResolveClasspathsHandler {
             } else if (ProjectUtils.isGradleProject(project)) {
                 classpathProvider = "org.eclipse.buildship.core.classpathprovider";
             }
-            this.launchInfo = new JavaLaunchConfigurationInfo(JAVA_APPLICATION_LAUNCH);
+
+            // Since MavenRuntimeClasspathProvider will only including test entries when:
+            // 1. Launch configuration is JUnit/TestNG type
+            // 2. Mapped resource is in test path.
+            // That's why we use JUnit launch configuration here to make sure the result is right when excludeTestCode is false.
+            String launchXml = null;
+            if (!excludeTestCode && mappedResources.isEmpty()) {
+                launchXml = String.format(JAVA_APPLICATION_LAUNCH, "org.eclipse.jdt.junit.launchconfig");
+            } else {
+                launchXml = String.format(JAVA_APPLICATION_LAUNCH, "org.eclipse.jdt.launching.localJavaApplication");
+            }
+            this.launchInfo = new JavaLaunchConfigurationInfo(launchXml);
         }
 
         @Override
@@ -319,6 +359,8 @@ public class ResolveClasspathsHandler {
                 return classpathProvider;
             } else if (IJavaLaunchConfigurationConstants.ATTR_SOURCE_PATH_PROVIDER.equalsIgnoreCase(attributeName)) {
                 return sourcepathProvider;
+            } else if (IJavaLaunchConfigurationConstants.ATTR_MAIN_TYPE_NAME.equalsIgnoreCase(attributeName)) {
+                return mainType;
             }
 
             return super.getAttribute(attributeName, defaultValue);

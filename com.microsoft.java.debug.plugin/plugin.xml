@@ -13,6 +13,14 @@
             <command id="vscode.java.resolveMainMethod"/>
             <command id="vscode.java.inferLaunchCommandLength"/>
             <command id="vscode.java.checkProjectSettings"/>
+            <command id="vscode.java.resolveElementAtSelection"/>
+            <command id="vscode.java.resolveBuildFiles"/>
+            <command id="vscode.java.isOnClasspath"/>
+            <command id="vscode.java.resolveJavaExecutable"/>
+            <command id="vscode.java.fetchPlatformSettings"/>
+            <command id="vscode.java.resolveClassFilters"/>
+            <command id="vscode.java.resolveSourceUri"/>
+            <command id="vscode.java.resolveInlineVariables"/>
        </delegateCommandHandler>
    </extension>
 </plugin>

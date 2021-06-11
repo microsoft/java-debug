@@ -14,7 +14,8 @@
       "sourcePaths": [
         "${workspaceRoot}/com.microsoft.java.debug.core/main/java",
         "${workspaceRoot}/com.microsoft.java.debug.plugin/src/main/java"
-      ]
+      ],
+      "projectName": "com.microsoft.java.debug.plugin"
     }
   ]
 }

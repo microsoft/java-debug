@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2021 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -12,8 +12,6 @@
 package com.microsoft.java.debug.core.adapter;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -27,17 +25,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.jar.Attributes;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugException;
@@ -48,6 +40,8 @@ import com.microsoft.java.debug.core.protocol.Types;
 public class AdapterUtils {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
     private static final Pattern ENCLOSING_CLASS_REGEX = Pattern.compile("^([^\\$]*)");
+    public static final boolean isWin = isWindows();
+    public static final boolean isMac = OS_NAME.contains("mac") || OS_NAME.contains("darwin");
 
     /**
      * Check if the OS is windows or not.
@@ -65,10 +59,12 @@ public class AdapterUtils {
      * @return the absolute file path
      */
     public static String sourceLookup(String[] sourcePaths, String sourceName) {
-        for (String path : sourcePaths) {
-            Path fullpath = Paths.get(path, sourceName);
-            if (Files.isRegularFile(fullpath)) {
-                return fullpath.toString();
+        if (sourcePaths != null) {
+            for (String path : sourcePaths) {
+                Path fullpath = Paths.get(path, sourceName);
+                if (Files.isRegularFile(fullpath)) {
+                    return fullpath.toString();
+                }
             }
         }
         return null;
@@ -258,7 +254,6 @@ public class AdapterUtils {
         return new DebugException(message, errorCode.getId(), true);
     }
 
-
     /**
      * Calculate SHA-256 Digest of given string.
      * @param content
@@ -294,53 +289,5 @@ public class AdapterUtils {
         } catch (UnsupportedEncodingException e) {
             return uri;
         }
-    }
-
-    /**
-     * Generate the classpath parameters to a temporary classpath.jar.
-     * @param classPaths - the classpath parameters
-     * @return the file path of the generate classpath.jar
-     * @throws IOException Some errors occur during generating the classpath.jar
-     */
-    public static Path generateClasspathJar(String[] classPaths) throws IOException {
-        List<String> classpathUrls = new ArrayList<>();
-        for (String classpath : classPaths) {
-            classpathUrls.add(AdapterUtils.toUrl(classpath));
-        }
-
-        Manifest manifest = new Manifest();
-        Attributes attributes = manifest.getMainAttributes();
-        attributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        // In jar manifest, the absolute path C:\a.jar should be converted to the url style file:///C:/a.jar
-        attributes.put(Attributes.Name.CLASS_PATH, String.join(" ", classpathUrls));
-        Path tempfile = Files.createTempFile("classpath_", ".jar");
-        JarOutputStream jar = new JarOutputStream(new FileOutputStream(tempfile.toFile()), manifest);
-        jar.close();
-
-        return tempfile;
-    }
-
-    /**
-     * Generate the classpath parameters to a temporary argfile file.
-     * @param classPaths - the classpath parameters
-     * @param modulePaths - the modulepath parameters
-     * @return the file path of the generated argfile
-     * @throws IOException Some errors occur during generating the argfile
-     */
-    public static Path generateArgfile(String[] classPaths, String[] modulePaths) throws IOException {
-        String argfile = "";
-        if (ArrayUtils.isNotEmpty(classPaths)) {
-            argfile = "-classpath \"" + String.join(File.pathSeparator, classPaths) + "\"";
-        }
-
-        if (ArrayUtils.isNotEmpty(modulePaths)) {
-            argfile = " --module-path \"" + String.join(File.pathSeparator, modulePaths) + "\"";
-        }
-
-        argfile = argfile.replace("\\", "\\\\");
-        Path tempfile = Files.createTempFile("java_", ".argfile");
-        Files.write(tempfile, argfile.getBytes());
-
-        return tempfile;
     }
 }

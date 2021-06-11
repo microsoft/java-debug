@@ -148,20 +148,12 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
             ASTEvaluationEngine engine = new ASTEvaluationEngine(project, debugTarget);
             boolean newExpression = false;
             if (breakpoint != null) {
-                if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
-                    compiledExpression = (ICompiledExpression) breakpoint.getCompiledLogpointExpression();
-                    if (compiledExpression == null) {
-                        newExpression = true;
-                        compiledExpression = engine.getCompiledExpression(expression, stackframe);
-                        breakpoint.setCompiledLogpointExpression(compiledExpression);
-                    }
-                } else {
-                    compiledExpression = (ICompiledExpression) breakpoint.getCompiledConditionalExpression();
-                    if (compiledExpression == null) {
-                        newExpression = true;
-                        compiledExpression = engine.getCompiledExpression(expression, stackframe);
-                        breakpoint.setCompiledConditionalExpression(compiledExpression);
-                    }
+                long threadId = thread.uniqueID();
+                compiledExpression = (ICompiledExpression) breakpoint.getCompiledExpression(threadId);
+                if (compiledExpression == null) {
+                    newExpression = true;
+                    compiledExpression = engine.getCompiledExpression(expression, stackframe);
+                    breakpoint.setCompiledExpression(threadId, compiledExpression);
                 }
             } else {
                 compiledExpression = engine.getCompiledExpression(expression, stackframe);

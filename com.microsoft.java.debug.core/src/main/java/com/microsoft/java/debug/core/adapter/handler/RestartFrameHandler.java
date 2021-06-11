@@ -102,7 +102,7 @@ public class RestartFrameHandler implements IDebugRequestHandler {
     }
 
     private void stepInto(IDebugAdapterContext context, ThreadReference thread) {
-        StepRequest request = DebugUtility.createStepIntoRequest(thread, context.getStepFilters().classNameFilters);
+        StepRequest request = DebugUtility.createStepIntoRequest(thread, context.getStepFilters().allowClasses, context.getStepFilters().skipClasses);
         context.getDebugSession().getEventHub().stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1).subscribe(debugEvent -> {
             debugEvent.shouldResume = false;
             // Have to send two events to keep the UI sync with the step in operations:

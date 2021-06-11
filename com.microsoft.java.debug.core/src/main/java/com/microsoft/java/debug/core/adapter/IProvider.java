@@ -24,4 +24,10 @@ public interface IProvider {
      */
     default void initialize(IDebugAdapterContext debugContext, Map<String, Object> options) {
     }
+
+    /**
+     * Close the provider and free all associated resources.
+     */
+    default void close() {
+    }
 }

@@ -83,6 +83,15 @@ public class ExceptionInfoRequestHandler implements IDebugRequestHandler {
             } catch (InvalidTypeException | ClassNotLoadedException | IncompatibleThreadStateException
                     | InvocationException e) {
                 logger.log(Level.SEVERE, String.format("Failed to get the return value of the method Exception.toString(): %s", e.toString(), e));
+            } finally {
+                try {
+                    // See bug https://github.com/microsoft/vscode-java-debug/issues/767:
+                    // The operation exception.invokeMethod above will resume the thread, that will cause
+                    // the previously cached stack frames for this thread to be invalid.
+                    context.getStackFrameManager().reloadStackFrames(thread);
+                } catch (Exception e) {
+                    // do nothing.
+                }
             }
         }
 

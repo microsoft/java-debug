@@ -30,4 +30,14 @@ public interface ISourceLookUpProvider extends IProvider {
     String getSourceFileURI(String fullyQualifiedName, String sourcePath);
 
     String getSourceContents(String uri);
+
+    /**
+     * Returns the Java runtime that the specified project's build path used.
+     * @param projectName
+     *                  the specified project name
+     * @return the Java runtime version the specified project used. null if projectName is empty or doesn't exist.
+     */
+    default String getJavaRuntimeVersion(String projectName) {
+        return null;
+    }
 }
