@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -37,6 +39,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 
@@ -107,7 +110,8 @@ public class ResolveMainClassHandler {
                                     String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
                                     if (projectName == null
                                         || targetProjectPath.isEmpty()
-                                        || ResourceUtils.isContainedIn(project.getLocation(), targetProjectPath)) {
+                                        || ResourceUtils.isContainedIn(project.getLocation(), targetProjectPath)
+                                        || isContainedInInvisibleProject(project, targetProjectPath)) {
                                         String filePath = null;
 
                                         if (match.getResource() instanceof IFile) {
@@ -139,6 +143,15 @@ public class ResolveMainClassHandler {
         List<ResolutionItem> resolutions = res.stream().distinct().collect(Collectors.toList());
         Collections.sort(resolutions);
         return resolutions;
+    }
+
+    private boolean isContainedInInvisibleProject(IProject project, Collection<IPath> rootPaths) {
+        if (project == null) {
+            return false;
+        }
+
+        IFolder workspaceLinkFolder = project.getFolder(ProjectUtils.WORKSPACE_LINK);
+        return workspaceLinkFolder.exists() && ResourceUtils.isContainedIn(workspaceLinkFolder.getLocation(), rootPaths);
     }
 
     private ValidationResponse validateLaunchConfigCore(List<Object> arguments) throws CoreException {

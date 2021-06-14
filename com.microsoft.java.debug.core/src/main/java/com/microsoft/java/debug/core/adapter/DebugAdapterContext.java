@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -13,17 +13,25 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.logging.Logger;
 
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
+    private final StepFilters defaultFilters = new StepFilters();
     private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
     private IProviderContext providerContext;
     private IProtocolServer server;
@@ -53,10 +61,14 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     private IStackFrameManager stackFrameManager = new StackFrameManager();
     private IExceptionManager exceptionManager = new ExceptionManager();
+    private IBreakpointManager breakpointManager;
+    private IStepResultManager stepResultManager = new StepResultManager();
 
-    public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
+    public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext, Logger logger) {
         this.providerContext = providerContext;
         this.server = server;
+        this.breakpointManager = new BreakpointManager(logger);
+
     }
 
     @Override
@@ -234,12 +246,28 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public void setStepFilters(StepFilters stepFilters) {
+        // For backward compatibility, merge the classNameFilters to skipClasses.
+        if (stepFilters != null && ArrayUtils.isNotEmpty(stepFilters.classNameFilters)) {
+            Set<String> patterns = new LinkedHashSet<>();
+            if (ArrayUtils.isNotEmpty(stepFilters.skipClasses)) {
+                patterns.addAll(Arrays.asList(stepFilters.skipClasses));
+            }
+
+            patterns.addAll(Arrays.asList(stepFilters.classNameFilters));
+            stepFilters.skipClasses = patterns.toArray(new String[0]);
+        }
         this.stepFilters = stepFilters;
     }
 
     @Override
     public StepFilters getStepFilters() {
-        return stepFilters;
+        if (stepFilters != null) {
+            return stepFilters;
+        } else if (DebugSettings.getCurrent().stepFilters != null) {
+            return DebugSettings.getCurrent().stepFilters;
+        }
+
+        return defaultFilters;
     }
 
     @Override
@@ -290,5 +318,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IExceptionManager getExceptionManager() {
         return this.exceptionManager;
+    }
+
+    @Override
+    public IBreakpointManager getBreakpointManager() {
+        return breakpointManager;
+    }
+
+    @Override
+    public IStepResultManager getStepResultManager() {
+        return stepResultManager;
     }
 }

@@ -55,6 +55,7 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
     private static final int ATTACH_TERMINAL_TIMEOUT = 20 * 1000;
     private static final String TERMINAL_TITLE = "Java Debug Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
+    private VMHandler vmHandler = new VMHandler();
 
     public LaunchWithDebuggingDelegate(Logger logger) {
         super(logger);
@@ -65,6 +66,7 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
         CompletableFuture<Response> resultFuture = new CompletableFuture<>();
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
+        vmHandler.setVmProvider(vmProvider);
         final String launchInTerminalErrorFormat = "Failed to launch debuggee in terminal. Reason: %s";
 
         try {
@@ -102,6 +104,7 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
                         if (runResponse.success) {
                             try {
                                 VirtualMachine vm = listenConnector.accept(args);
+                                vmHandler.connectVirtualMachine(vm);
                                 context.setDebugSession(new DebugSession(vm, logger));
                                 logger.info("Launching debuggee in terminal console succeeded.");
                                 resultFuture.complete(response);
@@ -173,6 +176,7 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
     public Process launch(LaunchArguments launchArguments, IDebugAdapterContext context)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
+        vmHandler.setVmProvider(vmProvider);
 
         IDebugSession debugSession = DebugUtility.launch(
                 vmProvider.getVirtualMachineManager(),
@@ -183,8 +187,10 @@ public class LaunchWithDebuggingDelegate extends AbstractLaunchDelegate {
                 Arrays.asList(launchArguments.classPaths),
                 launchArguments.cwd,
                 constructEnvironmentVariables(launchArguments),
+                launchArguments.javaExec,
                 logger);
         context.setDebugSession(debugSession);
+        vmHandler.connectVirtualMachine(debugSession.getVM());
 
         logger.info("Launching debuggee VM succeeded.");
         return debugSession.process();

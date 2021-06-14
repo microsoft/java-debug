@@ -39,5 +39,4 @@ public class DisconnectRequestHandler extends AbstractDisconnectRequestHandler {
             }
         }
     }
-
 }

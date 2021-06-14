@@ -45,7 +45,7 @@ public class ScopesRequestHandler implements IDebugRequestHandler {
             return CompletableFuture.completedFuture(response);
         }
         ThreadReference thread = stackFrameReference.getThread();
-        VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference);
+        VariableProxy localScope = new VariableProxy(thread, "Local", stackFrameReference, null, null);
         int localScopeId = context.getRecyclableIdPool().addObject(thread.uniqueID(), localScope);
         scopes.add(new Types.Scope(localScope.getScope(), localScopeId, false));
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -20,6 +20,10 @@ public class VariableProxy {
     private final String scopeName;
     private Object variable;
     private int hashCode;
+    // The variable evaluate expression which can be passed to 'EvaluateRequest' to fetch this variable.
+    private final String evaluateName;
+    private boolean isIndexedVariable;
+    private boolean isUnboundedType = false;
 
     /**
      * Create a variable reference.
@@ -29,12 +33,19 @@ public class VariableProxy {
      *              the scope name
      * @param variable
      *              the variable object
+     * @param container
+     *              the variable container, if any
+     * @param evaluateName
+     *              the variable evaluate expression which can be passed to 'EvaluateRequest' to
+     *              fetch this variable, if any
      */
-    public VariableProxy(ThreadReference thread, String scopeName, Object variable) {
+    public VariableProxy(ThreadReference thread, String scopeName, Object variable, VariableProxy container, String evaluateName) {
         this.thread = thread;
         this.scopeName = scopeName;
         this.variable = variable;
-        hashCode = Objects.hash(scopeName, thread, variable);
+        this.evaluateName = evaluateName;
+
+        hashCode = Objects.hash(scopeName, thread, variable, evaluateName);
     }
 
     @Override
@@ -64,7 +75,7 @@ public class VariableProxy {
         }
         VariableProxy other = (VariableProxy) obj;
         return Objects.equals(scopeName, other.scopeName) && Objects.equals(getThreadId(), other.getThreadId())
-                && Objects.equals(variable, other.variable);
+                && Objects.equals(variable, other.variable) && Objects.equals(evaluateName, other.evaluateName);
     }
 
     public long getThreadId() {
@@ -77,5 +88,25 @@ public class VariableProxy {
 
     public Object getProxiedVariable() {
         return variable;
+    }
+
+    public String getEvaluateName() {
+        return evaluateName;
+    }
+
+    public boolean isIndexedVariable() {
+        return isIndexedVariable;
+    }
+
+    public void setIndexedVariable(boolean isIndexedVariable) {
+        this.isIndexedVariable = isIndexedVariable;
+    }
+
+    public boolean isUnboundedType() {
+        return isUnboundedType;
+    }
+
+    public void setUnboundedType(boolean isUnboundedType) {
+        this.isUnboundedType = isUnboundedType;
     }
 }

@@ -1,5 +1,4 @@
 {
-  "java.configuration.updateBuildConfiguration": "automatic",
   "files.exclude": {
     "**/.git": true,
     "**/*.class": true,
