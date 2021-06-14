@@ -60,7 +60,7 @@ public class DebugUtility {
 
     /**
      * Launch a debuggee in suspend mode.
-     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[])
+     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[], Logger)
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
             String mainClass,
@@ -85,7 +85,7 @@ public class DebugUtility {
 
     /**
      * Launch a debuggee in suspend mode.
-     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[], String)
+     * @see #launch(VirtualMachineManager, String, String, String, String, String, String, String[], String, Logger)
      */
     public static IDebugSession launch(VirtualMachineManager vmManager,
             String mainClass,
@@ -95,7 +95,8 @@ public class DebugUtility {
             List<String> classPaths,
             String cwd,
             String[] envVars,
-            String javaExec)
+            String javaExec,
+            Logger logger)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         return DebugUtility.launch(vmManager,
                 mainClass,
@@ -105,7 +106,8 @@ public class DebugUtility {
                 String.join(File.pathSeparator, classPaths),
                 cwd,
                 envVars,
-                javaExec);
+                javaExec,
+                logger);
     }
 
     /**
@@ -147,7 +149,7 @@ public class DebugUtility {
             String[] envVars,
             Logger logger)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
-        return launch(vmManager, mainClass, programArguments, vmArguments, modulePaths, classPaths, cwd, envVars, null);
+        return launch(vmManager, mainClass, programArguments, vmArguments, modulePaths, classPaths, cwd, envVars, null, logger);
     }
 
     /**
@@ -189,7 +191,8 @@ public class DebugUtility {
             String classPaths,
             String cwd,
             String[] envVars,
-            String javaExec)
+            String javaExec,
+            Logger logger)
             throws IOException, IllegalConnectorArgumentsException, VMStartException {
         List<LaunchingConnector> connectors = vmManager.launchingConnectors();
         LaunchingConnector connector = connectors.get(0);

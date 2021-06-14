@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.IDebugSession;
@@ -60,12 +61,14 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     private IStackFrameManager stackFrameManager = new StackFrameManager();
     private IExceptionManager exceptionManager = new ExceptionManager();
-    private IBreakpointManager breakpointManager = new BreakpointManager();
+    private IBreakpointManager breakpointManager;
     private IStepResultManager stepResultManager = new StepResultManager();
 
-    public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
+    public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext, Logger logger) {
         this.providerContext = providerContext;
         this.server = server;
+        this.breakpointManager = new BreakpointManager(logger);
+
     }
 
     @Override

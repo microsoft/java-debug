@@ -61,7 +61,7 @@ public class DebugAdapter implements IDebugAdapter {
      */
     public DebugAdapter(IProtocolServer server, IProviderContext providerContext, Logger logger) {
         this.logger = logger;
-        this.debugContext = new DebugAdapterContext(server, providerContext);
+        this.debugContext = new DebugAdapterContext(server, providerContext, logger);
         requestHandlersForDebug = new HashMap<>();
         requestHandlersForNoDebug = new HashMap<>();
         initialize();
@@ -122,8 +122,8 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForDebug(new CompletionsHandler());
         registerHandlerForDebug(new ExceptionInfoRequestHandler(logger));
         registerHandlerForDebug(new DataBreakpointInfoRequestHandler());
-        registerHandlerForDebug(new SetDataBreakpointsRequestHandler());
-        registerHandlerForDebug(new InlineValuesRequestHandler());
+        registerHandlerForDebug(new SetDataBreakpointsRequestHandler(logger));
+        registerHandlerForDebug(new InlineValuesRequestHandler(logger));
         registerHandlerForDebug(new RefreshVariablesHandler());
 
         // NO_DEBUG mode only

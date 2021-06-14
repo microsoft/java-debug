@@ -193,7 +193,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     if (expressionBP != null) {
                         CompletableFuture.runAsync(() -> {
                             engine.evaluateForBreakpoint((IEvaluatableBreakpoint) expressionBP, bpThread).whenComplete((value, ex) -> {
-                                boolean resume = handleEvaluationResult(context, bpThread, (IEvaluatableBreakpoint) expressionBP, value, ex);
+                                boolean resume = handleEvaluationResult(context, bpThread, (IEvaluatableBreakpoint) expressionBP, value, ex, logger);
                                 // Clear the evaluation environment caused by above evaluation.
                                 engine.clearState(bpThread);
 
@@ -217,7 +217,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
      * Check whether the condition expression is satisfied, and return a boolean value to determine to resume the thread or not.
      */
     public static boolean handleEvaluationResult(IDebugAdapterContext context, ThreadReference bpThread, IEvaluatableBreakpoint breakpoint,
-        Value value, Throwable ex) {
+        Value value, Throwable ex, Logger logger) {
         if (StringUtils.isNotBlank(breakpoint.getLogMessage())) {
             if (ex != null) {
                 logger.log(Level.SEVERE, String.format("[Logpoint]: %s", ex.getMessage() != null ? ex.getMessage() : ex.toString()), ex);

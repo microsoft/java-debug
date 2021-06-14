@@ -53,7 +53,11 @@ import com.sun.jdi.Value;
 import org.apache.commons.lang3.math.NumberUtils;
 
 public class InlineValuesRequestHandler implements IDebugRequestHandler {
-    protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    protected final Logger logger;
+
+    public InlineValuesRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {

@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
@@ -43,7 +44,13 @@ import com.sun.jdi.event.Event;
 import com.sun.jdi.event.WatchpointEvent;
 
 public class SetDataBreakpointsRequestHandler implements IDebugRequestHandler {
+    private final Logger logger;
+
     private boolean registered = false;
+
+    public SetDataBreakpointsRequestHandler(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Command> getTargetCommands() {
@@ -144,7 +151,7 @@ public class SetDataBreakpointsRequestHandler implements IDebugRequestHandler {
                     CompletableFuture.runAsync(() -> {
                         engine.evaluateForBreakpoint((IEvaluatableBreakpoint) watchpoint, bpThread).whenComplete((value, ex) -> {
                             boolean resume = SetBreakpointsRequestHandler.handleEvaluationResult(
-                                                context, bpThread, (IEvaluatableBreakpoint) watchpoint, value, ex);
+                                                context, bpThread, (IEvaluatableBreakpoint) watchpoint, value, ex, logger);
                             // Clear the evaluation environment caused by above evaluation.
                             engine.clearState(bpThread);
 
