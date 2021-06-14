@@ -11,15 +11,11 @@
 
 package com.microsoft.java.debug.core.adapter.variables;
 
-import static java.lang.String.CASE_INSENSITIVE_ORDER;
-
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import com.microsoft.java.debug.core.DebugSettings;

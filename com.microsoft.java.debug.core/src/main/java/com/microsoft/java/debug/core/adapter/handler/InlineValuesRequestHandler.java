@@ -22,7 +22,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
