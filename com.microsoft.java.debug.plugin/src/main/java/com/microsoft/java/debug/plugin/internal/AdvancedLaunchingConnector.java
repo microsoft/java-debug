@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2021 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -44,11 +44,11 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
     public Map<String, Argument> defaultArguments() {
         Map<String, Argument> defaultArgs = super.defaultArguments();
 
-        Argument cwdArg = new AdvancedStringArgumentImpl(DebugUtility.CWD, "Current working directory", DebugUtility.CWD, false);
+        Argument cwdArg = new JDIStringArgumentImpl(DebugUtility.CWD, "Current working directory", DebugUtility.CWD, false);
         cwdArg.setValue(null);
         defaultArgs.put(DebugUtility.CWD, cwdArg);
 
-        Argument envArg = new AdvancedStringArgumentImpl(DebugUtility.ENV, "Environment variables", DebugUtility.ENV, false);
+        Argument envArg = new JDIStringArgumentImpl(DebugUtility.ENV, "Environment variables", DebugUtility.ENV, false);
         envArg.setValue(null);
         defaultArgs.put(DebugUtility.ENV, envArg);
 
@@ -117,11 +117,79 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         return DebugUtility.parseArguments(execString.toString()).toArray(new String[0]);
     }
 
-    class AdvancedStringArgumentImpl extends StringArgumentImpl implements StringArgument {
-        private static final long serialVersionUID = 1L;
+    abstract class JDIArgumentImpl implements Argument {
+        private static final long serialVersionUID = 8850533280769854833L;
+        private String name;
+        private String description;
+        private String label;
+        private boolean mustSpecify;
 
-        protected AdvancedStringArgumentImpl(String name, String description, String label, boolean mustSpecify) {
+        protected JDIArgumentImpl(String name, String description, String label, boolean mustSpecify) {
+            this.name = name;
+            this.description = description;
+            this.label = label;
+            this.mustSpecify = mustSpecify;
+        }
+
+        @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public String description() {
+            return description;
+        }
+
+        @Override
+        public String label() {
+            return label;
+        }
+
+        @Override
+        public boolean mustSpecify() {
+            return mustSpecify;
+        }
+
+        @Override
+        public abstract String value();
+
+        @Override
+        public abstract void setValue(String value);
+
+        @Override
+        public abstract boolean isValid(String value);
+
+        @Override
+        public abstract String toString();
+    }
+
+    class JDIStringArgumentImpl extends JDIArgumentImpl implements StringArgument {
+        private static final long serialVersionUID = 6009335074727417445L;
+        private String value;
+
+        protected JDIStringArgumentImpl(String name, String description, String label, boolean mustSpecify) {
             super(name, description, label, mustSpecify);
+        }
+
+        @Override
+        public String value() {
+            return value;
+        }
+
+        @Override
+        public void setValue(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public boolean isValid(String value) {
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return value;
         }
     }
 }

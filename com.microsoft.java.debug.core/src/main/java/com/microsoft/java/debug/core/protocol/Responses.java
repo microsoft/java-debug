@@ -16,6 +16,7 @@ import java.util.List;
 import com.microsoft.java.debug.core.protocol.Types.DataBreakpointAccessType;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionBreakMode;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionDetails;
+import com.microsoft.java.debug.core.protocol.Types.Variable;
 
 /**
  * The response content types defined by VSCode Debug Protocol.
@@ -314,6 +315,14 @@ public class Responses {
         public RedefineClassesResponse(String[] changedClasses, String errorMessage) {
             this.changedClasses = changedClasses;
             this.errorMessage = errorMessage;
+        }
+    }
+
+    public static class InlineValuesResponse extends ResponseBody {
+        public Types.Variable[] variables;
+
+        public InlineValuesResponse(Variable[] variables) {
+            this.variables = variables;
         }
     }
 }

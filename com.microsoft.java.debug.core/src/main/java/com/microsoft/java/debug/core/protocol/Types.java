@@ -101,6 +101,14 @@ public class Types {
             this.variablesReference = rf;
             this.evaluateName = evaluateName;
         }
+
+        /**
+         * Constructor.
+         */
+        public Variable(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
     }
 
     public static class Thread {

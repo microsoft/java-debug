@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.protocol;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 
 import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.Types.DataBreakpoint;
@@ -296,6 +297,14 @@ public class Requests {
         public ValueFormat format;
     }
 
+    public static class RefreshVariablesArguments extends Arguments {
+        public boolean showStaticVariables = false;
+        public boolean showQualifiedNames = false;
+        public boolean showHex = false;
+        public boolean showLogicalStructure = true;
+        public boolean showToString = true;
+    }
+
     public static class SourceArguments extends Arguments {
         public int sourceReference;
     }
@@ -340,6 +349,33 @@ public class Requests {
         public DataBreakpoint[] breakpoints;
     }
 
+    public static class InlineValuesArguments extends Arguments {
+        public int frameId;
+        public InlineVariable[] variables;
+    }
+
+    public static class InlineVariable {
+        public String expression;
+        public String declaringClass;
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(declaringClass, expression);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof InlineVariable)) {
+                return false;
+            }
+            InlineVariable other = (InlineVariable) obj;
+            return Objects.equals(declaringClass, other.declaringClass) && Objects.equals(expression, other.expression);
+        }
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -372,6 +408,8 @@ public class Requests {
         CONTINUEOTHERS("continueOthers", ThreadOperationArguments.class),
         PAUSEALL("pauseAll", ThreadOperationArguments.class),
         PAUSEOTHERS("pauseOthers", ThreadOperationArguments.class),
+        INLINEVALUES("inlineValues", InlineValuesArguments.class),
+        REFRESHVARIABLES("refreshVariables", RefreshVariablesArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;
