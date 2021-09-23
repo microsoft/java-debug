@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2020 Microsoft Corporation and others.
+* Copyright (c) 2017-2021 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -14,7 +14,6 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -106,10 +105,8 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                                     indexedVariables = ((IntegerValue) sizeValue).value();
                                 }
                             }
-                        } catch (CancellationException | IllegalArgumentException | InterruptedException
-                                | ExecutionException | UnsupportedOperationException e) {
-                            logger.log(Level.INFO,
-                                    String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
+                        } catch (Exception e) {
+                            logger.log(Level.INFO, "Failed to get the logical size of the variable", e);
                         }
                     }
                     int referenceId = 0;
@@ -117,20 +114,49 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         referenceId = context.getRecyclableIdPool().addObject(threadId, varProxy);
                     }
 
-                    String valueString = variableFormatter.valueToString(value, options);
+                    boolean hasErrors = false;
+                    String valueString = null;
+                    try {
+                        valueString = variableFormatter.valueToString(value, options);
+                    } catch (OutOfMemoryError e) {
+                        hasErrors = true;
+                        logger.log(Level.SEVERE, "Failed to convert the value of a large object to a string", e);
+                        valueString = "<Unable to display the value of a large object>";
+                    }  catch (Exception e) {
+                        hasErrors = true;
+                        logger.log(Level.SEVERE, "Failed to resolve the variable value", e);
+                        valueString = "<Failed to resolve the variable value due to \"" + e.getMessage() + "\">";
+                    }
+
                     String detailsString = null;
-                    if (sizeValue != null) {
+                    if (hasErrors) {
+                        // If failed to resolve the variable value, skip the details info as well.
+                    } else if (sizeValue != null) {
                         detailsString = "size=" + variableFormatter.valueToString(sizeValue, options);
                     } else if (DebugSettings.getCurrent().showToString) {
-                        detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
+                        try {
+                            detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
+                        } catch (OutOfMemoryError e) {
+                            logger.log(Level.SEVERE, "Failed to compute the toString() value of a large object", e);
+                            detailsString = "<Unable to display the details of a large object>";
+                        } catch (Exception e) {
+                            logger.log(Level.SEVERE, "Failed to compute the toString() value", e);
+                            detailsString = "<Failed to resolve the variable details due to \"" + e.getMessage() + "\">";
+                        }
                     }
 
                     if ("clipboard".equals(evalArguments.context) && detailsString != null) {
                         response.body = new Responses.EvaluateResponseBody(detailsString, -1, "String", 0);
                     } else {
+                        String typeString = "";
+                        try {
+                            typeString = variableFormatter.typeToString(value == null ? null : value.type(), options);
+                        } catch (Exception e) {
+                            logger.log(Level.SEVERE, "Failed to resolve the variable type", e);
+                            typeString = "";
+                        }
                         response.body = new Responses.EvaluateResponseBody((detailsString == null) ? valueString : valueString + " " + detailsString,
-                                referenceId, variableFormatter.typeToString(value == null ? null : value.type(), options),
-                                Math.max(indexedVariables, 0));
+                                referenceId, typeString, Math.max(indexedVariables, 0));
                     }
                     return response;
                 }

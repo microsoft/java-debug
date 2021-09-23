@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -91,23 +90,21 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
                 "Failed to launch debuggee VM. Missing mainClass or modulePaths/classPaths options in launch configuration.",
                 ErrorCode.ARGUMENT_MISSING);
         }
-        if (StringUtils.isBlank(launchArguments.encoding)) {
-            context.setDebuggeeEncoding(StandardCharsets.UTF_8);
-        } else {
+        if (StringUtils.isNotBlank(launchArguments.encoding)) {
             if (!Charset.isSupported(launchArguments.encoding)) {
                 throw AdapterUtils.createCompletionException(
                     "Failed to launch debuggee VM. 'encoding' options in the launch configuration is not recognized.",
                     ErrorCode.INVALID_ENCODING);
             }
             context.setDebuggeeEncoding(Charset.forName(launchArguments.encoding));
+            if (StringUtils.isBlank(launchArguments.vmArgs)) {
+                launchArguments.vmArgs = String.format("-Dfile.encoding=%s", context.getDebuggeeEncoding().name());
+            } else {
+                // if vmArgs already has the file.encoding settings, duplicate options for jvm will not cause an error, the right most value wins
+                launchArguments.vmArgs = String.format("%s -Dfile.encoding=%s", launchArguments.vmArgs, context.getDebuggeeEncoding().name());
+            }
         }
 
-        if (StringUtils.isBlank(launchArguments.vmArgs)) {
-            launchArguments.vmArgs = String.format("-Dfile.encoding=%s", context.getDebuggeeEncoding().name());
-        } else {
-            // if vmArgs already has the file.encoding settings, duplicate options for jvm will not cause an error, the right most value wins
-            launchArguments.vmArgs = String.format("%s -Dfile.encoding=%s", launchArguments.vmArgs, context.getDebuggeeEncoding().name());
-        }
         context.setLaunchMode(launchArguments.noDebug ? LaunchMode.NO_DEBUG : LaunchMode.DEBUG);
 
         activeLaunchHandler.preLaunch(launchArguments, context);
