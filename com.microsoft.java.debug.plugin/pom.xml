@@ -18,6 +18,17 @@
                 <version>${tycho-version}</version>
                 <extensions>true</extensions>
             </plugin>
+             <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-compiler-plugin</artifactId>
+                <version>${tycho-version}</version>
+                <configuration>
+                    <compilerArgs>
+                        <arg>--limit-modules</arg>
+                        <arg>java.base,java.logging,java.xml,jdk.jdi,java.compiler</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
