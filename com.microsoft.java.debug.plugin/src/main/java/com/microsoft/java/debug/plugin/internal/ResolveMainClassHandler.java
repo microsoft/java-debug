@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2021 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.plugin.internal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,6 +22,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.lang.model.SourceVersion;
 
@@ -79,15 +81,26 @@ public class ResolveMainClassHandler {
     }
 
     private List<ResolutionItem> resolveMainClassCore(List<Object> arguments) {
-        IPath rootPath = null;
         if (arguments != null && arguments.size() > 0 && arguments.get(0) != null) {
-            rootPath = ResourceUtils.filePathFromURI((String) arguments.get(0));
+            String argument = (String) arguments.get(0);
+            IProject[] projects = ProjectUtils.getAllProjects();
+            if (Stream.of(projects).anyMatch(project -> Objects.equals(project.getName(), argument))) {
+                return resolveMainClassUnderProject(argument);
+            }
+
+            IPath rootPath = ResourceUtils.filePathFromURI(argument);
+            if (rootPath != null) {
+                return resolveMainClassUnderPaths(Arrays.asList(rootPath));
+            }
         }
-        final ArrayList<IPath> targetProjectPath = new ArrayList<>();
-        if (rootPath != null) {
-            targetProjectPath.add(rootPath);
-        }
-        IJavaSearchScope searchScope = SearchEngine.createWorkspaceScope();
+
+        return resolveMainClassUnderPaths(Collections.emptyList());
+    }
+
+    private List<ResolutionItem> resolveMainClassUnderPaths(List<IPath> targetProjectPath) {
+        // Limit to search main method from source code only.
+        IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(ProjectUtils.getJavaProjects(),
+            IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
         SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
                 IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
         final List<ResolutionItem> res = new ArrayList<>();
@@ -112,12 +125,71 @@ public class ResolveMainClassHandler {
                                         }
                                     }
                                     String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
-                                    if (projectName == null
-                                        || targetProjectPath.isEmpty()
+                                    if (targetProjectPath.isEmpty()
                                         || ResourceUtils.isContainedIn(project.getLocation(), targetProjectPath)
                                         || isContainedInInvisibleProject(project, targetProjectPath)) {
                                         String filePath = null;
 
+                                        if (match.getResource() instanceof IFile) {
+                                            try {
+                                                filePath = match.getResource().getLocation().toOSString();
+                                            } catch (Exception ex) {
+                                                // ignore
+                                            }
+                                        }
+                                        res.add(new ResolutionItem(mainClass, projectName, filePath));
+                                    }
+                                }
+                            }
+                        }
+                    } catch (JavaModelException e) {
+                        // ignore
+                    }
+                }
+            }
+        };
+        SearchEngine searchEngine = new SearchEngine();
+        try {
+            searchEngine.search(pattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+                    searchScope, requestor, null /* progress monitor */);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, String.format("Searching the main class failure: %s", e.toString()), e);
+        }
+
+        List<ResolutionItem> resolutions = res.stream().distinct().collect(Collectors.toList());
+        Collections.sort(resolutions);
+        return resolutions;
+    }
+
+    private List<ResolutionItem> resolveMainClassUnderProject(final String projectName) {
+        // Limit to search main method from source code only.
+        IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(ProjectUtils.getJavaProjects(),
+            IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
+        SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
+                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
+        final List<ResolutionItem> res = new ArrayList<>();
+        SearchRequestor requestor = new SearchRequestor() {
+            @Override
+            public void acceptSearchMatch(SearchMatch match) {
+                Object element = match.getElement();
+                if (element instanceof IMethod) {
+                    IMethod method = (IMethod) element;
+                    try {
+                        if (method.isMainMethod()) {
+                            IResource resource = method.getResource();
+                            if (resource != null) {
+                                IProject project = resource.getProject();
+                                if (project != null) {
+                                    String mainClass = method.getDeclaringType().getFullyQualifiedName();
+                                    IJavaProject javaProject = JdtUtils.getJavaProject(project);
+                                    if (javaProject != null) {
+                                        String moduleName = JdtUtils.getModuleName(javaProject);
+                                        if (moduleName != null) {
+                                            mainClass = moduleName + "/" + mainClass;
+                                        }
+                                    }
+                                    if (Objects.equals(projectName, project.getName())) {
+                                        String filePath = null;
                                         if (match.getResource() instanceof IFile) {
                                             try {
                                                 filePath = match.getResource().getLocation().toOSString();
