@@ -163,7 +163,8 @@ public class ResolveMainClassHandler {
 
     private List<ResolutionItem> resolveMainClassUnderProject(final String projectName) {
         // Limit to search main method from source code only.
-        IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(ProjectUtils.getJavaProjects(),
+        IJavaProject javaProject = ProjectUtils.getJavaProject(projectName);
+        IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(javaProject == null ? new IJavaProject[0] : new IJavaProject[] {javaProject},
             IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
         SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
                 IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
@@ -188,17 +189,16 @@ public class ResolveMainClassHandler {
                                             mainClass = moduleName + "/" + mainClass;
                                         }
                                     }
-                                    if (Objects.equals(projectName, project.getName())) {
-                                        String filePath = null;
-                                        if (match.getResource() instanceof IFile) {
-                                            try {
-                                                filePath = match.getResource().getLocation().toOSString();
-                                            } catch (Exception ex) {
-                                                // ignore
-                                            }
+
+                                    String filePath = null;
+                                    if (match.getResource() instanceof IFile) {
+                                        try {
+                                            filePath = match.getResource().getLocation().toOSString();
+                                        } catch (Exception ex) {
+                                            // ignore
                                         }
-                                        res.add(new ResolutionItem(mainClass, projectName, filePath));
                                     }
+                                    res.add(new ResolutionItem(mainClass, projectName, filePath));
                                 }
                             }
                         }
