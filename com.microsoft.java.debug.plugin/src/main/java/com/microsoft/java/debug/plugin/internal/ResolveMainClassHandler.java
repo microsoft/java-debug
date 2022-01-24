@@ -97,7 +97,7 @@ public class ResolveMainClassHandler {
         return resolveMainClassUnderPaths(Collections.emptyList());
     }
 
-    private List<ResolutionItem> resolveMainClassUnderPaths(List<IPath> targetProjectPath) {
+    private List<ResolutionItem> resolveMainClassUnderPaths(List<IPath> parentPaths) {
         // Limit to search main method from source code only.
         IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(ProjectUtils.getJavaProjects(),
             IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
@@ -125,9 +125,9 @@ public class ResolveMainClassHandler {
                                         }
                                     }
                                     String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
-                                    if (targetProjectPath.isEmpty()
-                                        || ResourceUtils.isContainedIn(project.getLocation(), targetProjectPath)
-                                        || isContainedInInvisibleProject(project, targetProjectPath)) {
+                                    if (parentPaths.isEmpty()
+                                        || ResourceUtils.isContainedIn(project.getLocation(), parentPaths)
+                                        || isContainedInInvisibleProject(project, parentPaths)) {
                                         String filePath = null;
 
                                         if (match.getResource() instanceof IFile) {
