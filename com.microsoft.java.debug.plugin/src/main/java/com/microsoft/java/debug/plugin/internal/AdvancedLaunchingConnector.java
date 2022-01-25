@@ -13,16 +13,19 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 
+import org.apache.commons.io.IOUtils;
 import org.eclipse.jdi.internal.VirtualMachineImpl;
 import org.eclipse.jdi.internal.VirtualMachineManagerImpl;
 import org.eclipse.jdi.internal.connect.SocketLaunchingConnectorImpl;
 import org.eclipse.jdi.internal.connect.SocketListeningConnectorImpl;
 
 import com.microsoft.java.debug.core.DebugUtility;
+import com.microsoft.java.debug.core.LaunchException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
@@ -89,8 +92,33 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         try {
             vm = (VirtualMachineImpl) listenConnector.accept(args);
         } catch (IOException | IllegalConnectorArgumentsException e) {
+            final boolean exited = !process.isAlive();
+            final int exitStatus = exited ? process.exitValue() : -1;
+
+            String stdout;
+            try {
+                stdout = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
+            } catch (IOException ioe) {
+                stdout = null;
+            }
+            String stderr;
+            try {
+                stderr = IOUtils.toString(process.getErrorStream(), StandardCharsets.UTF_8);
+            } catch (IOException ioe) {
+                stderr = null;
+            }
+
             process.destroy();
-            throw new VMStartException(String.format("VM did not connect within given time: %d ms", ACCEPT_TIMEOUT), process);
+            throw new LaunchException(
+                exited
+                    ? String.format("VM exited with status %d", exitStatus)
+                    : String.format("VM did not connect within given time: %d ms", ACCEPT_TIMEOUT),
+                process,
+                exited,
+                exitStatus,
+                stdout,
+                stderr
+            );
         }
 
         vm.setLaunchedProcess(process);
