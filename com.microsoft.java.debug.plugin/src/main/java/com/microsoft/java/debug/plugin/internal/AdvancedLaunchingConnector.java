@@ -13,10 +13,14 @@ package com.microsoft.java.debug.plugin.internal;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jdi.internal.VirtualMachineImpl;
@@ -86,43 +90,100 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         String address = listenConnector.startListening(args);
 
         String[] cmds = constructLaunchCommand(connectionArgs, address);
-        Process process = Runtime.getRuntime().exec(cmds, envVars, workingDir);
 
-        VirtualMachineImpl vm;
-        try {
-            vm = (VirtualMachineImpl) listenConnector.accept(args);
-        } catch (IOException | IllegalConnectorArgumentsException e) {
-            final boolean exited = !process.isAlive();
-            final int exitStatus = exited ? process.exitValue() : -1;
+        /* Launch the Java process */
+        final Process process = Runtime.getRuntime().exec(cmds, envVars, workingDir);
 
-            String stdout;
+        /* A Future that will be completed if we successfully connect to the launched process, or
+           will fail with an Exception if we do not.
+         */
+        final CompletableFuture<VirtualMachineImpl> result = new CompletableFuture<>();
+
+        /* Listen for the debug connection from the Java process */
+        ForkJoinPool.commonPool().execute(() -> {
             try {
-                stdout = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
-            } catch (IOException ioe) {
-                stdout = null;
+                VirtualMachineImpl vm = (VirtualMachineImpl) listenConnector.accept(args);
+                vm.setLaunchedProcess(process);
+                result.complete(vm);
+            } catch (IllegalConnectorArgumentsException e) {
+                result.completeExceptionally(e);
+            } catch (IOException e) {
+                if (result.isDone()) {
+                    /* The result Future has already been completed by the Process onExit hook */
+                    return;
+                }
+
+                final String stdout = streamToString(process.getInputStream());
+                final String stderr = streamToString(process.getErrorStream());
+
+                process.destroy();
+
+                result.completeExceptionally(new LaunchException(
+                    String.format("VM did not connect within given time: %d ms", ACCEPT_TIMEOUT),
+                    process,
+                    false,
+                    -1,
+                    stdout,
+                    stderr
+                ));
+            } catch (RuntimeException e) {
+                result.completeExceptionally(e);
             }
-            String stderr;
-            try {
-                stderr = IOUtils.toString(process.getErrorStream(), StandardCharsets.UTF_8);
-            } catch (IOException ioe) {
-                stderr = null;
+        });
+
+        /* Wait for the Java process to exit; if it exits before the debug connection is made, report it as an error. */
+        process.onExit().thenAcceptAsync(theProcess -> {
+            if (result.isDone()) {
+                /* The result Future has already been completed by successfully connecting to the debug connection */
+                return;
             }
 
-            process.destroy();
-            throw new LaunchException(
-                exited
-                    ? String.format("VM exited with status %d", exitStatus)
-                    : String.format("VM did not connect within given time: %d ms", ACCEPT_TIMEOUT),
-                process,
-                exited,
+            final int exitStatus = theProcess.exitValue();
+            final String stdout = streamToString(process.getInputStream());
+            final String stderr = streamToString(process.getErrorStream());
+
+            result.completeExceptionally(new LaunchException(
+                String.format("VM exited with status %d", exitStatus),
+                theProcess,
+                true,
                 exitStatus,
                 stdout,
                 stderr
-            );
-        }
+            ));
 
-        vm.setLaunchedProcess(process);
-        return vm;
+            /* Stop the debug connection attempt */
+            try {
+                listenConnector.stopListening(args);
+            } catch (IOException e) {
+                /* Ignore */
+            }
+        });
+
+        try {
+            return result.get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException) {
+                throw (IOException) e.getCause();
+            } else if (e.getCause() instanceof IllegalConnectorArgumentsException) {
+                throw (IllegalConnectorArgumentsException) e.getCause();
+            } else if (e.getCause() instanceof VMStartException) {
+                throw (VMStartException) e.getCause();
+            } else if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else {
+                throw new IllegalStateException("Unexpected exception thrown when launching VM", e.getCause());
+            }
+        } catch (InterruptedException e) {
+            throw new VMStartException("VM start interrupted", process);
+        }
+    }
+
+    private String streamToString(final InputStream inputStream) {
+        try {
+            return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+        } catch (IOException ioe) {
+            return null;
+        }
     }
 
     private static String[] constructLaunchCommand(Map<String, ? extends Argument> launchingOptions, String address) {
