@@ -105,7 +105,8 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
                         if (runResponse.success) {
                             try {
                                 try {
-                                    RunInTerminalResponseBody terminalResponse = JsonUtils.fromJson(JsonUtils.toJson(runResponse.body), RunInTerminalResponseBody.class);
+                                    RunInTerminalResponseBody terminalResponse = JsonUtils.fromJson(
+                                        JsonUtils.toJson(runResponse.body), RunInTerminalResponseBody.class);
                                     context.setProcessId(terminalResponse.processId);
                                     context.setShellProcessId(terminalResponse.shellProcessId);
                                 } catch (JsonSyntaxException e) {
