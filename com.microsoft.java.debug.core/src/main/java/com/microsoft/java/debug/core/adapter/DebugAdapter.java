@@ -130,7 +130,7 @@ public class DebugAdapter implements IDebugAdapter {
 
         // NO_DEBUG mode only
         registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());
-
+        registerHandlerForNoDebug(new ProcessIdHandler());
     }
 
     private void registerHandlerForDebug(IDebugRequestHandler handler) {
