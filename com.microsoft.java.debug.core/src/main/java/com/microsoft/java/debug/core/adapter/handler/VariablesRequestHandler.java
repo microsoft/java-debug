@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2021 Microsoft Corporation and others.
+* Copyright (c) 2017-2020 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -19,7 +19,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -134,12 +136,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             try {
                 ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
                 if (DebugSettings.getCurrent().showLogicalStructure && evaluationEngine != null) {
-                    JavaLogicalStructure logicalStructure = null;
-                    try {
-                        logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
-                    } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to get the logical structure for the variable, fall back to the Object view.", e);
-                    }
+                    JavaLogicalStructure logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
                     if (isUnboundedTypeContainer && logicalStructure != null && containerEvaluateName != null) {
                         containerEvaluateName = "((" + logicalStructure.getFullyQualifiedName() + ")" + containerEvaluateName + ")";
                         isUnboundedTypeContainer = false;
@@ -168,8 +165,11 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                                     childrenList.add(variable);
                                 }
                             }
-                        } catch (Exception e) {
-                            logger.log(Level.WARNING, "Failed to get the logical structure for the variable, fall back to the Object view.", e);
+                        } catch (IllegalArgumentException | CancellationException | InterruptedException | ExecutionException e) {
+                            logger.log(Level.WARNING,
+                                    String.format("Failed to get the logical structure for the type %s, fall back to the Object view.",
+                                            containerObj.type().name()),
+                                    e);
                         }
 
                         logicalStructure = null;
@@ -244,8 +244,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                             indexedVariables = ((IntegerValue) sizeValue).value();
                         }
                     }
-                } catch (Exception e) {
-                    logger.log(Level.INFO, "Failed to get the logical size of the variable", e);
+                } catch (CancellationException | IllegalArgumentException | InterruptedException | ExecutionException | UnsupportedOperationException e) {
+                    logger.log(Level.INFO,
+                            String.format("Failed to get the logical size for the type %s.", value.type().name()), e);
                 }
             }
 
@@ -277,46 +278,15 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 varProxy.setUnboundedType(javaVariable.isUnboundedType());
             }
 
-            boolean hasErrors = false;
-            String valueString = null;
-            try {
-                valueString = variableFormatter.valueToString(value, options);
-            } catch (OutOfMemoryError e) {
-                hasErrors = true;
-                logger.log(Level.SEVERE, "Failed to convert the value of a large object to a string", e);
-                valueString = "<Unable to display the value of a large object>";
-            } catch (Exception e) {
-                hasErrors = true;
-                logger.log(Level.SEVERE, "Failed to resolve the variable value", e);
-                valueString = "<Failed to resolve the variable value due to \"" + e.getMessage() + "\">";
-            }
-
-            String typeString = "";
-            try {
-                typeString = variableFormatter.typeToString(value == null ? null : value.type(), options);
-            } catch (Exception e) {
-                logger.log(Level.SEVERE, "Failed to resolve the variable type", e);
-                typeString = "";
-            }
-
-            Types.Variable typedVariables = new Types.Variable(name, valueString, typeString, referenceId, evaluateName);
+            Types.Variable typedVariables = new Types.Variable(name, variableFormatter.valueToString(value, options),
+                    variableFormatter.typeToString(value == null ? null : value.type(), options),
+                    referenceId, evaluateName);
             typedVariables.indexedVariables = Math.max(indexedVariables, 0);
-
             String detailsValue = null;
-            if (hasErrors) {
-                // If failed to resolve the variable value, skip the details info as well.
-            } else if (sizeValue != null) {
+            if (sizeValue != null) {
                 detailsValue = "size=" + variableFormatter.valueToString(sizeValue, options);
             } else if (DebugSettings.getCurrent().showToString) {
-                try {
-                    detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
-                } catch (OutOfMemoryError e) {
-                    logger.log(Level.SEVERE, "Failed to compute the toString() value of a large object", e);
-                    detailsValue = "<Unable to display the details of a large object>";
-                } catch (Exception e) {
-                    logger.log(Level.SEVERE, "Failed to compute the toString() value", e);
-                    detailsValue = "<Failed to resolve the variable details due to \"" + e.getMessage() + "\">";
-                }
+                detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
             }
 
             if (detailsValue != null) {

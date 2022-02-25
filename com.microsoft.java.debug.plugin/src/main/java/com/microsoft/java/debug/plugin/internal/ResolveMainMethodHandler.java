@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018-2021 Microsoft Corporation and others.
+ * Copyright (c) 2018-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,7 +26,6 @@ import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
-import org.eclipse.jdt.core.IOpenable;
 import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.ISourceReference;
 import org.eclipse.jdt.core.IType;
@@ -168,7 +167,7 @@ public class ResolveMainMethodHandler {
 
     private static Range getRange(ICompilationUnit typeRoot, IJavaElement element) throws JavaModelException {
         ISourceRange r = ((ISourceReference) element).getNameRange();
-        return JDTUtils.toRange((IOpenable) typeRoot, r.getOffset(), r.getLength());
+        return JDTUtils.toRange(typeRoot, r.getOffset(), r.getLength());
     }
 
     static class MainMethod {

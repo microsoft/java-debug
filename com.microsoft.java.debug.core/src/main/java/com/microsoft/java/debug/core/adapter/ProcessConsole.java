@@ -129,7 +129,7 @@ public class ProcessConsole {
         }
 
         private void monitor(InputStream input, PublishSubject<String> subject) {
-            BufferedReader reader = new BufferedReader(encoding == null ? new InputStreamReader(input) : new InputStreamReader(input, encoding));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(input, encoding));
             final int BUFFERSIZE = 4096;
             char[] buffer = new char[BUFFERSIZE];
             while (true) {

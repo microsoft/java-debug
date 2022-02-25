@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.microsoft.java</groupId>
         <artifactId>java-debug-parent</artifactId>
-        <version>0.35.0</version>
+        <version>0.32.0</version>
     </parent>
     <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
@@ -17,17 +17,6 @@
                 <artifactId>tycho-maven-plugin</artifactId>
                 <version>${tycho-version}</version>
                 <extensions>true</extensions>
-            </plugin>
-             <plugin>
-                <groupId>org.eclipse.tycho</groupId>
-                <artifactId>tycho-compiler-plugin</artifactId>
-                <version>${tycho-version}</version>
-                <configuration>
-                    <compilerArgs>
-                        <arg>--limit-modules</arg>
-                        <arg>java.base,java.logging,java.xml,jdk.jdi,java.compiler</arg>
-                    </compilerArgs>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -51,12 +40,12 @@
                         <artifactItem>
                             <groupId>commons-io</groupId>
                             <artifactId>commons-io</artifactId>
-                            <version>2.10.0</version>
+                            <version>2.5</version>
                         </artifactItem>
                         <artifactItem>
                             <groupId>com.microsoft.java</groupId>
                             <artifactId>com.microsoft.java.debug.core</artifactId>
-                            <version>0.35.0</version>
+                            <version>0.32.0</version>
                         </artifactItem>
                     </artifactItems>
                 </configuration>

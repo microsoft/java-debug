@@ -1,16 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
-		<attributes>
-			<attribute name="module" value="true"/>
-			<attribute name="limit-modules" value="java.base,java.logging,java.xml,jdk.jdi,java.compiler"/>
-		</attributes>
-	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
-	<classpathentry exported="true" kind="lib" path="lib/commons-io-2.10.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/commons-io-2.5.jar"/>
 	<classpathentry kind="src" path="src/main/java"/>
 	<classpathentry exported="true" kind="lib" path="lib/rxjava-2.1.1.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/reactive-streams-1.0.0.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/com.microsoft.java.debug.core-0.35.0.jar" sourcepath="/com.microsoft.java.debug.core"/>
+	<classpathentry exported="true" kind="lib" path="lib/com.microsoft.java.debug.core-0.32.0.jar" sourcepath="/com.microsoft.java.debug.core"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

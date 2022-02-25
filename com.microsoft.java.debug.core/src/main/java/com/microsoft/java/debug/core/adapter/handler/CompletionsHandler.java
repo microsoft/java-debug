@@ -11,8 +11,8 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -46,7 +46,7 @@ public class CompletionsHandler implements IDebugRequestHandler {
         // completions should be illegal when frameId is zero, it is sent when the program is running, while during running we cannot resolve
         // the completion candidates
         if (completionsArgs.frameId == 0) {
-            response.body = new Responses.CompletionsResponseBody(Collections.emptyList());
+            response.body = new ArrayList<>();
             return CompletableFuture.completedFuture(response);
         }
 

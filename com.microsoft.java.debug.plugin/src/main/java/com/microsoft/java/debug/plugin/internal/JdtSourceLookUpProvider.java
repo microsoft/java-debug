@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2021 Microsoft Corporation and others.
+ * Copyright (c) 2017-2020 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -119,7 +120,11 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            String source = readFile(filePath);
+            Charset cs = (Charset) this.options.get(Constants.DEBUGGEE_ENCODING);
+            if (cs == null) {
+                cs = Charset.defaultCharset();
+            }
+            String source = readFile(filePath, cs);
             parser.setSource(source.toCharArray());
             /**
              * See the java doc for { @link ASTParser#setResolveBindings(boolean) }.
@@ -288,10 +293,10 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return null;
     }
 
-    private static String readFile(String filePath) {
+    private static String readFile(String filePath, Charset cs) {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader bufferReader =
-                new BufferedReader(new InputStreamReader(new FileInputStream(filePath)))) {
+                new BufferedReader(new InputStreamReader(new FileInputStream(filePath), cs))) {
             final int BUFFER_SIZE = 4096;
             char[] buffer = new char[BUFFER_SIZE];
             while (true) {

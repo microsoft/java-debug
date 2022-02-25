@@ -4,7 +4,6 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ch.epfl.scala</groupId>
     <artifactId>com-microsoft-java-debug-core</artifactId>
-    <packaging>jar</packaging>
     <name>${base.name} :: Debugger Core</name>
     <description>The Java Debug Server is an implementation of Visual Studio Code (VSCode) Debug Protocol. It can be used in Visual Studio Code to debug Java programs.</description>
     <url>https://github.com/Microsoft/java-debug</url>
@@ -80,8 +79,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.7.0</version>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -127,7 +126,7 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.8.9</version>
+            <version>2.7</version>
         </dependency>
         <dependency>
             <groupId>io.reactivex.rxjava2</groupId>
@@ -142,7 +141,7 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.10.0</version>
+            <version>2.5</version>
         </dependency>
         <!-- Dependencies for test -->
         <dependency>

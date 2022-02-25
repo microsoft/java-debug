@@ -73,11 +73,11 @@ public class LaunchUtils {
     public static synchronized Path generateArgfile(String[] classPaths, String[] modulePaths) throws IOException {
         String argfile = "";
         if (ArrayUtils.isNotEmpty(classPaths)) {
-            argfile = "-cp \"" + String.join(File.pathSeparator, classPaths) + "\"";
+            argfile = "-classpath \"" + String.join(File.pathSeparator, classPaths) + "\"";
         }
 
         if (ArrayUtils.isNotEmpty(modulePaths)) {
-            argfile += " --module-path \"" + String.join(File.pathSeparator, modulePaths) + "\"";
+            argfile = " --module-path \"" + String.join(File.pathSeparator, modulePaths) + "\"";
         }
 
         argfile = argfile.replace("\\", "\\\\");
