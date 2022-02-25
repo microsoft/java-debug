@@ -145,12 +145,14 @@ public class StepRequestHandler implements IDebugRequestHandler {
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context,
             ThreadState threadState) {
         Event event = debugEvent.event;
+        EventRequestManager eventRequestManager = debugSession.getVM().eventRequestManager();
 
         // When a breakpoint occurs, abort any pending step requests from the same thread.
         if (event instanceof BreakpointEvent || event instanceof ExceptionEvent) {
             long threadId = ((LocatableEvent) event).thread().uniqueID();
             if (threadId == threadState.threadId && threadState.pendingStepRequest != null) {
-                threadState.deleteStepRequests(debugSession.getVM().eventRequestManager());
+                threadState.deleteStepRequest(eventRequestManager);
+                threadState.deleteMethodExitRequest(eventRequestManager);
                 context.getStepResultManager().removeMethodResult(threadId);
                 if (threadState.eventSubscription != null) {
                     threadState.eventSubscription.dispose();
@@ -158,7 +160,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
             }
         } else if (event instanceof StepEvent) {
             ThreadReference thread = ((StepEvent) event).thread();
-            threadState.deleteStepRequests(debugSession.getVM().eventRequestManager());
+            threadState.deleteStepRequest(eventRequestManager);
             if (isStepFiltersConfigured(context.getStepFilters())) {
                 try {
                     if (threadState.pendingStepType == Command.STEPIN) {
@@ -181,6 +183,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     // ignore.
                 }
             }
+            threadState.deleteMethodExitRequest(eventRequestManager);
             if (threadState.eventSubscription != null) {
                 threadState.eventSubscription.dispose();
             }
@@ -280,10 +283,13 @@ public class StepRequestHandler implements IDebugRequestHandler {
         Location stepLocation = null;
         Disposable eventSubscription = null;
 
-        public void deleteStepRequests(EventRequestManager manager) {
-            DebugUtility.deleteEventRequestSafely(manager, this.pendingStepRequest);
+        public void deleteMethodExitRequest(EventRequestManager manager) {
             DebugUtility.deleteEventRequestSafely(manager, this.pendingMethodExitRequest);
             this.pendingMethodExitRequest = null;
+        }
+
+        public void deleteStepRequest(EventRequestManager manager) {
+            DebugUtility.deleteEventRequestSafely(manager, this.pendingStepRequest);
             this.pendingStepRequest = null;
         }
     }

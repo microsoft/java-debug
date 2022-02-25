@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2021 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -21,6 +21,8 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import javax.lang.model.SourceVersion;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
@@ -47,8 +49,10 @@ import com.microsoft.java.debug.core.Configuration;
 
 public class ResolveMainClassHandler {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    // Java command line supports two kinds of main class format: <mainclass> and <module>[/<mainclass>]
-    private static final String CLASSNAME_REGX = "([$\\w]+\\.)*[$\\w]+(/([$\\w]+\\.)*[$\\w]+)?";
+    private static final int CONFIGERROR_INVALID_CLASS_NAME = 1;
+    private static final int CONFIGERROR_MAIN_CLASS_NOT_EXIST = 2;
+    private static final int CONFIGERROR_MAIN_CLASS_NOT_UNIQUE = 3;
+    private static final int CONFIGERROR_INVALID_JAVA_PROJECT = 4;
 
     /**
      * resolve main class and project name.
@@ -185,21 +189,39 @@ public class ResolveMainClassHandler {
     private ValidationResult validateMainClass(final String mainClass, final String projectName, boolean containsExternalClasspaths) throws CoreException {
         if (StringUtils.isEmpty(mainClass)) {
             return new ValidationResult(true);
-        } else if (!mainClass.matches(CLASSNAME_REGX)) {
-            return new ValidationResult(false, String.format("ConfigError: '%s' is not a valid class name.", mainClass));
+        } else if (!isValidMainClassName(mainClass)) {
+            return new ValidationResult(false, String.format("ConfigError: '%s' is not a valid class name.", mainClass),
+                CONFIGERROR_INVALID_CLASS_NAME);
         }
 
         if (!containsExternalClasspaths && StringUtils.isEmpty(projectName)) {
             List<IJavaProject> javaProjects = searchClassInProjectClasspaths(mainClass);
             if (javaProjects.size() == 0) {
-                return new ValidationResult(false, String.format("ConfigError: Main class '%s' doesn't exist in the workspace.", mainClass));
+                return new ValidationResult(false, String.format("ConfigError: Main class '%s' doesn't exist in the workspace.", mainClass),
+                    CONFIGERROR_MAIN_CLASS_NOT_EXIST);
             }
             if (javaProjects.size() > 1) {
-                return new ValidationResult(false, String.format("ConfigError: Main class '%s' isn't unique in the workspace.", mainClass));
+                return new ValidationResult(false, String.format("ConfigError: Main class '%s' isn't unique in the workspace.", mainClass),
+                    CONFIGERROR_MAIN_CLASS_NOT_UNIQUE);
             }
         }
 
         return new ValidationResult(true);
+    }
+
+    // Java command line supports two kinds of main class format: <mainclass> and <module>[/<mainclass>]
+    private boolean isValidMainClassName(String mainClass) {
+        if (StringUtils.isEmpty(mainClass)) {
+            return true;
+        }
+
+        int index = mainClass.indexOf('/');
+        if (index == -1) {
+            return SourceVersion.isName(mainClass);
+        }
+
+        return SourceVersion.isName(mainClass.substring(0, index))
+            && SourceVersion.isName(mainClass.substring(index + 1));
     }
 
     private List<IJavaProject> searchClassInProjectClasspaths(String fullyQualifiedClassName) throws CoreException {
@@ -212,7 +234,8 @@ public class ResolveMainClassHandler {
         }
 
         if (JdtUtils.getJavaProject(projectName) == null) {
-            return new ValidationResult(false, String.format("ConfigError: The project '%s' is not a valid java project.", projectName));
+            return new ValidationResult(false, String.format("ConfigError: The project '%s' is not a valid java project.", projectName),
+                CONFIGERROR_INVALID_JAVA_PROJECT);
         }
 
         return new ValidationResult(true);
@@ -302,14 +325,16 @@ public class ResolveMainClassHandler {
     class ValidationResult {
         boolean isValid;
         String message;
+        int kind;
 
         ValidationResult(boolean isValid) {
             this.isValid = isValid;
         }
 
-        ValidationResult(boolean isValid, String message) {
+        ValidationResult(boolean isValid, String message, int kind) {
             this.isValid = isValid;
             this.message = message;
+            this.kind = kind;
         }
     }
 }
