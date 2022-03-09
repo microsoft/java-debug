@@ -154,4 +154,18 @@ public class VariableDetailUtils {
 
         return Objects.equals(((ObjectReference) value).type().name(), typeName);
     }
+
+    public static boolean isLazyLoadingSupported(Value value) {
+        if (isClassType(value, STRING_TYPE)) {
+            return false;
+        }
+        if (!(value instanceof ObjectReference)) {
+            return false;
+        }
+        String inheritedType = findInheritedType(value, COLLECTION_TYPES);
+        if (inheritedType == null && !containsToStringMethod((ObjectReference) value)) {
+            return false;
+        }
+        return true;
+    }
 }

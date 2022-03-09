@@ -47,6 +47,7 @@ import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.VariablesArguments;
+import com.microsoft.java.debug.core.protocol.Types.VariablePresentationHint;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
@@ -94,6 +95,23 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         }
 
         VariableProxy containerNode = (VariableProxy) container;
+
+        if (containerNode.getReferencedVariableId() != null && DebugSettings.getCurrent().showToString) {
+            Integer referencedVariableId = containerNode.getReferencedVariableId();
+            Object referencedVariable = context.getRecyclableIdPool().getObjectById(referencedVariableId);
+            if (referencedVariable instanceof VariableProxy) {
+                Object proxiedVariable = ((VariableProxy) referencedVariable).getProxiedVariable();
+                if (proxiedVariable instanceof ObjectReference) {
+                    ObjectReference variable = (ObjectReference) proxiedVariable;
+                    String valueString = variableFormatter.valueToString(variable, options);
+                    String detailString = VariableDetailUtils.formatDetailsValue(variable, containerNode.getThread(), variableFormatter, options, evaluationEngine);
+                    Types.Variable typedVariable = new Types.Variable("", valueString + " " + detailString, "", referencedVariableId, "");
+                    list.add(typedVariable);
+                    response.body = new Responses.VariablesResponseBody(list);
+                    return CompletableFuture.completedFuture(response);
+                }
+            }
+        }
         List<Variable> childrenList = new ArrayList<>();
         IStackFrameManager stackFrameManager = context.getStackFrameManager();
         String containerEvaluateName = containerNode.getEvaluateName();
@@ -267,11 +285,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
 
             int referenceId = 0;
+            VariableProxy varProxy = null;
             if (indexedVariables > 0 || (indexedVariables < 0 && value instanceof ObjectReference)) {
-                VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
+                varProxy = this.getVariableProxy(containerNode, value, evaluateName, indexedVariables, javaVariable);
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
-                varProxy.setIndexedVariable(indexedVariables >= 0);
-                varProxy.setUnboundedType(javaVariable.isUnboundedType());
             }
 
             boolean hasErrors = false;
@@ -305,14 +322,21 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             } else if (sizeValue != null) {
                 detailsValue = "size=" + variableFormatter.valueToString(sizeValue, options);
             } else if (DebugSettings.getCurrent().showToString) {
-                try {
-                    detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
-                } catch (OutOfMemoryError e) {
-                    logger.log(Level.SEVERE, "Failed to compute the toString() value of a large object", e);
-                    detailsValue = "<Unable to display the details of a large object>";
-                } catch (Exception e) {
-                    logger.log(Level.SEVERE, "Failed to compute the toString() value", e);
-                    detailsValue = "<Failed to resolve the variable details due to \"" + e.getMessage() + "\">";
+                if (VariableDetailUtils.isLazyLoadingSupported(value) && varProxy != null) {
+                    typedVariables.presentationHint = new VariablePresentationHint(true);
+                    VariableProxy valueReferenceProxy = this.getVariableProxy(containerNode, value, "", indexedVariables, javaVariable);
+                    Integer referencedVariableId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), valueReferenceProxy);
+                    varProxy.setReferencedVariableId(referencedVariableId);
+                } else {
+                    try {
+                        detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
+                    } catch (OutOfMemoryError e) {
+                        logger.log(Level.SEVERE, "Failed to compute the toString() value of a large object", e);
+                        detailsValue = "<Unable to display the details of a large object>";
+                    } catch (Exception e) {
+                        logger.log(Level.SEVERE, "Failed to compute the toString() value", e);
+                        detailsValue = "<Failed to resolve the variable details due to \"" + e.getMessage() + "\">";
+                    }
                 }
             }
 
@@ -343,5 +367,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
         }
         return result;
+    }
+
+    private VariableProxy getVariableProxy(VariableProxy containerNode, Value value, String evaluateName, int indexedVariables, Variable javaVariable) {
+        VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
+        varProxy.setIndexedVariable(indexedVariables >= 0);
+        varProxy.setUnboundedType(javaVariable.isUnboundedType());
+        return varProxy;
     }
 }
