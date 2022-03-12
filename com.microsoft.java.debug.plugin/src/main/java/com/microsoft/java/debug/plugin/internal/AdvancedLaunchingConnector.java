@@ -20,7 +20,6 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jdi.internal.VirtualMachineImpl;
@@ -100,7 +99,7 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
         final CompletableFuture<VirtualMachineImpl> result = new CompletableFuture<>();
 
         /* Listen for the debug connection from the Java process */
-        ForkJoinPool.commonPool().execute(() -> {
+        CompletableFuture.runAsync(() -> {
             try {
                 VirtualMachineImpl vm = (VirtualMachineImpl) listenConnector.accept(args);
                 vm.setLaunchedProcess(process);
