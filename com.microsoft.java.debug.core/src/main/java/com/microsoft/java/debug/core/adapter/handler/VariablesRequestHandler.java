@@ -104,7 +104,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 if (proxiedVariable instanceof ObjectReference) {
                     ObjectReference variable = (ObjectReference) proxiedVariable;
                     String valueString = variableFormatter.valueToString(variable, options);
-                    String detailString = VariableDetailUtils.formatDetailsValue(variable, containerNode.getThread(), variableFormatter, options, evaluationEngine);
+                    String detailString = VariableDetailUtils.formatDetailsValue(variable, containerNode.getThread(), variableFormatter, options,
+                            evaluationEngine);
                     Types.Variable typedVariable = new Types.Variable("", valueString + " " + detailString, "", referencedVariableId, "");
                     list.add(typedVariable);
                     response.body = new Responses.VariablesResponseBody(list);
