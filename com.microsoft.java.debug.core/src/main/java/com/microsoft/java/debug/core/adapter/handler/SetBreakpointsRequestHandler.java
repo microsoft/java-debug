@@ -44,6 +44,7 @@ import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.BooleanValue;
 import com.sun.jdi.Field;
 import com.sun.jdi.ObjectReference;
+import com.sun.jdi.StringReference;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
@@ -222,6 +223,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(
                     Events.UserNotificationEvent.NotificationType.ERROR,
                     String.format("[Logpoint] Log message '%s' error: %s", breakpoint.getLogMessage(), ex.getMessage())));
+            } else if (value != null) {
+                if (value instanceof StringReference) {
+                    String message = ((StringReference) value).value();
+                    context.getProtocolServer().sendEvent(new Events.LogpointEvent(message));
+                }
             }
             return true;
         } else {
