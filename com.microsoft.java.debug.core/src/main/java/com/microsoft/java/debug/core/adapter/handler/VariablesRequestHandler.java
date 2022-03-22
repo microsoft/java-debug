@@ -96,21 +96,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         VariableProxy containerNode = (VariableProxy) container;
 
-        if (containerNode.getReferencedVariableId() != null && DebugSettings.getCurrent().showToString) {
-            Integer referencedVariableId = containerNode.getReferencedVariableId();
-            Object referencedVariable = context.getRecyclableIdPool().getObjectById(referencedVariableId);
-            if (referencedVariable instanceof VariableProxy) {
-                Object proxiedVariable = ((VariableProxy) referencedVariable).getProxiedVariable();
-                if (proxiedVariable instanceof ObjectReference) {
-                    ObjectReference variable = (ObjectReference) proxiedVariable;
-                    String valueString = variableFormatter.valueToString(variable, options);
-                    String detailString = VariableDetailUtils.formatDetailsValue(variable, containerNode.getThread(), variableFormatter, options,
-                            evaluationEngine);
-                    Types.Variable typedVariable = new Types.Variable("", valueString + " " + detailString, "", referencedVariableId, "");
-                    list.add(typedVariable);
-                    response.body = new Responses.VariablesResponseBody(list);
-                    return CompletableFuture.completedFuture(response);
-                }
+        if (containerNode.isLazyResolved() && DebugSettings.getCurrent().showToString) {
+            Types.Variable typedVariable = this.resolveLazyVariable(context, containerNode, variableFormatter, options, evaluationEngine);
+            if (typedVariable != null) {
+                list.add(typedVariable);
+                response.body = new Responses.VariablesResponseBody(list);
+                return CompletableFuture.completedFuture(response);
             }
         }
         List<Variable> childrenList = new ArrayList<>();
@@ -288,7 +279,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             int referenceId = 0;
             VariableProxy varProxy = null;
             if (indexedVariables > 0 || (indexedVariables < 0 && value instanceof ObjectReference)) {
-                varProxy = this.getVariableProxy(containerNode, value, evaluateName, indexedVariables, javaVariable);
+                varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
+                varProxy.setIndexedVariable(indexedVariables >= 0);
+                varProxy.setUnboundedType(javaVariable.isUnboundedType());
                 referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
 
@@ -325,9 +318,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             } else if (DebugSettings.getCurrent().showToString) {
                 if (VariableDetailUtils.isLazyLoadingSupported(value) && varProxy != null) {
                     typedVariables.presentationHint = new VariablePresentationHint(true);
-                    VariableProxy valueReferenceProxy = this.getVariableProxy(containerNode, value, "", indexedVariables, javaVariable);
-                    Integer referencedVariableId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), valueReferenceProxy);
-                    varProxy.setReferencedVariableId(referencedVariableId);
+                    varProxy.setLazyResolved(true);
                 } else {
                     try {
                         detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
@@ -356,6 +347,22 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
+    private Types.Variable resolveLazyVariable(IDebugAdapterContext context, VariableProxy containerNode, IVariableFormatter variableFormatter, Map<String, Object> options, IEvaluationProvider evaluationEngine) {
+        VariableProxy valueReferenceProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), containerNode.getProxiedVariable(), null /** container */, "");
+        valueReferenceProxy.setIndexedVariable(containerNode.isIndexedVariable());
+        valueReferenceProxy.setUnboundedType(containerNode.isUnboundedType());
+        int referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), valueReferenceProxy);
+        Object proxiedVariable = containerNode.getProxiedVariable();
+        if (proxiedVariable instanceof ObjectReference) {
+            ObjectReference variable = (ObjectReference) proxiedVariable;
+            String valueString = variableFormatter.valueToString(variable, options);
+            String detailString = VariableDetailUtils.formatDetailsValue(variable, containerNode.getThread(), variableFormatter, options,
+                    evaluationEngine);
+            return new Types.Variable("", valueString + " " + detailString, "", referenceId, "");
+        }
+        return null;
+    }
+
     private Set<String> getDuplicateNames(Collection<String> list) {
         Set<String> result = new HashSet<>();
         Set<String> set = new HashSet<>();
@@ -368,12 +375,5 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
         }
         return result;
-    }
-
-    private VariableProxy getVariableProxy(VariableProxy containerNode, Value value, String evaluateName, int indexedVariables, Variable javaVariable) {
-        VariableProxy varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
-        varProxy.setIndexedVariable(indexedVariables >= 0);
-        varProxy.setUnboundedType(javaVariable.isUnboundedType());
-        return varProxy;
     }
 }

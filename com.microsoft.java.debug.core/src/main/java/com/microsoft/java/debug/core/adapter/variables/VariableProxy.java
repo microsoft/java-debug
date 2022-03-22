@@ -24,7 +24,7 @@ public class VariableProxy {
     private final String evaluateName;
     private boolean isIndexedVariable;
     private boolean isUnboundedType = false;
-    private Integer referencedVariableId;
+    private boolean isLazyResolved = false;
 
     /**
      * Create a variable reference.
@@ -111,11 +111,11 @@ public class VariableProxy {
         this.isUnboundedType = isUnboundedType;
     }
 
-    public Integer getReferencedVariableId() {
-        return referencedVariableId;
+    public boolean isLazyResolved() {
+        return isLazyResolved;
     }
 
-    public void setReferencedVariableId(Integer referencedVariableId) {
-        this.referencedVariableId = referencedVariableId;
+    public void setLazyResolved(boolean isLazyResolved) {
+        this.isLazyResolved = isLazyResolved;
     }
 }
