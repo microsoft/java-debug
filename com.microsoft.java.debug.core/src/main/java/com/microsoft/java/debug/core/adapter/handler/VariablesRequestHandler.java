@@ -280,9 +280,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             VariableProxy varProxy = null;
             if (indexedVariables > 0 || (indexedVariables < 0 && value instanceof ObjectReference)) {
                 varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
+                referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
                 varProxy.setIndexedVariable(indexedVariables >= 0);
                 varProxy.setUnboundedType(javaVariable.isUnboundedType());
-                referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
             }
 
             boolean hasErrors = false;
@@ -347,8 +347,10 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private Types.Variable resolveLazyVariable(IDebugAdapterContext context, VariableProxy containerNode, IVariableFormatter variableFormatter, Map<String, Object> options, IEvaluationProvider evaluationEngine) {
-        VariableProxy valueReferenceProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), containerNode.getProxiedVariable(), null /** container */, "");
+    private Types.Variable resolveLazyVariable(IDebugAdapterContext context, VariableProxy containerNode, IVariableFormatter variableFormatter,
+            Map<String, Object> options, IEvaluationProvider evaluationEngine) {
+        VariableProxy valueReferenceProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(),
+            containerNode.getProxiedVariable(), null /** container */, "");
         valueReferenceProxy.setIndexedVariable(containerNode.isIndexedVariable());
         valueReferenceProxy.setUnboundedType(containerNode.isUnboundedType());
         int referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), valueReferenceProxy);
