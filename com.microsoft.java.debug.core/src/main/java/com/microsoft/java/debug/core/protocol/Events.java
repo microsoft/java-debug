@@ -246,19 +246,6 @@ public class Events {
         }
     }
 
-    public static class LogpointEvent extends DebugEvent {
-
-        public String message;
-
-        /**
-         * Constructor.
-         */
-        public LogpointEvent(String message) {
-            super("logpoint");
-            this.message = message;
-        }
-    }
-
     public static enum InvalidatedAreas {
         @SerializedName("all")
         ALL,

@@ -226,7 +226,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             } else if (value != null) {
                 if (value instanceof StringReference) {
                     String message = ((StringReference) value).value();
-                    context.getProtocolServer().sendEvent(new Events.LogpointEvent(message));
+                    context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(
+                        message + System.lineSeparator()));
                 }
             }
             return true;
