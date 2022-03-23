@@ -138,6 +138,17 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
         }
 
         return launch(launchArguments, response, context).thenCompose(res -> {
+            long processId = context.getProcessId();
+            long shellProcessId = context.getShellProcessId();
+            if (context.getDebuggeeProcess() != null) {
+                processId = context.getDebuggeeProcess().pid();
+            }
+
+            // If processId or shellProcessId exist, send a notification to client.
+            if (processId > 0 || shellProcessId > 0) {
+                context.getProtocolServer().sendEvent(new Events.ProcessIdNotification(processId, shellProcessId));
+            }
+
             LaunchUtils.releaseTempLaunchFile(context.getClasspathJar());
             LaunchUtils.releaseTempLaunchFile(context.getArgsfile());
             if (res.success) {
