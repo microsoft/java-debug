@@ -76,7 +76,8 @@ public class VariableProxy {
         }
         VariableProxy other = (VariableProxy) obj;
         return Objects.equals(scopeName, other.scopeName) && Objects.equals(getThreadId(), other.getThreadId())
-                && Objects.equals(variable, other.variable) && Objects.equals(evaluateName, other.evaluateName);
+                && Objects.equals(variable, other.variable) && Objects.equals(evaluateName, other.evaluateName)
+                && Objects.equals(isLazyResolved, other.isLazyResolved);
     }
 
     public long getThreadId() {

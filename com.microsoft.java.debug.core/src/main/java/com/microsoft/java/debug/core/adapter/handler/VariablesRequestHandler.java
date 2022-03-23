@@ -350,7 +350,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
     private Types.Variable resolveLazyVariable(IDebugAdapterContext context, VariableProxy containerNode, IVariableFormatter variableFormatter,
             Map<String, Object> options, IEvaluationProvider evaluationEngine) {
         VariableProxy valueReferenceProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(),
-            containerNode.getProxiedVariable(), null /** container */, "");
+            containerNode.getProxiedVariable(), null /** container */, containerNode.getEvaluateName());
         valueReferenceProxy.setIndexedVariable(containerNode.isIndexedVariable());
         valueReferenceProxy.setUnboundedType(containerNode.isUnboundedType());
         int referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), valueReferenceProxy);
@@ -360,7 +360,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             String valueString = variableFormatter.valueToString(variable, options);
             String detailString = VariableDetailUtils.formatDetailsValue(variable, containerNode.getThread(), variableFormatter, options,
                     evaluationEngine);
-            return new Types.Variable("", valueString + " " + detailString, "", referenceId, "");
+            return new Types.Variable("", valueString + " " + detailString, "", referenceId, containerNode.getEvaluateName());
         }
         return null;
     }
