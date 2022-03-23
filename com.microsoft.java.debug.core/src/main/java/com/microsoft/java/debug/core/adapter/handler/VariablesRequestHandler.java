@@ -96,7 +96,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         VariableProxy containerNode = (VariableProxy) container;
 
-        if (containerNode.isLazyResolved() && DebugSettings.getCurrent().showToString) {
+        if (containerNode.isLazyVariable() && DebugSettings.getCurrent().showToString) {
             Types.Variable typedVariable = this.resolveLazyVariable(context, containerNode, variableFormatter, options, evaluationEngine);
             if (typedVariable != null) {
                 list.add(typedVariable);
@@ -276,11 +276,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 }
             }
 
-            int referenceId = 0;
             VariableProxy varProxy = null;
             if (indexedVariables > 0 || (indexedVariables < 0 && value instanceof ObjectReference)) {
                 varProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(), value, containerNode, evaluateName);
-                referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
                 varProxy.setIndexedVariable(indexedVariables >= 0);
                 varProxy.setUnboundedType(javaVariable.isUnboundedType());
             }
@@ -307,9 +305,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 typeString = "";
             }
 
-            Types.Variable typedVariables = new Types.Variable(name, valueString, typeString, referenceId, evaluateName);
-            typedVariables.indexedVariables = Math.max(indexedVariables, 0);
-
             String detailsValue = null;
             if (hasErrors) {
                 // If failed to resolve the variable value, skip the details info as well.
@@ -317,8 +312,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 detailsValue = "size=" + variableFormatter.valueToString(sizeValue, options);
             } else if (DebugSettings.getCurrent().showToString) {
                 if (VariableDetailUtils.isLazyLoadingSupported(value) && varProxy != null) {
-                    typedVariables.presentationHint = new VariablePresentationHint(true);
-                    varProxy.setLazyResolved(true);
+                    varProxy.setLazyVariable(true);
                 } else {
                     try {
                         detailsValue = VariableDetailUtils.formatDetailsValue(value, containerNode.getThread(), variableFormatter, options, evaluationEngine);
@@ -330,6 +324,17 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                         detailsValue = "<Failed to resolve the variable details due to \"" + e.getMessage() + "\">";
                     }
                 }
+            }
+
+            int referenceId = 0;
+            if (varProxy != null) {
+                referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), varProxy);
+            }
+
+            Types.Variable typedVariables = new Types.Variable(name, valueString, typeString, referenceId, evaluateName);
+            typedVariables.indexedVariables = Math.max(indexedVariables, 0);
+            if (varProxy != null && varProxy.isLazyVariable()) {
+                typedVariables.presentationHint = new VariablePresentationHint(true);
             }
 
             if (detailsValue != null) {
@@ -354,12 +359,13 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         valueReferenceProxy.setIndexedVariable(containerNode.isIndexedVariable());
         valueReferenceProxy.setUnboundedType(containerNode.isUnboundedType());
         int referenceId = context.getRecyclableIdPool().addObject(containerNode.getThreadId(), valueReferenceProxy);
+        // this proxiedVariable is intermediate object, see https://github.com/microsoft/vscode/issues/135147#issuecomment-1076240074
         Object proxiedVariable = containerNode.getProxiedVariable();
         if (proxiedVariable instanceof ObjectReference) {
             ObjectReference variable = (ObjectReference) proxiedVariable;
             String valueString = variableFormatter.valueToString(variable, options);
             String detailString = VariableDetailUtils.formatDetailsValue(variable, containerNode.getThread(), variableFormatter, options,
-                    evaluationEngine);
+                evaluationEngine);
             return new Types.Variable("", valueString + " " + detailString, "", referenceId, containerNode.getEvaluateName());
         }
         return null;

@@ -24,7 +24,7 @@ public class VariableProxy {
     private final String evaluateName;
     private boolean isIndexedVariable;
     private boolean isUnboundedType = false;
-    private boolean isLazyResolved = false;
+    private boolean isLazyVariable = false;
 
     /**
      * Create a variable reference.
@@ -77,7 +77,7 @@ public class VariableProxy {
         VariableProxy other = (VariableProxy) obj;
         return Objects.equals(scopeName, other.scopeName) && Objects.equals(getThreadId(), other.getThreadId())
                 && Objects.equals(variable, other.variable) && Objects.equals(evaluateName, other.evaluateName)
-                && Objects.equals(isLazyResolved, other.isLazyResolved);
+                && Objects.equals(isLazyVariable, other.isLazyVariable);
     }
 
     public long getThreadId() {
@@ -112,11 +112,12 @@ public class VariableProxy {
         this.isUnboundedType = isUnboundedType;
     }
 
-    public boolean isLazyResolved() {
-        return isLazyResolved;
+    public boolean isLazyVariable() {
+        return isLazyVariable;
     }
 
-    public void setLazyResolved(boolean isLazyResolved) {
-        this.isLazyResolved = isLazyResolved;
+    public void setLazyVariable(boolean isLazyVariable) {
+        this.isLazyVariable = isLazyVariable;
     }
+
 }
