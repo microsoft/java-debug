@@ -226,9 +226,9 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         }
 
         if (arguments.size() > 0) {
-            return "System.out.println(String.format(\"" + format + "\"," + String.join(",", arguments) + "))";
+            return "String.format(\"" + format + "\"," + String.join(",", arguments) + ")";
         } else {
-            return "System.out.println(\"" + format + "\")";
+            return "\"" + format + "\"";
         }
     }
 
