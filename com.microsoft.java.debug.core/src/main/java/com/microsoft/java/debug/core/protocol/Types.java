@@ -90,6 +90,7 @@ public class Types {
         public int namedVariables;
         public int indexedVariables;
         public String evaluateName;
+        public VariablePresentationHint presentationHint;
 
         /**
          * Constructor.
@@ -341,6 +342,14 @@ public class Types {
         public String evaluateName;
         public String stackTrace;
         public ExceptionDetails[] innerException;
+    }
+
+    public static class VariablePresentationHint {
+        public boolean lazy;
+
+        public VariablePresentationHint(boolean lazy) {
+            this.lazy = lazy;
+        }
     }
 
     public static class Capabilities {
