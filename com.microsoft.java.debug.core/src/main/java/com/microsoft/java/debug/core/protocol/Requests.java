@@ -410,6 +410,7 @@ public class Requests {
         PAUSEOTHERS("pauseOthers", ThreadOperationArguments.class),
         INLINEVALUES("inlineValues", InlineValuesArguments.class),
         REFRESHVARIABLES("refreshVariables", RefreshVariablesArguments.class),
+        PROCESSID("processId", Arguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;

@@ -24,6 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSession;
@@ -45,6 +46,7 @@ import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
+import com.microsoft.java.debug.core.protocol.Responses.RunInTerminalResponseBody;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
@@ -102,6 +104,14 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
                     if (runResponse != null) {
                         if (runResponse.success) {
                             try {
+                                try {
+                                    RunInTerminalResponseBody terminalResponse = JsonUtils.fromJson(
+                                        JsonUtils.toJson(runResponse.body), RunInTerminalResponseBody.class);
+                                    context.setProcessId(terminalResponse.processId);
+                                    context.setShellProcessId(terminalResponse.shellProcessId);
+                                } catch (JsonSyntaxException e) {
+                                    logger.severe("Failed to resolve runInTerminal response: " + e.toString());
+                                }
                                 VirtualMachine vm = listenConnector.accept(args);
                                 vmHandler.connectVirtualMachine(vm);
                                 context.setDebugSession(new DebugSession(vm));

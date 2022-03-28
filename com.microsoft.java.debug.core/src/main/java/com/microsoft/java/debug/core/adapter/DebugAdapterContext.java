@@ -54,6 +54,9 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private Path classpathJar = null;
     private Path argsfile = null;
 
+    private long shellProcessId = -1;
+    private long processId = -1;
+
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
@@ -325,5 +328,25 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public IStepResultManager getStepResultManager() {
         return stepResultManager;
+    }
+
+    @Override
+    public long getProcessId() {
+        return this.processId;
+    }
+
+    @Override
+    public long getShellProcessId() {
+        return this.shellProcessId;
+    }
+
+    @Override
+    public void setProcessId(long processId) {
+        this.processId = processId;
+    }
+
+    @Override
+    public void setShellProcessId(long shellProcessId) {
+        this.shellProcessId = shellProcessId;
     }
 }

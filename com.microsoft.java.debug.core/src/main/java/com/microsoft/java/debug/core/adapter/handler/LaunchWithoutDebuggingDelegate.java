@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -33,6 +34,7 @@ import com.microsoft.java.debug.core.protocol.Requests.CONSOLE;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.LaunchArguments;
 import com.microsoft.java.debug.core.protocol.Requests.RunInTerminalRequestArguments;
+import com.microsoft.java.debug.core.protocol.Responses.RunInTerminalResponseBody;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.VMStartException;
 
@@ -112,8 +114,19 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
         context.getProtocolServer().sendRequest(request, RUNINTERMINAL_TIMEOUT).whenComplete((runResponse, ex) -> {
             if (runResponse != null) {
                 if (runResponse.success) {
-                    // Without knowing the pid, debugger has lost control of the process.
-                    // So simply send `terminated` event to end the session.
+                    try {
+                        RunInTerminalResponseBody terminalResponse = JsonUtils.fromJson(
+                            JsonUtils.toJson(runResponse.body), RunInTerminalResponseBody.class);
+                        context.setProcessId(terminalResponse.processId);
+                        context.setShellProcessId(terminalResponse.shellProcessId);
+                    } catch (JsonSyntaxException e) {
+                        logger.severe("Failed to resolve runInTerminal response: " + e.toString());
+                    }
+
+                    // TODO: Since the RunInTerminal request will return the pid or parent shell
+                    // pid now, the debugger is able to use this pid to  monitor the lifecycle
+                    // of the running Java process. There is no need to terminate the debug
+                    // session early here.
                     context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
                     resultFuture.complete(response);
                 } else {

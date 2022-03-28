@@ -128,4 +128,12 @@ public interface IDebugAdapterContext {
     IBreakpointManager getBreakpointManager();
 
     IStepResultManager getStepResultManager();
+
+    void setShellProcessId(long shellProcessId);
+
+    long getShellProcessId();
+
+    void setProcessId(long processId);
+
+    long getProcessId();
 }

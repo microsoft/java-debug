@@ -39,11 +39,34 @@ public class Responses {
         }
     }
 
-    public static class RunInTerminalResponseBody extends ResponseBody {
-        public int processId;
+    public static class ProcessIdResponseBody extends ResponseBody {
+        /**
+         * The process ID.
+         */
+        public long processId = -1;
+        /**
+         * The process ID of the terminal shell if the process is running in a terminal shell.
+         */
+        public long shellProcessId = -1;
 
-        public RunInTerminalResponseBody(int processId) {
+        public ProcessIdResponseBody(long processId) {
             this.processId = processId;
+        }
+
+        public ProcessIdResponseBody(long processId, long shellProcessId) {
+            this.processId = processId;
+            this.shellProcessId = shellProcessId;
+        }
+    }
+
+    public static class RunInTerminalResponseBody extends ProcessIdResponseBody {
+
+        public RunInTerminalResponseBody(long processId) {
+            super(processId);
+        }
+
+        public RunInTerminalResponseBody(long processId, long shellProcessId) {
+            super(processId, shellProcessId);
         }
     }
 

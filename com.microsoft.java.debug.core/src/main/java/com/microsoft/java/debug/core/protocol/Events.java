@@ -283,4 +283,26 @@ public class Events {
             this.frameId = frameId;
         }
     }
+
+    public static class ProcessIdNotification extends DebugEvent {
+        /**
+         * The process ID.
+         */
+        public long processId = -1;
+        /**
+         * The process ID of the terminal shell if the process is running in a terminal shell.
+         */
+        public long shellProcessId = -1;
+
+        public ProcessIdNotification(long processId) {
+            super("processid");
+            this.processId = processId;
+        }
+
+        public ProcessIdNotification(long processId, long shellProcessId) {
+            super("processid");
+            this.processId = processId;
+            this.shellProcessId = shellProcessId;
+        }
+    }
 }
