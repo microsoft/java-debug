@@ -95,7 +95,9 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         String methodName = formatMethodName(method, true, true);
         int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
+        String presentationHint = null;
         if (lineNumber < 0) {
+            presentationHint = "subtle";
             if (method.isNative()) {
                 // For native method, display a tip text "native method" in the Call Stack View.
                 methodName += "[native method]";
@@ -105,7 +107,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 clientSource = null;
             }
         }
-        return new Types.StackFrame(frameId, methodName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0);
+        return new Types.StackFrame(frameId, methodName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0, presentationHint);
     }
 
     private Types.Source convertDebuggerSourceToClient(Location location, IDebugAdapterContext context) throws URISyntaxException {
