@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -73,7 +74,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
     private IJavaProject project;
     private ILaunch launch;
     private JDIDebugTarget debugTarget;
-    private Map<ThreadReference, JDIThread> threadMap = new HashMap<>();
+    private Map<ThreadReference, JDIThread> threadMap = new ConcurrentHashMap<>();
     private HashMap<String, Object> options = new HashMap<>();
     private IDebugAdapterContext context;
 
