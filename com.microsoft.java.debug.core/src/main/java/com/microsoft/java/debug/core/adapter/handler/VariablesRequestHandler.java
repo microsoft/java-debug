@@ -259,7 +259,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             String evaluateName = null;
             if (javaVariable.evaluateName == null || (containerEvaluateName == null && containerNode.getProxiedVariable() instanceof ObjectReference)) {
                 // Disable evaluate on the method return value.
-                evaluateName = null;
+                // evaluateName = null;
             } else if (isUnboundedTypeContainer && !containerNode.isIndexedVariable()) {
                 // The type name returned by JDI is the binary name, which uses '$' as the separator of
                 // inner class e.g. Foo$Bar. But the evaluation expression only accepts using '.' as the class

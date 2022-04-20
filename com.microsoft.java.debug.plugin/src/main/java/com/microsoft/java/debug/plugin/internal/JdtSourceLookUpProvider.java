@@ -276,7 +276,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         }
         try {
             URI uri = new URI(uriString);
-            if (uri != null && JDT_SCHEME.equals(uri.getScheme()) && "contents".equals(uri.getAuthority())) {
+            if (JDT_SCHEME.equals(uri.getScheme()) && "contents".equals(uri.getAuthority())) {
                 String handleId = uri.getQuery();
                 IJavaElement element = JavaCore.create(handleId);
                 IClassFile cf = (IClassFile) element.getAncestor(IJavaElement.CLASS_FILE);

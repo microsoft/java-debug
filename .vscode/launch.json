@@ -12,8 +12,8 @@
       "port": 1044,
       "timeout": 30000,
       "sourcePaths": [
-        "${workspaceRoot}/com.microsoft.java.debug.core/main/java",
-        "${workspaceRoot}/com.microsoft.java.debug.plugin/src/main/java"
+        "${workspaceFolder}/com.microsoft.java.debug.core/main/java",
+        "${workspaceFolder}/com.microsoft.java.debug.plugin/src/main/java"
       ],
       "projectName": "com.microsoft.java.debug.plugin"
     }

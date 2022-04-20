@@ -85,18 +85,18 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
         sourceProvider.initialize(context, options);
         // If the debugger and debuggee run at the different JVM platforms, show a warning message.
-        if (debugSession != null) {
-            String debuggeeVersion = debugSession.getVM().version();
-            String debuggerVersion = sourceProvider.getJavaRuntimeVersion(attachArguments.projectName);
-            if (StringUtils.isNotBlank(debuggerVersion) && !debuggerVersion.equals(debuggeeVersion)) {
-                String warnMessage = String.format("[Warn] The debugger and the debuggee are running in different versions of JVMs. "
-                    + "You could see wrong source mapping results.\n"
-                    + "Debugger JVM version: %s\n"
-                    + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
-                logger.warning(warnMessage);
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
-            }
+        // if (debugSession != null) {
+        String debuggeeVersion = debugSession.getVM().version();
+        String debuggerVersion = sourceProvider.getJavaRuntimeVersion(attachArguments.projectName);
+        if (StringUtils.isNotBlank(debuggerVersion) && !debuggerVersion.equals(debuggeeVersion)) {
+            String warnMessage = String.format("[Warn] The debugger and the debuggee are running in different versions of JVMs. "
+                + "You could see wrong source mapping results.\n"
+                + "Debugger JVM version: %s\n"
+                + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
+            logger.warning(warnMessage);
+            context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
         }
+        // }
 
         IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
         evaluationProvider.initialize(context, options);

@@ -93,7 +93,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     Value sizeValue = null;
                     if (value instanceof ArrayReference) {
                         indexedVariables = ((ArrayReference) value).length();
-                    } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure && engine != null) {
+                    } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure ) {
                         try {
                             JavaLogicalStructure structure = JavaLogicalStructureManager.getLogicalStructure((ObjectReference) value);
                             if (structure != null && structure.getSizeExpression() != null) {
@@ -147,7 +147,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     } else {
                         String typeString = "";
                         try {
-                            typeString = variableFormatter.typeToString(value == null ? null : value.type(), options);
+                            typeString = variableFormatter.typeToString(value.type(), options);
                         } catch (Exception e) {
                             logger.log(Level.SEVERE, "Failed to resolve the variable type", e);
                             typeString = "";
