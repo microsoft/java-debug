@@ -65,6 +65,45 @@ Once `eclipse.jdt.ls` launched, the client can send a [Command](https://microsof
 The response to this request will contain a port number on which the debug adapter is listening, and to which a client implementing the debug-adapter protocol can connect to.
 
 
+## Debug Configuration
+
+### Launch settings
+
+`java-debug` supports the following configurations for `type` `launch`:
+
+| Property           | Type                  | Description
+| ---                | ---                   | ---
+| projectName        | String                | Name of the project. This is important if using a multi-module setup with Maven/Gradle.
+| mainClass          | String                | Name of the main class to run
+| args               | String                | Arguments to pass to the main function as string
+| vmArgs             | String                | Arguments for the JVM
+| classPaths         | String[]              | JVM class paths
+| modulePaths        | String[]              | JVM module paths
+| cwd                | String                | Working directory the application should be run under
+| env                | `Map<String, String>` | environment variables
+| stopOnEntry        | boolean               | If `true` the debugger stops when the application starts
+| noDebug            | boolean               | If `true` the application starts without debugging enabled, ignoring any breakpoints.
+| console            | CONSOLE               | One of `internalConsole`, `integratedTerminal` and `externalTerminal`
+| shortenCommandLine | shortenCommandLine    | One of `none`, `jarmanifest` and `argfile`
+| launcherScript     | String                |
+| javaExec           | String                | Path to the java executable to use to run the application
+| stepFilters        | StepFilers            | Table with `skipSynthetics`, `skipStaticInitializers` and `skipConstructors` boolean values
+
+Some editor integrations automatically add some of the values. For example with `vscode-java` or `nvim-jdtls` it is usually not necessary to set the `classPaths`, `modulePaths` or `javaExec` manually.
+
+### Attach configuration
+
+`java-debug` supports the following configurations for `type` `attach`:
+
+| Property    | Type       | Description
+| ---         | ---        | ---
+| projectName | String     | Name of the project. This is important if using a multi-module setup with Maven/Gradle.
+| hostName    | String     | Hostname of the host to connect to
+| port        | int        | Port to connect to
+| timeout     | int        | Connection timeout. Defaults to 30 seconds
+| stepFilters | StepFilers | Table with `skipSynthetics`, `skipStaticInitializers` and `skipConstructors` boolean values
+
+
 License
 -------
 EPL 1.0, See [LICENSE](LICENSE.txt) file.
