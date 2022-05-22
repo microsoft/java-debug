@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -116,6 +116,12 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
                                 vmHandler.connectVirtualMachine(vm);
                                 context.setDebugSession(new DebugSession(vm));
                                 logger.info("Launching debuggee in terminal console succeeded.");
+                                if (context.getShellProcessId() > 0) {
+                                    ProcessHandle debuggeeProcess = LaunchUtils.findJavaProcessInTerminalShell(context.getShellProcessId(), cmds[0], 0);
+                                    if (debuggeeProcess != null) {
+                                        context.setProcessId(debuggeeProcess.pid());
+                                    }
+                                }
                                 resultFuture.complete(response);
                             } catch (TransportTimeoutException e) {
                                 int commandLength = StringUtils.length(launchArguments.cwd) + 1;

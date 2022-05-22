@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2018 Microsoft Corporation and others.
+* Copyright (c) 2018-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -114,20 +114,32 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
         context.getProtocolServer().sendRequest(request, RUNINTERMINAL_TIMEOUT).whenComplete((runResponse, ex) -> {
             if (runResponse != null) {
                 if (runResponse.success) {
+                    ProcessHandle debuggeeProcess = null;
                     try {
                         RunInTerminalResponseBody terminalResponse = JsonUtils.fromJson(
                             JsonUtils.toJson(runResponse.body), RunInTerminalResponseBody.class);
                         context.setProcessId(terminalResponse.processId);
                         context.setShellProcessId(terminalResponse.shellProcessId);
+
+                        if (terminalResponse.processId > 0) {
+                            debuggeeProcess = ProcessHandle.of(terminalResponse.processId).orElse(null);
+                        } else if (terminalResponse.shellProcessId > 0) {
+                            debuggeeProcess = LaunchUtils.findJavaProcessInTerminalShell(terminalResponse.shellProcessId, cmds[0], 3000);
+                        }
+
+                        if (debuggeeProcess != null) {
+                            context.setProcessId(debuggeeProcess.pid());
+                            debuggeeProcess.onExit().thenAcceptAsync(proc -> {
+                                context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                            });
+                        }
                     } catch (JsonSyntaxException e) {
                         logger.severe("Failed to resolve runInTerminal response: " + e.toString());
                     }
 
-                    // TODO: Since the RunInTerminal request will return the pid or parent shell
-                    // pid now, the debugger is able to use this pid to  monitor the lifecycle
-                    // of the running Java process. There is no need to terminate the debug
-                    // session early here.
-                    context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                    if (debuggeeProcess == null || !debuggeeProcess.isAlive()) {
+                        context.getProtocolServer().sendEvent(new Events.TerminatedEvent());
+                    }
                     resultFuture.complete(response);
                 } else {
                     resultFuture.completeExceptionally(

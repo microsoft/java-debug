@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2021 Microsoft Corporation and others.
+* Copyright (c) 2021-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -11,28 +11,39 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
+import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 public class LaunchUtils {
+    private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static Set<Path> tempFilesInUse = new HashSet<>();
 
     /**
@@ -102,6 +113,166 @@ public class LaunchUtils {
         }
     }
 
+    public static ProcessHandle findJavaProcessInTerminalShell(long parentPid, String javaCommand, int timeout/*ms*/) {
+        ProcessHandle parentProcess = ProcessHandle.of(parentPid).orElse(null);
+        if (parentProcess != null) {
+            int retry = 0;
+            final int INTERVAL = 100;
+            final int maxRetries = timeout / INTERVAL;
+            final boolean isCygwinBash = isCygwinBash(parentProcess.info().command().orElse(null));
+            while (retry <= maxRetries) {
+                Optional<ProcessHandle> subProcessHandle = parentProcess.descendants().filter(proc -> {
+                    String command = proc.info().command().orElse("");
+                    return Objects.equals(command, javaCommand) || command.endsWith("\\java.exe") || command.endsWith("/java");
+                }).findFirst();
+
+                if (subProcessHandle.isPresent()) {
+                    logger.info("parentPid: " + parentPid + ", javaPid: " + subProcessHandle.get().pid());
+                    return subProcessHandle.get();
+                } else if (isCygwinBash) {
+                    long javaPid = findJavaProcessByCygwinPsCommand(parentProcess, javaCommand);
+                    if (javaPid > 0) {
+                        logger.info("[cygwin bash] parentPid: " + parentPid + ", javaPid: " + javaPid);
+                        return ProcessHandle.of(javaPid).orElse(null);
+                    }
+                }
+
+                retry++;
+                if (retry > maxRetries) {
+                    break;
+                }
+
+                try {
+                    Thread.sleep(INTERVAL);
+                } catch (InterruptedException e) {
+                    // do nothing
+                }
+                logger.info("Retry to get the subProcess of pid " + parentPid);
+            }
+        }
+
+        return null;
+    }
+
+    private static long findJavaProcessByCygwinPsCommand(ProcessHandle parentProcess, String javaCommand) {
+        String psCommand = detectPsCommandPath(parentProcess.info().command().orElse(null));
+        if (psCommand == null) {
+            return -1;
+        }
+
+        BufferedReader input = null;
+        try {
+            List<PsProcess> psProcs = new ArrayList<>();
+            List<PsProcess> javaCandidates = new ArrayList<>();
+            String[] headers = null;
+            int pidIndex = -1;
+            int ppidIndex = -1;
+            int winpidIndex = -1;
+            String line;
+            String javaExeName = Paths.get(javaCommand).toFile().getName().replaceFirst("\\.exe$", "");
+
+            Process p = Runtime.getRuntime().exec(psCommand);
+            input = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            /**
+             * Here is a sample output when running ps.exe in bash of cygwin/MINGW64.
+             *       PID    PPID    PGID     WINPID   TTY         UID    STIME COMMAND
+             *      1869       1    1869       7852  cons2       4096 15:29:27 /usr/bin/bash
+             *      2271       1    2271      30820  cons4       4096 19:38:30 /usr/bin/bash
+             *      1812       1    1812      21540  cons1       4096 15:05:03 /usr/bin/bash
+             *      2216       1    2216      11328  cons3       4096 19:38:18 /usr/bin/bash
+             *      1720       1    1720       5404  cons0       4096 13:46:42 /usr/bin/bash
+             *      2269    2216    2269       6676  cons3       4096 19:38:21 /c/Program Files/Microsoft/jdk-11.0.14.9-hotspot/bin/java
+             *      1911    1869    1869      29708  cons2       4096 15:29:31 /c/Program Files/nodejs/node
+             *      2315    2271    2315      18064  cons4       4096 19:38:34 /usr/bin/ps
+             */
+            while ((line = input.readLine()) != null) {
+                String[] cols = line.strip().split("\\s+");
+                if (headers == null) {
+                    headers = cols;
+                    pidIndex = ArrayUtils.indexOf(headers, "PID");
+                    ppidIndex = ArrayUtils.indexOf(headers, "PPID");
+                    winpidIndex = ArrayUtils.indexOf(headers, "WINPID");
+                } else if (cols.length >= headers.length) {
+                    long pid = Long.parseLong(cols[pidIndex]);
+                    long ppid = Long.parseLong(cols[ppidIndex]);
+                    long winpid = Long.parseLong(cols[winpidIndex]);
+                    PsProcess process = new PsProcess(pid, ppid, winpid);
+                    psProcs.add(process);
+                    if (cols[cols.length - 1].endsWith("/" + javaExeName) || cols[cols.length - 1].endsWith("/java")) {
+                        javaCandidates.add(process);
+                    }
+                }
+            }
+            input.close();
+
+            if (!javaCandidates.isEmpty()) {
+                Set<Long> winSubProcs = parentProcess.descendants().map(proc -> proc.pid()).collect(Collectors.toSet());
+                long parentWinPid = parentProcess.pid();
+                for (PsProcess javaCandidate: javaCandidates) {
+                    if (winSubProcs.contains(javaCandidate.winpid)) {
+                        return javaCandidate.winpid;
+                    }
+
+                    for (PsProcess proc : psProcs) {
+                        if (javaCandidate.ppid != proc.pid) {
+                            continue;
+                        }
+
+                        if (winSubProcs.contains(proc.winpid) || proc.winpid == parentWinPid) {
+                            return javaCandidate.winpid;
+                        }
+
+                        break;
+                    }
+                }
+            }
+        } catch (Exception err) {
+            logger.log(Level.WARNING, "Failed to find Java process by cygwin ps command", err);
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    public static boolean isCygwinBash(String bashPath) {
+        if (!SystemUtils.IS_OS_WINDOWS || bashPath == null) {
+            return false;
+        }
+
+        String lowerBashPath = bashPath.toLowerCase();
+        return lowerBashPath.endsWith("git\\bin\\bash.exe")
+            || lowerBashPath.endsWith("git\\usr\\bin\\bash.exe")
+            || lowerBashPath.endsWith("mintty.exe")
+            || lowerBashPath.endsWith("cygwin64\\bin\\bash.exe")
+            || (lowerBashPath.endsWith("bash.exe") && detectPsCommandPath(bashPath) != null);
+    }
+
+    private static String detectPsCommandPath(String bashPath) {
+        if (bashPath == null) {
+            return null;
+        }
+
+        Path psPath = Paths.get(bashPath, "..\\ps.exe");
+        if (!Files.exists(psPath)) {
+            psPath = Paths.get(bashPath, "..\\..\\usr\\bin\\ps.exe");
+            if (!Files.exists(psPath)) {
+                psPath = null;
+            }
+        }
+
+        if (psPath == null) {
+            return null;
+        }
+
+        return psPath.normalize().toString();
+    }
+
     private static Path tmpdir = null;
 
     private static synchronized Path getTmpDir() throws IOException {
@@ -154,6 +325,18 @@ public class LaunchUtils {
             return md5.toString(Character.MAX_RADIX);
         } catch (NoSuchAlgorithmException e) {
             return Integer.toString(input.hashCode(), Character.MAX_RADIX);
+        }
+    }
+
+    private static class PsProcess {
+        long pid;
+        long ppid;
+        long winpid;
+
+        public PsProcess(long pid, long ppid, long winpid) {
+            this.pid = pid;
+            this.ppid = ppid;
+            this.winpid = winpid;
         }
     }
 }

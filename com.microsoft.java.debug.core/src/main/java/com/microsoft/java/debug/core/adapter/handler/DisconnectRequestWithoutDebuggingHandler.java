@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2018 Microsoft Corporation and others.
+* Copyright (c) 2018-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -10,6 +10,8 @@
 *******************************************************************************/
 
 package com.microsoft.java.debug.core.adapter.handler;
+
+import java.util.Optional;
 
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -25,6 +27,11 @@ public class DisconnectRequestWithoutDebuggingHandler extends AbstractDisconnect
         Process debuggeeProcess = context.getDebuggeeProcess();
         if (debuggeeProcess != null && disconnectArguments.terminateDebuggee) {
             debuggeeProcess.destroy();
+        } else if (context.getProcessId() > 0 && disconnectArguments.terminateDebuggee) {
+            Optional<ProcessHandle> debuggeeHandle = ProcessHandle.of(context.getProcessId());
+            if (debuggeeHandle.isPresent()) {
+                debuggeeHandle.get().destroy();
+            }
         }
     }
 }
