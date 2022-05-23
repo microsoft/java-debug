@@ -171,7 +171,7 @@ public class LaunchUtils {
             String line;
             String javaExeName = Paths.get(javaCommand).toFile().getName().replaceFirst("\\.exe$", "");
 
-            Process p = Runtime.getRuntime().exec(new String[] { psCommand, "-l" });
+            Process p = Runtime.getRuntime().exec(new String[] {psCommand, "-l"});
             input = new BufferedReader(new InputStreamReader(p.getInputStream()));
             /**
              * Here is a sample output when running ps.exe in bash of cygwin/MINGW64.
