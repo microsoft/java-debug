@@ -92,7 +92,7 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
         final String launchInTerminalErrorFormat = "Failed to launch debuggee in terminal. Reason: %s";
 
         final String[] names = launchArguments.mainClass.split("[/\\.]");
-        final String terminalName = "Run " + names[names.length - 1];
+        final String terminalName = "Run: " + names[names.length - 1];
         String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         RunInTerminalRequestArguments requestArgs = null;
         if (launchArguments.console == CONSOLE.integratedTerminal) {

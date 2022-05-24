@@ -77,7 +77,7 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
             String address = listenConnector.startListening(args);
 
             final String[] names = launchArguments.mainClass.split("[/\\.]");
-            final String terminalName = "Debug " + names[names.length - 1];
+            final String terminalName = "Debug: " + names[names.length - 1];
             String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, address);
             RunInTerminalRequestArguments requestArgs = null;
             if (launchArguments.console == CONSOLE.integratedTerminal) {
