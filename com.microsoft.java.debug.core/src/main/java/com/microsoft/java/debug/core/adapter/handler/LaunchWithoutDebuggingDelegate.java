@@ -40,7 +40,6 @@ import com.sun.jdi.connect.VMStartException;
 
 public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    protected static final String TERMINAL_TITLE = "Java Process Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
     private Consumer<IDebugAdapterContext> terminateHandler;
 
@@ -92,14 +91,16 @@ public class LaunchWithoutDebuggingDelegate implements ILaunchDelegate {
 
         final String launchInTerminalErrorFormat = "Failed to launch debuggee in terminal. Reason: %s";
 
+        final String[] names = launchArguments.mainClass.split("[/\\.]");
+        final String terminalName = "Run: " + names[names.length - 1];
         String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, null);
         RunInTerminalRequestArguments requestArgs = null;
         if (launchArguments.console == CONSOLE.integratedTerminal) {
             requestArgs = RunInTerminalRequestArguments.createIntegratedTerminal(cmds, launchArguments.cwd,
-                    launchArguments.env, TERMINAL_TITLE);
+                    launchArguments.env, terminalName);
         } else {
             requestArgs = RunInTerminalRequestArguments.createExternalTerminal(cmds, launchArguments.cwd,
-                    launchArguments.env, TERMINAL_TITLE);
+                    launchArguments.env, terminalName);
         }
         Request request = new Request(Command.RUNINTERMINAL.getName(),
                 (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));

@@ -58,7 +58,6 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
 
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final int ATTACH_TERMINAL_TIMEOUT = 20 * 1000;
-    private static final String TERMINAL_TITLE = "Java Debug Console";
     protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
     private VMHandler vmHandler = new VMHandler();
 
@@ -77,6 +76,8 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
             ((Connector.IntegerArgument) args.get("timeout")).setValue(ATTACH_TERMINAL_TIMEOUT);
             String address = listenConnector.startListening(args);
 
+            final String[] names = launchArguments.mainClass.split("[/\\.]");
+            final String terminalName = "Debug: " + names[names.length - 1];
             String[] cmds = LaunchRequestHandler.constructLaunchCommands(launchArguments, false, address);
             RunInTerminalRequestArguments requestArgs = null;
             if (launchArguments.console == CONSOLE.integratedTerminal) {
@@ -84,13 +85,13 @@ public class LaunchWithDebuggingDelegate implements ILaunchDelegate {
                         cmds,
                         launchArguments.cwd,
                         launchArguments.env,
-                        TERMINAL_TITLE);
+                        terminalName);
             } else {
                 requestArgs = RunInTerminalRequestArguments.createExternalTerminal(
                         cmds,
                         launchArguments.cwd,
                         launchArguments.env,
-                        TERMINAL_TITLE);
+                        terminalName);
             }
             Request request = new Request(Command.RUNINTERMINAL.getName(),
                     (JsonObject) JsonUtils.toJsonTree(requestArgs, RunInTerminalRequestArguments.class));
