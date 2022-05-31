@@ -117,7 +117,7 @@ public class LaunchUtils {
         ProcessHandle shellProcess = ProcessHandle.of(shellPid).orElse(null);
         if (shellProcess != null) {
             int retry = 0;
-            final int INTERVAL = 100;
+            final int INTERVAL = 20/*ms*/;
             final int maxRetries = timeout / INTERVAL;
             final boolean isCygwinShell = isCygwinShell(shellProcess.info().command().orElse(null));
             while (retry <= maxRetries) {
@@ -127,11 +127,17 @@ public class LaunchUtils {
                 }).findFirst();
 
                 if (subProcessHandle.isPresent()) {
+                    if (retry > 0) {
+                        logger.info("Retried " + retry + " times to find Java subProcess.");
+                    }
                     logger.info("shellPid: " + shellPid + ", javaPid: " + subProcessHandle.get().pid());
                     return subProcessHandle.get();
                 } else if (isCygwinShell) {
                     long javaPid = findJavaProcessByCygwinPsCommand(shellProcess, javaCommand);
                     if (javaPid > 0) {
+                        if (retry > 0) {
+                            logger.info("Retried " + retry + " times to find Java subProcess.");
+                        }
                         logger.info("[Cygwin Shell] shellPid: " + shellPid + ", javaPid: " + javaPid);
                         return ProcessHandle.of(javaPid).orElse(null);
                     }
@@ -147,8 +153,10 @@ public class LaunchUtils {
                 } catch (InterruptedException e) {
                     // do nothing
                 }
-                logger.info("Retry to find Java subProcess of shell pid " + shellPid);
+                
             }
+
+            logger.info("Retried " + retry + " times but failed to find Java subProcess of shell pid " + shellPid);
         }
 
         return null;
