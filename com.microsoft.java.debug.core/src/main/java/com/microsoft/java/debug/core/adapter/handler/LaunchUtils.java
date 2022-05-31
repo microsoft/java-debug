@@ -153,7 +153,6 @@ public class LaunchUtils {
                 } catch (InterruptedException e) {
                     // do nothing
                 }
-                
             }
 
             logger.info("Retried " + retry + " times but failed to find Java subProcess of shell pid " + shellPid);
