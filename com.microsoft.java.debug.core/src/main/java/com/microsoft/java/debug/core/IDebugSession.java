@@ -36,7 +36,7 @@ public interface IDebugSession {
 
     void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] classFilters, String[] classExclusionFilters);
 
-    // TODO: createFunctionBreakpoint
+    IMethodBreakpoint createFunctionBreakpoint(String className, String functionName, String condition, int hitCount);
 
     Process process();
 
