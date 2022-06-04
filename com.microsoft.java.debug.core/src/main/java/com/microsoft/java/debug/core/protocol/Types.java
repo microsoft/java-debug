@@ -368,5 +368,6 @@ public class Types {
         public ExceptionBreakpointFilter[] exceptionBreakpointFilters = new ExceptionBreakpointFilter[0];
         public boolean supportsDataBreakpoints;
         public boolean supportsClipboardContext;
+        public boolean supportsFunctionBreakpoints;
     }
 }
