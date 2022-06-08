@@ -43,6 +43,8 @@ public class Types {
         public int line;
         public int column;
         public String name;
+        public String presentationHint;
+
 
         /**
          * Constructs a StackFrame with the given information.
@@ -57,13 +59,17 @@ public class Types {
          *          line number of the stack frame
          * @param col
          *          column number of the stack frame
+         * @param presentationHint
+         *          An optional hint for how to present this frame in the UI.
+         *          Values: 'normal', 'label', 'subtle'
          */
-        public StackFrame(int id, String name, Source src, int ln, int col) {
+        public StackFrame(int id, String name, Source src, int ln, int col, String presentationHint) {
             this.id = id;
             this.name = name;
             this.source = src;
             this.line = ln;
             this.column = col;
+            this.presentationHint = presentationHint;
         }
     }
 
