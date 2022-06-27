@@ -101,7 +101,7 @@ public class SetFunctionBreakpointsRequestHandler implements IDebugRequestHandle
             // install it.
             if (currentMethodBreakpoints[i] == requestedMethodBreakpoints[i]) {
                 currentMethodBreakpoints[i].install().thenAccept(wp -> {
-                    BreakpointEvent bpEvent = new BreakpointEvent("new", convertDebuggerMethodToClient(wp));
+                    BreakpointEvent bpEvent = new BreakpointEvent("changed", convertDebuggerMethodToClient(wp));
                     context.getProtocolServer().sendEvent(bpEvent);
                 });
             } else {
@@ -175,10 +175,8 @@ public class SetFunctionBreakpointsRequestHandler implements IDebugRequestHandle
                                         .sendEvent(new Events.StoppedEvent("function breakpoint", bpThread.uniqueID()));
                             }
 
-                        } else {
-                            debugEvent.eventSet.resume();
+                            debugEvent.shouldResume = false;
                         }
-                        debugEvent.shouldResume = false;
                     });
         }
     }

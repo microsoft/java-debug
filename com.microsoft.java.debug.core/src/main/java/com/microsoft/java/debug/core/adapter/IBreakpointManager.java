@@ -82,9 +82,10 @@ public interface IBreakpointManager {
      * manager, reuse the cached one. Otherwise register the requested method
      * breakpoints as a new method breakpoints.
      * Besides, delete those not existed any more.
-     * 
+     *
      * @param methodBreakpoints
-     * @return
+     *                  the method breakpoints requested by client
+     * @return the full registered method breakpoints list
      */
     IMethodBreakpoint[] setMethodBreakpoints(IMethodBreakpoint[] methodBreakpoints);
 

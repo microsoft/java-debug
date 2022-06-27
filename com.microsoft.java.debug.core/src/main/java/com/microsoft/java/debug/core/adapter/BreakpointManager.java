@@ -251,7 +251,7 @@ public class BreakpointManager implements IBreakpointManager {
             try {
                 // Destroy the method breakpoint on the debugee VM.
                 toRemove.close();
-                this.watchpoints.remove(getMethodBreakpointKey(toRemove));
+                this.methodBreakpoints.remove(getMethodBreakpointKey(toRemove));
             } catch (Exception e) {
                 logger.log(Level.SEVERE, String.format("Remove the method breakpoint exception: %s", e.toString()), e);
             }
