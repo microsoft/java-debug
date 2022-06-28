@@ -12,7 +12,6 @@
 package com.microsoft.java.debug.core.adapter;
 
 import com.microsoft.java.debug.core.IBreakpoint;
-import com.microsoft.java.debug.core.IMethodBreakpoint;
 import com.microsoft.java.debug.core.IWatchpoint;
 
 public interface IBreakpointManager {
@@ -70,23 +69,4 @@ public interface IBreakpointManager {
      * Returns all registered watchpoints.
      */
     IWatchpoint[] getWatchpoints();
-
-    /**
-     * Returns all the registered method breakpoints.
-     */
-    IMethodBreakpoint[] getMethodBreakpoints();
-
-    /**
-     * Update the method breakpoints list. If the requested method breakpoints
-     * already registered in the breakpoint
-     * manager, reuse the cached one. Otherwise register the requested method
-     * breakpoints as a new method breakpoints.
-     * Besides, delete those not existed any more.
-     *
-     * @param methodBreakpoints
-     *                  the method breakpoints requested by client
-     * @return the full registered method breakpoints list
-     */
-    IMethodBreakpoint[] setMethodBreakpoints(IMethodBreakpoint[] methodBreakpoints);
-
 }
