@@ -146,4 +146,10 @@ public class DebugSession implements IDebugSession {
     public VirtualMachine getVM() {
         return vm;
     }
+
+    @Override
+    public IMethodBreakpoint createFunctionBreakpoint(String className, String functionName, String condition,
+            int hitCount) {
+        return new MethodBreakpoint(vm, this.getEventHub(), className, functionName, condition, hitCount);
+    }
 }

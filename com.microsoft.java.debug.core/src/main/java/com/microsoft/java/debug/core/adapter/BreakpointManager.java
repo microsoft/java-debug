@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.IMethodBreakpoint;
 import com.microsoft.java.debug.core.IWatchpoint;
 
 public class BreakpointManager implements IBreakpointManager {
@@ -35,6 +36,7 @@ public class BreakpointManager implements IBreakpointManager {
     private List<IBreakpoint> breakpoints;
     private Map<String, HashMap<String, IBreakpoint>> sourceToBreakpoints;
     private Map<String, IWatchpoint> watchpoints;
+    private Map<String, IMethodBreakpoint> methodBreakpoints;
     private AtomicInteger nextBreakpointId = new AtomicInteger(1);
 
     /**
@@ -44,6 +46,7 @@ public class BreakpointManager implements IBreakpointManager {
         this.breakpoints = Collections.synchronizedList(new ArrayList<>(5));
         this.sourceToBreakpoints = new HashMap<>();
         this.watchpoints = new HashMap<>();
+        this.methodBreakpoints = new HashMap<>();
     }
 
     @Override
@@ -207,5 +210,62 @@ public class BreakpointManager implements IBreakpointManager {
     @Override
     public IWatchpoint[] getWatchpoints() {
         return this.watchpoints.values().stream().filter(wp -> wp != null).toArray(IWatchpoint[]::new);
+    }
+
+    @Override
+    public IMethodBreakpoint[] getMethodBreakpoints() {
+        return this.methodBreakpoints.values().stream().filter(Objects::nonNull).toArray(IMethodBreakpoint[]::new);
+    }
+
+    @Override
+    public IMethodBreakpoint[] setMethodBreakpoints(IMethodBreakpoint[] breakpoints) {
+        List<IMethodBreakpoint> result = new ArrayList<>();
+        List<IMethodBreakpoint> toAdds = new ArrayList<>();
+        List<IMethodBreakpoint> toRemoves = new ArrayList<>();
+
+        Set<String> visitedKeys = new HashSet<>();
+        for (IMethodBreakpoint change : breakpoints) {
+            if (change == null) {
+                result.add(change);
+                continue;
+            }
+
+            String key = getMethodBreakpointKey(change);
+            IMethodBreakpoint cache = methodBreakpoints.get(key);
+            if (cache != null) {
+                visitedKeys.add(key);
+                result.add(cache);
+            } else {
+                toAdds.add(change);
+                result.add(change);
+            }
+        }
+
+        for (IMethodBreakpoint cache : methodBreakpoints.values()) {
+            if (!visitedKeys.contains(getMethodBreakpointKey(cache))) {
+                toRemoves.add(cache);
+            }
+        }
+
+        for (IMethodBreakpoint toRemove : toRemoves) {
+            try {
+                // Destroy the method breakpoint on the debugee VM.
+                toRemove.close();
+                this.methodBreakpoints.remove(getMethodBreakpointKey(toRemove));
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, String.format("Remove the method breakpoint exception: %s", e.toString()), e);
+            }
+        }
+
+        for (IMethodBreakpoint toAdd : toAdds) {
+            toAdd.putProperty("id", this.nextBreakpointId.getAndIncrement());
+            this.methodBreakpoints.put(getMethodBreakpointKey(toAdd), toAdd);
+        }
+
+        return result.toArray(new IMethodBreakpoint[0]);
+    }
+
+    private String getMethodBreakpointKey(IMethodBreakpoint breakpoint) {
+        return breakpoint.className() + "#" + breakpoint.methodName();
     }
 }
