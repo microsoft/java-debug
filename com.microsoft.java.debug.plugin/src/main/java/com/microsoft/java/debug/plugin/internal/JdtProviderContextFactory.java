@@ -16,8 +16,10 @@ import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.IProviderContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.IStepFilterProvider;
 import com.microsoft.java.debug.core.adapter.IVirtualMachineManagerProvider;
 import com.microsoft.java.debug.core.adapter.ProviderContext;
+import com.microsoft.java.debug.core.adapter.StepFilterProvider;
 import com.microsoft.java.debug.plugin.internal.eval.JdtEvaluationProvider;
 
 /**
@@ -35,6 +37,7 @@ public abstract class JdtProviderContextFactory {
         context.registerProvider(IHotCodeReplaceProvider.class, new JavaHotCodeReplaceProvider());
         context.registerProvider(IEvaluationProvider.class, new JdtEvaluationProvider());
         context.registerProvider(ICompletionsProvider.class, new CompletionsProvider());
+        context.registerProvider(IStepFilterProvider.class, new StepFilterProvider());
 
         return context;
     }

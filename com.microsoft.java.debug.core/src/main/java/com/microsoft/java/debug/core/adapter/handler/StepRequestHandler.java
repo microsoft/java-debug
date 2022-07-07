@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.microsoft.java.debug.core.adapter.*;
 import org.apache.commons.lang3.ArrayUtils;
 
 import com.microsoft.java.debug.core.DebugEvent;
@@ -22,10 +23,6 @@ import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.JdiExceptionReference;
 import com.microsoft.java.debug.core.JdiMethodResult;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.ErrorCode;
-import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -161,27 +158,26 @@ public class StepRequestHandler implements IDebugRequestHandler {
         } else if (event instanceof StepEvent) {
             ThreadReference thread = ((StepEvent) event).thread();
             threadState.deleteStepRequest(eventRequestManager);
-            if (isStepFiltersConfigured(context.getStepFilters())) {
-                try {
-                    if (threadState.pendingStepType == Command.STEPIN) {
-                        int currentStackDepth = thread.frameCount();
-                        Location currentStepLocation = getTopFrame(thread).location();
+            IStepFilterProvider stepFilter = context.getProvider(IStepFilterProvider.class);
+            try {
+                if (threadState.pendingStepType == Command.STEPIN) {
+                    int currentStackDepth = thread.frameCount();
+                    Location currentStepLocation = getTopFrame(thread).location();
 
-                        // If the ending step location is filtered, or same as the original location where the step into operation is originated,
-                        // do another step of the same kind.
-                        if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, context)
-                                || shouldDoExtraStepInto(threadState.stackDepth, threadState.stepLocation, currentStackDepth, currentStepLocation)) {
-                            threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
-                                context.getStepFilters().allowClasses,
-                                context.getStepFilters().skipClasses);
-                            threadState.pendingStepRequest.enable();
-                            debugEvent.shouldResume = true;
-                            return;
-                        }
+                    // If the ending step location is filtered, or same as the original location where the step into operation is originated,
+                    // do another step of the same kind.
+                    if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, stepFilter, context)
+                            || shouldDoExtraStepInto(threadState.stackDepth, threadState.stepLocation, currentStackDepth, currentStepLocation)) {
+                        threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                            context.getStepFilters().allowClasses,
+                            context.getStepFilters().skipClasses);
+                        threadState.pendingStepRequest.enable();
+                        debugEvent.shouldResume = true;
+                        return;
                     }
-                } catch (IncompatibleThreadStateException | IndexOutOfBoundsException ex) {
-                    // ignore.
                 }
+            } catch (IncompatibleThreadStateException | IndexOutOfBoundsException ex) {
+                // ignore.
             }
             threadState.deleteMethodExitRequest(eventRequestManager);
             if (threadState.eventSubscription != null) {
@@ -205,33 +201,19 @@ public class StepRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private boolean isStepFiltersConfigured(StepFilters filters) {
-        if (filters == null) {
-            return false;
-        }
-        return ArrayUtils.isNotEmpty(filters.allowClasses) || ArrayUtils.isNotEmpty(filters.skipClasses)
-               || ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
-               || filters.skipStaticInitializers || filters.skipSynthetics;
-    }
-
     /**
      * Return true if the StepEvent's location is a Method that the user has indicated to filter.
      *
      * @throws IncompatibleThreadStateException
      *                      if the thread is not suspended in the target VM.
      */
-    private boolean shouldFilterLocation(Location originalLocation, Location currentLocation, IDebugAdapterContext context)
+    private boolean shouldFilterLocation(Location originalLocation, Location currentLocation, IStepFilterProvider stepFilter, IDebugAdapterContext context)
             throws IncompatibleThreadStateException {
         if (originalLocation == null || currentLocation == null) {
             return false;
         }
-        return !shouldFilterMethod(originalLocation.method(), context) && shouldFilterMethod(currentLocation.method(), context);
-    }
-
-    private boolean shouldFilterMethod(Method method, IDebugAdapterContext context) {
-        return (context.getStepFilters().skipStaticInitializers && method.isStaticInitializer())
-                || (context.getStepFilters().skipSynthetics && method.isSynthetic())
-                || (context.getStepFilters().skipConstructors && method.isConstructor());
+        return !stepFilter.skip(originalLocation.method(), context.getStepFilters())
+                && stepFilter.skip(currentLocation.method(), context.getStepFilters());
     }
 
     /**
