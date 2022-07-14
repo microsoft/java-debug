@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import com.sun.jdi.Location;
+import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
@@ -38,6 +39,7 @@ public class Breakpoint implements IBreakpoint {
     private String condition = null;
     private String logMessage = null;
     private HashMap<Object, Object> propertyMap = new HashMap<>();
+    private String methodSignature = null;
 
     Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber) {
         this(vm, eventHub, className, lineNumber, 0, null);
@@ -50,7 +52,12 @@ public class Breakpoint implements IBreakpoint {
     Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount, String condition) {
         this.vm = vm;
         this.eventHub = eventHub;
-        this.className = className;
+        if (className != null && className.contains("#")) {
+            this.className = className.substring(0, className.indexOf("#"));
+            this.methodSignature = className.substring(className.indexOf("#") + 1);
+        } else {
+            this.className = className;
+        }
         this.lineNumber = lineNumber;
         this.hitCount = hitCount;
         this.condition = condition;
@@ -234,6 +241,24 @@ public class Breakpoint implements IBreakpoint {
         return locations;
     }
 
+    private static List<Location> collectLocations(List<ReferenceType> refTypes, String nameAndSignature) {
+        List<Location> locations = new ArrayList<>();
+        String[] segments = nameAndSignature.split("#");
+
+        for (ReferenceType refType : refTypes) {
+            List<Method> methods = refType.methods();
+            for (Method method : methods) {
+                if (!method.isAbstract() && !method.isNative()
+                        && segments[0].equals(method.name())
+                        && (segments[1].equals(method.genericSignature()) || segments[1].equals(method.signature()))) {
+                    locations.add(method.location());
+                    break;
+                }
+            }
+        }
+        return locations;
+    }
+
     private List<BreakpointRequest> createBreakpointRequests(ReferenceType refType, int lineNumber, int hitCount,
             boolean includeNestedTypes) {
         List<ReferenceType> refTypes = new ArrayList<>();
@@ -243,7 +268,12 @@ public class Breakpoint implements IBreakpoint {
 
     private List<BreakpointRequest> createBreakpointRequests(List<ReferenceType> refTypes, int lineNumber,
             int hitCount, boolean includeNestedTypes) {
-        List<Location> locations = collectLocations(refTypes, lineNumber, includeNestedTypes);
+        List<Location> locations;
+        if (this.methodSignature != null) {
+            locations = collectLocations(refTypes, this.methodSignature);
+        } else {
+            locations = collectLocations(refTypes, lineNumber, includeNestedTypes);
+        }
 
         // find out the existing breakpoint locations
         List<Location> existingLocations = new ArrayList<>(requests.size());
@@ -268,6 +298,7 @@ public class Breakpoint implements IBreakpoint {
                     request.addCountFilter(hitCount);
                 }
                 request.enable();
+                request.putProperty(IBreakpoint.REQUEST_TYPE_FUNCTIONAL, Boolean.valueOf(this.methodSignature != null));
                 newRequests.add(request);
             } catch (VMDisconnectedException ex) {
                 // enable breakpoint operation may be executing while JVM is terminating, thus the VMDisconnectedException may be

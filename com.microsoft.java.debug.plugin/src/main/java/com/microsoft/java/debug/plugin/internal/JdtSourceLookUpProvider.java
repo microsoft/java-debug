@@ -26,13 +26,6 @@ import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.DebugException;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
-import com.microsoft.java.debug.core.adapter.Constants;
-import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
-import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
-
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
@@ -48,10 +41,17 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
-import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.LibraryLocation;
+
+import com.microsoft.java.debug.BreakpointLocationLocator;
+import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.Constants;
+import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
+import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -162,12 +162,16 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // In current stage, we don't support to move the invalid breakpoint down to the next valid location, and just
                 // mark it as "unverified".
                 // In future, we could consider supporting to update the breakpoint to a valid location.
-                ValidBreakpointLocationLocator locator = new ValidBreakpointLocationLocator(astUnit, lines[i], true, true);
+                BreakpointLocationLocator locator = new BreakpointLocationLocator(astUnit, lines[i], true, true);
                 astUnit.accept(locator);
                 // When the final valid line location is same as the original line, that represents it's a valid breakpoint.
                 // Add location type check to avoid breakpoint on method/field which will never be hit in current implementation.
-                if (lines[i] == locator.getLineLocation() && locator.getLocationType() == ValidBreakpointLocationLocator.LOCATION_LINE) {
+                if (lines[i] == locator.getLineLocation()
+                        && locator.getLocationType() == BreakpointLocationLocator.LOCATION_LINE) {
                     fqns[i] = locator.getFullyQualifiedTypeName();
+                } else if (locator.getLocationType() == BreakpointLocationLocator.LOCATION_METHOD) {
+                    fqns[i] = locator.getFullyQualifiedTypeName().concat("#").concat(locator.getMethodName())
+                            .concat("#").concat(locator.getMethodSignature());
                 }
             }
         }
