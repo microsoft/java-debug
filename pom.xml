@@ -168,7 +168,7 @@
         <repository>
             <id>JDT.LS</id>
             <layout>p2</layout>
-            <url>https://download.eclipse.org/jdtls/snapshots/repository/latest/</url>
+            <url>https://download.eclipse.org/jdtls/snapshots/repository/1.5.0.202110111021/</url>
         </repository>
         <repository>
             <id>JBOLL.TOOLS</id>
