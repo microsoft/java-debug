@@ -161,17 +161,23 @@ public class StepRequestHandler implements IDebugRequestHandler {
             threadState.deleteStepRequest(eventRequestManager);
             IStepFilterProvider stepFilter = context.getProvider(IStepFilterProvider.class);
             try {
-                if (threadState.pendingStepType == Command.STEPIN) {
+                if (threadState.pendingStepType == Command.STEPIN || threadState.pendingStepType == Command.STEPOUT) {
                     int currentStackDepth = thread.frameCount();
                     Location currentStepLocation = getTopFrame(thread).location();
 
                     // If the ending step location is filtered, or same as the original location where the step into operation is originated,
                     // do another step of the same kind.
                     if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, stepFilter, context)
-                            || shouldDoExtraStepInto(threadState.stackDepth, threadState.stepLocation, currentStackDepth, currentStepLocation)) {
-                        threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
-                            context.getStepFilters().allowClasses,
-                            context.getStepFilters().skipClasses);
+                            || shouldDoExtraStep(threadState.stackDepth, threadState.stepLocation, currentStackDepth, currentStepLocation)) {
+                        if (threadState.pendingStepType == Command.STEPIN) {
+                            threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                                    context.getStepFilters().allowClasses,
+                                    context.getStepFilters().skipClasses);
+                        } else {
+                            threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                                    context.getStepFilters().allowClasses,
+                                    context.getStepFilters().skipClasses);
+                        }
                         threadState.pendingStepRequest.enable();
                         debugEvent.shouldResume = true;
                         return;
@@ -223,7 +229,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
      * @throws IncompatibleThreadStateException
      *                      if the thread is not suspended in the target VM.
      */
-    private boolean shouldDoExtraStepInto(int originalStackDepth, Location originalLocation, int currentStackDepth, Location currentLocation)
+    private boolean shouldDoExtraStep(int originalStackDepth, Location originalLocation, int currentStackDepth, Location currentLocation)
             throws IncompatibleThreadStateException {
         if (originalStackDepth != currentStackDepth) {
             return false;

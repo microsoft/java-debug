@@ -8,7 +8,7 @@
     <name>${base.name} :: Debugger Core</name>
     <description>The Java Debug Server is an implementation of Visual Studio Code (VSCode) Debug Protocol. It can be used in Visual Studio Code to debug Java programs.</description>
     <url>https://github.com/scalacenter/java-debug</url>
-    <version>0.34.0+2</version>
+    <version>0.34.0+3-SNAPSHOT</version>
     <properties>
         <base.name>Java Debug Server for Visual Studio Code</base.name>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
