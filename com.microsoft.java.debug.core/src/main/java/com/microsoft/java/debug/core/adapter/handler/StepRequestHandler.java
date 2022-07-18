@@ -174,7 +174,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                                     context.getStepFilters().allowClasses,
                                     context.getStepFilters().skipClasses);
                         } else {
-                            threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                            threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
                                     context.getStepFilters().allowClasses,
                                     context.getStepFilters().skipClasses);
                         }
