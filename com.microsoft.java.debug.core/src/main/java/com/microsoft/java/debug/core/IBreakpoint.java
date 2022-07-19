@@ -14,6 +14,9 @@ package com.microsoft.java.debug.core;
 import java.util.concurrent.CompletableFuture;
 
 public interface IBreakpoint extends IDebugResource {
+
+    String REQUEST_TYPE_FUNCTIONAL = "functional";
+
     String className();
 
     int getLineNumber();

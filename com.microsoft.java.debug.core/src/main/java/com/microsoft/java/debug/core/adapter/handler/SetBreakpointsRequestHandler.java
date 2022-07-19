@@ -44,11 +44,11 @@ import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.BooleanValue;
 import com.sun.jdi.Field;
 import com.sun.jdi.ObjectReference;
-import com.sun.jdi.StringReference;
 import com.sun.jdi.ReferenceType;
+import com.sun.jdi.StringReference;
 import com.sun.jdi.ThreadReference;
-import com.sun.jdi.Value;
 import com.sun.jdi.VMDisconnectedException;
+import com.sun.jdi.Value;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.StepEvent;
@@ -171,6 +171,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         ).findFirst().orElse(null);
     }
 
+    private IBreakpoint getAssociatedBreakpoint(IDebugAdapterContext context, BreakpointEvent event) {
+        return Arrays.asList(context.getBreakpointManager().getBreakpoints()).stream()
+                .filter(bp -> bp.requests().contains(event.request())).findFirst().orElse(null);
+    }
+
     private void registerBreakpointHandler(IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
@@ -188,7 +193,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
                     // find the breakpoint related to this breakpoint event
                     IBreakpoint expressionBP = getAssociatedEvaluatableBreakpoint(context, (BreakpointEvent) event);
-
+                    boolean functional = (boolean) event.request().getProperty(IBreakpoint.REQUEST_TYPE_FUNCTIONAL);
                     if (expressionBP != null) {
                         CompletableFuture.runAsync(() -> {
                             engine.evaluateForBreakpoint((IEvaluatableBreakpoint) expressionBP, bpThread).whenComplete((value, ex) -> {
@@ -199,12 +204,14 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                 if (resume) {
                                     debugEvent.eventSet.resume();
                                 } else {
-                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent(
+                                            functional ? "function breakpoint" : "breakpoint", bpThread.uniqueID()));
                                 }
                             });
                         });
                     } else {
-                        context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                        context.getProtocolServer().sendEvent(new Events.StoppedEvent(
+                                functional ? "function breakpoint" : "breakpoint", bpThread.uniqueID()));
                     }
                     debugEvent.shouldResume = false;
                 }
