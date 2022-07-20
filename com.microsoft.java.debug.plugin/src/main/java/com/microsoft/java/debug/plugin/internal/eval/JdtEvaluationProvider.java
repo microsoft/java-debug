@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -328,9 +329,22 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
         try  {
             engine.evaluateExpression(compiledExpression, stackframe, evaluateResult -> {
                 if (evaluateResult == null || evaluateResult.hasErrors()) {
-                    Exception ex = evaluateResult.getException() != null ? evaluateResult.getException()
-                            : new RuntimeException(StringUtils.join(evaluateResult.getErrorMessages()));
-                    completableFuture.completeExceptionally(ex);
+                    DebugException debugException = evaluateResult.getException();
+                    if (debugException == null) {
+                        completableFuture.completeExceptionally(
+                              new RuntimeException(String.join(" ", evaluateResult.getErrorMessages())));
+                        return;
+                    }
+                    IStatus status = debugException.getStatus();
+                    if (status.getCode() == DebugException.TARGET_REQUEST_FAILED) {
+                        Throwable innerException = status.getException();
+                        if (innerException instanceof com.sun.jdi.InvocationException) {
+                            ObjectReference objectReference = ((com.sun.jdi.InvocationException) innerException).exception();
+                            completableFuture.complete(objectReference);
+                            return;
+                        }
+                    }
+                    completableFuture.completeExceptionally(debugException);
                     return;
                 }
                 try {
