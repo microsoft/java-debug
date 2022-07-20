@@ -52,6 +52,7 @@ import com.sun.jdi.Value;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.StepEvent;
+import com.sun.jdi.request.EventRequest;
 
 public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
@@ -193,7 +194,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
                     // find the breakpoint related to this breakpoint event
                     IBreakpoint expressionBP = getAssociatedEvaluatableBreakpoint(context, (BreakpointEvent) event);
-                    boolean functional = (boolean) event.request().getProperty(IBreakpoint.REQUEST_TYPE_FUNCTIONAL);
+                    String breakpointName = computeBreakpointName(event.request());
+
                     if (expressionBP != null) {
                         CompletableFuture.runAsync(() -> {
                             engine.evaluateForBreakpoint((IEvaluatableBreakpoint) expressionBP, bpThread).whenComplete((value, ex) -> {
@@ -205,17 +207,28 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                     debugEvent.eventSet.resume();
                                 } else {
                                     context.getProtocolServer().sendEvent(new Events.StoppedEvent(
-                                            functional ? "function breakpoint" : "breakpoint", bpThread.uniqueID()));
+                                            breakpointName, bpThread.uniqueID()));
                                 }
                             });
                         });
                     } else {
                         context.getProtocolServer().sendEvent(new Events.StoppedEvent(
-                                functional ? "function breakpoint" : "breakpoint", bpThread.uniqueID()));
+                                breakpointName, bpThread.uniqueID()));
                     }
                     debugEvent.shouldResume = false;
                 }
             });
+        }
+    }
+
+    private String computeBreakpointName(EventRequest request) {
+        switch ((int) request.getProperty(IBreakpoint.REQUEST_TYPE)) {
+            case IBreakpoint.REQUEST_TYPE_LAMBDA:
+                return "lambda breakpoint";
+            case IBreakpoint.REQUEST_TYPE_METHOD:
+                return "function breakpoint";
+            default:
+                return "breakpoint";
         }
     }
 
@@ -287,8 +300,13 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         int[] lines = Arrays.asList(sourceBreakpoints).stream().map(sourceBreakpoint -> {
             return AdapterUtils.convertLineNumber(sourceBreakpoint.line, context.isClientLinesStartAt1(), context.isDebuggerLinesStartAt1());
         }).mapToInt(line -> line).toArray();
+
+        int[] columns = Arrays.asList(sourceBreakpoints).stream().map(b -> {
+            return AdapterUtils.convertColumnNumber(b.column, context.isClientColumnsStartAt1());
+        }).mapToInt(b -> b).toArray();
+
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        String[] fqns = sourceProvider.getFullyQualifiedName(sourceFile, lines, null);
+        String[] fqns = sourceProvider.getFullyQualifiedName(sourceFile, lines, columns);
         IBreakpoint[] breakpoints = new IBreakpoint[lines.length];
         for (int i = 0; i < lines.length; i++) {
             int hitCount = 0;

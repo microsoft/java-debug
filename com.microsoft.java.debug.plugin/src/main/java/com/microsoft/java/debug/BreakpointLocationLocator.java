@@ -20,7 +20,8 @@ public class BreakpointLocationLocator
 
     private IMethodBinding methodBinding;
 
-    public BreakpointLocationLocator(CompilationUnit compilationUnit, int lineNumber, boolean bindingsResolved,
+    public BreakpointLocationLocator(CompilationUnit compilationUnit, int lineNumber,
+            boolean bindingsResolved,
             boolean bestMatch) {
         super(compilationUnit, lineNumber, bindingsResolved, bestMatch);
     }
@@ -45,7 +46,7 @@ public class BreakpointLocationLocator
         if (this.methodBinding == null) {
             return null;
         }
-        return toSignature(this.methodBinding);
+        return toSignature(this.methodBinding, getMethodName());
     }
 
     /**
@@ -70,13 +71,12 @@ public class BreakpointLocationLocator
         return super.getFullyQualifiedTypeName();
     }
 
-    private String toSignature(IMethodBinding binding) {
+    static String toSignature(IMethodBinding binding, String name) {
         // use key for now until JDT core provides a public API for this.
         // "Ljava/util/Arrays;.asList<T:Ljava/lang/Object;>([TT;)Ljava/util/List<TT;>;"
         // "([Ljava/lang/String;)V|Ljava/lang/InterruptedException;"
         String signatureString = binding.getKey();
         if (signatureString != null) {
-            String name = binding.getName();
             int index = signatureString.indexOf(name);
             if (index > -1) {
                 int exceptionIndex = signatureString.indexOf("|", signatureString.lastIndexOf(")"));

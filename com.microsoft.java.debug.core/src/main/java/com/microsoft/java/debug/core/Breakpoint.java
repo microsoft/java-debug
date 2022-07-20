@@ -298,7 +298,7 @@ public class Breakpoint implements IBreakpoint {
                     request.addCountFilter(hitCount);
                 }
                 request.enable();
-                request.putProperty(IBreakpoint.REQUEST_TYPE_FUNCTIONAL, Boolean.valueOf(this.methodSignature != null));
+                request.putProperty(IBreakpoint.REQUEST_TYPE, computeRequestType());
                 newRequests.add(request);
             } catch (VMDisconnectedException ex) {
                 // enable breakpoint operation may be executing while JVM is terminating, thus the VMDisconnectedException may be
@@ -308,6 +308,18 @@ public class Breakpoint implements IBreakpoint {
         });
 
         return newRequests;
+    }
+
+    private Object computeRequestType() {
+        if (this.methodSignature == null) {
+            return IBreakpoint.REQUEST_TYPE_LINE;
+        }
+
+        if (this.methodSignature.startsWith("lambda$")) {
+            return IBreakpoint.REQUEST_TYPE_LAMBDA;
+        } else {
+            return IBreakpoint.REQUEST_TYPE_METHOD;
+        }
     }
 
     @Override

@@ -15,7 +15,13 @@ import java.util.concurrent.CompletableFuture;
 
 public interface IBreakpoint extends IDebugResource {
 
-    String REQUEST_TYPE_FUNCTIONAL = "functional";
+    String REQUEST_TYPE = "request_type";
+
+    int REQUEST_TYPE_LINE = 0;
+
+    int REQUEST_TYPE_METHOD = 1;
+
+    int REQUEST_TYPE_LAMBDA = 2;
 
     String className();
 
