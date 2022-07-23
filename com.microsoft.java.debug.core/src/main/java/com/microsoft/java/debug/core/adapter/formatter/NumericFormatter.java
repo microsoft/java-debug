@@ -30,18 +30,15 @@ public class NumericFormatter implements IValueFormatter {
     public static final String NUMERIC_PRECISION_OPTION = "numeric_precision";
     private static final NumericFormatEnum DEFAULT_NUMERIC_FORMAT = NumericFormatEnum.DEC;
     private static final int DEFAULT_NUMERIC_PRECISION = 0;
-    private static final Map<NumericFormatEnum, String> enumFormatMap = new HashMap<>();
 
-    static {
-        enumFormatMap.put(NumericFormatEnum.DEC, "%d");
-        enumFormatMap.put(NumericFormatEnum.HEX, "%#x");
-        enumFormatMap.put(NumericFormatEnum.OCT, "%#o");
-    }
+    private static final String HEX_PREFIX = "0x";
+    private static final String OCT_PREFIX = "0";
+    private static final String BIN_PREFIX = "0b";
 
     /**
      * Get the string representations for an object.
      *
-     * @param obj the value object
+     * @param obj     the value object
      * @param options extra information for printing
      * @return the string representations.
      */
@@ -91,7 +88,6 @@ public class NumericFormatter implements IValueFormatter {
         throw new UnsupportedOperationException(String.format("%s is not a numeric type.", type.name()));
     }
 
-
     /**
      * The conditional function for this formatter.
      *
@@ -122,11 +118,21 @@ public class NumericFormatter implements IValueFormatter {
 
     static String formatNumber(long value, Map<String, Object> options) {
         NumericFormatEnum formatEnum = getNumericFormatOption(options);
-        return String.format(enumFormatMap.get(formatEnum), value);
+        switch (formatEnum) {
+            case HEX:
+                return HEX_PREFIX + Long.toHexString(value);
+            case OCT:
+                return OCT_PREFIX + Long.toOctalString(value);
+            case BIN:
+                return BIN_PREFIX + Long.toBinaryString(value);
+            default:
+                return Long.toString(value);
+        }
     }
 
     private static long parseNumber(String number) {
-        return Long.decode(number);
+        return number.startsWith(BIN_PREFIX)
+            ? Long.parseLong(number.substring(2), 2) : Long.decode(number);
     }
 
     private static double parseFloatDouble(String number) {
