@@ -26,6 +26,7 @@ import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
 import com.microsoft.java.debug.core.adapter.formatter.NumericFormatter;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.formatter.StringObjectFormatter;
+import com.microsoft.java.debug.core.protocol.Requests;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ArrayType;
@@ -256,13 +257,15 @@ public abstract class VariableUtils {
      * variable view/debug console.
      *
      * @param defaultOptions the initial options for adding options from user settings
-     * @param hexInArgument when request sent by vscode declare hex format explicitly, settings this parameter true to override value in DebugSettings class.
+     * @param format when request sent by vscode declare format explicitly, settings this parameter true to override value in DebugSettings class.
      */
-    public static void applyFormatterOptions(Map<String, Object> defaultOptions, boolean hexInArgument) {
+    public static void applyFormatterOptions(Map<String, Object> defaultOptions, Requests.ValueFormat format) {
         Map<String, Object> options = defaultOptions;
         boolean showFullyQualifiedNames = DebugSettings.getCurrent().showQualifiedNames;
-        if (hexInArgument || DebugSettings.getCurrent().showHex) {
-            options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
+        if (format == null) {
+            options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, DebugSettings.getCurrent().formatType);
+        } else {
+            options.put(NumericFormatter.NUMERIC_FORMAT_OPTION, parseValueFormat(format));
         }
         if (showFullyQualifiedNames) {
             options.put(SimpleTypeFormatter.QUALIFIED_CLASS_NAME_OPTION, true);
@@ -275,6 +278,17 @@ public abstract class VariableUtils {
         if (DebugSettings.getCurrent().numericPrecision > 0) {
             options.put(NumericFormatter.NUMERIC_PRECISION_OPTION, DebugSettings.getCurrent().numericPrecision);
         }
+    }
+
+    private static NumericFormatEnum parseValueFormat(Requests.ValueFormat format) {
+        if (format.type != null) {
+            try {
+                return NumericFormatEnum.valueOf(format.type);
+            } catch (IllegalArgumentException exp) {
+                // can't parse format so just return default value;
+            }
+        }
+        return format.hex ? NumericFormatEnum.HEX : NumericFormatEnum.DEC;
     }
 
     /**

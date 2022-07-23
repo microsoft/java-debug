@@ -18,6 +18,7 @@ import java.util.logging.Logger;
 
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
+import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
 import com.microsoft.java.debug.core.protocol.Requests.ClassFilters;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
@@ -32,7 +33,7 @@ public final class DebugSettings {
     public int numericPrecision = 0;
     public boolean showStaticVariables = false;
     public boolean showQualifiedNames = false;
-    public boolean showHex = false;
+    public NumericFormatEnum formatType = NumericFormatEnum.DEC; 
     public boolean showLogicalStructure = true;
     public boolean showToString = true;
     public String logLevel;

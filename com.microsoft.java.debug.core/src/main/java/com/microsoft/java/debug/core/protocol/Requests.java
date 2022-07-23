@@ -24,7 +24,9 @@ import com.microsoft.java.debug.core.protocol.Types.DataBreakpoint;
 public class Requests {
 
     public static class ValueFormat {
+        @Deprecated
         public boolean hex;
+        public String type;
     }
 
     public static class Arguments {
@@ -300,7 +302,9 @@ public class Requests {
     public static class RefreshVariablesArguments extends Arguments {
         public boolean showStaticVariables = false;
         public boolean showQualifiedNames = false;
+        @Deprecated
         public boolean showHex = false;
+        public String formatType = null;
         public boolean showLogicalStructure = true;
         public boolean showToString = true;
     }

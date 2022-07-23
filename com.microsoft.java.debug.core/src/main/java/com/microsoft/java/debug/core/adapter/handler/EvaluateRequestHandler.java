@@ -61,7 +61,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         EvaluateArguments evalArguments = (EvaluateArguments) arguments;
         final boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
         Map<String, Object> options = context.getVariableFormatter().getDefaultOptions();
-        VariableUtils.applyFormatterOptions(options, evalArguments.format != null && evalArguments.format.hex);
+        VariableUtils.applyFormatterOptions(options, evalArguments.format);
         String expression = evalArguments.expression;
 
         if (StringUtils.isBlank(expression)) {
