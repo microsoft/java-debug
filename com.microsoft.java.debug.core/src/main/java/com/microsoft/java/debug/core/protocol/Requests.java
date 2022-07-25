@@ -24,8 +24,11 @@ import com.microsoft.java.debug.core.protocol.Types.DataBreakpoint;
 public class Requests {
 
     public static class ValueFormat {
-        @Deprecated
         public boolean hex;
+        /**
+         * Extension for additional formats.
+         * Supported formats: ["BIN", "OCT", "HEX", "DEC"]
+         */
         public String type;
     }
 
