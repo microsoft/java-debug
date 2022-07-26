@@ -22,13 +22,10 @@ import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
 import com.microsoft.java.debug.core.protocol.Events.InvalidatedAreas;
 import com.microsoft.java.debug.core.protocol.Events.InvalidatedEvent;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
-import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.RefreshVariablesArguments;
 
-import static com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum.HEX;
-import static com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum.DEC;
 
 public class RefreshVariablesHandler implements IDebugRequestHandler {
 

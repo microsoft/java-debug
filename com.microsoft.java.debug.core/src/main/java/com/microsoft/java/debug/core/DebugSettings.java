@@ -33,7 +33,7 @@ public final class DebugSettings {
     public int numericPrecision = 0;
     public boolean showStaticVariables = false;
     public boolean showQualifiedNames = false;
-    public NumericFormatEnum formatType = NumericFormatEnum.DEC; 
+    public NumericFormatEnum formatType = NumericFormatEnum.DEC;
     public boolean showLogicalStructure = true;
     public boolean showToString = true;
     public String logLevel;
