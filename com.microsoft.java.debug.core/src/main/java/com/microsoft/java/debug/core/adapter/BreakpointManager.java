@@ -79,12 +79,12 @@ public class BreakpointManager implements IBreakpointManager {
 
         // Compute the breakpoints that are newly added.
         List<IBreakpoint> toAdd = new ArrayList<>();
-        List<Integer> visitedLineNumbers = new ArrayList<>();
+        List<Integer> visitedBreakpoints = new ArrayList<>();
         for (IBreakpoint breakpoint : breakpoints) {
-            IBreakpoint existed = breakpointMap.get(String.valueOf(breakpoint.getLineNumber()));
+            IBreakpoint existed = breakpointMap.get(String.valueOf(breakpoint.hashCode()));
             if (existed != null) {
                 result.add(existed);
-                visitedLineNumbers.add(existed.getLineNumber());
+                visitedBreakpoints.add(existed.hashCode());
                 continue;
             } else {
                 result.add(breakpoint);
@@ -95,7 +95,7 @@ public class BreakpointManager implements IBreakpointManager {
         // Compute the breakpoints that are no longer listed.
         List<IBreakpoint> toRemove = new ArrayList<>();
         for (IBreakpoint breakpoint : breakpointMap.values()) {
-            if (!visitedLineNumbers.contains(breakpoint.getLineNumber())) {
+            if (!visitedBreakpoints.contains(breakpoint.hashCode())) {
                 toRemove.add(breakpoint);
             }
         }
@@ -113,7 +113,7 @@ public class BreakpointManager implements IBreakpointManager {
             for (IBreakpoint breakpoint : breakpoints) {
                 breakpoint.putProperty("id", this.nextBreakpointId.getAndIncrement());
                 this.breakpoints.add(breakpoint);
-                breakpointMap.put(String.valueOf(breakpoint.getLineNumber()), breakpoint);
+                breakpointMap.put(String.valueOf(breakpoint.hashCode()), breakpoint);
             }
         }
     }
@@ -133,7 +133,7 @@ public class BreakpointManager implements IBreakpointManager {
                     // Destroy the breakpoint on the debugee VM.
                     breakpoint.close();
                     this.breakpoints.remove(breakpoint);
-                    breakpointMap.remove(String.valueOf(breakpoint.getLineNumber()));
+                    breakpointMap.remove(String.valueOf(breakpoint.hashCode()));
                 } catch (Exception e) {
                     logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
                 }

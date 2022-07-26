@@ -38,10 +38,21 @@ public class LambdaExpressionLocator extends ASTVisitor {
             int startPosition = node.getStartPosition();
 
             int startColumn = this.compilationUnit.getColumnNumber(startPosition);
-            int endColumn = this.compilationUnit.getColumnNumber(startPosition + node.getLength());
-            int lineNumber = this.compilationUnit.getLineNumber(startPosition);
+            int endPosition = startPosition + node.getLength();
+            int endColumn = this.compilationUnit.getColumnNumber(endPosition);
+            int startLine = this.compilationUnit.getLineNumber(startPosition);
+            int endLine = this.compilationUnit.getLineNumber(endPosition);
 
-            if (column >= startColumn && column <= endColumn && lineNumber == line) {
+            // lambda on same line:
+            // list.stream().map(i -> i + 1);
+            //
+            // lambda on multiple lines:
+            // list.stream().map(user
+            // -> user.isSystem() ? new SystemUser(user) : new EndUser(user));
+
+            if ((startLine == endLine && column >= startColumn && column <= endColumn && line == startLine)
+                    || (startLine != endLine && line >= startLine && line <= endLine
+                            && (column >= startColumn || column <= endColumn))) {
                 this.lambdaMethodBinding = node.resolveMethodBinding();
                 this.found = true;
                 this.lambdaExpression = node;

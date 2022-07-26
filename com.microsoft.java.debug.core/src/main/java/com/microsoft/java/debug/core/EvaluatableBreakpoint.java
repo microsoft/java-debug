@@ -11,15 +11,15 @@
 
 package com.microsoft.java.debug.core;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.sun.jdi.event.ThreadDeathEvent;
+import org.apache.commons.lang3.StringUtils;
+
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.event.ThreadDeathEvent;
 
 import io.reactivex.disposables.Disposable;
 
