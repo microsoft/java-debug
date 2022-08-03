@@ -34,15 +34,13 @@ public class LambdaExpressionLocator extends ASTVisitor {
 
     @Override
     public boolean visit(LambdaExpression node) {
-        if (column > -1) {
+        // we only support inline breakpoints which are added before the expression part of the
+        // lambda. And we don't support lambda blocks since they can be debugged using line
+        // breakpoints.
+        if (column > -1 && node.getNodeType() != ASTNode.BLOCK) {
             int startPosition = node.getStartPosition();
-
-            int startColumn = this.compilationUnit.getColumnNumber(startPosition);
-            int endPosition = startPosition + node.getLength();
-            int endColumn = this.compilationUnit.getColumnNumber(endPosition);
-            int startLine = this.compilationUnit.getLineNumber(startPosition);
-            int endLine = this.compilationUnit.getLineNumber(endPosition);
-
+            int endPosition = node.getBody().getStartPosition();
+            int offset = this.compilationUnit.getPosition(line, column);
             // lambda on same line:
             // list.stream().map(i -> i + 1);
             //
@@ -50,9 +48,7 @@ public class LambdaExpressionLocator extends ASTVisitor {
             // list.stream().map(user
             // -> user.isSystem() ? new SystemUser(user) : new EndUser(user));
 
-            if ((startLine == endLine && column >= startColumn && column <= endColumn && line == startLine)
-                    || (startLine != endLine && line >= startLine && line <= endLine
-                            && (column >= startColumn || column <= endColumn))) {
+            if (offset >= startPosition && offset <= endPosition) {
                 this.lambdaMethodBinding = node.resolveMethodBinding();
                 this.found = true;
                 this.lambdaExpression = node;
