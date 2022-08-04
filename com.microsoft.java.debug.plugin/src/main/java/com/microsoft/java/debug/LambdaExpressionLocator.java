@@ -37,7 +37,7 @@ public class LambdaExpressionLocator extends ASTVisitor {
         // we only support inline breakpoints which are added before the expression part of the
         // lambda. And we don't support lambda blocks since they can be debugged using line
         // breakpoints.
-        if (column > -1) {
+        if (column > -1 && node.getBody().getNodeType() != ASTNode.BLOCK) {
             int startPosition = node.getStartPosition();
             int endPosition = node.getBody().getStartPosition();
             int offset = this.compilationUnit.getPosition(line, column);
