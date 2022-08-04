@@ -112,6 +112,24 @@ public class AdapterUtils {
     }
 
     /**
+     * Convert the source platform's column number to the target platform's column
+     * number.
+     *
+     * @param column
+     *                              the column number from the source platform
+     * @param sourceColumnsStartAt1
+     *                              the source platform's column starts at 1 or not
+     * @return the new column number
+     */
+    public static int convertColumnNumber(int column, boolean sourceColumnsStartAt1) {
+        if (sourceColumnsStartAt1) {
+            return column - 1;
+        } else {
+            return column;
+        }
+    }
+
+    /**
      * Convert the source platform's path format to the target platform's path format.
      *
      * @param path

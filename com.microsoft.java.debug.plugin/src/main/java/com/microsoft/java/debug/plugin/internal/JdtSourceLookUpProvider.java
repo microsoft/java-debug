@@ -46,6 +46,7 @@ import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.LibraryLocation;
 
 import com.microsoft.java.debug.BreakpointLocationLocator;
+import com.microsoft.java.debug.LambdaExpressionLocator;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
@@ -155,22 +156,44 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         String[] fqns = new String[lines.length];
         if (astUnit != null) {
             for (int i = 0; i < lines.length; i++) {
+                if (columns[i] > -1) {
+                    // if we have a column, try to find the lambda expression at that column
+                    LambdaExpressionLocator lambdaExpressionLocator = new LambdaExpressionLocator(astUnit, lines[i],
+                            columns[i]);
+                    astUnit.accept(lambdaExpressionLocator);
+                    if (lambdaExpressionLocator.isFound()) {
+                        fqns[i] = lambdaExpressionLocator.getFullyQualifiedTypeName().concat("#")
+                                .concat(lambdaExpressionLocator.getMethodName())
+                                .concat("#").concat(lambdaExpressionLocator.getMethodSignature());
+                        continue;
+                    }
+                }
+
                 // TODO
-                // The ValidBreakpointLocationLocator will verify if the current line is a valid location or not.
-                // If so, it will return the fully qualified name of the class type that contains the current line.
-                // Otherwise, it will try to find a valid location from the next lines and return it's fully qualified name.
-                // In current stage, we don't support to move the invalid breakpoint down to the next valid location, and just
+                // The ValidBreakpointLocationLocator will verify if the current line is a valid
+                // location or not.
+                // If so, it will return the fully qualified name of the class type that
+                // contains the current line.
+                // Otherwise, it will try to find a valid location from the next lines and
+                // return it's fully qualified name.
+                // In current stage, we don't support to move the invalid breakpoint down to the
+                // next valid location, and just
                 // mark it as "unverified".
-                // In future, we could consider supporting to update the breakpoint to a valid location.
-                BreakpointLocationLocator locator = new BreakpointLocationLocator(astUnit, lines[i], true, true);
+                // In future, we could consider supporting to update the breakpoint to a valid
+                // location.
+                BreakpointLocationLocator locator = new BreakpointLocationLocator(astUnit, lines[i], true,
+                        true);
                 astUnit.accept(locator);
-                // When the final valid line location is same as the original line, that represents it's a valid breakpoint.
-                // Add location type check to avoid breakpoint on method/field which will never be hit in current implementation.
+                // When the final valid line location is same as the original line, that
+                // represents it's a valid breakpoint.
+                // Add location type check to avoid breakpoint on method/field which will never
+                // be hit in current implementation.
                 if (lines[i] == locator.getLineLocation()
                         && locator.getLocationType() == BreakpointLocationLocator.LOCATION_LINE) {
                     fqns[i] = locator.getFullyQualifiedTypeName();
                 } else if (locator.getLocationType() == BreakpointLocationLocator.LOCATION_METHOD) {
-                    fqns[i] = locator.getFullyQualifiedTypeName().concat("#").concat(locator.getMethodName())
+                    fqns[i] = locator.getFullyQualifiedTypeName().concat("#")
+                            .concat(locator.getMethodName())
                             .concat("#").concat(locator.getMethodSignature());
                 }
             }

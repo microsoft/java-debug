@@ -202,6 +202,7 @@ public class Types {
 
     public static class SourceBreakpoint {
         public int line;
+        public int column;
         public String hitCondition;
         public String condition;
         public String logMessage;
@@ -214,6 +215,16 @@ public class Types {
          */
         public SourceBreakpoint(int line, String condition, String hitCondition) {
             this.line = line;
+            this.condition = condition;
+            this.hitCondition = hitCondition;
+        }
+
+        /**
+         * Constructor.
+         */
+        public SourceBreakpoint(int line, String condition, String hitCondition, int column) {
+            this.line = line;
+            this.column = column;
             this.condition = condition;
             this.hitCondition = hitCondition;
         }
