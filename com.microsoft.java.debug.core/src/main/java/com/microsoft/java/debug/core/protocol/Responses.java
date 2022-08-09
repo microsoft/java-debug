@@ -17,6 +17,7 @@ import com.microsoft.java.debug.core.protocol.Types.BreakpointLocation;
 import com.microsoft.java.debug.core.protocol.Types.DataBreakpointAccessType;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionBreakMode;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionDetails;
+import com.microsoft.java.debug.core.protocol.Types.StepInTarget;
 import com.microsoft.java.debug.core.protocol.Types.Variable;
 
 /**
@@ -362,6 +363,14 @@ public class Responses {
 
         public InlineValuesResponse(Variable[] variables) {
             this.variables = variables;
+        }
+    }
+
+    public static class StepInTargetsResponse extends ResponseBody {
+        public StepInTarget[] targets;
+
+        public StepInTargetsResponse(StepInTarget[] targets) {
+            this.targets = targets;
         }
     }
 }

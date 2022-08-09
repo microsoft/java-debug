@@ -71,7 +71,7 @@ public class LambdaExpressionLocator extends ASTVisitor {
         if (!this.found) {
             return null;
         }
-        return BreakpointLocationLocator.toSignature(this.lambdaMethodBinding, getMethodName());
+        return BindingUtils.toSignature(this.lambdaMethodBinding, getMethodName());
     }
 
     /**
@@ -81,8 +81,7 @@ public class LambdaExpressionLocator extends ASTVisitor {
         if (!this.found) {
             return null;
         }
-        String key = this.lambdaMethodBinding.getKey();
-        return key.substring(key.indexOf('.') + 1, key.indexOf('('));
+        return BindingUtils.getMethodName(lambdaMethodBinding, true);
     }
 
     /**

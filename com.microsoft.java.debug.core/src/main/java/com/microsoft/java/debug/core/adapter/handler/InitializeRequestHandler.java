@@ -65,6 +65,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         caps.supportsFunctionBreakpoints = true;
         caps.supportsClipboardContext = true;
         caps.supportsBreakpointLocationsRequest = true;
+        caps.supportsStepInTargetsRequest = true;
         response.body = caps;
         return CompletableFuture.completedFuture(response);
     }

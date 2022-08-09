@@ -433,5 +433,21 @@ public class Types {
         public boolean supportsFunctionBreakpoints;
         // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_BreakpointLocations
         public boolean supportsBreakpointLocationsRequest;
+        public boolean supportsStepInTargetsRequest;
     }
+
+    public static class StepInTarget {
+        public int id;
+        public String label;
+        public int line;
+        public int column;
+        public int endLine;
+        public int endColumn;
+
+        public StepInTarget(int id, String label) {
+            this.id = id;
+            this.label = label;
+        }
+    }
+
 }
