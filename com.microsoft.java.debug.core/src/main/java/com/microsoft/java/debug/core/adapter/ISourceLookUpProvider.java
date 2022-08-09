@@ -11,9 +11,14 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.util.List;
+import java.util.Objects;
+
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.protocol.Types.SourceBreakpoint;
+
+import com.sun.jdi.StackFrame;
 
 public interface ISourceLookUpProvider extends IProvider {
     boolean supportsRealtimeBreakpointVerification();
@@ -59,5 +64,52 @@ public interface ISourceLookUpProvider extends IProvider {
      */
     default String getJavaRuntimeVersion(String projectName) {
         return null;
+    }
+
+    /**
+     * Return method invocation found in the statement as the given line number of
+     * the source file.
+     *
+     * @param stackframe The stack frame where the invocation must be searched.
+     *
+     * @return List of found method invocation or empty if not method invocations
+     *         can be found.
+     */
+    List<MethodInvocation> findMethodInvocations(StackFrame stackframe);
+
+    public static class MethodInvocation {
+        public String expression;
+        public String methodName;
+        public String methodSignature;
+        public String declaringTypeName;
+        public int lineStart;
+        public int lineEnd;
+        public int columnStart;
+        public int columnEnd;
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(columnEnd, columnStart, declaringTypeName, expression, lineEnd, lineStart, methodName,
+                    methodSignature);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            MethodInvocation other = (MethodInvocation) obj;
+            return columnEnd == other.columnEnd && columnStart == other.columnStart
+                    && Objects.equals(declaringTypeName, other.declaringTypeName)
+                    && Objects.equals(expression, other.expression) && lineEnd == other.lineEnd
+                    && lineStart == other.lineStart && Objects.equals(methodName, other.methodName)
+                    && Objects.equals(methodSignature, other.methodSignature);
+        }
     }
 }

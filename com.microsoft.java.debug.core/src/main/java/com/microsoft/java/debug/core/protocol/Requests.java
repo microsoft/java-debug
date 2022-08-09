@@ -271,6 +271,10 @@ public class Requests {
 
     }
 
+    public static class StepInTargetsArguments extends Arguments {
+        public int frameId;
+    }
+
     public static class PauseArguments extends Arguments {
         public long threadId;
     }
@@ -423,6 +427,8 @@ public class Requests {
         CONTINUE("continue", ContinueArguments.class),
         STEPIN("stepIn", StepInArguments.class),
         STEPOUT("stepOut", StepOutArguments.class),
+        STEPIN_TARGETS("stepInTargets",
+                StepInTargetsArguments.class),
         PAUSE("pause", PauseArguments.class),
         STACKTRACE("stackTrace", StackTraceArguments.class),
         RESTARTFRAME("restartFrame", RestartFrameArguments.class),

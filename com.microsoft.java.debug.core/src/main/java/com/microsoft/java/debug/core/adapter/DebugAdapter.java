@@ -44,6 +44,7 @@ import com.microsoft.java.debug.core.adapter.handler.SetFunctionBreakpointsReque
 import com.microsoft.java.debug.core.adapter.handler.SetVariableRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.StepInTargetsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StepRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
@@ -131,6 +132,8 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForDebug(new ProcessIdHandler());
         registerHandlerForDebug(new SetFunctionBreakpointsRequestHandler());
         registerHandlerForDebug(new BreakpointLocationsRequestHander());
+        registerHandlerForDebug(new StepInTargetsRequestHandler());
+
         // NO_DEBUG mode only
         registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());
         registerHandlerForNoDebug(new ProcessIdHandler());

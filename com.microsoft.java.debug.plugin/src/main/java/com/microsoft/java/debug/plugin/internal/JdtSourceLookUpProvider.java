@@ -15,11 +15,13 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -37,6 +40,7 @@ import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
@@ -45,11 +49,14 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.LibraryLocation;
 
+import com.microsoft.java.debug.BindingUtils;
 import com.microsoft.java.debug.BreakpointLocationLocator;
 import com.microsoft.java.debug.LambdaExpressionLocator;
 import com.microsoft.java.debug.core.Configuration;
@@ -61,6 +68,8 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.protocol.Types.BreakpointLocation;
 import com.microsoft.java.debug.core.protocol.Types.SourceBreakpoint;
+
+import com.sun.jdi.StackFrame;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -146,47 +155,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new JavaBreakpointLocation[0];
         }
 
-        final ASTParser parser = ASTParser.newParser(this.latestASTLevel);
-        parser.setResolveBindings(true);
-        parser.setBindingsRecovery(true);
-        parser.setStatementsRecovery(true);
-        CompilationUnit astUnit = null;
-        String filePath = AdapterUtils.toPath(sourceUri);
-        // For file uri, read the file contents directly and pass them to the ast parser.
-        if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            String source = readFile(filePath);
-            parser.setSource(source.toCharArray());
-            /**
-             * See the java doc for { @link ASTParser#setResolveBindings(boolean) }.
-             * Binding information is obtained from the Java model. This means that the compilation unit must be located relative to the Java model.
-             * This happens automatically when the source code comes from either setSource(ICompilationUnit) or setSource(IClassFile).
-             * When source is supplied by setSource(char[]), the location must be established explicitly
-             * by setting an environment using setProject(IJavaProject) or setEnvironment(String [], String [], String [], boolean)
-             * and a unit name setUnitName(String).
-             */
-            parser.setEnvironment(new String[0], new String[0], null, true);
-            parser.setUnitName(Paths.get(filePath).getFileName().toString());
-            /**
-             * See the java doc for { @link ASTParser#setSource(char[]) },
-             * the user need specify the compiler options explicitly.
-             */
-            Map<String, String> javaOptions = JavaCore.getOptions();
-            javaOptions.put(JavaCore.COMPILER_SOURCE, this.latestJavaVersion);
-            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, this.latestJavaVersion);
-            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
-            javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
-            parser.setCompilerOptions(javaOptions);
-            astUnit = (CompilationUnit) parser.createAST(null);
-        } else {
-            // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
-            // leverage jdt to load the source contents.
-            ITypeRoot typeRoot = resolveClassFile(sourceUri);
-            if (typeRoot != null) {
-                parser.setSource(typeRoot);
-                astUnit = (CompilationUnit) parser.createAST(null);
-            }
-        }
-
+        CompilationUnit astUnit = asCompilationUnit(sourceUri);
         JavaBreakpointLocation[] sourceLocations = Stream.of(sourceBreakpoints)
             .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
             .toArray(JavaBreakpointLocation[]::new);
@@ -279,6 +248,55 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         });
 
         return locations.toArray(BreakpointLocation[]::new);
+    }
+
+    private CompilationUnit asCompilationUnit(String uri) {
+        final ASTParser parser = ASTParser.newParser(this.latestASTLevel);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setStatementsRecovery(true);
+        CompilationUnit astUnit = null;
+        String filePath = AdapterUtils.toPath(uri);
+        // For file uri, read the file contents directly and pass them to the ast
+        // parser.
+        if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
+            String source = readFile(filePath);
+            parser.setSource(source.toCharArray());
+            /**
+             * See the java doc for { @link ASTParser#setResolveBindings(boolean) }.
+             * Binding information is obtained from the Java model. This means that the
+             * compilation unit must be located relative to the Java model.
+             * This happens automatically when the source code comes from either
+             * setSource(ICompilationUnit) or setSource(IClassFile).
+             * When source is supplied by setSource(char[]), the location must be
+             * established explicitly
+             * by setting an environment using setProject(IJavaProject) or
+             * setEnvironment(String [], String [], String [], boolean)
+             * and a unit name setUnitName(String).
+             */
+            parser.setEnvironment(new String[0], new String[0], null, true);
+            parser.setUnitName(Paths.get(filePath).getFileName().toString());
+            /**
+             * See the java doc for { @link ASTParser#setSource(char[]) },
+             * the user need specify the compiler options explicitly.
+             */
+            Map<String, String> javaOptions = JavaCore.getOptions();
+            javaOptions.put(JavaCore.COMPILER_SOURCE, this.latestJavaVersion);
+            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, this.latestJavaVersion);
+            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
+            javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
+            parser.setCompilerOptions(javaOptions);
+            astUnit = (CompilationUnit) parser.createAST(null);
+        } else {
+            // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
+            // leverage jdt to load the source contents.
+            ITypeRoot typeRoot = resolveClassFile(uri);
+            if (typeRoot != null) {
+                parser.setSource(typeRoot);
+                astUnit = (CompilationUnit) parser.createAST(null);
+            }
+        }
+        return astUnit;
     }
 
     @Override
@@ -430,5 +448,52 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         }
 
         return null;
+    }
+
+    @Override
+    public List<MethodInvocation> findMethodInvocations(StackFrame frame) {
+        if (frame == null) {
+            throw new IllegalArgumentException("frame is null");
+        }
+
+        IJavaProject project = JdtUtils.findProject(frame, getSourceContainers());
+        if (project == null) {
+            logger.log(Level.WARNING,
+                    String.format("Failed to resolve project for the frame: %s", frame));
+            return Collections.emptyList();
+        }
+
+        String uri;
+        try {
+            IType type = project.findType(JdtUtils.getDeclaringTypeName(frame));
+            uri = type.getResource().getLocationURI().toURL().toString();
+        } catch (JavaModelException | DebugException | MalformedURLException e) {
+            logger.log(Level.SEVERE,
+                    String.format("Failed to resolve type for the frame: %s", frame));
+            return Collections.emptyList();
+        }
+
+        CompilationUnit astUnit = asCompilationUnit(uri);
+        if (astUnit == null) {
+            return Collections.emptyList();
+        }
+
+        MethodInvocationLocator locator = new MethodInvocationLocator(frame.location().lineNumber(), astUnit);
+        astUnit.accept(locator);
+
+        return locator.getTargets().entrySet().stream().map(entry -> {
+            MethodInvocation invocation = new MethodInvocation();
+            Expression expression = entry.getKey();
+            invocation.expression = expression.toString();
+            IMethodBinding binding = entry.getValue();
+            invocation.methodName = binding.getName();
+            invocation.declaringTypeName = binding.getDeclaringClass().getQualifiedName();
+            invocation.methodSignature = BindingUtils.toSignature(binding, BindingUtils.getMethodName(binding, true));
+            invocation.lineStart = astUnit.getLineNumber(expression.getStartPosition());
+            invocation.lineEnd = astUnit.getLineNumber(expression.getStartPosition() + expression.getLength());
+            invocation.columnStart = astUnit.getColumnNumber(expression.getStartPosition());
+            invocation.columnEnd = astUnit.getColumnNumber(expression.getStartPosition() + expression.getLength());
+            return invocation;
+        }).collect(Collectors.toList());
     }
 }
