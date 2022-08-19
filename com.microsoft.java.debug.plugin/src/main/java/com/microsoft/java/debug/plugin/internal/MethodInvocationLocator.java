@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
@@ -25,7 +26,7 @@ public class MethodInvocationLocator extends ASTVisitor {
     private CompilationUnit unit;
     private Map<Expression, IMethodBinding> targets;
 
-    private boolean collectMethodInvocations = false;
+    private int expressionCount = 0;
 
     public MethodInvocationLocator(int line, CompilationUnit unit) {
         super(false);
@@ -40,24 +41,36 @@ public class MethodInvocationLocator extends ASTVisitor {
         int end = unit.getLineNumber(node.getStartPosition() + node.getLength());
 
         if (line >= start && line <= end) {
-            collectMethodInvocations = true;
+            expressionCount++;
         }
-        return collectMethodInvocations;
+        return expressionCount > 0;
     }
 
     @Override
     public boolean visit(MethodInvocation node) {
-        int lineNumber = unit.getLineNumber(node.getStartPosition());
-        if (lineNumber == this.line) {
+        if (expressionCount > 0) {
             targets.put(node, node.resolveMethodBinding());
-            return true;
         }
-        return false;
+        return expressionCount > 0;
+    }
+
+    @Override
+    public boolean visit(ClassInstanceCreation node) {
+        if (expressionCount > 0) {
+            targets.put(node, node.resolveConstructorBinding());
+            expressionCount--;
+        }
+        return expressionCount > 0;
     }
 
     @Override
     public void endVisit(ExpressionStatement node) {
-        collectMethodInvocations = false;
+        expressionCount--;
+    }
+
+    @Override
+    public void endVisit(ClassInstanceCreation node) {
+        expressionCount++;
     }
 
     public Map<Expression, IMethodBinding> getTargets() {

@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
@@ -51,6 +52,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
@@ -487,13 +489,23 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             invocation.expression = expression.toString();
             IMethodBinding binding = entry.getValue();
             invocation.methodName = binding.getName();
-            invocation.declaringTypeName = binding.getDeclaringClass().getQualifiedName();
+            if (binding.getDeclaringClass().isAnonymous()) {
+                ITypeBinding superclass = binding.getDeclaringClass().getSuperclass();
+                if (superclass != null
+                        && !superclass.isEqualTo(astUnit.getAST().resolveWellKnownType("java.lang.Object"))) {
+                    invocation.declaringTypeName = superclass.getQualifiedName();
+                } else {
+                    return null;
+                }
+            } else {
+                invocation.declaringTypeName = binding.getDeclaringClass().getQualifiedName();
+            }
             invocation.methodSignature = BindingUtils.toSignature(binding, BindingUtils.getMethodName(binding, true));
             invocation.lineStart = astUnit.getLineNumber(expression.getStartPosition());
             invocation.lineEnd = astUnit.getLineNumber(expression.getStartPosition() + expression.getLength());
             invocation.columnStart = astUnit.getColumnNumber(expression.getStartPosition());
             invocation.columnEnd = astUnit.getColumnNumber(expression.getStartPosition() + expression.getLength());
             return invocation;
-        }).collect(Collectors.toList());
+        }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 }

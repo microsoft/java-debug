@@ -74,8 +74,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
         if (context.getDebugSession() == null) {
-            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION,
-                    "Debug Session doesn't exist.");
+            return AdapterUtils.createAsyncErrorResponse(response, ErrorCode.EMPTY_DEBUG_SESSION, "Debug Session doesn't exist.");
         }
 
         StepArguments stepArguments = (StepArguments) arguments;
@@ -93,63 +92,59 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 ThreadState threadState = new ThreadState();
                 threadState.threadId = threadId;
                 threadState.pendingStepType = command;
-                threadState.stackDepth = thread.frameCount();
-                threadState.stepLocation = resolveLocation(thread, targetId, context);
-                threadState.targetStepIn = targetId > 0;
                 threadState.eventSubscription = context.getDebugSession().getEventHub().events()
-                        .filter(debugEvent -> (debugEvent.event instanceof StepEvent
-                                && debugEvent.event.request().equals(threadState.pendingStepRequest))
-                                || (debugEvent.event instanceof MethodExitEvent
-                                        && debugEvent.event.request().equals(threadState.pendingMethodExitRequest))
-                                || debugEvent.event instanceof BreakpointEvent
-                                || debugEvent.event instanceof ExceptionEvent)
-                        .subscribe(debugEvent -> {
-                            handleDebugEvent(debugEvent, context.getDebugSession(), context, threadState);
-                        });
+                    .filter(debugEvent -> (debugEvent.event instanceof StepEvent && debugEvent.event.request().equals(threadState.pendingStepRequest))
+                        || (debugEvent.event instanceof MethodExitEvent && debugEvent.event.request().equals(threadState.pendingMethodExitRequest))
+                        || debugEvent.event instanceof BreakpointEvent
+                        || debugEvent.event instanceof ExceptionEvent)
+                    .subscribe(debugEvent -> {
+                        handleDebugEvent(debugEvent, context.getDebugSession(), context, threadState);
+                    });
 
                 if (command == Command.STEPIN) {
+                    String[] allowedClasses = threadState.pendingTargetStepIn != null
+                            ? new String[]{threadState.pendingTargetStepIn.declaringTypeName}
+                            : context.getStepFilters().allowClasses;
                     threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
-                            context.getStepFilters().allowClasses,
-                            context.getStepFilters().skipClasses);
+                            allowedClasses,
+                        context.getStepFilters().skipClasses);
                 } else if (command == Command.STEPOUT) {
                     threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
-                            context.getStepFilters().allowClasses,
-                            context.getStepFilters().skipClasses);
+                        context.getStepFilters().allowClasses,
+                        context.getStepFilters().skipClasses);
                 } else {
                     threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread, null);
                 }
 
-                threadState.pendingMethodExitRequest = thread.virtualMachine().eventRequestManager()
-                        .createMethodExitRequest();
+                threadState.pendingMethodExitRequest = thread.virtualMachine().eventRequestManager().createMethodExitRequest();
                 threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
 
+                LocationResponse locationResponse = resolveLocation(thread, targetId, context);
                 if (context.asyncJDWP()) {
                     List<CompletableFuture<Void>> futures = new ArrayList<>();
                     futures.add(AsyncJdwpUtils.runAsync(() -> {
-                        try {
-                            // JDWP Command: TR_FRAMES
-                            threadState.topFrame = getTopFrame(targetThread);
-                            threadState.stepLocation = threadState.topFrame.location();
-                            threadState.pendingMethodExitRequest
-                                    .addClassFilter(threadState.stepLocation.declaringType());
-                            if (targetThread.virtualMachine().canUseInstanceFilters()) {
-                                try {
-                                    // JDWP Command: SF_THIS_OBJECT
-                                    ObjectReference thisObject = threadState.topFrame.thisObject();
-                                    if (thisObject != null) {
-                                        threadState.pendingMethodExitRequest.addInstanceFilter(thisObject);
-                                    }
-                                } catch (Exception e) {
-                                    // ignore
+                        // JDWP Command: TR_FRAMES
+                        threadState.stepLocation = locationResponse.location;
+                        threadState.pendingTargetStepIn = locationResponse.methodInvocation;
+                        threadState.targetStepIn = targetId > 0;
+                        threadState.stepLocation = threadState.topFrame.location();
+                        threadState.pendingMethodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
+                        if (targetThread.virtualMachine().canUseInstanceFilters()) {
+                            try {
+                                // JDWP Command: SF_THIS_OBJECT
+                                ObjectReference thisObject = threadState.topFrame.thisObject();
+                                if (thisObject != null) {
+                                    threadState.pendingMethodExitRequest.addInstanceFilter(thisObject);
                                 }
+                            } catch (Exception e) {
+                                // ignore
                             }
-                        } catch (IncompatibleThreadStateException e) {
-                            throw new CompletionException(e);
                         }
                     }));
                     futures.add(AsyncJdwpUtils.runAsync(
-                            // JDWP Command: OR_IS_COLLECTED
-                            () -> threadState.pendingMethodExitRequest.addThreadFilter(targetThread)));
+                        // JDWP Command: OR_IS_COLLECTED
+                        () -> threadState.pendingMethodExitRequest.addThreadFilter(targetThread)
+                    ));
                     futures.add(AsyncJdwpUtils.runAsync(() -> {
                         try {
                             // JDWP Command: TR_FRAME_COUNT
@@ -159,8 +154,9 @@ public class StepRequestHandler implements IDebugRequestHandler {
                         }
                     }));
                     futures.add(
-                            // JDWP Command: ER_SET
-                            AsyncJdwpUtils.runAsync(() -> threadState.pendingStepRequest.enable()));
+                        // JDWP Command: ER_SET
+                        AsyncJdwpUtils.runAsync(() -> threadState.pendingStepRequest.enable())
+                    );
 
                     try {
                         AsyncJdwpUtils.await(futures);
@@ -175,7 +171,9 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     threadState.pendingMethodExitRequest.enable();
                 } else {
                     threadState.stackDepth = targetThread.frameCount();
-                    threadState.topFrame = getTopFrame(targetThread);
+                    threadState.stepLocation = locationResponse.location;
+                    threadState.pendingTargetStepIn = locationResponse.methodInvocation;
+                    threadState.targetStepIn = targetId > 0;
                     threadState.stepLocation = threadState.topFrame.location();
                     threadState.pendingMethodExitRequest.addThreadFilter(thread);
                     threadState.pendingMethodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
@@ -199,71 +197,82 @@ public class StepRequestHandler implements IDebugRequestHandler {
             } catch (IncompatibleThreadStateException ex) {
                 // Roll back the Exception info if stepping fails.
                 context.getExceptionManager().setException(threadId, exception);
-                final String failureMessage = String.format(
-                        "Failed to step because the thread '%s' is not suspended in the target VM.", thread.name());
+                final String failureMessage = String.format("Failed to step because the thread '%s' is not suspended in the target VM.", thread.name());
                 throw AdapterUtils.createCompletionException(
-                        failureMessage,
-                        ErrorCode.STEP_FAILURE,
-                        ex);
+                    failureMessage,
+                    ErrorCode.STEP_FAILURE,
+                    ex);
             } catch (IndexOutOfBoundsException ex) {
                 // Roll back the Exception info if stepping fails.
                 context.getExceptionManager().setException(threadId, exception);
-                final String failureMessage = String.format(
-                        "Failed to step because the thread '%s' doesn't contain any stack frame", thread.name());
+                final String failureMessage = String.format("Failed to step because the thread '%s' doesn't contain any stack frame", thread.name());
                 throw AdapterUtils.createCompletionException(
-                        failureMessage,
-                        ErrorCode.STEP_FAILURE,
-                        ex);
-            } catch (AbsentInformationException ex) {
-                // Roll back the Exception info if stepping fails.
-                context.getExceptionManager().setException(threadId, exception);
-                final String failureMessage = String.format(
-                        "Failed to step because the thread '%s' doesn't contain required line information in stack frame",
-                        thread.name());
-                throw AdapterUtils.createCompletionException(
-                        failureMessage,
-                        ErrorCode.STEP_FAILURE,
-                        ex);
+                    failureMessage,
+                    ErrorCode.STEP_FAILURE,
+                    ex);
             } catch (Exception ex) {
                 // Roll back the Exception info if stepping fails.
                 context.getExceptionManager().setException(threadId, exception);
-                final String failureMessage = String.format("Failed to step because of the error '%s'",
-                        ex.getMessage());
+                final String failureMessage = String.format("Failed to step because of the error '%s'", ex.getMessage());
                 throw AdapterUtils.createCompletionException(
-                        failureMessage,
-                        ErrorCode.STEP_FAILURE,
-                        ex.getCause() != null ? ex.getCause() : ex);
+                    failureMessage,
+                    ErrorCode.STEP_FAILURE,
+                    ex.getCause() != null ? ex.getCause() : ex);
             }
         }
 
         return CompletableFuture.completedFuture(response);
     }
 
-    private Location resolveLocation(ThreadReference thread, int targetId, IDebugAdapterContext context)
+    private LocationResponse resolveLocation(ThreadReference thread, int targetId, IDebugAdapterContext context)
             throws IncompatibleThreadStateException, AbsentInformationException {
         if (targetId > 0) {
             Object value = context.getRecyclableIdPool().getObjectById(targetId);
             if (value instanceof MethodInvocation) {
-                MethodInvocation invocation = (MethodInvocation) value;
-                VirtualMachine vm = thread.virtualMachine();
-                List<ReferenceType> refTypes = vm.classesByName(invocation.declaringTypeName);
-                for (ReferenceType referenceType : refTypes) {
-                    Optional<Location> location = referenceType.allLineLocations().stream()
-                            .filter(l -> matchesLocation(l, invocation))
-                            .findFirst();
-                    if (location.isPresent()) {
-                        return location.get();
-                    }
-                }
+                return resolveLocation((MethodInvocation) value, thread);
             }
         }
-        return getTopFrame(thread).location();
+        return LocationResponse.absolute(getTopFrame(thread).location());
+    }
+
+    private LocationResponse resolveLocation(MethodInvocation invocation, ThreadReference thread)
+            throws AbsentInformationException, IncompatibleThreadStateException {
+        VirtualMachine vm = thread.virtualMachine();
+        List<ReferenceType> refTypes = vm.classesByName(invocation.declaringTypeName);
+
+        // if class is not yet loaded try to make the debugger step in until class is
+        // loaded.
+        if (refTypes.isEmpty()) {
+            return LocationResponse.waitFor(invocation, getTopFrame(thread).location());
+        } else {
+            for (ReferenceType referenceType : refTypes) {
+                Optional<Location> location = referenceType.allLineLocations().stream()
+                        .filter(l -> matchesLocation(l, invocation))
+                        .findFirst();
+                if (location.isPresent()) {
+                    return LocationResponse.absolute(location.get());
+                }
+            }
+            return LocationResponse.absolute(getTopFrame(thread).location());
+        }
     }
 
     private boolean matchesLocation(Location l, MethodInvocation invocation) {
         Method method = l.method();
-        return method != null && Objects.equals(method.name(), invocation.methodName)
+        return method != null && Objects.equals(fixedName(method), invocation.methodName)
                 && Objects.equals(method.signature(), invocation.methodSignature);
+    }
+
+    /*
+     * Fix the name so for constructors we return empty to match the captured AST
+     * invocations.
+     */
+    private String fixedName(Method method) {
+        String name = method.name();
+        if ("<init>".equals(name)) {
+            return "";
+        }
+        return name;
     }
 
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context,
@@ -271,9 +280,14 @@ public class StepRequestHandler implements IDebugRequestHandler {
         Event event = debugEvent.event;
         EventRequestManager eventRequestManager = debugSession.getVM().eventRequestManager();
 
-        // When a breakpoint occurs, abort any pending step requests from the same
-        // thread.
+        // When a breakpoint occurs, abort any pending step requests from the same thread.
         if (event instanceof BreakpointEvent || event instanceof ExceptionEvent) {
+            // if we have a pending target step in then ignore and continue.
+            if (threadState.pendingTargetStepIn != null) {
+                debugEvent.shouldResume = true;
+                return;
+            }
+
             long threadId = ((LocatableEvent) event).thread().uniqueID();
             if (threadId == threadState.threadId && threadState.pendingStepRequest != null) {
                 threadState.deleteStepRequest(eventRequestManager);
@@ -291,21 +305,35 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     if (threadState.pendingStepType == Command.STEPIN) {
                         int currentStackDepth = thread.frameCount();
                         Location currentStepLocation = getTopFrame(thread).location();
-                        // If the ending step location is filtered, or same as the original location
-                        // where the step into operation is originated,
+
+                        // if we are in targetStepIn where the location was pending, then try to resolve
+                        // the location and use it.
+                        if (threadState.pendingTargetStepIn != null) {
+                            LocationResponse newLocation = resolveLocation(threadState.pendingTargetStepIn, thread);
+                            if (!newLocation.isLocationPending()) {
+                                threadState.stepLocation = newLocation.location;
+                                threadState.pendingTargetStepIn = null;
+                            }
+                        }
+
+                        // If the ending step location is filtered, or same as the original location where the step into operation is originated,
                         // do another step of the same kind.
                         if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, context)
                                 || shouldDoExtraStepInto(threadState.stackDepth, threadState.stepLocation,
-                                        currentStackDepth, currentStepLocation, threadState.targetStepIn)) {
+                                        currentStackDepth, currentStepLocation, threadState.targetStepIn)
+                                || threadState.pendingTargetStepIn != null) {
+                            String[] allowedClasses = threadState.pendingTargetStepIn != null
+                                    ? new String[]{threadState.pendingTargetStepIn.declaringTypeName}
+                                    : context.getStepFilters().allowClasses;
                             threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
-                                    context.getStepFilters().allowClasses,
-                                    context.getStepFilters().skipClasses);
+                                    allowedClasses,
+                                context.getStepFilters().skipClasses);
                             threadState.pendingStepRequest.enable();
                             debugEvent.shouldResume = true;
                             return;
                         }
                     }
-                } catch (IncompatibleThreadStateException | IndexOutOfBoundsException ex) {
+                } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | AbsentInformationException ex) {
                     // ignore.
                 }
             }
@@ -319,8 +347,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         } else if (event instanceof MethodExitEvent) {
             MethodExitEvent methodExitEvent = (MethodExitEvent) event;
             long threadId = methodExitEvent.thread().uniqueID();
-            if (threadId == threadState.threadId
-                    && methodExitEvent.method().equals(threadState.stepLocation.method())) {
+            if (threadId == threadState.threadId && methodExitEvent.method().equals(threadState.stepLocation.method())) {
                 Value returnValue = methodExitEvent.returnValue();
                 if (returnValue instanceof VoidValue) {
                     context.getStepResultManager().removeMethodResult(threadId);
@@ -338,26 +365,22 @@ public class StepRequestHandler implements IDebugRequestHandler {
             return false;
         }
         return ArrayUtils.isNotEmpty(filters.allowClasses) || ArrayUtils.isNotEmpty(filters.skipClasses)
-                || ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
-                || filters.skipStaticInitializers || filters.skipSynthetics;
+               || ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
+               || filters.skipStaticInitializers || filters.skipSynthetics;
     }
 
     /**
-     * Return true if the StepEvent's location is a Method that the user has
-     * indicated to filter.
+     * Return true if the StepEvent's location is a Method that the user has indicated to filter.
      *
      * @throws IncompatibleThreadStateException
-     *                                          if the thread is not suspended in
-     *                                          the target VM.
+     *                      if the thread is not suspended in the target VM.
      */
-    private boolean shouldFilterLocation(Location originalLocation, Location currentLocation,
-            IDebugAdapterContext context)
+    private boolean shouldFilterLocation(Location originalLocation, Location currentLocation, IDebugAdapterContext context)
             throws IncompatibleThreadStateException {
         if (originalLocation == null || currentLocation == null) {
             return false;
         }
-        return !shouldFilterMethod(originalLocation.method(), context)
-                && shouldFilterMethod(currentLocation.method(), context);
+        return !shouldFilterMethod(originalLocation.method(), context) && shouldFilterMethod(currentLocation.method(), context);
     }
 
     private boolean shouldFilterMethod(Method method, IDebugAdapterContext context) {
@@ -387,7 +410,6 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 return false;
             }
         }
-
         Method originalMethod = originalLocation.method();
         Method currentMethod = currentLocation.method();
         if (!originalMethod.equals(currentMethod)) {
@@ -403,14 +425,12 @@ public class StepRequestHandler implements IDebugRequestHandler {
      * Return the top stack frame of the target thread.
      *
      * @param thread
-     *               the target thread.
+     *              the target thread.
      * @return the top frame.
      * @throws IncompatibleThreadStateException
-     *                                          if the thread is not suspended in
-     *                                          the target VM.
+     *                      if the thread is not suspended in the target VM.
      * @throws IndexOutOfBoundsException
-     *                                          if the thread doesn't contain any
-     *                                          stack frame.
+     *                      if the thread doesn't contain any stack frame.
      */
     private StackFrame getTopFrame(ThreadReference thread) throws IncompatibleThreadStateException {
         return thread.frame(0);
@@ -426,6 +446,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         Location stepLocation = null;
         Disposable eventSubscription = null;
         boolean targetStepIn = false;
+        MethodInvocation pendingTargetStepIn;
 
         public void deleteMethodExitRequest(EventRequestManager manager) {
             DebugUtility.deleteEventRequestSafely(manager, this.pendingMethodExitRequest);
@@ -436,5 +457,28 @@ public class StepRequestHandler implements IDebugRequestHandler {
             DebugUtility.deleteEventRequestSafely(manager, this.pendingStepRequest);
             this.pendingStepRequest = null;
         }
+    }
+
+    static class LocationResponse {
+        Location location;
+        MethodInvocation methodInvocation;
+
+        private LocationResponse(Location location, MethodInvocation methodInvocation) {
+            this.location = location;
+            this.methodInvocation = methodInvocation;
+        }
+
+        public static LocationResponse waitFor(MethodInvocation invocation, Location location) {
+            return new LocationResponse(location, invocation);
+        }
+
+        public static LocationResponse absolute(Location location) {
+            return new LocationResponse(location, null);
+        }
+
+        boolean isLocationPending() {
+            return methodInvocation != null;
+        }
+
     }
 }
