@@ -34,7 +34,14 @@ public final class BindingUtils {
     public static String getMethodName(IMethodBinding binding, boolean fromKey) {
         if (fromKey) {
             String key = binding.getKey();
-            return key.substring(key.indexOf('.') + 1, key.indexOf('('));
+            int dotAt = key.indexOf('.');
+            int end = key.indexOf('<', dotAt);
+            if (end == -1) {
+                end = key.indexOf('(');
+            } else {
+                end = Math.min(end, key.indexOf('('));
+            }
+            return key.substring(dotAt + 1, end);
         } else {
             return binding.getName();
         }
