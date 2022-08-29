@@ -121,7 +121,9 @@ public class UsageDataSession {
             commandPerfCountMap.compute(command, (k, v) -> (v == null ? 0 : v.intValue()) + (int) duration);
 
             if (TRACE_DAP_PERF) {
-                dapPerf.add(new String[]{command, String.valueOf(duration)});
+                synchronized (dapPerf) {
+                    dapPerf.add(new String[]{command, String.valueOf(duration)});
+                }
             }
 
             if (!response.success || duration > RESPONSE_MAX_DELAY_MS) {
