@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core;
 
 import java.util.ArrayList;
+import java.util.Formatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ public class UsageDataSession {
     private static final Logger usageDataLogger = Logger.getLogger(Configuration.USAGE_DATA_LOGGER_NAME);
     private static final long RESPONSE_MAX_DELAY_MS = 1000;
     private static final ThreadLocal<UsageDataSession> threadLocal = new InheritableThreadLocal<>();
+    private static final boolean TRACE_DAP_PERF = Boolean.getBoolean("debug.dap.perf");
 
     private final String sessionGuid = UUID.randomUUID().toString();
     private boolean jdiEventSequenceEnabled = false;
@@ -43,6 +45,7 @@ public class UsageDataSession {
     private Map<String, Integer> userErrorCount = new HashMap<>();
     private Map<String, Integer> commandPerfCountMap = new HashMap<>();
     private List<String> eventList = new ArrayList<>();
+    private List<String[]> dapPerf = new ArrayList<>();
 
     public static String getSessionGuid() {
         return threadLocal.get() == null ? "" : threadLocal.get().sessionGuid;
@@ -117,6 +120,12 @@ public class UsageDataSession {
             long duration = responseMillis - requestMillis;
             commandPerfCountMap.compute(command, (k, v) -> (v == null ? 0 : v.intValue()) + (int) duration);
 
+            if (TRACE_DAP_PERF) {
+                synchronized (dapPerf) {
+                    dapPerf.add(new String[]{command, String.valueOf(duration)});
+                }
+            }
+
             if (!response.success || duration > RESPONSE_MAX_DELAY_MS) {
                 Map<String, Object> props = new HashMap<>();
                 props.put("duration", duration);
@@ -148,6 +157,18 @@ public class UsageDataSession {
             }
         }
         usageDataLogger.log(Level.INFO, "session usage data summary", props);
+
+        if (TRACE_DAP_PERF) {
+            Formatter fmt = new Formatter();
+            fmt.format("\nDAP Performance Metrics:\n");
+            fmt.format("%30s %10s(ms)\n", "Request", "Duration");
+            synchronized (dapPerf) {
+                dapPerf.forEach((event) -> {
+                    fmt.format("%30s %14s\n", event[0], event[1]);
+                });
+            }
+            logger.info(String.valueOf(fmt));
+        }
     }
 
     /**
