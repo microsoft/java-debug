@@ -142,4 +142,8 @@ public interface IDebugAdapterContext {
     ThreadCache getThreadCache();
 
     boolean asyncJDWP();
+
+    boolean isLocalDebugging();
+
+    void setLocalDebugging(boolean local);
 }

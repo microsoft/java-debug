@@ -58,6 +58,8 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private long shellProcessId = -1;
     private long processId = -1;
 
+    private boolean localDebugging = true;
+
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
     private IVariableFormatter variableFormatter = VariableFormatterFactory.createVariableFormatter();
@@ -365,5 +367,13 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public boolean asyncJDWP() {
         return DebugSettings.getCurrent().asyncJDWP == AsyncMode.ON;
+    }
+
+    public boolean isLocalDebugging() {
+        return localDebugging;
+    }
+
+    public void setLocalDebugging(boolean local) {
+        this.localDebugging = local;
     }
 }

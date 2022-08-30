@@ -11,7 +11,6 @@
 
 package com.microsoft.java.debug.core.adapter;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,7 +20,7 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
 public class StackFrameManager implements IStackFrameManager {
-    private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
+    private Map<Long, StackFrame[]> threadStackFrameMap = new HashMap<>();
 
     @Override
     public synchronized StackFrame getStackFrame(StackFrameReference ref) {

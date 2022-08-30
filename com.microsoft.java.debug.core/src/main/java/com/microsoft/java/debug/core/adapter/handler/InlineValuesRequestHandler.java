@@ -82,7 +82,7 @@ public class InlineValuesRequestHandler implements IDebugRequestHandler {
         }
 
         // Async mode is supposed to be performant, then disable the advanced features like inline values.
-        if (context.isAttached() && context.asyncJDWP()) {
+        if (!context.isLocalDebugging() && context.asyncJDWP()) {
             response.body = new Responses.InlineValuesResponse(null);
             return CompletableFuture.completedFuture(response);
         }

@@ -13,16 +13,16 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.jdi.ThreadReference;
 
 public class ThreadCache {
     private List<ThreadReference> allThreads = new ArrayList<>();
-    private Map<Long, String> threadNameMap = Collections.synchronizedMap(new HashMap<>());
+    private Map<Long, String> threadNameMap = new ConcurrentHashMap<>();
     private Map<Long, Boolean> deathThreads = Collections.synchronizedMap(new LinkedHashMap<>() {
         @Override
         protected boolean removeEldestEntry(java.util.Map.Entry<Long, Boolean> eldest) {

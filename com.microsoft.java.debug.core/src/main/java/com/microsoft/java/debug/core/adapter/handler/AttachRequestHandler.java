@@ -60,6 +60,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         context.setSourcePaths(attachArguments.sourcePaths);
         context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
         context.setStepFilters(attachArguments.stepFilters);
+        context.setLocalDebugging(isLocalHost(attachArguments.hostName));
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         vmHandler.setVmProvider(vmProvider);
@@ -119,6 +120,15 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
         context.getProtocolServer().sendEvent(new Events.InitializedEvent());
         return CompletableFuture.completedFuture(response);
+    }
+
+    private boolean isLocalHost(String hostName) {
+        if (hostName == null || "localhost".equals(hostName) || "127.0.0.1".equals(hostName)) {
+            return true;
+        }
+
+        // TODO: Check the host name of current computer as well.
+        return false;
     }
 
 }

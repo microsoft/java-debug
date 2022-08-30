@@ -63,7 +63,7 @@ public class DebugSession implements IDebugSession {
                     tr.resume();
                 }
             } catch (ObjectCollectedException ex) {
-                // Skipt it if the thread is garbage collected.
+                // Skip it if the thread is garbage collected.
             }
         }
         vm.resume();

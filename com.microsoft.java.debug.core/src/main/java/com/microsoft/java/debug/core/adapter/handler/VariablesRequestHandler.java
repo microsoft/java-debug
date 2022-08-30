@@ -374,11 +374,11 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
     }
 
     private boolean supportsLogicStructureView(IDebugAdapterContext context) {
-        return (!context.asyncJDWP() || !context.isAttached()) && DebugSettings.getCurrent().showLogicalStructure;
+        return (!context.asyncJDWP() || context.isLocalDebugging()) && DebugSettings.getCurrent().showLogicalStructure;
     }
 
     private boolean supportsToStringView(IDebugAdapterContext context) {
-        return (!context.asyncJDWP() || !context.isAttached()) && DebugSettings.getCurrent().showToString;
+        return (!context.asyncJDWP() || context.isLocalDebugging()) && DebugSettings.getCurrent().showToString;
     }
 
     private Types.Variable resolveLazyVariable(IDebugAdapterContext context, VariableProxy containerNode, IVariableFormatter variableFormatter,
@@ -456,10 +456,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 }));
             }
 
-            // JDWP Command: OR_REFERENCE_TYPE, RT_SIGNATURE
-            fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> {
-                value.type().signature();
-            }));
+            if (value instanceof ObjectReference) {
+                // JDWP Command: OR_REFERENCE_TYPE, RT_SIGNATURE
+                fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> {
+                    value.type().signature();
+                }));
+            }
         }
 
         return CompletableFuture.allOf(fetchVariableInfoFutures.toArray(new CompletableFuture[0]));

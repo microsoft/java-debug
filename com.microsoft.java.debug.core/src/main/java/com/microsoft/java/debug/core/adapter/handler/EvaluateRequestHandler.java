@@ -65,7 +65,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         String expression = evalArguments.expression;
 
         // Async mode is supposed to be performant, then disable the advanced features like hover evaluation.
-        if (context.isAttached() && context.asyncJDWP() && "hover".equals(evalArguments.context)) {
+        if (!context.isLocalDebugging() && context.asyncJDWP() && "hover".equals(evalArguments.context)) {
             return CompletableFuture.completedFuture(response);
         }
 
