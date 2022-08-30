@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2020 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -21,6 +21,7 @@ import java.util.Set;
 
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.DebugSettings.AsyncMode;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.VariableFormatterFactory;
 import com.microsoft.java.debug.core.protocol.IProtocolServer;
@@ -65,6 +66,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private IExceptionManager exceptionManager = new ExceptionManager();
     private IBreakpointManager breakpointManager = new BreakpointManager();
     private IStepResultManager stepResultManager = new StepResultManager();
+    private ThreadCache threadCache = new ThreadCache();
 
     public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext) {
         this.providerContext = providerContext;
@@ -348,5 +350,20 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setShellProcessId(long shellProcessId) {
         this.shellProcessId = shellProcessId;
+    }
+
+    @Override
+    public void setThreadCache(ThreadCache cache) {
+        this.threadCache = cache;
+    }
+
+    @Override
+    public ThreadCache getThreadCache() {
+        return this.threadCache;
+    }
+
+    @Override
+    public boolean asyncJDWP() {
+        return DebugSettings.getCurrent().asyncJDWP == AsyncMode.ON;
     }
 }

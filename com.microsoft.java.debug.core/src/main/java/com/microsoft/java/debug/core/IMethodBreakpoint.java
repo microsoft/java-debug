@@ -30,4 +30,11 @@ public interface IMethodBreakpoint extends IDebugResource {
     Object getProperty(Object key);
 
     void putProperty(Object key, Object value);
+
+    default void setAsync(boolean async) {
+    }
+
+    default boolean async() {
+        return false;
+    }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -16,11 +16,14 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -36,9 +39,12 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.LocalVariable;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
+import com.sun.jdi.ObjectReference;
+import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 
@@ -57,26 +63,32 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             response.body = new Responses.StackTraceResponseBody(result, 0);
             return CompletableFuture.completedFuture(response);
         }
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
+        ThreadReference thread = context.getThreadCache().getThread(stacktraceArgs.threadId);
+        if (thread == null) {
+            thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
+        }
         int totalFrames = 0;
         if (thread != null) {
             try {
                 totalFrames = thread.frameCount();
+                int count = stacktraceArgs.levels == 0 ? totalFrames - stacktraceArgs.startFrame
+                        : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-                StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread);
 
-                int count = stacktraceArgs.levels == 0 ? totalFrames - stacktraceArgs.startFrame
-                        : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
-                for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
+                StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread, stacktraceArgs.startFrame, count);
+                List<StackFrameInfo> jdiFrames = resolveStackFrameInfos(frames, context.asyncJDWP());
+                for (int i = stacktraceArgs.startFrame; i < jdiFrames.size() && count-- > 0; i++) {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
-                    int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
-                    result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context));
+                    int frameId = context.getRecyclableIdPool().addObject(stacktraceArgs.threadId, stackframe);
+                    StackFrameInfo jdiFrame = jdiFrames.get(i - stacktraceArgs.startFrame);
+                    result.add(convertDebuggerStackFrameToClient(jdiFrame, frameId, context));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
-                    | AbsentInformationException | ObjectCollectedException e) {
+                    | AbsentInformationException | ObjectCollectedException
+                    | CancellationException | CompletionException e) {
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates
@@ -87,18 +99,79 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId, IDebugAdapterContext context)
+    private static List<StackFrameInfo> resolveStackFrameInfos(StackFrame[] frames, boolean async)
+        throws AbsentInformationException, IncompatibleThreadStateException {
+        List<StackFrameInfo> jdiFrames = new ArrayList<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (StackFrame frame : frames) {
+            StackFrameInfo jdiFrame = new StackFrameInfo(frame);
+            jdiFrame.location = jdiFrame.frame.location();
+            jdiFrame.method = jdiFrame.location.method();
+            jdiFrame.methodName = jdiFrame.method.name();
+            jdiFrame.isNative = jdiFrame.method.isNative();
+            jdiFrame.declaringType = jdiFrame.location.declaringType();
+            if (async) {
+                // JDWP Command: M_LINE_TABLE
+                futures.add(AsyncJdwpUtils.runAsync(() -> {
+                    jdiFrame.lineNumber = jdiFrame.location.lineNumber();
+                }));
+
+                // JDWP Commands: RT_SOURCE_DEBUG_EXTENSION, RT_SOURCE_FILE
+                futures.add(AsyncJdwpUtils.runAsync(() -> {
+                    try {
+                        // When the .class file doesn't contain source information in meta data,
+                        // invoking Location#sourceName() would throw AbsentInformationException.
+                        jdiFrame.sourceName = jdiFrame.declaringType.sourceName();
+                    } catch (AbsentInformationException e) {
+                        jdiFrame.sourceName = null;
+                    }
+                }));
+
+                // JDWP Command: RT_SIGNATURE
+                futures.add(AsyncJdwpUtils.runAsync(() -> {
+                    jdiFrame.typeSignature = jdiFrame.declaringType.signature();
+                }));
+            } else {
+                jdiFrame.lineNumber = jdiFrame.location.lineNumber();
+                jdiFrame.typeSignature = jdiFrame.declaringType.signature();
+                try {
+                    // When the .class file doesn't contain source information in meta data,
+                    // invoking Location#sourceName() would throw AbsentInformationException.
+                    jdiFrame.sourceName = jdiFrame.declaringType.sourceName();
+                } catch (AbsentInformationException e) {
+                    jdiFrame.sourceName = null;
+                }
+            }
+
+            jdiFrames.add(jdiFrame);
+        }
+
+        AsyncJdwpUtils.await(futures);
+        for (StackFrameInfo jdiFrame : jdiFrames) {
+            jdiFrame.typeName = jdiFrame.declaringType.name();
+            jdiFrame.argumentTypeNames = jdiFrame.method.argumentTypeNames();
+            if (jdiFrame.sourceName == null) {
+                String enclosingType = AdapterUtils.parseEnclosingType(jdiFrame.typeName);
+                jdiFrame.sourceName = enclosingType.substring(enclosingType.lastIndexOf('.') + 1) + ".java";
+                jdiFrame.sourcePath = enclosingType.replace('.', File.separatorChar) + ".java";
+            } else {
+                jdiFrame.sourcePath = jdiFrame.declaringType.sourcePaths(null).get(0);
+            }
+        }
+
+        return jdiFrames;
+    }
+
+    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrameInfo jdiFrame, int frameId, IDebugAdapterContext context)
             throws URISyntaxException, AbsentInformationException {
-        Location location = stackFrame.location();
-        Method method = location.method();
-        Types.Source clientSource = this.convertDebuggerSourceToClient(location, context);
-        String methodName = formatMethodName(method, true, true);
-        int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
+        Types.Source clientSource = convertDebuggerSourceToClient(jdiFrame.typeName, jdiFrame.sourceName, jdiFrame.sourcePath, context);
+        String methodName = formatMethodName(jdiFrame.methodName, jdiFrame.argumentTypeNames, jdiFrame.typeName, true, true);
+        int clientLineNumber = AdapterUtils.convertLineNumber(jdiFrame.lineNumber, context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
         String presentationHint = null;
-        if (lineNumber < 0) {
+        if (clientLineNumber < 0) {
             presentationHint = "subtle";
-            if (method.isNative()) {
+            if (jdiFrame.isNative) {
                 // For native method, display a tip text "native method" in the Call Stack View.
                 methodName += "[native method]";
             } else {
@@ -107,25 +180,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 clientSource = null;
             }
         }
-        return new Types.StackFrame(frameId, methodName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0, presentationHint);
-    }
-
-    private Types.Source convertDebuggerSourceToClient(Location location, IDebugAdapterContext context) throws URISyntaxException {
-        final String fullyQualifiedName = location.declaringType().name();
-        String sourceName = "";
-        String relativeSourcePath = "";
-        try {
-            // When the .class file doesn't contain source information in meta data,
-            // invoking Location#sourceName() would throw AbsentInformationException.
-            sourceName = location.sourceName();
-            relativeSourcePath = location.sourcePath();
-        } catch (AbsentInformationException e) {
-            String enclosingType = AdapterUtils.parseEnclosingType(fullyQualifiedName);
-            sourceName = enclosingType.substring(enclosingType.lastIndexOf('.') + 1) + ".java";
-            relativeSourcePath = enclosingType.replace('.', File.separatorChar) + ".java";
-        }
-
-        return convertDebuggerSourceToClient(fullyQualifiedName, sourceName, relativeSourcePath, context);
+        return new Types.StackFrame(frameId, methodName, clientSource, clientLineNumber, context.isClientColumnsStartAt1() ? 1 : 0, presentationHint);
     }
 
     /**
@@ -164,20 +219,42 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private String formatMethodName(Method method, boolean showContextClass, boolean showParameter) {
+    private String formatMethodName(String methodName, List<String> argumentTypeNames, String fqn, boolean showContextClass, boolean showParameter) {
         StringBuilder formattedName = new StringBuilder();
         if (showContextClass) {
-            String fullyQualifiedClassName = method.declaringType().name();
-            formattedName.append(SimpleTypeFormatter.trimTypeName(fullyQualifiedClassName));
+            formattedName.append(SimpleTypeFormatter.trimTypeName(fqn));
             formattedName.append(".");
         }
-        formattedName.append(method.name());
+        formattedName.append(methodName);
         if (showParameter) {
-            List<String> argumentTypeNames = method.argumentTypeNames().stream().map(SimpleTypeFormatter::trimTypeName).collect(Collectors.toList());
+            argumentTypeNames = argumentTypeNames.stream().map(SimpleTypeFormatter::trimTypeName).collect(Collectors.toList());
             formattedName.append("(");
             formattedName.append(String.join(",", argumentTypeNames));
             formattedName.append(")");
         }
         return formattedName.toString();
+    }
+
+    static class StackFrameInfo {
+        public StackFrame frame;
+        public Location location;
+        public Method method;
+        public String methodName;
+        public List<String> argumentTypeNames = new ArrayList<>();
+        public boolean isNative = false;
+        public int lineNumber;
+        public ReferenceType declaringType = null;
+        public String typeName;
+        public String typeSignature;
+        public String sourceName = "";
+        public String sourcePath = "";
+
+        // variables
+        public List<LocalVariable> visibleVariables = null;
+        public ObjectReference thisObject;
+
+        public StackFrameInfo(StackFrame frame) {
+            this.frame = frame;
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -12,11 +12,15 @@
 package com.microsoft.java.debug.core;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
@@ -40,6 +44,8 @@ public class Breakpoint implements IBreakpoint {
     private String logMessage = null;
     private HashMap<Object, Object> propertyMap = new HashMap<>();
     private String methodSignature = null;
+
+    private boolean async = false;
 
     Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber) {
         this(vm, eventHub, className, lineNumber, 0, null);
@@ -69,7 +75,7 @@ public class Breakpoint implements IBreakpoint {
     }
 
     // IDebugResource
-    private List<EventRequest> requests = new ArrayList<>();
+    private List<EventRequest> requests = Collections.synchronizedList(new ArrayList<>());
     private List<Disposable> subscriptions = new ArrayList<>();
 
     @Override
@@ -163,6 +169,16 @@ public class Breakpoint implements IBreakpoint {
     }
 
     @Override
+    public boolean async() {
+        return this.async;
+    }
+
+    @Override
+    public void setAsync(boolean async) {
+        this.async = async;
+    }
+
+    @Override
     public CompletableFuture<IBreakpoint> install() {
         // It's possible that different class loaders create new class with the same name.
         // Here to listen to future class prepare events to handle such case.
@@ -185,8 +201,9 @@ public class Breakpoint implements IBreakpoint {
                             || localClassPrepareRequest.equals(debugEvent.event.request())))
                 .subscribe(debugEvent -> {
                     ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
-                    List<BreakpointRequest> newRequests = createBreakpointRequests(event.referenceType(), lineNumber,
-                            hitCount, false);
+                    List<BreakpointRequest> newRequests = AsyncJdwpUtils.await(
+                        createBreakpointRequests(event.referenceType(), lineNumber, hitCount, false)
+                    );
                     requests.addAll(newRequests);
                     if (!newRequests.isEmpty() && !future.isDone()) {
                         this.putProperty("verified", true);
@@ -195,126 +212,180 @@ public class Breakpoint implements IBreakpoint {
                 });
         subscriptions.add(subscription);
 
-        List<ReferenceType> refTypes = vm.classesByName(className);
-        List<BreakpointRequest> newRequests = createBreakpointRequests(refTypes, lineNumber, hitCount, true);
-        requests.addAll(newRequests);
+        Runnable resolveRequestsFromExistingClasses = () -> {
+            List<ReferenceType> refTypes = vm.classesByName(className);
+            createBreakpointRequests(refTypes, lineNumber, hitCount, true)
+                .whenComplete((newRequests, ex) -> {
+                    if (ex != null) {
+                        return;
+                    }
 
-        if (!newRequests.isEmpty() && !future.isDone()) {
-            this.putProperty("verified", true);
-            future.complete(this);
+                    requests.addAll(newRequests);
+                    if (!newRequests.isEmpty() && !future.isDone()) {
+                        this.putProperty("verified", true);
+                        future.complete(this);
+                    }
+                });
+        };
+
+        if (async()) {
+            AsyncJdwpUtils.runAsync(resolveRequestsFromExistingClasses);
+        } else {
+            resolveRequestsFromExistingClasses.run();
         }
 
         return future;
     }
 
-    private static List<Location> collectLocations(ReferenceType refType, int lineNumber) {
-        List<Location> locations = new ArrayList<>();
+    private CompletableFuture<List<Location>> collectLocations(ReferenceType refType, int lineNumber) {
+        List<CompletableFuture<List<Location>>> futures = new ArrayList<>();
+        Iterator<Method> iter = refType.methods().iterator();
+        while (iter.hasNext()) {
+            Method method = iter.next();
+            if (async()) {
+                futures.add(AsyncJdwpUtils.supplyAsync(() -> findLocaitonsOfLine(method, lineNumber)));
+            } else {
+                futures.add(CompletableFuture.completedFuture(findLocaitonsOfLine(method, lineNumber)));
+            }
+        }
 
+        return AsyncJdwpUtils.flatAll(futures);
+    }
+
+    private CompletableFuture<List<Location>> collectLocations(List<ReferenceType> refTypes, int lineNumber, boolean includeNestedTypes) {
+        List<CompletableFuture<List<Location>>> futures = new ArrayList<>();
+        refTypes.forEach(refType -> {
+            futures.add(collectLocations(refType, lineNumber, includeNestedTypes));
+        });
+
+        return AsyncJdwpUtils.flatAll(futures);
+    }
+
+    private CompletableFuture<List<Location>> collectLocations(ReferenceType refType, int lineNumber, boolean includeNestedTypes) {
+        return collectLocations(refType, lineNumber).thenCompose((newLocations) -> {
+            if (!newLocations.isEmpty()) {
+                return CompletableFuture.completedFuture(newLocations);
+            } else if (includeNestedTypes) {
+                // ReferenceType.nestedTypes() will invoke vm.allClasses() to list all loaded classes,
+                // should avoid using nestedTypes for performance.
+                for (ReferenceType nestedType : refType.nestedTypes()) {
+                    CompletableFuture<List<Location>> nestedLocationsFuture = collectLocations(nestedType, lineNumber);
+                    List<Location> nestedLocations = nestedLocationsFuture.join();
+                    if (!nestedLocations.isEmpty()) {
+                        return CompletableFuture.completedFuture(nestedLocations);
+                    }
+                }
+            }
+
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        });
+    }
+
+    private CompletableFuture<List<Location>> collectLocations(List<ReferenceType> refTypes, String nameAndSignature) {
+        String[] segments = nameAndSignature.split("#");
+        List<CompletableFuture<Location>> futures = new ArrayList<>();
+        for (ReferenceType refType : refTypes) {
+            if (async()) {
+                futures.add(AsyncJdwpUtils.supplyAsync(() -> findMethodLocaiton(refType, segments[0], segments[1])));
+            } else {
+                futures.add(CompletableFuture.completedFuture(findMethodLocaiton(refType, segments[0], segments[1])));
+            }
+        }
+
+        return AsyncJdwpUtils.all(futures);
+    }
+
+    private Location findMethodLocaiton(ReferenceType refType, String methodName, String methodSiguature) {
+        List<Method> methods = refType.methods();
+        Location location = null;
+        for (Method method : methods) {
+            if (!method.isAbstract() && !method.isNative()
+                    && methodName.equals(method.name())
+                    && (methodSiguature.equals(method.genericSignature()) || methodSiguature.equals(method.signature()))) {
+                location = method.location();
+                break;
+            }
+        }
+
+        return location;
+    }
+
+    private List<Location> findLocaitonsOfLine(Method method, int lineNumber) {
         try {
-            locations.addAll(refType.locationsOfLine(lineNumber));
-        } catch (Exception e) {
+            return method.locationsOfLine(lineNumber);
+        } catch (AbsentInformationException e) {
             // could be AbsentInformationException or ClassNotPreparedException
             // but both are expected so no need to further handle
         }
 
-        return locations;
+        return Collections.emptyList();
     }
 
-    private static List<Location> collectLocations(List<ReferenceType> refTypes, int lineNumber, boolean includeNestedTypes) {
-        List<Location> locations = new ArrayList<>();
-        try {
-            refTypes.forEach(refType -> {
-                List<Location> newLocations = collectLocations(refType, lineNumber);
-                if (!newLocations.isEmpty()) {
-                    locations.addAll(newLocations);
-                } else if (includeNestedTypes) {
-                    // ReferenceType.nestedTypes() will invoke vm.allClasses() to list all loaded classes,
-                    // should avoid using nestedTypes for performance.
-                    for (ReferenceType nestedType : refType.nestedTypes()) {
-                        List<Location> nestedLocations = collectLocations(nestedType, lineNumber);
-                        if (!nestedLocations.isEmpty()) {
-                            locations.addAll(nestedLocations);
-                            break;
-                        }
-                    }
-                }
-            });
-        } catch (VMDisconnectedException ex) {
-            // collect locations operation may be executing while JVM is terminating, thus the VMDisconnectedException may be
-            // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
-            // response in vscode, causing no error log in trace.
-        }
-
-        return locations;
-    }
-
-    private static List<Location> collectLocations(List<ReferenceType> refTypes, String nameAndSignature) {
-        List<Location> locations = new ArrayList<>();
-        String[] segments = nameAndSignature.split("#");
-
-        for (ReferenceType refType : refTypes) {
-            List<Method> methods = refType.methods();
-            for (Method method : methods) {
-                if (!method.isAbstract() && !method.isNative()
-                        && segments[0].equals(method.name())
-                        && (segments[1].equals(method.genericSignature()) || segments[1].equals(method.signature()))) {
-                    locations.add(method.location());
-                    break;
-                }
-            }
-        }
-        return locations;
-    }
-
-    private List<BreakpointRequest> createBreakpointRequests(ReferenceType refType, int lineNumber, int hitCount,
+    private CompletableFuture<List<BreakpointRequest>> createBreakpointRequests(ReferenceType refType, int lineNumber, int hitCount,
             boolean includeNestedTypes) {
-        List<ReferenceType> refTypes = new ArrayList<>();
-        refTypes.add(refType);
-        return createBreakpointRequests(refTypes, lineNumber, hitCount, includeNestedTypes);
+        return createBreakpointRequests(Arrays.asList(refType), lineNumber, hitCount, includeNestedTypes);
     }
 
-    private List<BreakpointRequest> createBreakpointRequests(List<ReferenceType> refTypes, int lineNumber,
+    private CompletableFuture<List<BreakpointRequest>> createBreakpointRequests(List<ReferenceType> refTypes, int lineNumber,
             int hitCount, boolean includeNestedTypes) {
-        List<Location> locations;
+        CompletableFuture<List<Location>> locationsFuture;
         if (this.methodSignature != null) {
-            locations = collectLocations(refTypes, this.methodSignature);
+            locationsFuture = collectLocations(refTypes, this.methodSignature);
         } else {
-            locations = collectLocations(refTypes, lineNumber, includeNestedTypes);
+            locationsFuture = collectLocations(refTypes, lineNumber, includeNestedTypes);
         }
 
-        // find out the existing breakpoint locations
-        List<Location> existingLocations = new ArrayList<>(requests.size());
-        Observable.fromIterable(requests).filter(request -> request instanceof BreakpointRequest)
-                .map(request -> ((BreakpointRequest) request).location()).toList().subscribe(list -> {
-                    existingLocations.addAll(list);
-                });
+        return locationsFuture.thenCompose((locations) -> {
+            // find out the existing breakpoint locations
+            List<Location> existingLocations = new ArrayList<>(requests.size());
+            Observable.fromIterable(requests).filter(request -> request instanceof BreakpointRequest)
+                    .map(request -> ((BreakpointRequest) request).location()).toList().subscribe(list -> {
+                        existingLocations.addAll(list);
+                    });
 
-        // remove duplicated locations
-        List<Location> newLocations = new ArrayList<>(locations.size());
-        Observable.fromIterable(locations).filter(location -> !existingLocations.contains(location)).toList().subscribe(list -> {
-            newLocations.addAll(list);
-        });
+            // remove duplicated locations
+            List<Location> newLocations = new ArrayList<>(locations.size());
+            Observable.fromIterable(locations).filter(location -> !existingLocations.contains(location)).toList().subscribe(list -> {
+                newLocations.addAll(list);
+            });
 
-        List<BreakpointRequest> newRequests = new ArrayList<>(newLocations.size());
+            List<BreakpointRequest> newRequests = new ArrayList<>(newLocations.size());
 
-        newLocations.forEach(location -> {
-            try {
+            newLocations.forEach(location -> {
                 BreakpointRequest request = vm.eventRequestManager().createBreakpointRequest(location);
                 request.setSuspendPolicy(BreakpointRequest.SUSPEND_EVENT_THREAD);
                 if (hitCount > 0) {
                     request.addCountFilter(hitCount);
                 }
-                request.enable();
                 request.putProperty(IBreakpoint.REQUEST_TYPE, computeRequestType());
                 newRequests.add(request);
-            } catch (VMDisconnectedException ex) {
-                // enable breakpoint operation may be executing while JVM is terminating, thus the VMDisconnectedException may be
-                // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
-                // response in vscode, causing no error log in trace.
-            }
-        });
+            });
 
-        return newRequests;
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (BreakpointRequest request : newRequests) {
+                if (async()) {
+                    futures.add(AsyncJdwpUtils.runAsync(() -> {
+                        try {
+                            request.enable();
+                        } catch (VMDisconnectedException ex) {
+                            // enable breakpoint operation may be executing while JVM is terminating, thus the VMDisconnectedException may be
+                            // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
+                            // response in vscode, causing no error log in trace.
+                        }
+                    }));
+                } else {
+                    try {
+                        request.enable();
+                    } catch (VMDisconnectedException ex) {
+                        // enable breakpoint operation may be executing while JVM is terminating, thus the VMDisconnectedException may be
+                        // possible, in case of VMDisconnectedException, this method will return an empty array which turns out a valid
+                        // response in vscode, causing no error log in trace.
+                    }
+                }
+            }
+
+            return AsyncJdwpUtils.all(futures).thenApply((res) -> newRequests);
+        });
     }
 
     private Object computeRequestType() {

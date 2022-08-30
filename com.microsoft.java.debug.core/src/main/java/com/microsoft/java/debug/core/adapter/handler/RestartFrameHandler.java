@@ -30,6 +30,7 @@ import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.RestartFrameArguments;
+import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.StepRequest;
@@ -59,7 +60,7 @@ public class RestartFrameHandler implements IDebugRequestHandler {
         if (canRestartFrame(context, stackFrameReference)) {
             try {
                 ThreadReference reference = stackFrameReference.getThread();
-                popStackFrames(context, reference, stackFrameReference.getDepth());
+                popStackFrames(context, stackFrameReference);
                 stepInto(context, reference);
             } catch (DebugException de) {
                 context.getProtocolServer().sendEvent(new Events.UserNotificationEvent(NotificationType.ERROR, de.getMessage()));
@@ -80,10 +81,20 @@ public class RestartFrameHandler implements IDebugRequestHandler {
             return false;
         }
         ThreadReference reference = frameReference.getThread();
-        StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(reference);
+        int totalFrames;
+        try {
+            totalFrames = reference.frameCount();
+        } catch (IncompatibleThreadStateException e) {
+            return false;
+        }
 
         // The frame cannot be the bottom one of the call stack:
-        if (frames.length <= frameReference.getDepth() + 1) {
+        if (totalFrames <= frameReference.getDepth() + 1) {
+            return false;
+        }
+
+        StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(reference, 0, frameReference.getDepth() + 2);
+        if (frames.length == 0) {
             return false;
         }
 
@@ -96,9 +107,12 @@ public class RestartFrameHandler implements IDebugRequestHandler {
         return true;
     }
 
-    private void popStackFrames(IDebugAdapterContext context, ThreadReference thread, int depth) throws DebugException {
-        StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread);
-        StackFrameUtility.pop(frames[depth]);
+    private void popStackFrames(IDebugAdapterContext context, StackFrameReference stackFrameRef) throws DebugException {
+        StackFrame frame = context.getStackFrameManager().getStackFrame(stackFrameRef);
+        if (frame == null) {
+            return;
+        }
+        StackFrameUtility.pop(frame);
     }
 
     private void stepInto(IDebugAdapterContext context, ThreadReference thread) {

@@ -64,6 +64,11 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         VariableUtils.applyFormatterOptions(options, evalArguments.format != null && evalArguments.format.hex);
         String expression = evalArguments.expression;
 
+        // Async mode is supposed to be performant, then disable the advanced features like hover evaluation.
+        if (context.isAttached() && context.asyncJDWP() && "hover".equals(evalArguments.context)) {
+            return CompletableFuture.completedFuture(response);
+        }
+
         if (StringUtils.isBlank(expression)) {
             throw new CompletionException(AdapterUtils.createUserErrorDebugException(
                 "Failed to evaluate. Reason: Empty expression cannot be evaluated.",

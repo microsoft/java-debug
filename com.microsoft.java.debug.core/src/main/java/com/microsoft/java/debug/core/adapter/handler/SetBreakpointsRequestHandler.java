@@ -130,10 +130,11 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             IBreakpoint[] added = context.getBreakpointManager()
                                          .setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
             for (int i = 0; i < bpArguments.breakpoints.length; i++) {
+                added[i].setAsync(context.asyncJDWP());
                 // For newly added breakpoint, should install it to debuggee first.
                 if (toAdds[i] == added[i] && added[i].className() != null) {
                     added[i].install().thenAccept(bp -> {
-                        Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
+                        Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("changed", this.convertDebuggerBreakpointToClient(bp, context));
                         context.getProtocolServer().sendEvent(bpEvent);
                     });
                 } else if (added[i].className() != null) {

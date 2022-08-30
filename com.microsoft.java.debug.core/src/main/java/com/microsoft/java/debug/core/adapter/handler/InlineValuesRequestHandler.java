@@ -72,11 +72,17 @@ public class InlineValuesRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
         InlineValuesArguments inlineValuesArgs = (InlineValuesArguments) arguments;
-        int variableCount = inlineValuesArgs == null || inlineValuesArgs.variables == null ? 0 : inlineValuesArgs.variables.length;
+        final int variableCount = inlineValuesArgs == null || inlineValuesArgs.variables == null ? 0 : inlineValuesArgs.variables.length;
         InlineVariable[] inlineVariables = inlineValuesArgs.variables;
         StackFrameReference stackFrameReference = (StackFrameReference) context.getRecyclableIdPool().getObjectById(inlineValuesArgs.frameId);
         if (stackFrameReference == null) {
             logger.log(Level.SEVERE, String.format("InlineValues failed: invalid stackframe id %d.", inlineValuesArgs.frameId));
+            response.body = new Responses.InlineValuesResponse(null);
+            return CompletableFuture.completedFuture(response);
+        }
+
+        // Async mode is supposed to be performant, then disable the advanced features like inline values.
+        if (context.isAttached() && context.asyncJDWP()) {
             response.body = new Responses.InlineValuesResponse(null);
             return CompletableFuture.completedFuture(response);
         }

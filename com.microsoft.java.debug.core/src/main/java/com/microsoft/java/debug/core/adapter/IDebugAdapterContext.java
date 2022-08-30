@@ -136,4 +136,10 @@ public interface IDebugAdapterContext {
     void setProcessId(long processId);
 
     long getProcessId();
+
+    void setThreadCache(ThreadCache cache);
+
+    ThreadCache getThreadCache();
+
+    boolean asyncJDWP();
 }

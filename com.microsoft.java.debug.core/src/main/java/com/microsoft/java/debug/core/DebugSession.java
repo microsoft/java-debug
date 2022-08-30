@@ -14,6 +14,7 @@ package com.microsoft.java.debug.core;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.EventRequest;
@@ -57,8 +58,12 @@ public class DebugSession implements IDebugSession {
          * all threads fully.
          */
         for (ThreadReference tr : DebugUtility.getAllThreadsSafely(this)) {
-            while (!tr.isCollected() && tr.suspendCount() > 1) {
-                tr.resume();
+            try {
+                while (tr.suspendCount() > 1) {
+                    tr.resume();
+                }
+            } catch (ObjectCollectedException ex) {
+                // Skipt it if the thread is garbage collected.
             }
         }
         vm.resume();

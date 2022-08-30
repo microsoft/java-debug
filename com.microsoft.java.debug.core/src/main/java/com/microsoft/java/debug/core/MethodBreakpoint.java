@@ -11,6 +11,7 @@
 package com.microsoft.java.debug.core;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,12 +43,13 @@ public class MethodBreakpoint implements IMethodBreakpoint, IEvaluatableBreakpoi
     private String functionName;
     private String condition;
     private int hitCount;
+    private boolean async = false;
 
     private HashMap<Object, Object> propertyMap = new HashMap<>();
     private Object compiledConditionalExpression = null;
     private Map<Long, Object> compiledExpressions = new ConcurrentHashMap<>();
 
-    private List<EventRequest> requests = new ArrayList<>();
+    private List<EventRequest> requests = Collections.synchronizedList(new ArrayList<>());
     private List<Disposable> subscriptions = new ArrayList<>();
 
     public MethodBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, String functionName,
@@ -170,6 +172,16 @@ public class MethodBreakpoint implements IMethodBreakpoint, IEvaluatableBreakpoi
     }
 
     @Override
+    public boolean async() {
+        return this.async;
+    }
+
+    @Override
+    public void setAsync(boolean async) {
+        this.async = async;
+    }
+
+    @Override
     public CompletableFuture<IMethodBreakpoint> install() {
         Disposable subscription = eventHub.events()
                 .filter(debugEvent -> debugEvent.event instanceof ThreadDeathEvent)
@@ -194,7 +206,9 @@ public class MethodBreakpoint implements IMethodBreakpoint, IEvaluatableBreakpoi
                         && (classPrepareRequest.equals(debugEvent.event.request())))
                 .subscribe(debugEvent -> {
                     ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
-                    Optional<MethodEntryRequest> createdRequest = createMethodEntryRequest(event.referenceType());
+                    Optional<MethodEntryRequest> createdRequest = AsyncJdwpUtils.await(
+                        createMethodEntryRequest(event.referenceType())
+                    );
                     if (createdRequest.isPresent()) {
                         MethodEntryRequest methodEntryRequest = createdRequest.get();
                         requests.add(methodEntryRequest);
@@ -206,22 +220,44 @@ public class MethodBreakpoint implements IMethodBreakpoint, IEvaluatableBreakpoi
                 });
         subscriptions.add(subscription);
 
-        List<ReferenceType> types = vm.classesByName(className);
-        for (ReferenceType type : types) {
-            Optional<MethodEntryRequest> createdRequest = createMethodEntryRequest(type);
-            if (createdRequest.isPresent()) {
-                MethodEntryRequest methodEntryRequest = createdRequest.get();
-                requests.add(methodEntryRequest);
-                if (!future.isDone()) {
-                    this.putProperty("verified", true);
-                    future.complete(this);
-                }
+        Runnable createRequestsFromLoadedClasses = () -> {
+            List<ReferenceType> types = vm.classesByName(className);
+            for (ReferenceType type : types) {
+                createMethodEntryRequest(type).whenComplete((createdRequest, ex) -> {
+                    if (ex != null) {
+                        return;
+                    }
+
+                    if (createdRequest.isPresent()) {
+                        MethodEntryRequest methodEntryRequest = createdRequest.get();
+                        requests.add(methodEntryRequest);
+                        if (!future.isDone()) {
+                            this.putProperty("verified", true);
+                            future.complete(this);
+                        }
+                    }
+                });
             }
+        };
+
+        if (async()) {
+            AsyncJdwpUtils.runAsync(createRequestsFromLoadedClasses);
+        } else {
+            createRequestsFromLoadedClasses.run();
         }
+
         return future;
     }
 
-    private Optional<MethodEntryRequest> createMethodEntryRequest(ReferenceType type) {
+    private CompletableFuture<Optional<MethodEntryRequest>> createMethodEntryRequest(ReferenceType type) {
+        if (async()) {
+            return CompletableFuture.supplyAsync(() -> createMethodEntryRequest0(type));
+        } else {
+            return CompletableFuture.completedFuture(createMethodEntryRequest0(type));
+        }
+    }
+
+    private Optional<MethodEntryRequest> createMethodEntryRequest0(ReferenceType type) {
         return type.methodsByName(functionName).stream().findFirst().map(method -> {
             MethodEntryRequest request = vm.eventRequestManager().createMethodEntryRequest();
 

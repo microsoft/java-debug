@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2020 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,11 +15,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
@@ -213,6 +217,91 @@ public abstract class VariableUtils {
         return res;
     }
 
+    public static CompletableFuture<List<Variable>> listLocalVariablesAsync(StackFrame stackFrame) {
+        CompletableFuture<List<Variable>> future = new CompletableFuture<>();
+        if (stackFrame.location().method().isNative()) {
+            return CompletableFuture.completedFuture(new ArrayList<>());
+        }
+
+        AsyncJdwpUtils.supplyAsync(() -> {
+            try {
+                return stackFrame.visibleVariables();
+            } catch (AbsentInformationException ex) {
+                throw new CompletionException(ex);
+            }
+        }).thenCompose((visibleVariables) -> {
+            // When using the API StackFrame.getValues() to batch fetch the variable values, the JDI
+            // probably throws timeout exception if the variables to be passed at one time are large.
+            // So use paging to fetch the values in chunks.
+            return bulkFetchValuesAsync(visibleVariables, DebugSettings.getCurrent().limitOfVariablesPerJdwpRequest, (currentPage) -> {
+                Map<LocalVariable, Value> values = stackFrame.getValues(currentPage);
+                List<Variable> result = new ArrayList<>();
+                for (LocalVariable localVariable : currentPage) {
+                    Variable var = new Variable(localVariable.name(), values.get(localVariable));
+                    var.local = localVariable;
+                    result.add(var);
+                }
+
+                return result;
+            });
+        }).whenComplete((res, ex) -> {
+            if (ex instanceof CompletionException && ex.getCause() != null) {
+                ex = ex.getCause();
+            }
+
+            if (ex instanceof AbsentInformationException) {
+                // avoid listing variable on native methods
+                try {
+                    if (stackFrame.location().method().argumentTypes().size() == 0) {
+                        future.complete(new ArrayList<>());
+                        return;
+                    }
+                } catch (ClassNotLoadedException ex2) {
+                    // ignore since the method is hit.
+                }
+                // 1. in oracle implementations, when there is no debug information, the AbsentInformationException will be
+                // thrown, then we need to retrieve arguments from stackFrame#getArgumentValues.
+                // 2. in eclipse jdt implementations, when there is no debug information, stackFrame#visibleVariables will
+                // return some generated variables like arg0, arg1, and the stackFrame#getArgumentValues will return null
+
+                // for both scenarios, we need to handle the possible null returned by stackFrame#getArgumentValues and
+                // we need to call stackFrame.getArgumentValues get the arguments if AbsentInformationException is thrown
+                int argId = 0;
+                try {
+                    List<Value> arguments = stackFrame.getArgumentValues();
+                    if (arguments == null) {
+                        future.complete(new ArrayList<>());
+                        return;
+                    }
+
+                    List<Variable> variables = new ArrayList<>();
+                    for (Value argValue : arguments) {
+                        Variable var = new Variable("arg" + argId, argValue);
+                        var.argumentIndex = argId++;
+                        variables.add(var);
+                    }
+                    future.complete(variables);
+                } catch (InternalException ex2) {
+                    // From Oracle's forums:
+                    // This could be a JPDA bug. Unexpected JDWP Error: 32 means that an 'opaque' frame was
+                    // detected at the lower JPDA levels,
+                    // typically a native frame.
+                    if (ex2.errorCode() != 32) {
+                        throw ex2;
+                    }
+                }
+            } else if (ex != null) {
+                future.complete(new ArrayList<>());
+            } else {
+                future.complete(res.stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList()));
+            }
+        });
+
+        return future;
+    }
+
     /**
      * Get the this variable of an stack frame.
      *
@@ -226,6 +315,16 @@ public abstract class VariableUtils {
             return null;
         }
         return new Variable("this", thisObject);
+    }
+
+    public static CompletableFuture<Variable> getThisVariableAsync(StackFrame stackFrame) {
+        return AsyncJdwpUtils.supplyAsync(() -> {
+            ObjectReference thisObject = stackFrame.thisObject();
+            if (thisObject == null) {
+                return null;
+            }
+            return new Variable("this", thisObject);
+        });
     }
 
     /**
@@ -249,6 +348,40 @@ public abstract class VariableUtils {
         }));
 
         return res;
+    }
+
+    public static CompletableFuture<List<Variable>> listStaticVariablesAsync(StackFrame stackFrame) {
+        CompletableFuture<List<Variable>> future = new CompletableFuture<>();
+        ReferenceType type = stackFrame.location().declaringType();
+        AsyncJdwpUtils.supplyAsync(() -> {
+            return type.allFields().stream().filter(TypeComponent::isStatic).collect(Collectors.toList());
+        }).thenCompose((fields) -> {
+            return bulkFetchValuesAsync(fields, DebugSettings.getCurrent().limitOfVariablesPerJdwpRequest, (currentPage) -> {
+                List<Variable> variables = new ArrayList<>();
+                Map<Field, Value> fieldValues = type.getValues(currentPage);
+                for (Field currentField : currentPage) {
+                    Variable var = new Variable(currentField.name(), fieldValues.get(currentField));
+                    var.field = currentField;
+                    variables.add(var);
+                }
+
+                return variables;
+            });
+        }).whenComplete((res, ex) -> {
+            if (ex instanceof CompletionException && ex.getCause() != null) {
+                ex = ex.getCause();
+            }
+
+            if (ex != null) {
+                future.complete(new ArrayList<>());
+            } else {
+                future.complete(res.stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList()));
+            }
+        });
+
+        return future;
     }
 
     /**
@@ -314,6 +447,23 @@ public abstract class VariableUtils {
             List<T> currentPage = elements.subList(pageStart, pageEnd);
             consumer.accept(currentPage);
         }
+    }
+
+    private static <T, R> CompletableFuture<List<R>> bulkFetchValuesAsync(List<T> elements, int numberPerPage, Function<List<T>, R> function) {
+        int size = elements.size();
+        numberPerPage = numberPerPage < 1 ? 1 : numberPerPage;
+        int page = size / numberPerPage + Math.min(size % numberPerPage, 1);
+        List<CompletableFuture<R>> futures = new ArrayList<>();
+        for (int i = 0; i < page; i++) {
+            int pageStart = i * numberPerPage;
+            int pageEnd = Math.min(pageStart + numberPerPage, size);
+            final List<T> currentPage = elements.subList(pageStart, pageEnd);
+            futures.add(AsyncJdwpUtils.supplyAsync(() -> {
+                return function.apply(currentPage);
+            }));
+        }
+
+        return AsyncJdwpUtils.all(futures);
     }
 
     private VariableUtils() {
