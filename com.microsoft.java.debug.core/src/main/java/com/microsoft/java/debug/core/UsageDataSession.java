@@ -196,6 +196,10 @@ public class UsageDataSession {
         usageDataLogger.log(Level.INFO, "session info", map);
     }
 
+    public static void recordInfo(String description, Map<String, Object> data) {
+        usageDataLogger.log(Level.INFO, description, data);
+    }
+
     /**
      * Record counts for each user errors encountered.
      */

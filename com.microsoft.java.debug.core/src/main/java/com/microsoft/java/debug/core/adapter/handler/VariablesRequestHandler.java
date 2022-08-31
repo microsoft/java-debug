@@ -60,6 +60,7 @@ import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ObjectReference;
+import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.StringReference;
 import com.sun.jdi.Type;
@@ -197,7 +198,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     if (varArgs.count > 0) {
                         childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
                     } else {
-                        childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables);
+                        childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables, context.asyncJDWP());
                     }
                 }
             } catch (AbsentInformationException e) {
@@ -210,12 +211,24 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         // Find variable name duplicates
         Set<String> duplicateNames = getDuplicateNames(childrenList.stream().map(var -> var.name).collect(Collectors.toList()));
-        Map<Variable, String> variableNameMap = new HashMap<>();
-        if (!duplicateNames.isEmpty()) {
-            Map<String, List<Variable>> duplicateVars = childrenList.stream()
-                    .filter(var -> duplicateNames.contains(var.name)).collect(Collectors.groupingBy(var -> var.name, Collectors.toList()));
+        List<Variable> duplicateVars = childrenList.stream()
+                .filter(var -> duplicateNames.contains(var.name))
+                .collect(Collectors.toList());
+        // Since JDI caches the fetched properties locally, in async mode we can warm up the JDI cache in advance.
+        if (context.asyncJDWP()) {
+            try {
+                AsyncJdwpUtils.await(warmUpJDICache(childrenList, duplicateVars));
+            } catch (CompletionException | CancellationException e) {
+                response.body = new Responses.VariablesResponseBody(list);
+                return CompletableFuture.completedFuture(response);
+            }
+        }
 
-            duplicateVars.forEach((k, duplicateVariables) -> {
+        Map<Variable, String> variableNameMap = new HashMap<>();
+        if (!duplicateVars.isEmpty()) {
+            Map<String, List<Variable>> duplicateVarGroups = duplicateVars.stream()
+                    .collect(Collectors.groupingBy(var -> var.name, Collectors.toList()));
+            duplicateVarGroups.forEach((k, duplicateVariables) -> {
                 Set<String> declarationTypeNames = new HashSet<>();
                 boolean declarationTypeNameConflict = false;
                 // try use type formatter to resolve name conflict
@@ -241,16 +254,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     }
                 }
             });
-        }
-
-        // Since JDI caches the fetched properties locally, in async mode we can warm up the JDI cache in advance.
-        if (context.asyncJDWP()) {
-            try {
-                AsyncJdwpUtils.await(warmUpJDICache(childrenList));
-            } catch (CompletionException | CancellationException e) {
-                response.body = new Responses.VariablesResponseBody(list);
-                return CompletableFuture.completedFuture(response);
-            }
         }
 
         for (Variable javaVariable : childrenList) {
@@ -441,16 +444,33 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         return result;
     }
 
-    private CompletableFuture<Void> warmUpJDICache(List<Variable> variables) {
-        List<CompletableFuture<Void>> fetchVariableInfoFutures = new ArrayList<>();
+    private CompletableFuture<Void> warmUpJDICache(List<Variable> variables, List<Variable> duplicatedVars) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        if (duplicatedVars != null && !duplicatedVars.isEmpty()) {
+            Set<Type> declaringTypes = new HashSet<>();
+            duplicatedVars.forEach((var) -> {
+                Type declarationType = var.getDeclaringType();
+                if (declarationType != null) {
+                    declaringTypes.add(declarationType);
+                }
+            });
+
+            for (Type type : declaringTypes) {
+                if (type instanceof ReferenceType) {
+                    // JDWP Command: RT_SIGNATURE
+                    futures.add(AsyncJdwpUtils.runAsync(() -> type.signature()));
+                }
+            }
+        }
+
         for (Variable javaVariable : variables) {
             Value value = javaVariable.value;
             if (value instanceof ArrayReference) {
                 // JDWP Command: AR_LENGTH
-                fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> ((ArrayReference) value).length()));
+                futures.add(AsyncJdwpUtils.runAsync(() -> ((ArrayReference) value).length()));
             } else if (value instanceof StringReference) {
                 // JDWP Command: SR_VALUE
-                fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> {
+                futures.add(AsyncJdwpUtils.runAsync(() -> {
                     String strValue = ((StringReference) value).value();
                     javaVariable.value = new StringReferenceProxy((StringReference) value, strValue);
                 }));
@@ -458,12 +478,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
             if (value instanceof ObjectReference) {
                 // JDWP Command: OR_REFERENCE_TYPE, RT_SIGNATURE
-                fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> {
+                futures.add(AsyncJdwpUtils.runAsync(() -> {
                     value.type().signature();
                 }));
             }
         }
 
-        return CompletableFuture.allOf(fetchVariableInfoFutures.toArray(new CompletableFuture[0]));
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 }
