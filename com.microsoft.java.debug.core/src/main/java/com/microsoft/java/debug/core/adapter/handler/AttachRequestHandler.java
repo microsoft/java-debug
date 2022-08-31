@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
+import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -39,6 +40,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.AttachArguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import com.sun.jdi.request.EventRequest;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -58,6 +60,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         context.setSourcePaths(attachArguments.sourcePaths);
         context.setDebuggeeEncoding(StandardCharsets.UTF_8); // Use UTF-8 as debuggee's default encoding format.
         context.setStepFilters(attachArguments.stepFilters);
+        context.setLocalDebugging(isLocalHost(attachArguments.hostName));
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         vmHandler.setVmProvider(vmProvider);
@@ -96,6 +99,14 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                 logger.warning(warnMessage);
                 context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
             }
+
+            EventRequest request = debugSession.getVM().eventRequestManager().createVMDeathRequest();
+            request.setSuspendPolicy(EventRequest.SUSPEND_NONE);
+            long sent = System.currentTimeMillis();
+            request.enable();
+            long received = System.currentTimeMillis();
+            logger.info("Network latency for JDWP command: " + (received - sent) + "ms");
+            UsageDataSession.recordInfo("networkLatency", (received - sent));
         }
 
         IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
@@ -109,6 +120,15 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
         context.getProtocolServer().sendEvent(new Events.InitializedEvent());
         return CompletableFuture.completedFuture(response);
+    }
+
+    private boolean isLocalHost(String hostName) {
+        if (hostName == null || "localhost".equals(hostName) || "127.0.0.1".equals(hostName)) {
+            return true;
+        }
+
+        // TODO: Check the host name of current computer as well.
+        return false;
     }
 
 }

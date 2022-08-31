@@ -31,4 +31,14 @@ public interface IStackFrameManager {
      * @return all the stackframes in the specified thread
      */
     StackFrame[] reloadStackFrames(ThreadReference thread);
+
+    /**
+     * Refersh the stackframes starting from the specified depth and length.
+     *
+     * @param thread the jdi thread
+     * @param start the index of the first frame to refresh. Index 0 represents the current frame.
+     * @param length the number of frames to refersh
+     * @return the refreshed stackframes
+     */
+    StackFrame[] reloadStackFrames(ThreadReference thread, int start, int length);
 }

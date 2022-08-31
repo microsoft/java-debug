@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2020 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -43,6 +43,7 @@ public final class DebugSettings {
     public boolean exceptionFiltersUpdated = false;
     public int limitOfVariablesPerJdwpRequest = 100;
     public int jdwpRequestTimeout = 3000;
+    public AsyncMode asyncJDWP = AsyncMode.OFF;
 
     public static DebugSettings getCurrent() {
         return current;
@@ -85,6 +86,15 @@ public final class DebugSettings {
         AUTO,
         @SerializedName("never")
         NEVER
+    }
+
+    public static enum AsyncMode {
+        @SerializedName("auto")
+        AUTO,
+        @SerializedName("on")
+        ON,
+        @SerializedName("off")
+        OFF
     }
 
     public static interface IDebugSettingChangeListener {

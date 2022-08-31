@@ -93,6 +93,7 @@ public class SetFunctionBreakpointsRequestHandler implements IDebugRequestHandle
                 continue;
             }
 
+            currentMethodBreakpoints[i].setAsync(context.asyncJDWP());
             // If the requested method breakpoint exists in the manager, it will reuse
             // the cached breakpoint exists object.
             // Otherwise add the requested method breakpoint to the cache.

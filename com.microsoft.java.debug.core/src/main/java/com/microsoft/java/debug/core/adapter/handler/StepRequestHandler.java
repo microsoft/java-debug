@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2020 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,12 +11,15 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugEvent;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
@@ -68,16 +71,18 @@ public class StepRequestHandler implements IDebugRequestHandler {
         }
 
         long threadId = ((StepArguments) arguments).threadId;
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), threadId);
+        ThreadReference thread = context.getThreadCache().getThread(threadId);
+        if (thread == null) {
+            thread = DebugUtility.getThread(context.getDebugSession(), threadId);
+        }
         if (thread != null) {
             JdiExceptionReference exception = context.getExceptionManager().removeException(threadId);
             context.getStepResultManager().removeMethodResult(threadId);
             try {
+                final ThreadReference targetThread = thread;
                 ThreadState threadState = new ThreadState();
                 threadState.threadId = threadId;
                 threadState.pendingStepType = command;
-                threadState.stackDepth = thread.frameCount();
-                threadState.stepLocation = getTopFrame(thread).location();
                 threadState.eventSubscription = context.getDebugSession().getEventHub().events()
                     .filter(debugEvent -> (debugEvent.event instanceof StepEvent && debugEvent.event.request().equals(threadState.pendingStepRequest))
                         || (debugEvent.event instanceof MethodExitEvent && debugEvent.event.request().equals(threadState.pendingMethodExitRequest))
@@ -98,27 +103,82 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 } else {
                     threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread, null);
                 }
-                threadState.pendingStepRequest.enable();
 
-                MethodExitRequest methodExitRequest = thread.virtualMachine().eventRequestManager().createMethodExitRequest();
-                methodExitRequest.addThreadFilter(thread);
-                methodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
-                if (thread.virtualMachine().canUseInstanceFilters()) {
-                    try {
-                        ObjectReference thisObject = getTopFrame(thread).thisObject();
-                        if (thisObject != null) {
-                            methodExitRequest.addInstanceFilter(thisObject);
+                threadState.pendingMethodExitRequest = thread.virtualMachine().eventRequestManager().createMethodExitRequest();
+                threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+
+                if (context.asyncJDWP()) {
+                    List<CompletableFuture<Void>> futures = new ArrayList<>();
+                    futures.add(AsyncJdwpUtils.runAsync(() -> {
+                        try {
+                            // JDWP Command: TR_FRAMES
+                            threadState.topFrame = getTopFrame(targetThread);
+                            threadState.stepLocation = threadState.topFrame.location();
+                            threadState.pendingMethodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
+                            if (targetThread.virtualMachine().canUseInstanceFilters()) {
+                                try {
+                                    // JDWP Command: SF_THIS_OBJECT
+                                    ObjectReference thisObject = threadState.topFrame.thisObject();
+                                    if (thisObject != null) {
+                                        threadState.pendingMethodExitRequest.addInstanceFilter(thisObject);
+                                    }
+                                } catch (Exception e) {
+                                    // ignore
+                                }
+                            }
+                        } catch (IncompatibleThreadStateException e) {
+                            throw new CompletionException(e);
                         }
-                    } catch (Exception e) {
-                        // ignore
+                    }));
+                    futures.add(AsyncJdwpUtils.runAsync(
+                        // JDWP Command: OR_IS_COLLECTED
+                        () -> threadState.pendingMethodExitRequest.addThreadFilter(targetThread)
+                    ));
+                    futures.add(AsyncJdwpUtils.runAsync(() -> {
+                        try {
+                            // JDWP Command: TR_FRAME_COUNT
+                            threadState.stackDepth = targetThread.frameCount();
+                        } catch (IncompatibleThreadStateException e) {
+                            throw new CompletionException(e);
+                        }
+                    }));
+                    futures.add(
+                        // JDWP Command: ER_SET
+                        AsyncJdwpUtils.runAsync(() -> threadState.pendingStepRequest.enable())
+                    );
+
+                    try {
+                        AsyncJdwpUtils.await(futures);
+                    } catch (CompletionException ex) {
+                        if (ex.getCause() instanceof IncompatibleThreadStateException) {
+                            throw (IncompatibleThreadStateException) ex.getCause();
+                        }
+                        throw ex;
                     }
+
+                    // JDWP Command: ER_SET
+                    threadState.pendingMethodExitRequest.enable();
+                } else {
+                    threadState.stackDepth = targetThread.frameCount();
+                    threadState.topFrame = getTopFrame(targetThread);
+                    threadState.stepLocation = threadState.topFrame.location();
+                    threadState.pendingMethodExitRequest.addThreadFilter(thread);
+                    threadState.pendingMethodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
+                    if (targetThread.virtualMachine().canUseInstanceFilters()) {
+                        try {
+                            ObjectReference thisObject = threadState.topFrame.thisObject();
+                            if (thisObject != null) {
+                                threadState.pendingMethodExitRequest.addInstanceFilter(thisObject);
+                            }
+                        } catch (Exception e) {
+                            // ignore
+                        }
+                    }
+                    threadState.pendingStepRequest.enable();
+                    threadState.pendingMethodExitRequest.enable();
                 }
-                methodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-                threadState.pendingMethodExitRequest = methodExitRequest;
-                methodExitRequest.enable();
 
                 DebugUtility.resumeThread(thread);
-
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
                 // Roll back the Exception info if stepping fails.
@@ -136,6 +196,14 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     failureMessage,
                     ErrorCode.STEP_FAILURE,
                     ex);
+            } catch (Exception ex) {
+                // Roll back the Exception info if stepping fails.
+                context.getExceptionManager().setException(threadId, exception);
+                final String failureMessage = String.format("Failed to step because of the error '%s'", ex.getMessage());
+                throw AdapterUtils.createCompletionException(
+                    failureMessage,
+                    ErrorCode.STEP_FAILURE,
+                    ex.getCause() != null ? ex.getCause() : ex);
             }
         }
 
@@ -280,6 +348,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         StepRequest pendingStepRequest = null;
         MethodExitRequest pendingMethodExitRequest = null;
         int stackDepth = -1;
+        StackFrame topFrame = null;
         Location stepLocation = null;
         Disposable eventSubscription = null;
 

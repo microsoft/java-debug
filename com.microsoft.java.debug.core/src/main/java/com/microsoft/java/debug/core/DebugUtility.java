@@ -444,7 +444,7 @@ public class DebugUtility {
      */
     public static ThreadReference getThread(IDebugSession debugSession, long threadId) {
         for (ThreadReference thread : getAllThreadsSafely(debugSession)) {
-            if (thread.uniqueID() == threadId && !thread.isCollected()) {
+            if (thread.uniqueID() == threadId) {
                 return thread;
             }
         }
@@ -477,12 +477,31 @@ public class DebugUtility {
      */
     public static void resumeThread(ThreadReference thread) {
         // if thread is not found or is garbage collected, do nothing
-        if (thread == null || thread.isCollected()) {
+        if (thread == null) {
             return;
         }
         try {
             int suspends = thread.suspendCount();
             for (int i = 0; i < suspends; i++) {
+                /**
+                 * Invoking this method will decrement the count of pending suspends on this thread.
+                 * If it is decremented to 0, the thread will continue to execute.
+                 */
+                thread.resume();
+            }
+        } catch (ObjectCollectedException ex) {
+            // ObjectCollectionException can be thrown if the thread has already completed (exited) in the VM when calling suspendCount,
+            // the resume operation to this thread is meanness.
+        }
+    }
+
+    public static void resumeThread(ThreadReference thread, int resumeCount) {
+        if (thread == null) {
+            return;
+        }
+
+        try {
+            for (int i = 0; i < resumeCount; i++) {
                 /**
                  * Invoking this method will decrement the count of pending suspends on this thread.
                  * If it is decremented to 0, the thread will continue to execute.

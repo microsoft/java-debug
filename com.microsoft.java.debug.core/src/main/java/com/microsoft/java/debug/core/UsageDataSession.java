@@ -190,6 +190,12 @@ public class UsageDataSession {
         }
     }
 
+    public static void recordInfo(String key, Object value) {
+        Map<String, Object> map = new HashMap<>();
+        map.put(key, value);
+        usageDataLogger.log(Level.INFO, "session info", map);
+    }
+
     /**
      * Record counts for each user errors encountered.
      */

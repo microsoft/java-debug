@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2021 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -19,11 +19,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.JdiMethodResult;
@@ -39,6 +42,7 @@ import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.Logi
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalVariable;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructureManager;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
+import com.microsoft.java.debug.core.adapter.variables.StringReferenceProxy;
 import com.microsoft.java.debug.core.adapter.variables.Variable;
 import com.microsoft.java.debug.core.adapter.variables.VariableDetailUtils;
 import com.microsoft.java.debug.core.adapter.variables.VariableProxy;
@@ -57,6 +61,7 @@ import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
+import com.sun.jdi.StringReference;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 
@@ -96,7 +101,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
 
         VariableProxy containerNode = (VariableProxy) container;
 
-        if (containerNode.isLazyVariable() && DebugSettings.getCurrent().showToString) {
+        if (supportsToStringView(context) && containerNode.isLazyVariable()) {
             Types.Variable typedVariable = this.resolveLazyVariable(context, containerNode, variableFormatter, options, evaluationEngine);
             if (typedVariable != null) {
                 list.add(typedVariable);
@@ -123,24 +128,29 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     String returnIcon = (AdapterUtils.isWin || AdapterUtils.isMac) ? "⎯►" : "->";
                     childrenList.add(new Variable(returnIcon + result.method.name() + "()", result.value, null));
                 }
-                childrenList.addAll(VariableUtils.listLocalVariables(frame));
-                Variable thisVariable = VariableUtils.getThisVariable(frame);
-                if (thisVariable != null) {
-                    childrenList.add(thisVariable);
+
+                if (context.asyncJDWP()) {
+                    childrenList.addAll(getVariablesOfFrameAsync(frame, showStaticVariables));
+                } else {
+                    childrenList.addAll(VariableUtils.listLocalVariables(frame));
+                    Variable thisVariable = VariableUtils.getThisVariable(frame);
+                    if (thisVariable != null) {
+                        childrenList.add(thisVariable);
+                    }
+                    if (showStaticVariables && frame.location().method().isStatic()) {
+                        childrenList.addAll(VariableUtils.listStaticVariables(frame));
+                    }
                 }
-                if (showStaticVariables && frame.location().method().isStatic()) {
-                    childrenList.addAll(VariableUtils.listStaticVariables(frame));
-                }
-            } catch (AbsentInformationException | InternalException | InvalidStackFrameException e) {
+            } catch (CompletionException | InternalException | InvalidStackFrameException | CancellationException | AbsentInformationException e) {
                 throw AdapterUtils.createCompletionException(
                     String.format("Failed to get variables. Reason: %s", e.toString()),
                     ErrorCode.GET_VARIABLE_FAILURE,
-                    e);
+                    e.getCause() != null ? e.getCause() : e);
             }
         } else {
             try {
                 ObjectReference containerObj = (ObjectReference) containerNode.getProxiedVariable();
-                if (DebugSettings.getCurrent().showLogicalStructure && evaluationEngine != null) {
+                if (supportsLogicStructureView(context) && evaluationEngine != null) {
                     JavaLogicalStructure logicalStructure = null;
                     try {
                         logicalStructure = JavaLogicalStructureManager.getLogicalStructure(containerObj);
@@ -232,6 +242,17 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 }
             });
         }
+
+        // Since JDI caches the fetched properties locally, in async mode we can warm up the JDI cache in advance.
+        if (context.asyncJDWP()) {
+            try {
+                AsyncJdwpUtils.await(warmUpJDICache(childrenList));
+            } catch (CompletionException | CancellationException e) {
+                response.body = new Responses.VariablesResponseBody(list);
+                return CompletableFuture.completedFuture(response);
+            }
+        }
+
         for (Variable javaVariable : childrenList) {
             Value value = javaVariable.value;
             String name = javaVariable.name;
@@ -242,7 +263,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             Value sizeValue = null;
             if (value instanceof ArrayReference) {
                 indexedVariables = ((ArrayReference) value).length();
-            } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure && evaluationEngine != null) {
+            } else if (supportsLogicStructureView(context) && value instanceof ObjectReference && evaluationEngine != null) {
                 try {
                     JavaLogicalStructure structure = JavaLogicalStructureManager.getLogicalStructure((ObjectReference) value);
                     if (structure != null && structure.getSizeExpression() != null) {
@@ -310,7 +331,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 // If failed to resolve the variable value, skip the details info as well.
             } else if (sizeValue != null) {
                 detailsValue = "size=" + variableFormatter.valueToString(sizeValue, options);
-            } else if (DebugSettings.getCurrent().showToString) {
+            } else if (supportsToStringView(context)) {
                 if (VariableDetailUtils.isLazyLoadingSupported(value) && varProxy != null) {
                     varProxy.setLazyVariable(true);
                 } else {
@@ -352,6 +373,14 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
+    private boolean supportsLogicStructureView(IDebugAdapterContext context) {
+        return (!context.asyncJDWP() || context.isLocalDebugging()) && DebugSettings.getCurrent().showLogicalStructure;
+    }
+
+    private boolean supportsToStringView(IDebugAdapterContext context) {
+        return (!context.asyncJDWP() || context.isLocalDebugging()) && DebugSettings.getCurrent().showToString;
+    }
+
     private Types.Variable resolveLazyVariable(IDebugAdapterContext context, VariableProxy containerNode, IVariableFormatter variableFormatter,
             Map<String, Object> options, IEvaluationProvider evaluationEngine) {
         VariableProxy valueReferenceProxy = new VariableProxy(containerNode.getThread(), containerNode.getScope(),
@@ -383,5 +412,58 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
         }
         return result;
+    }
+
+    private List<Variable> getVariablesOfFrameAsync(StackFrame frame, boolean showStaticVariables) {
+        CompletableFuture<List<Variable>> localVariables = VariableUtils.listLocalVariablesAsync(frame);
+        CompletableFuture<Variable> thisVariable = VariableUtils.getThisVariableAsync(frame);
+        CompletableFuture<List<Variable>>[] staticVariables = new CompletableFuture[1];
+        if (showStaticVariables && frame.location().method().isStatic()) {
+            staticVariables[0] = VariableUtils.listStaticVariablesAsync(frame);
+        }
+
+        CompletableFuture<Void> futures = staticVariables[0] == null ? CompletableFuture.allOf(localVariables, thisVariable)
+            : CompletableFuture.allOf(localVariables, thisVariable, staticVariables[0]);
+
+        AsyncJdwpUtils.await(futures);
+
+        List<Variable> result = new ArrayList<>();
+        result.addAll(localVariables.join());
+        Variable thisVar = thisVariable.join();
+        if (thisVar != null) {
+            result.add(thisVar);
+        }
+
+        if (staticVariables[0] != null) {
+            result.addAll(staticVariables[0].join());
+        }
+
+        return result;
+    }
+
+    private CompletableFuture<Void> warmUpJDICache(List<Variable> variables) {
+        List<CompletableFuture<Void>> fetchVariableInfoFutures = new ArrayList<>();
+        for (Variable javaVariable : variables) {
+            Value value = javaVariable.value;
+            if (value instanceof ArrayReference) {
+                // JDWP Command: AR_LENGTH
+                fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> ((ArrayReference) value).length()));
+            } else if (value instanceof StringReference) {
+                // JDWP Command: SR_VALUE
+                fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> {
+                    String strValue = ((StringReference) value).value();
+                    javaVariable.value = new StringReferenceProxy((StringReference) value, strValue);
+                }));
+            }
+
+            if (value instanceof ObjectReference) {
+                // JDWP Command: OR_REFERENCE_TYPE, RT_SIGNATURE
+                fetchVariableInfoFutures.add(AsyncJdwpUtils.runAsync(() -> {
+                    value.type().signature();
+                }));
+            }
+        }
+
+        return CompletableFuture.allOf(fetchVariableInfoFutures.toArray(new CompletableFuture[0]));
     }
 }

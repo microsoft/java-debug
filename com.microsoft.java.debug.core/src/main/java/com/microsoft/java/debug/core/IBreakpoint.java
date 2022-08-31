@@ -44,4 +44,11 @@ public interface IBreakpoint extends IDebugResource {
     String getLogMessage();
 
     void setLogMessage(String logMessage);
+
+    default void setAsync(boolean async) {
+    }
+
+    default boolean async() {
+        return false;
+    }
 }
