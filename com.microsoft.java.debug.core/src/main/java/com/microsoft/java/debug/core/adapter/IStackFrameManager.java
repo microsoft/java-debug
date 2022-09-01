@@ -41,4 +41,11 @@ public interface IStackFrameManager {
      * @return the refreshed stackframes
      */
     StackFrame[] reloadStackFrames(ThreadReference thread, int start, int length);
+
+    /**
+     * Clear the stackframes cache from the specified thread.
+     *
+     * @param thread the jdi thread
+     */
+    void clearStackFrames(ThreadReference thread);
 }

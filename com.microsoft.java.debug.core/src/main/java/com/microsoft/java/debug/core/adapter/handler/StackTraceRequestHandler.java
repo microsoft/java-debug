@@ -70,6 +70,11 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         int totalFrames = 0;
         if (thread != null) {
             try {
+                // Thread state has changed and then invalidate the stack frame cache.
+                if (stacktraceArgs.startFrame == 0) {
+                    context.getStackFrameManager().clearStackFrames(thread);
+                }
+
                 totalFrames = thread.frameCount();
                 int count = stacktraceArgs.levels == 0 ? totalFrames - stacktraceArgs.startFrame
                         : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
@@ -80,10 +85,10 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
 
                 StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread, stacktraceArgs.startFrame, count);
                 List<StackFrameInfo> jdiFrames = resolveStackFrameInfos(frames, context.asyncJDWP());
-                for (int i = stacktraceArgs.startFrame; i < jdiFrames.size() && count-- > 0; i++) {
-                    StackFrameReference stackframe = new StackFrameReference(thread, i);
+                for (int i = 0; i < count; i++) {
+                    StackFrameReference stackframe = new StackFrameReference(thread, stacktraceArgs.startFrame + i);
                     int frameId = context.getRecyclableIdPool().addObject(stacktraceArgs.threadId, stackframe);
-                    StackFrameInfo jdiFrame = jdiFrames.get(i - stacktraceArgs.startFrame);
+                    StackFrameInfo jdiFrame = jdiFrames.get(i);
                     result.add(convertDebuggerStackFrameToClient(jdiFrame, frameId, context));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
