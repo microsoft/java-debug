@@ -68,7 +68,7 @@ public class StackFrameManager implements IStackFrameManager {
     }
 
     @Override
-    public void clearStackFrames(ThreadReference thread) {
+    public synchronized void clearStackFrames(ThreadReference thread) {
         threadStackFrameMap.remove(thread.uniqueID());
     }
 }
