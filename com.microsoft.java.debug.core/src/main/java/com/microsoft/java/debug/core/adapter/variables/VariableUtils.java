@@ -12,9 +12,12 @@
 package com.microsoft.java.debug.core.adapter.variables;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -33,6 +36,8 @@ import com.microsoft.java.debug.core.adapter.formatter.StringObjectFormatter;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ArrayType;
+import com.sun.jdi.ClassType;
+import com.sun.jdi.InterfaceType;
 import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.Field;
 import com.sun.jdi.InternalException;
@@ -77,6 +82,10 @@ public abstract class VariableUtils {
      *             when there is any error in retrieving information
      */
     public static List<Variable> listFieldVariables(ObjectReference obj, boolean includeStatic) throws AbsentInformationException {
+        return listFieldVariables(obj, includeStatic, false);
+    }
+
+    public static List<Variable> listFieldVariables(ObjectReference obj, boolean includeStatic, boolean async) throws AbsentInformationException {
         List<Variable> res = new ArrayList<>();
         ReferenceType type = obj.referenceType();
         if (type instanceof ArrayType) {
@@ -89,7 +98,7 @@ public abstract class VariableUtils {
             }
             return res;
         }
-        List<Field> fields = type.allFields().stream().filter(t -> includeStatic || !t.isStatic())
+        List<Field> fields = resolveAllFields(type, async).stream().filter(t -> includeStatic || !t.isStatic())
                 .sorted((a, b) -> {
                     try {
                         boolean v1isStatic = a.isStatic();
@@ -464,6 +473,67 @@ public abstract class VariableUtils {
         }
 
         return AsyncJdwpUtils.all(futures);
+    }
+
+    private static List<Field> resolveAllFields(ReferenceType type, boolean async) {
+        if (async) {
+            return resolveAllFieldsAsync(type);
+        }
+
+        return type.allFields();
+    }
+
+    private static List<Field> resolveAllFieldsAsync(ReferenceType type) {
+        Set<Field> result = Collections.synchronizedSet(new HashSet<>());
+        AsyncJdwpUtils.await(resolveAllFieldsAsync(type, result));
+        List<Field> fields = new ArrayList<>();
+        fields.addAll(result);
+        return fields;
+    }
+
+    private static CompletableFuture<Void> resolveAllFieldsAsync(ReferenceType type, Set<Field> result) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        // JDWP Command: RT_FIELDS_WITH_GENERIC
+        futures.add(
+            AsyncJdwpUtils.runAsync(() -> result.addAll(type.fields()))
+        );
+
+        if (type instanceof ClassType) {
+            ClassType classType = (ClassType) type;
+            // JDWP Command: RT_INTERFACES
+            futures.add(AsyncJdwpUtils.supplyAsync(() -> classType.interfaces())
+                .thenCompose((its) -> {
+                    List<CompletableFuture<Void>> itFutures = new ArrayList<>();
+                    for (InterfaceType it : its) {
+                        itFutures.add(resolveAllFieldsAsync(it, result));
+                    }
+
+                    return CompletableFuture.allOf(itFutures.toArray(new CompletableFuture[0]));
+                }));
+
+            // JDWP Command: CT_SUPERCLASS
+            AsyncJdwpUtils.supplyAsync(() -> classType.superclass())
+                .thenCompose((superclass) -> {
+                    if (superclass != null) {
+                        return resolveAllFieldsAsync(superclass, result);
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
+        } else if (type instanceof InterfaceType) {
+            InterfaceType interfaceType = (InterfaceType) type;
+            // JDWP Command: RT_INTERFACES
+            futures.add(AsyncJdwpUtils.supplyAsync(() -> interfaceType.superinterfaces())
+                .thenCompose((its) -> {
+                    List<CompletableFuture<Void>> itFutures = new ArrayList<>();
+                    for (InterfaceType it : its) {
+                        itFutures.add(resolveAllFieldsAsync(it, result));
+                    }
+
+                    return CompletableFuture.allOf(itFutures.toArray(new CompletableFuture[0]));
+                }));
+        }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     private VariableUtils() {
