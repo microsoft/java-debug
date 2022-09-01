@@ -64,6 +64,7 @@ public class AttachRequestHandler implements IDebugRequestHandler {
 
         Map<String, Object> traceInfo = new HashMap<>();
         traceInfo.put("localAttach", context.isLocalDebugging());
+        traceInfo.put("asyncJDWP", context.asyncJDWP());
 
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         vmHandler.setVmProvider(vmProvider);

@@ -42,6 +42,7 @@ import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.LaunchException;
+import com.microsoft.java.debug.core.UsageDataSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -76,6 +77,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         LaunchArguments launchArguments = (LaunchArguments) arguments;
+        Map<String, Object> traceInfo = new HashMap<>();
+        traceInfo.put("asyncJDWP", context.asyncJDWP());
+        traceInfo.put("noDebug", launchArguments.noDebug);
+        traceInfo.put("console", launchArguments.console);
+        UsageDataSession.recordInfo("launch debug info", traceInfo);
+
         activeLaunchHandler = launchArguments.noDebug ? new LaunchWithoutDebuggingDelegate((daContext) -> handleTerminatedEvent(daContext))
                 : new LaunchWithDebuggingDelegate();
         return handleLaunchCommand(arguments, response, context);

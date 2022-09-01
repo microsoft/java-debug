@@ -55,7 +55,6 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
         vmHandler.setVmProvider(context.getProvider(IVirtualMachineManagerProvider.class));
-        UsageDataSession.recordInfo("asyncJDWP", context.asyncJDWP());
         if (debugSession != null) {
             // This is a global event handler to handle the JDI Event from Virtual Machine.
             debugSession.getEventHub().events().subscribe(debugEvent -> {
