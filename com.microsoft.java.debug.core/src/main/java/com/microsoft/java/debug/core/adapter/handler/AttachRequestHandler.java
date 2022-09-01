@@ -62,59 +62,66 @@ public class AttachRequestHandler implements IDebugRequestHandler {
         context.setStepFilters(attachArguments.stepFilters);
         context.setLocalDebugging(isLocalHost(attachArguments.hostName));
 
+        Map<String, Object> traceInfo = new HashMap<>();
+        traceInfo.put("localAttach", context.isLocalDebugging());
+
         IVirtualMachineManagerProvider vmProvider = context.getProvider(IVirtualMachineManagerProvider.class);
         vmHandler.setVmProvider(vmProvider);
         IDebugSession debugSession = null;
         try {
-            logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .", attachArguments.hostName, attachArguments.port));
-            debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), attachArguments.hostName, attachArguments.port,
-                    attachArguments.timeout);
-            context.setDebugSession(debugSession);
-            vmHandler.connectVirtualMachine(debugSession.getVM());
-            logger.info("Attaching to debuggee VM succeeded.");
-        } catch (IOException | IllegalConnectorArgumentsException e) {
-            throw AdapterUtils.createCompletionException(
-                String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()),
-                ErrorCode.ATTACH_FAILURE,
-                e);
-        }
-
-        Map<String, Object> options = new HashMap<>();
-        options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
-        if (attachArguments.projectName != null) {
-            options.put(Constants.PROJECT_NAME, attachArguments.projectName);
-        }
-        // TODO: Clean up the initialize mechanism
-        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        sourceProvider.initialize(context, options);
-        // If the debugger and debuggee run at the different JVM platforms, show a warning message.
-        if (debugSession != null) {
-            String debuggeeVersion = debugSession.getVM().version();
-            String debuggerVersion = sourceProvider.getJavaRuntimeVersion(attachArguments.projectName);
-            if (StringUtils.isNotBlank(debuggerVersion) && !debuggerVersion.equals(debuggeeVersion)) {
-                String warnMessage = String.format("[Warn] The debugger and the debuggee are running in different versions of JVMs. "
-                    + "You could see wrong source mapping results.\n"
-                    + "Debugger JVM version: %s\n"
-                    + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
-                logger.warning(warnMessage);
-                context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
+            try {
+                logger.info(String.format("Trying to attach to remote debuggee VM %s:%d .", attachArguments.hostName, attachArguments.port));
+                debugSession = DebugUtility.attach(vmProvider.getVirtualMachineManager(), attachArguments.hostName, attachArguments.port,
+                        attachArguments.timeout);
+                context.setDebugSession(debugSession);
+                vmHandler.connectVirtualMachine(debugSession.getVM());
+                logger.info("Attaching to debuggee VM succeeded.");
+            } catch (IOException | IllegalConnectorArgumentsException e) {
+                throw AdapterUtils.createCompletionException(
+                    String.format("Failed to attach to remote debuggee VM. Reason: %s", e.toString()),
+                    ErrorCode.ATTACH_FAILURE,
+                    e);
             }
 
-            EventRequest request = debugSession.getVM().eventRequestManager().createVMDeathRequest();
-            request.setSuspendPolicy(EventRequest.SUSPEND_NONE);
-            long sent = System.currentTimeMillis();
-            request.enable();
-            long received = System.currentTimeMillis();
-            logger.info("Network latency for JDWP command: " + (received - sent) + "ms");
-            UsageDataSession.recordInfo("networkLatency", (received - sent));
-        }
+            Map<String, Object> options = new HashMap<>();
+            options.put(Constants.DEBUGGEE_ENCODING, context.getDebuggeeEncoding());
+            if (attachArguments.projectName != null) {
+                options.put(Constants.PROJECT_NAME, attachArguments.projectName);
+            }
+            // TODO: Clean up the initialize mechanism
+            ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+            sourceProvider.initialize(context, options);
+            // If the debugger and debuggee run at the different JVM platforms, show a warning message.
+            if (debugSession != null) {
+                String debuggeeVersion = debugSession.getVM().version();
+                String debuggerVersion = sourceProvider.getJavaRuntimeVersion(attachArguments.projectName);
+                if (StringUtils.isNotBlank(debuggerVersion) && !debuggerVersion.equals(debuggeeVersion)) {
+                    String warnMessage = String.format("[Warn] The debugger and the debuggee are running in different versions of JVMs. "
+                        + "You could see wrong source mapping results.\n"
+                        + "Debugger JVM version: %s\n"
+                        + "Debuggee JVM version: %s", debuggerVersion, debuggeeVersion);
+                    logger.warning(warnMessage);
+                    context.getProtocolServer().sendEvent(Events.OutputEvent.createConsoleOutput(warnMessage));
+                }
 
-        IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
-        evaluationProvider.initialize(context, options);
-        IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
-        hcrProvider.initialize(context, options);
-        ICompletionsProvider completionsProvider = context.getProvider(ICompletionsProvider.class);
-        completionsProvider.initialize(context, options);
+                EventRequest request = debugSession.getVM().eventRequestManager().createVMDeathRequest();
+                request.setSuspendPolicy(EventRequest.SUSPEND_NONE);
+                long sent = System.currentTimeMillis();
+                request.enable();
+                long received = System.currentTimeMillis();
+                logger.info("Network latency for JDWP command: " + (received - sent) + "ms");
+                traceInfo.put("networkLatency", (received - sent));
+            }
+
+            IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);
+            evaluationProvider.initialize(context, options);
+            IHotCodeReplaceProvider hcrProvider = context.getProvider(IHotCodeReplaceProvider.class);
+            hcrProvider.initialize(context, options);
+            ICompletionsProvider completionsProvider = context.getProvider(ICompletionsProvider.class);
+            completionsProvider.initialize(context, options);
+        } finally {
+            UsageDataSession.recordInfo("attach debug info", traceInfo);
+        }
 
         // Send an InitializedEvent to indicate that the debugger is ready to accept configuration requests
         // (e.g. SetBreakpointsRequest, SetExceptionBreakpointsRequest).
