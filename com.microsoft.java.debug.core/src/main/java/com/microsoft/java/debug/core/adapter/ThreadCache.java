@@ -88,6 +88,16 @@ public class ThreadCache {
         eventThreads.clear();
     }
 
+    /**
+     * The visible threads includes:
+     * 1. The currently running threads returned by the JDI API
+     * VirtualMachine.allThreads().
+     * 2. The threads suspended by events such as Breakpoint, Step, Exception etc.
+     *
+     * The part 2 is mainly for virtual threads, since VirtualMachine.allThreads()
+     * does not include virtual threads by default. For those virtual threads
+     * that are suspended, we need to show their call stacks in CALL STACK view.
+     */
     public List<ThreadReference> visibleThreads(IDebugAdapterContext context) {
         List<ThreadReference> visibleThreads = new ArrayList<>(context.getDebugSession().getAllThreads());
         Set<Long> idSet = new HashSet<>();
