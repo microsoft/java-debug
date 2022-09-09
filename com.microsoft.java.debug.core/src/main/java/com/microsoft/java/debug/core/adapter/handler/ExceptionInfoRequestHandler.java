@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2019 Microsoft Corporation and others.
+* Copyright (c) 2019-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -53,7 +53,11 @@ public class ExceptionInfoRequestHandler implements IDebugRequestHandler {
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response,
             IDebugAdapterContext context) {
         ExceptionInfoArguments exceptionInfoArgs = (ExceptionInfoArguments) arguments;
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), exceptionInfoArgs.threadId);
+        ThreadReference thread = context.getThreadCache().getThread(exceptionInfoArgs.threadId);
+        if (thread == null) {
+            thread = DebugUtility.getThread(context.getDebugSession(), exceptionInfoArgs.threadId);
+        }
+
         if (thread == null) {
             throw AdapterUtils.createCompletionException("Thread " + exceptionInfoArgs.threadId + " doesn't exist.", ErrorCode.EXCEPTION_INFO_FAILURE);
         }

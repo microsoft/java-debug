@@ -13,9 +13,11 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.jdi.ThreadReference;
@@ -29,6 +31,7 @@ public class ThreadCache {
             return this.size() > 100;
         }
     });
+    private Map<Long, ThreadReference> eventThreads = new ConcurrentHashMap<>();
 
     public synchronized void resetThreads(List<ThreadReference> threads) {
         allThreads.clear();
@@ -41,6 +44,12 @@ public class ThreadCache {
 
     public synchronized ThreadReference getThread(long threadId) {
         for (ThreadReference thread : allThreads) {
+            if (threadId == thread.uniqueID()) {
+                return thread;
+            }
+        }
+
+        for (ThreadReference thread : eventThreads.values()) {
             if (threadId == thread.uniqueID()) {
                 return thread;
             }
@@ -59,14 +68,39 @@ public class ThreadCache {
 
     public void addDeathThread(long threadId) {
         threadNameMap.remove(threadId);
+        eventThreads.remove(threadId);
         deathThreads.put(threadId, true);
-    }
-
-    public void removeDeathThread(long threadId) {
-        deathThreads.remove(threadId);
     }
 
     public boolean isDeathThread(long threadId) {
         return deathThreads.containsKey(threadId);
+    }
+
+    public void addEventThread(ThreadReference thread) {
+        eventThreads.put(thread.uniqueID(), thread);
+    }
+
+    public void removeEventThread(long threadId) {
+        eventThreads.remove(threadId);
+    }
+
+    public void clearEventThread() {
+        eventThreads.clear();
+    }
+
+    public List<ThreadReference> visibleThreads(IDebugAdapterContext context) {
+        List<ThreadReference> visibleThreads = new ArrayList<>(context.getDebugSession().getAllThreads());
+        Set<Long> idSet = new HashSet<>();
+        visibleThreads.forEach(thread -> idSet.add(thread.uniqueID()));
+        for (ThreadReference thread : eventThreads.values()) {
+            if (idSet.contains(thread.uniqueID())) {
+                continue;
+            }
+
+            idSet.add(thread.uniqueID());
+            visibleThreads.add(thread);
+        }
+
+        return visibleThreads;
     }
 }

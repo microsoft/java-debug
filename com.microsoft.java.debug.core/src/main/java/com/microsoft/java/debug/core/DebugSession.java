@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -11,6 +11,8 @@
 
 package com.microsoft.java.debug.core;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,16 +33,47 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public void start() {
+        boolean supportsVirtualThreads = mayCreateVirtualThreads();
+
         // request thread events by default
         EventRequest threadStartRequest = vm.eventRequestManager().createThreadStartRequest();
         threadStartRequest.setSuspendPolicy(EventRequest.SUSPEND_NONE);
+        if (supportsVirtualThreads) {
+            addPlatformThreadsOnlyFilter(threadStartRequest);
+        }
         threadStartRequest.enable();
 
         EventRequest threadDeathRequest = vm.eventRequestManager().createThreadDeathRequest();
         threadDeathRequest.setSuspendPolicy(EventRequest.SUSPEND_NONE);
+        if (supportsVirtualThreads) {
+            addPlatformThreadsOnlyFilter(threadDeathRequest);
+        }
         threadDeathRequest.enable();
 
         eventHub.start(vm);
+    }
+
+    private boolean mayCreateVirtualThreads() {
+        try {
+            Method method = vm.getClass().getMethod("mayCreateVirtualThreads");
+            return (boolean) method.invoke(vm);
+        } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            // ignore
+        }
+
+        return false;
+    }
+
+    /**
+     * For thread start and thread death events, restrict the events so they are only sent for platform threads.
+     */
+    private void addPlatformThreadsOnlyFilter(EventRequest threadLifecycleRequest) {
+        try {
+            Method method = threadLifecycleRequest.getClass().getMethod("addPlatformThreadsOnlyFilter");
+            method.invoke(threadLifecycleRequest);
+        } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            // ignore
+        }
     }
 
     @Override

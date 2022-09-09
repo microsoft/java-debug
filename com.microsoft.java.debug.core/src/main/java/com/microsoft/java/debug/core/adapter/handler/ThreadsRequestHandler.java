@@ -17,10 +17,13 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugUtility;
-import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -81,12 +84,13 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private CompletableFuture<Response> threads(Requests.ThreadsArguments arguments, Response response, IDebugAdapterContext context) {
         ArrayList<Types.Thread> threads = new ArrayList<>();
         try {
-            List<ThreadReference> allThreads = context.getDebugSession().getAllThreads();
+            List<ThreadReference> allThreads = context.getThreadCache().visibleThreads(context);
             context.getThreadCache().resetThreads(allThreads);
-            allThreads = allThreads.stream().filter((thread) -> !context.getThreadCache().isDeathThread(thread.uniqueID())).toList();
+            allThreads = allThreads.stream().filter((thread) -> !context.getThreadCache().isDeathThread(thread.uniqueID())).collect(Collectors.toList());
             List<ThreadInfo> jdiThreads = resolveThreadInfos(allThreads, context);
             for (ThreadInfo jdiThread : jdiThreads) {
-                threads.add(new Types.Thread(jdiThread.thread.uniqueID(), "Thread [" + jdiThread.name + "]"));
+                String name = StringUtils.isBlank(jdiThread.name) ? String.valueOf(jdiThread.thread.uniqueID()) : jdiThread.name;
+                threads.add(new Types.Thread(jdiThread.thread.uniqueID(), "Thread [" + name + "]"));
             }
         } catch (ObjectCollectedException | CancellationException | CompletionException ex) {
             // allThreads may throw VMDisconnectedException when VM terminates and thread.name() may throw ObjectCollectedException
@@ -124,11 +128,12 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private CompletableFuture<Response> pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
+        ThreadReference thread = context.getThreadCache().getThread(arguments.threadId);
+        if (thread == null) {
+            thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
+        }
         if (thread != null) {
-            context.getStepResultManager().removeMethodResult(arguments.threadId);
-            thread.suspend();
-            context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
+            pauseThread(thread, context);
         } else {
             context.getStepResultManager().removeAllMethodResults();
             context.getDebugSession().suspend();
@@ -149,6 +154,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
          * be resumed (through ThreadReference#resume() or VirtualMachine#resume()) the same number of times it has been suspended.
          */
         if (thread != null) {
+            context.getThreadCache().removeEventThread(arguments.threadId);
             context.getStepResultManager().removeMethodResult(arguments.threadId);
             context.getExceptionManager().removeException(arguments.threadId);
             allThreadsContinued = false;
@@ -157,11 +163,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         } else {
             context.getStepResultManager().removeAllMethodResults();
             context.getExceptionManager().removeAllExceptions();
-            if (context.asyncJDWP()) {
-                resumeVMAsync(context.getDebugSession());
-            } else {
-                context.getDebugSession().resume();
-            }
+            resumeVM(context);
             context.getRecyclableIdPool().removeAllObjects();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
@@ -169,19 +171,16 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private CompletableFuture<Response> resumeAll(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
+        context.getStepResultManager().removeAllMethodResults();
         context.getExceptionManager().removeAllExceptions();
-        if (context.asyncJDWP()) {
-            resumeVMAsync(context.getDebugSession());
-        } else {
-            context.getDebugSession().resume();
-        }
+        resumeVM(context);
         context.getProtocolServer().sendEvent(new Events.ContinuedEvent(arguments.threadId, true));
         context.getRecyclableIdPool().removeAllObjects();
         return CompletableFuture.completedFuture(response);
     }
 
     private CompletableFuture<Response> resumeOthers(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
-        List<ThreadReference> threads = DebugUtility.getAllThreadsSafely(context.getDebugSession());
+        List<ThreadReference> threads = context.getThreadCache().visibleThreads(context);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (ThreadReference thread : threads) {
             if (thread.uniqueID() == arguments.threadId) {
@@ -205,7 +204,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private CompletableFuture<Response> pauseOthers(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
-        List<ThreadReference> threads = DebugUtility.getAllThreadsSafely(context.getDebugSession());
+        List<ThreadReference> threads = context.getThreadCache().visibleThreads(context);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (ThreadReference thread : threads) {
             if (thread.uniqueID() == arguments.threadId) {
@@ -239,26 +238,42 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private void resumeVMAsync(IDebugSession debugSession) {
+    private void resumeVM(IDebugAdapterContext context) {
+        List<ThreadReference> visibleThreads = context.getThreadCache().visibleThreads(context);
+        context.getThreadCache().clearEventThread();
+
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (ThreadReference tr : DebugUtility.getAllThreadsSafely(debugSession)) {
-            futures.add(AsyncJdwpUtils.runAsync(() -> {
-                try {
-                    while (tr.suspendCount() > 1) {
-                        tr.resume();
-                    }
-                } catch (ObjectCollectedException ex) {
-                    // Ignore it if the thread is garbage collected.
+        /**
+         * To ensure that all threads are fully resumed when the VM is resumed, make sure the suspend count
+         * of each thread is no larger than 1.
+         * Notes: Decrementing the thread' suspend count to 1 is on purpose, because it doesn't break the
+         * the thread's suspend state, and also make sure the next instruction vm.resume() is able to resume
+         * all threads fully.
+         */
+        Consumer<ThreadReference> resumeThread = (ThreadReference tr) -> {
+            try {
+                while (tr.suspendCount() > 1) {
+                    tr.resume();
                 }
-            }));
+            } catch (ObjectCollectedException ex) {
+                // Ignore it if the thread is garbage collected.
+            }
+        };
+        for (ThreadReference tr : visibleThreads) {
+            if (context.asyncJDWP()) {
+                futures.add(AsyncJdwpUtils.runAsync(() -> resumeThread.accept(tr)));
+            } else {
+                resumeThread.accept(tr);
+            }
         }
 
         AsyncJdwpUtils.await(futures);
-        debugSession.getVM().resume();
+        context.getDebugSession().getVM().resume();
     }
 
     private void resumeThread(ThreadReference thread, IDebugAdapterContext context) {
         try {
+            context.getThreadCache().removeEventThread(thread.uniqueID());
             int suspends = thread.suspendCount();
             if (suspends > 0) {
                 long threadId = thread.uniqueID();
@@ -268,19 +283,23 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
                 checkThreadRunningAndRecycleIds(thread, context);
             }
         } catch (ObjectCollectedException ex) {
-            // ignore it.
+            // the thread is garbage collected.
+            context.getThreadCache().addDeathThread(thread.uniqueID());
         }
     }
 
     private void pauseThread(ThreadReference thread, IDebugAdapterContext context) {
         try {
-            if (!thread.isSuspended()) {
+            // Ignore it if the thread status is unknown or zombie
+            if (!thread.isSuspended() && thread.status() > 0) {
                 long threadId = thread.uniqueID();
+                context.getStepResultManager().removeMethodResult(threadId);
                 thread.suspend();
                 context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", threadId));
             }
         } catch (ObjectCollectedException ex) {
-            // ignore it if the thread is garbage collected.
+            // the thread is garbage collected.
+            context.getThreadCache().addDeathThread(thread.uniqueID());
         }
     }
 

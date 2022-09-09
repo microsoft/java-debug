@@ -165,6 +165,7 @@ public class SetFunctionBreakpointsRequestHandler implements IDebugRequestHandle
                                                 if (resume) {
                                                     debugEvent.eventSet.resume();
                                                 } else {
+                                                    context.getThreadCache().addEventThread(bpThread);
                                                     context.getProtocolServer().sendEvent(new Events.StoppedEvent(
                                                             "function breakpoint", bpThread.uniqueID()));
                                                 }
@@ -172,6 +173,7 @@ public class SetFunctionBreakpointsRequestHandler implements IDebugRequestHandle
                                 });
 
                             } else {
+                                context.getThreadCache().addEventThread(bpThread);
                                 context.getProtocolServer()
                                         .sendEvent(new Events.StoppedEvent("function breakpoint", bpThread.uniqueID()));
                             }
