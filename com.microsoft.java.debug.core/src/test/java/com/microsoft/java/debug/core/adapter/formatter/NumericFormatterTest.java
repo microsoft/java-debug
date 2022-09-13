@@ -29,6 +29,8 @@ import com.sun.jdi.ShortValue;
 import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
 
+import java.util.Locale;
+
 import static com.microsoft.java.debug.core.adapter.formatter.NumericFormatter.NUMERIC_FORMAT_OPTION;
 import static com.microsoft.java.debug.core.adapter.formatter.NumericFormatter.NUMERIC_PRECISION_OPTION;
 import static org.junit.Assert.*;
@@ -38,6 +40,7 @@ public class NumericFormatterTest extends BaseJdiTestCase {
     @Before
     public void setup() throws Exception {
         super.setup();
+        Locale.setDefault(Locale.US);
         formatter = new NumericFormatter();
     }
 
