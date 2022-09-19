@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -17,6 +17,7 @@ import java.util.Objects;
 
 import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.Types.DataBreakpoint;
+import com.microsoft.java.debug.core.protocol.Types.Source;
 
 /**
  * The request arguments types defined by VSCode Debug Protocol.
@@ -376,6 +377,42 @@ public class Requests {
         }
     }
 
+    /**
+     * Arguments for breakpointLocations request.
+     */
+    public static class BreakpointLocationsArguments extends Arguments {
+        /**
+         * The source location of the breakpoints; either `source.path` or
+         * `source.reference` must be specified.
+         */
+        public Source source;
+
+        /**
+         * Start line of range to search possible breakpoint locations in. If only the
+         * line is specified, the request returns all possible locations in that line.
+         */
+        public int line;
+
+        /**
+         * Start column of range to search possible breakpoint locations in. If no
+         * start column is given, the first column in the start line is assumed.
+         */
+        public int column;
+
+        /**
+         * End line of range to search possible breakpoint locations in. If no end
+         * line is given, then the end line is assumed to be the start line.
+         */
+        public int endLine;
+
+        /**
+         * End column of range to search possible breakpoint locations in. If no end
+         * column is given, then it is assumed to be in the last column of the end
+         * line.
+         */
+        public int endColumn;
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -411,6 +448,7 @@ public class Requests {
         INLINEVALUES("inlineValues", InlineValuesArguments.class),
         REFRESHVARIABLES("refreshVariables", RefreshVariablesArguments.class),
         PROCESSID("processId", Arguments.class),
+        BREAKPOINTLOCATIONS("breakpointLocations", BreakpointLocationsArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;

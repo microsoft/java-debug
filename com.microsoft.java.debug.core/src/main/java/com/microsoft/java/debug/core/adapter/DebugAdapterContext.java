@@ -38,6 +38,8 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     private IDebugSession debugSession;
     private boolean debuggerLinesStartAt1 = true;
+    // The Java model on debugger uses 0-based column number.
+    private boolean debuggerColumnStartAt1 = false;
     private boolean debuggerPathsAreUri = true;
     private boolean clientLinesStartAt1 = true;
     private boolean clientColumnsStartAt1 = true;
@@ -103,6 +105,10 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setDebuggerLinesStartAt1(boolean debuggerLinesStartAt1) {
         this.debuggerLinesStartAt1 = debuggerLinesStartAt1;
+    }
+
+    public boolean isDebuggerColumnsStartAt1() {
+        return debuggerColumnStartAt1;
     }
 
     @Override

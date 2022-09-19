@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -26,6 +27,7 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
+import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent.EventType;
@@ -93,28 +95,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         }
 
         SetBreakpointArguments bpArguments = (SetBreakpointArguments) arguments;
-        String clientPath = bpArguments.source.path;
-        if (AdapterUtils.isWindows()) {
-            // VSCode may send drive letters with inconsistent casing which will mess up the key
-            // in the BreakpointManager. See https://github.com/Microsoft/vscode/issues/6268
-            // Normalize the drive letter casing. Note that drive letters
-            // are not localized so invariant is safe here.
-            String drivePrefix = FilenameUtils.getPrefix(clientPath);
-            if (drivePrefix != null && drivePrefix.length() >= 2
-                    && Character.isLowerCase(drivePrefix.charAt(0)) && drivePrefix.charAt(1) == ':') {
-                drivePrefix = drivePrefix.substring(0, 2); // d:\ is an illegal regex string, convert it to d:
-                clientPath = clientPath.replaceFirst(drivePrefix, drivePrefix.toUpperCase());
-            }
-        }
-        String sourcePath = clientPath;
-        if (bpArguments.source.sourceReference != 0 && context.getSourceUri(bpArguments.source.sourceReference) != null) {
-            sourcePath = context.getSourceUri(bpArguments.source.sourceReference);
-        } else if (StringUtils.isNotBlank(clientPath)) {
-            // See the bug https://github.com/Microsoft/vscode/issues/30996
-            // Source.path in the SetBreakpointArguments could be a file system path or uri.
-            sourcePath = AdapterUtils.convertPath(clientPath, AdapterUtils.isUri(clientPath), context.isDebuggerPathsAreUri());
-        }
-
+        String sourcePath = normalizeSourcePath(bpArguments.source, context);
         // When breakpoint source path is null or an invalid file path, send an ErrorResponse back.
         if (StringUtils.isBlank(sourcePath)) {
             throw AdapterUtils.createCompletionException(
@@ -163,6 +144,32 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         }
     }
 
+    public static String normalizeSourcePath(Types.Source source, IDebugAdapterContext context) {
+        String clientPath = source.path;
+        if (AdapterUtils.isWindows()) {
+            // VSCode may send drive letters with inconsistent casing which will mess up the key
+            // in the BreakpointManager. See https://github.com/Microsoft/vscode/issues/6268
+            // Normalize the drive letter casing. Note that drive letters
+            // are not localized so invariant is safe here.
+            String drivePrefix = FilenameUtils.getPrefix(clientPath);
+            if (drivePrefix != null && drivePrefix.length() >= 2
+                    && Character.isLowerCase(drivePrefix.charAt(0)) && drivePrefix.charAt(1) == ':') {
+                drivePrefix = drivePrefix.substring(0, 2); // d:\ is an illegal regex string, convert it to d:
+                clientPath = clientPath.replaceFirst(drivePrefix, drivePrefix.toUpperCase());
+            }
+        }
+        String sourcePath = clientPath;
+        if (source.sourceReference != 0 && context.getSourceUri(source.sourceReference) != null) {
+            sourcePath = context.getSourceUri(source.sourceReference);
+        } else if (StringUtils.isNotBlank(clientPath)) {
+            // See the bug https://github.com/Microsoft/vscode/issues/30996
+            // Source.path in the SetBreakpointArguments could be a file system path or uri.
+            sourcePath = AdapterUtils.convertPath(clientPath, AdapterUtils.isUri(clientPath), context.isDebuggerPathsAreUri());
+        }
+
+        return sourcePath;
+    }
+
     private IBreakpoint getAssociatedEvaluatableBreakpoint(IDebugAdapterContext context, BreakpointEvent event) {
         return Arrays.asList(context.getBreakpointManager().getBreakpoints()).stream().filter(
             bp -> {
@@ -171,11 +178,6 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     && bp.requests().contains(event.request());
             }
         ).findFirst().orElse(null);
-    }
-
-    private IBreakpoint getAssociatedBreakpoint(IDebugAdapterContext context, BreakpointEvent event) {
-        return Arrays.asList(context.getBreakpointManager().getBreakpoints()).stream()
-                .filter(bp -> bp.requests().contains(event.request())).findFirst().orElse(null);
     }
 
     private void registerBreakpointHandler(IDebugAdapterContext context) {
@@ -300,27 +302,25 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private IBreakpoint[] convertClientBreakpointsToDebugger(String sourceFile, Types.SourceBreakpoint[] sourceBreakpoints, IDebugAdapterContext context)
             throws DebugException {
-        int[] lines = Arrays.asList(sourceBreakpoints).stream().map(sourceBreakpoint -> {
-            return AdapterUtils.convertLineNumber(sourceBreakpoint.line, context.isClientLinesStartAt1(), context.isDebuggerLinesStartAt1());
-        }).mapToInt(line -> line).toArray();
-
-        int[] columns = Arrays.asList(sourceBreakpoints).stream().map(b -> {
-            return AdapterUtils.convertColumnNumber(b.column, context.isClientColumnsStartAt1());
-        }).mapToInt(b -> b).toArray();
+        Types.SourceBreakpoint[] debugSourceBreakpoints = Stream.of(sourceBreakpoints).map(sourceBreakpoint -> {
+            int line = AdapterUtils.convertLineNumber(sourceBreakpoint.line, context.isClientLinesStartAt1(), context.isDebuggerLinesStartAt1());
+            int column = AdapterUtils.convertColumnNumber(sourceBreakpoint.column, context.isClientColumnsStartAt1(), context.isDebuggerColumnsStartAt1());
+            return new Types.SourceBreakpoint(line, column);
+        }).toArray(Types.SourceBreakpoint[]::new);
 
         ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
-        String[] fqns = sourceProvider.getFullyQualifiedName(sourceFile, lines, columns);
-        IBreakpoint[] breakpoints = new IBreakpoint[lines.length];
-        for (int i = 0; i < lines.length; i++) {
+        JavaBreakpointLocation[] locations = sourceProvider.getBreakpointLocations(sourceFile, debugSourceBreakpoints);
+        IBreakpoint[] breakpoints = new IBreakpoint[locations.length];
+        for (int i = 0; i < locations.length; i++) {
             int hitCount = 0;
             try {
                 hitCount = Integer.parseInt(sourceBreakpoints[i].hitCondition);
             } catch (NumberFormatException e) {
                 hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
             }
-            breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], hitCount, sourceBreakpoints[i].condition,
+            breakpoints[i] = context.getDebugSession().createBreakpoint(locations[i], hitCount, sourceBreakpoints[i].condition,
                 sourceBreakpoints[i].logMessage);
-            if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(fqns[i])) {
+            if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(locations[i].className())) {
                 breakpoints[i].putProperty("verified", true);
             }
         }

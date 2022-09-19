@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -23,9 +23,13 @@ public interface IBreakpoint extends IDebugResource {
 
     int REQUEST_TYPE_LAMBDA = 2;
 
+    JavaBreakpointLocation sourceLocation();
+
     String className();
 
     int getLineNumber();
+
+    int getColumnNumber();
 
     int getHitCount();
 

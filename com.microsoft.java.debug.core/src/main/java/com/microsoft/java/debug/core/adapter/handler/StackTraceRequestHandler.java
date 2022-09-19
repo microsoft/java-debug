@@ -16,6 +16,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -25,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugUtility;
+import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -47,6 +49,7 @@ import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.request.BreakpointRequest;
 
 public class StackTraceRequestHandler implements IDebugRequestHandler {
 
@@ -89,7 +92,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     StackFrameReference stackframe = new StackFrameReference(thread, stacktraceArgs.startFrame + i);
                     int frameId = context.getRecyclableIdPool().addObject(stacktraceArgs.threadId, stackframe);
                     StackFrameInfo jdiFrame = jdiFrames.get(i);
-                    result.add(convertDebuggerStackFrameToClient(jdiFrame, frameId, context));
+                    result.add(convertDebuggerStackFrameToClient(jdiFrame, frameId, i == 0, context));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException
@@ -167,7 +170,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         return jdiFrames;
     }
 
-    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrameInfo jdiFrame, int frameId, IDebugAdapterContext context)
+    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrameInfo jdiFrame, int frameId, boolean isTopFrame, IDebugAdapterContext context)
             throws URISyntaxException, AbsentInformationException {
         Types.Source clientSource = convertDebuggerSourceToClient(jdiFrame.typeName, jdiFrame.sourceName, jdiFrame.sourcePath, context);
         String methodName = formatMethodName(jdiFrame.methodName, jdiFrame.argumentTypeNames, jdiFrame.typeName, true, true);
@@ -185,7 +188,27 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 clientSource = null;
             }
         }
-        return new Types.StackFrame(frameId, methodName, clientSource, clientLineNumber, context.isClientColumnsStartAt1() ? 1 : 0, presentationHint);
+
+        int clientColumnNumber = context.isClientColumnsStartAt1() ? 1 : 0;
+        // If the top-level frame is a lambda method, it might be paused on a lambda breakpoint.
+        // We can associate its column number with the target lambda breakpoint.
+        if (isTopFrame && jdiFrame.methodName.startsWith("lambda$")) {
+            for (IBreakpoint breakpoint : context.getBreakpointManager().getBreakpoints()) {
+                if (breakpoint.getColumnNumber() > 0 && breakpoint.getLineNumber() == jdiFrame.lineNumber
+                        && Objects.equals(jdiFrame.typeName, breakpoint.className())) {
+                    boolean match = breakpoint.requests().stream().anyMatch(request -> {
+                        return request instanceof BreakpointRequest
+                                && Objects.equals(((BreakpointRequest) request).location(), jdiFrame.location);
+                    });
+                    if (match) {
+                        clientColumnNumber = AdapterUtils.convertColumnNumber(breakpoint.getColumnNumber(),
+                            context.isDebuggerColumnsStartAt1(), context.isClientColumnsStartAt1());
+                    }
+                }
+            }
+        }
+
+        return new Types.StackFrame(frameId, methodName, clientSource, clientLineNumber, clientColumnNumber, presentationHint);
     }
 
     /**

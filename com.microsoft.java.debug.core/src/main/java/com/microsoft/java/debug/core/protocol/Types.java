@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 import com.google.gson.annotations.SerializedName;
 
 /**
- * The data types defined by VSCode Debug Protocol.
+ * The data types defined by Debug Adapter Protocol.
  */
 public class Types {
     public static class Message {
@@ -200,6 +200,9 @@ public class Types {
         }
     }
 
+    /**
+     * Properties of a breakpoint or logpoint passed to the setBreakpoints request.
+     */
     public static class SourceBreakpoint {
         public int line;
         public int column;
@@ -207,7 +210,9 @@ public class Types {
         public String condition;
         public String logMessage;
 
-        public SourceBreakpoint() {
+        public SourceBreakpoint(int line, int column) {
+            this.line = line;
+            this.column = column;
         }
 
         /**
@@ -300,6 +305,46 @@ public class Types {
         }
     }
 
+    /**
+     * Properties of a breakpoint location returned from the breakpointLocations request.
+     */
+    public static class BreakpointLocation {
+        /**
+         * Start line of breakpoint location.
+         */
+        public int line;
+
+        /**
+         * The start column of breakpoint location.
+         */
+        public int column;
+
+        /**
+         * The end line of breakpoint location if the location covers a range.
+         */
+        public int endLine;
+
+        /**
+         * The end column of breakpoint location if the location covers a range.
+         */
+        public int endColumn;
+
+        public BreakpointLocation() {
+        }
+
+        public BreakpointLocation(int line, int column) {
+            this.line = line;
+            this.column = column;
+        }
+
+        public BreakpointLocation(int line, int column, int endLine, int endColumn) {
+            this.line = line;
+            this.column = column;
+            this.endLine = endLine;
+            this.endColumn = endColumn;
+        }
+    }
+
     public static class CompletionItem {
         public String label;
         public String text;
@@ -386,5 +431,7 @@ public class Types {
         public boolean supportsDataBreakpoints;
         public boolean supportsClipboardContext;
         public boolean supportsFunctionBreakpoints;
+        // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_BreakpointLocations
+        public boolean supportsBreakpointLocationsRequest;
     }
 }

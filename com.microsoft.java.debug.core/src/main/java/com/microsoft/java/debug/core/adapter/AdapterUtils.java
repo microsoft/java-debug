@@ -119,13 +119,15 @@ public class AdapterUtils {
      *                              the column number from the source platform
      * @param sourceColumnsStartAt1
      *                              the source platform's column starts at 1 or not
+     * @param targetColumnStartAt1
+     *                              the target platform's column starts at 1 or not
      * @return the new column number
      */
-    public static int convertColumnNumber(int column, boolean sourceColumnsStartAt1) {
+    public static int convertColumnNumber(int column, boolean sourceColumnsStartAt1, boolean targetColumnStartAt1) {
         if (sourceColumnsStartAt1) {
-            return column - 1;
+            return targetColumnStartAt1 ? column : column - 1;
         } else {
-            return column;
+            return targetColumnStartAt1 ? column + 1 : column;
         }
     }
 

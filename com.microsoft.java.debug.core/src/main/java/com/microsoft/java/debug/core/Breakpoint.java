@@ -37,13 +37,11 @@ import io.reactivex.disposables.Disposable;
 public class Breakpoint implements IBreakpoint {
     private VirtualMachine vm = null;
     private IEventHub eventHub = null;
-    private String className = null;
-    private int lineNumber = 0;
+    private JavaBreakpointLocation sourceLocation = null;
     private int hitCount = 0;
     private String condition = null;
     private String logMessage = null;
     private HashMap<Object, Object> propertyMap = new HashMap<>();
-    private String methodSignature = null;
 
     private boolean async = false;
 
@@ -56,21 +54,37 @@ public class Breakpoint implements IBreakpoint {
     }
 
     Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount, String condition) {
-        this.vm = vm;
-        this.eventHub = eventHub;
-        if (className != null && className.contains("#")) {
-            this.className = className.substring(0, className.indexOf("#"));
-            this.methodSignature = className.substring(className.indexOf("#") + 1);
-        } else {
-            this.className = className;
-        }
-        this.lineNumber = lineNumber;
-        this.hitCount = hitCount;
-        this.condition = condition;
+        this(vm, eventHub, className, lineNumber, hitCount, condition, null);
     }
 
     Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount, String condition, String logMessage) {
-        this(vm, eventHub, className, lineNumber, hitCount, condition);
+        this.vm = vm;
+        this.eventHub = eventHub;
+        String contextClass = className;
+        String methodName = null;
+        String methodSignature = null;
+        if (className != null && className.contains("#")) {
+            contextClass = className.substring(0, className.indexOf("#"));
+            String[] methodInfo = className.substring(className.indexOf("#") + 1).split("#");
+            methodName = methodInfo[0];
+            methodSignature = methodInfo[1];
+        }
+
+        this.sourceLocation = new JavaBreakpointLocation(lineNumber, -1);
+        this.sourceLocation.setClassName(contextClass);
+        this.sourceLocation.setMethodName(methodName);
+        this.sourceLocation.setMethodSignature(methodSignature);
+        this.hitCount = hitCount;
+        this.condition = condition;
+        this.logMessage = logMessage;
+    }
+
+    Breakpoint(VirtualMachine vm, IEventHub eventHub, JavaBreakpointLocation sourceLocation, int hitCount, String condition, String logMessage) {
+        this.vm = vm;
+        this.eventHub = eventHub;
+        this.sourceLocation = sourceLocation;
+        this.hitCount = hitCount;
+        this.condition = condition;
         this.logMessage = logMessage;
     }
 
@@ -105,13 +119,23 @@ public class Breakpoint implements IBreakpoint {
 
     // IBreakpoint
     @Override
+    public JavaBreakpointLocation sourceLocation() {
+        return this.sourceLocation;
+    }
+
+    @Override
     public String className() {
-        return className;
+        return this.sourceLocation.className();
     }
 
     @Override
     public int getLineNumber() {
-        return lineNumber;
+        return this.sourceLocation.lineNumber();
+    }
+
+    @Override
+    public int getColumnNumber() {
+        return this.sourceLocation.columnNumber();
     }
 
     @Override
@@ -120,20 +144,20 @@ public class Breakpoint implements IBreakpoint {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof Breakpoint)) {
-            return super.equals(obj);
-        }
-
-        Breakpoint breakpoint = (Breakpoint) obj;
-        return Objects.equals(this.className(), breakpoint.className())
-                && this.getLineNumber() == breakpoint.getLineNumber()
-                && Objects.equals(this.methodSignature, breakpoint.methodSignature);
+    public int hashCode() {
+        return Objects.hash(sourceLocation);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(this.className, this.lineNumber, this.methodSignature);
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Breakpoint)) {
+            return false;
+        }
+        Breakpoint other = (Breakpoint) obj;
+        return Objects.equals(sourceLocation, other.sourceLocation);
     }
 
     @Override
@@ -149,6 +173,7 @@ public class Breakpoint implements IBreakpoint {
             .filter(request -> request instanceof BreakpointRequest)
             .subscribe(request -> {
                 request.addCountFilter(hitCount);
+                request.disable();
                 request.enable();
             });
     }
@@ -183,13 +208,13 @@ public class Breakpoint implements IBreakpoint {
         // It's possible that different class loaders create new class with the same name.
         // Here to listen to future class prepare events to handle such case.
         ClassPrepareRequest classPrepareRequest = vm.eventRequestManager().createClassPrepareRequest();
-        classPrepareRequest.addClassFilter(className);
+        classPrepareRequest.addClassFilter(className());
         classPrepareRequest.enable();
         requests.add(classPrepareRequest);
 
         // Local types also needs to be handled
         ClassPrepareRequest localClassPrepareRequest = vm.eventRequestManager().createClassPrepareRequest();
-        localClassPrepareRequest.addClassFilter(className + "$*");
+        localClassPrepareRequest.addClassFilter(className() + "$*");
         localClassPrepareRequest.enable();
         requests.add(localClassPrepareRequest);
 
@@ -202,7 +227,7 @@ public class Breakpoint implements IBreakpoint {
                 .subscribe(debugEvent -> {
                     ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
                     List<BreakpointRequest> newRequests = AsyncJdwpUtils.await(
-                        createBreakpointRequests(event.referenceType(), lineNumber, hitCount, false)
+                        createBreakpointRequests(event.referenceType(), getLineNumber(), hitCount, false)
                     );
                     requests.addAll(newRequests);
                     if (!newRequests.isEmpty() && !future.isDone()) {
@@ -213,8 +238,8 @@ public class Breakpoint implements IBreakpoint {
         subscriptions.add(subscription);
 
         Runnable resolveRequestsFromExistingClasses = () -> {
-            List<ReferenceType> refTypes = vm.classesByName(className);
-            createBreakpointRequests(refTypes, lineNumber, hitCount, true)
+            List<ReferenceType> refTypes = vm.classesByName(className());
+            createBreakpointRequests(refTypes, getLineNumber(), hitCount, true)
                 .whenComplete((newRequests, ex) -> {
                     if (ex != null) {
                         return;
@@ -281,14 +306,13 @@ public class Breakpoint implements IBreakpoint {
         });
     }
 
-    private CompletableFuture<List<Location>> collectLocations(List<ReferenceType> refTypes, String nameAndSignature) {
-        String[] segments = nameAndSignature.split("#");
+    private CompletableFuture<List<Location>> collectLocations(List<ReferenceType> refTypes, String methodName, String methodSiguature) {
         List<CompletableFuture<Location>> futures = new ArrayList<>();
         for (ReferenceType refType : refTypes) {
             if (async()) {
-                futures.add(AsyncJdwpUtils.supplyAsync(() -> findMethodLocaiton(refType, segments[0], segments[1])));
+                futures.add(AsyncJdwpUtils.supplyAsync(() -> findMethodLocaiton(refType, methodName, methodSiguature)));
             } else {
-                futures.add(CompletableFuture.completedFuture(findMethodLocaiton(refType, segments[0], segments[1])));
+                futures.add(CompletableFuture.completedFuture(findMethodLocaiton(refType, methodName, methodSiguature)));
             }
         }
 
@@ -329,10 +353,22 @@ public class Breakpoint implements IBreakpoint {
     private CompletableFuture<List<BreakpointRequest>> createBreakpointRequests(List<ReferenceType> refTypes, int lineNumber,
             int hitCount, boolean includeNestedTypes) {
         CompletableFuture<List<Location>> locationsFuture;
-        if (this.methodSignature != null) {
-            locationsFuture = collectLocations(refTypes, this.methodSignature);
+        if (this.sourceLocation.methodName() != null) {
+            locationsFuture = collectLocations(refTypes, this.sourceLocation.methodName(), this.sourceLocation.methodSignature());
         } else {
-            locationsFuture = collectLocations(refTypes, lineNumber, includeNestedTypes);
+            locationsFuture = collectLocations(refTypes, lineNumber, includeNestedTypes).thenApply((locations) -> {
+                if (locations.isEmpty()) {
+                    return locations;
+                }
+
+                /**
+                 * For a line breakpoint, we default to breaking at the first location
+                 * of the line. If you want to break at other locations on the same line,
+                 * you can add an inline breakpoint based on the locations returned by
+                 * the BreakpointLocation request.
+                 */
+                return Arrays.asList(locations.get(0));
+            });
         }
 
         return locationsFuture.thenCompose((locations) -> {
@@ -389,11 +425,11 @@ public class Breakpoint implements IBreakpoint {
     }
 
     private Object computeRequestType() {
-        if (this.methodSignature == null) {
+        if (this.sourceLocation.methodName() == null) {
             return IBreakpoint.REQUEST_TYPE_LINE;
         }
 
-        if (this.methodSignature.startsWith("lambda$")) {
+        if (this.sourceLocation.methodName().startsWith("lambda$")) {
             return IBreakpoint.REQUEST_TYPE_LAMBDA;
         } else {
             return IBreakpoint.REQUEST_TYPE_METHOD;
