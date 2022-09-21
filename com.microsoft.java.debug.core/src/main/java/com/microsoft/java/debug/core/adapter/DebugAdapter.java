@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.handler.AttachRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.BreakpointLocationsRequestHander;
 import com.microsoft.java.debug.core.adapter.handler.CompletionsHandler;
 import com.microsoft.java.debug.core.adapter.handler.ConfigurationDoneRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.DataBreakpointInfoRequestHandler;
@@ -105,7 +106,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandler(new InitializeRequestHandler());
         registerHandler(new LaunchRequestHandler());
 
-        // DEBUG node only
+        // DEBUG mode only
         registerHandlerForDebug(new AttachRequestHandler());
         registerHandlerForDebug(new ConfigurationDoneRequestHandler());
         registerHandlerForDebug(new DisconnectRequestHandler());
@@ -129,6 +130,7 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForDebug(new RefreshVariablesHandler());
         registerHandlerForDebug(new ProcessIdHandler());
         registerHandlerForDebug(new SetFunctionBreakpointsRequestHandler());
+        registerHandlerForDebug(new BreakpointLocationsRequestHander());
         // NO_DEBUG mode only
         registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());
         registerHandlerForNoDebug(new ProcessIdHandler());

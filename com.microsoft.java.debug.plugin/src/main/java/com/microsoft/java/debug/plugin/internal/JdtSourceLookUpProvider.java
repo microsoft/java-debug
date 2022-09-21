@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2021 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -19,12 +19,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -39,7 +42,9 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
@@ -49,10 +54,13 @@ import com.microsoft.java.debug.BreakpointLocationLocator;
 import com.microsoft.java.debug.LambdaExpressionLocator;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.protocol.Types.BreakpointLocation;
+import com.microsoft.java.debug.core.protocol.Types.SourceBreakpoint;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -112,12 +120,38 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new String[0];
         }
 
+        SourceBreakpoint[] sourceBreakpoints = new SourceBreakpoint[lines.length];
+        for (int i = 0; i < lines.length; i++) {
+            sourceBreakpoints[i] = new SourceBreakpoint(lines[i], columns[i]);
+        }
+
+        JavaBreakpointLocation[] locations = getBreakpointLocations(uri, sourceBreakpoints);
+        return Stream.of(locations).map(location -> {
+            if (location.className() != null && location.methodName() != null) {
+                return location.className()
+                    .concat("#").concat(location.methodName())
+                    .concat("#").concat(location.methodSignature());
+            }
+            return location.className();
+        }).toArray(String[]::new);
+    }
+
+    @Override
+    public JavaBreakpointLocation[] getBreakpointLocations(String sourceUri, SourceBreakpoint[] sourceBreakpoints) throws DebugException {
+        if (sourceUri == null) {
+            throw new IllegalArgumentException("sourceUri is null");
+        }
+
+        if (sourceBreakpoints == null || sourceBreakpoints.length == 0) {
+            return new JavaBreakpointLocation[0];
+        }
+
         final ASTParser parser = ASTParser.newParser(this.latestASTLevel);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
         CompilationUnit astUnit = null;
-        String filePath = AdapterUtils.toPath(uri);
+        String filePath = AdapterUtils.toPath(sourceUri);
         // For file uri, read the file contents directly and pass them to the ast parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
             String source = readFile(filePath);
@@ -146,27 +180,41 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
             // leverage jdt to load the source contents.
-            ITypeRoot typeRoot = resolveClassFile(uri);
+            ITypeRoot typeRoot = resolveClassFile(sourceUri);
             if (typeRoot != null) {
                 parser.setSource(typeRoot);
                 astUnit = (CompilationUnit) parser.createAST(null);
             }
         }
 
-        String[] fqns = new String[lines.length];
+        JavaBreakpointLocation[] sourceLocations = Stream.of(sourceBreakpoints)
+            .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
+            .toArray(JavaBreakpointLocation[]::new);
         if (astUnit != null) {
-            for (int i = 0; i < lines.length; i++) {
-                if (columns[i] > -1) {
+            Map<Integer, BreakpointLocation[]> resolvedLocations = new HashMap<>();
+            for (JavaBreakpointLocation sourceLocation : sourceLocations) {
+                int sourceLine = sourceLocation.lineNumber();
+                int sourceColumn = sourceLocation.columnNumber();
+                if (sourceColumn > -1) {
                     // if we have a column, try to find the lambda expression at that column
-                    LambdaExpressionLocator lambdaExpressionLocator = new LambdaExpressionLocator(astUnit, lines[i],
-                            columns[i]);
+                    LambdaExpressionLocator lambdaExpressionLocator = new LambdaExpressionLocator(astUnit,
+                        sourceLine, sourceColumn);
                     astUnit.accept(lambdaExpressionLocator);
                     if (lambdaExpressionLocator.isFound()) {
-                        fqns[i] = lambdaExpressionLocator.getFullyQualifiedTypeName().concat("#")
-                                .concat(lambdaExpressionLocator.getMethodName())
-                                .concat("#").concat(lambdaExpressionLocator.getMethodSignature());
-                        continue;
+                        sourceLocation.setClassName(lambdaExpressionLocator.getFullyQualifiedTypeName());
+                        sourceLocation.setMethodName(lambdaExpressionLocator.getMethodName());
+                        sourceLocation.setMethodSignature(lambdaExpressionLocator.getMethodSignature());
                     }
+
+                    if (resolvedLocations.containsKey(sourceLine)) {
+                        sourceLocation.setAvailableBreakpointLocations(resolvedLocations.get(sourceLine));
+                    } else {
+                        BreakpointLocation[] inlineLocations = getInlineBreakpointLocations(astUnit, sourceLine);
+                        sourceLocation.setAvailableBreakpointLocations(inlineLocations);
+                        resolvedLocations.put(sourceLine, inlineLocations);
+                    }
+
+                    continue;
                 }
 
                 // TODO
@@ -181,24 +229,56 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // mark it as "unverified".
                 // In future, we could consider supporting to update the breakpoint to a valid
                 // location.
-                BreakpointLocationLocator locator = new BreakpointLocationLocator(astUnit, lines[i], true,
-                        true);
+                BreakpointLocationLocator locator = new BreakpointLocationLocator(astUnit,
+                        sourceLine, true, true);
                 astUnit.accept(locator);
                 // When the final valid line location is same as the original line, that
                 // represents it's a valid breakpoint.
                 // Add location type check to avoid breakpoint on method/field which will never
                 // be hit in current implementation.
-                if (lines[i] == locator.getLineLocation()
+                if (sourceLine == locator.getLineLocation()
                         && locator.getLocationType() == BreakpointLocationLocator.LOCATION_LINE) {
-                    fqns[i] = locator.getFullyQualifiedTypeName();
+                    sourceLocation.setClassName(locator.getFullyQualifiedTypeName());
+                    if (resolvedLocations.containsKey(sourceLine)) {
+                        sourceLocation.setAvailableBreakpointLocations(resolvedLocations.get(sourceLine));
+                    } else {
+                        BreakpointLocation[] inlineLocations = getInlineBreakpointLocations(astUnit, sourceLine);
+                        sourceLocation.setAvailableBreakpointLocations(inlineLocations);
+                        resolvedLocations.put(sourceLine, inlineLocations);
+                    }
                 } else if (locator.getLocationType() == BreakpointLocationLocator.LOCATION_METHOD) {
-                    fqns[i] = locator.getFullyQualifiedTypeName().concat("#")
-                            .concat(locator.getMethodName())
-                            .concat("#").concat(locator.getMethodSignature());
+                    sourceLocation.setClassName(locator.getFullyQualifiedTypeName());
+                    sourceLocation.setMethodName(locator.getMethodName());
+                    sourceLocation.setMethodSignature(locator.getMethodSignature());
                 }
             }
         }
-        return fqns;
+
+        return sourceLocations;
+    }
+
+    private BreakpointLocation[] getInlineBreakpointLocations(final CompilationUnit astUnit, int sourceLine) {
+        List<BreakpointLocation> locations = new ArrayList<>();
+        // The starting position of each line is the default breakpoint location for that line.
+        locations.add(new BreakpointLocation(sourceLine, 0));
+        astUnit.accept(new ASTVisitor() {
+            @Override
+            public boolean visit(LambdaExpression node) {
+                int lambdaStart = node.getStartPosition();
+                int startLine = astUnit.getLineNumber(lambdaStart);
+                if (startLine == sourceLine) {
+                    int startColumn = astUnit.getColumnNumber(lambdaStart);
+                    int lambdaEnd = lambdaStart + node.getLength();
+                    int endLine = astUnit.getLineNumber(lambdaEnd);
+                    int endColumn = astUnit.getColumnNumber(lambdaEnd);
+                    BreakpointLocation location = new BreakpointLocation(startLine, startColumn, endLine, endColumn);
+                    locations.add(location);
+                }
+                return super.visit(node);
+            }
+        });
+
+        return locations.toArray(BreakpointLocation[]::new);
     }
 
     @Override

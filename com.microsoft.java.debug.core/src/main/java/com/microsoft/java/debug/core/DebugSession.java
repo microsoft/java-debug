@@ -115,6 +115,11 @@ public class DebugSession implements IDebugSession {
     }
 
     @Override
+    public IBreakpoint createBreakpoint(JavaBreakpointLocation sourceLocation, int hitCount, String condition, String logMessage) {
+        return new EvaluatableBreakpoint(vm, this.getEventHub(), sourceLocation, hitCount, condition, logMessage);
+    }
+
+    @Override
     public IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition, String logMessage) {
         return new EvaluatableBreakpoint(vm, this.getEventHub(), className, lineNumber, hitCount, condition, logMessage);
     }

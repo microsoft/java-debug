@@ -34,13 +34,9 @@ public class LambdaExpressionLocator extends ASTVisitor {
 
     @Override
     public boolean visit(LambdaExpression node) {
-        // we only support inline breakpoints which are added before the expression part of the
-        // lambda. And we don't support lambda blocks since they can be debugged using line
-        // breakpoints.
         if (column > -1) {
             int startPosition = node.getStartPosition();
-            int endPosition = node.getBody().getStartPosition();
-            int offset = this.compilationUnit.getPosition(line, column);
+            int breakOffset = this.compilationUnit.getPosition(line, column);
             // lambda on same line:
             // list.stream().map(i -> i + 1);
             //
@@ -48,7 +44,10 @@ public class LambdaExpressionLocator extends ASTVisitor {
             // list.stream().map(user
             // -> user.isSystem() ? new SystemUser(user) : new EndUser(user));
 
-            if (offset >= startPosition && offset <= endPosition) {
+            // Since the debugger supports BreakpointLocations Request to hint user
+            // about possible inline breakpoint locations, we will only support
+            // inline breakpoints added where a lambda expression begins.
+            if (breakOffset == startPosition) {
                 this.lambdaMethodBinding = node.resolveMethodBinding();
                 this.found = true;
                 this.lambdaExpression = node;

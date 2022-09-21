@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.protocol;
 
 import java.util.List;
 
+import com.microsoft.java.debug.core.protocol.Types.BreakpointLocation;
 import com.microsoft.java.debug.core.protocol.Types.DataBreakpointAccessType;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionBreakMode;
 import com.microsoft.java.debug.core.protocol.Types.ExceptionDetails;
@@ -279,6 +280,21 @@ public class Responses {
             this.description = description;
             this.accessTypes = accessTypes;
             this.canPersist = canPersist;
+        }
+    }
+
+    /**
+     * Response to breakpointLocations request.
+     * Contains possible locations for source breakpoints.
+     */
+    public static class BreakpointLocationsResponseBody extends ResponseBody {
+        /**
+         * Sorted set of possible breakpoint locations.
+         */
+        public BreakpointLocation[] breakpoints;
+
+        public BreakpointLocationsResponseBody(BreakpointLocation[] breakpoints) {
+            this.breakpoints = breakpoints;
         }
     }
 
