@@ -178,6 +178,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     threadState.pendingMethodExitRequest.enable();
                 }
 
+                context.getThreadCache().removeEventThread(thread.uniqueID());
                 DebugUtility.resumeThread(thread);
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
@@ -255,6 +256,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
             if (threadState.eventSubscription != null) {
                 threadState.eventSubscription.dispose();
             }
+            context.getThreadCache().addEventThread(thread);
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else if (event instanceof MethodExitEvent) {

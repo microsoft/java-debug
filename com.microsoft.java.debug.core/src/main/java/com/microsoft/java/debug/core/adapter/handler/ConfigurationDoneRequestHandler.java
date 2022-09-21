@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2020 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -109,15 +109,15 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             // ignore since SetBreakpointsRequestHandler has already handled
         } else if (event instanceof ExceptionEvent) {
             ThreadReference thread = ((ExceptionEvent) event).thread();
-            ThreadReference bpThread = ((ExceptionEvent) event).thread();
             IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
-            if (engine.isInEvaluation(bpThread)) {
+            if (engine.isInEvaluation(thread)) {
                 return;
             }
 
             JdiExceptionReference jdiException = new JdiExceptionReference(((ExceptionEvent) event).exception(),
                     ((ExceptionEvent) event).catchLocation() == null);
             context.getExceptionManager().setException(thread.uniqueID(), jdiException);
+            context.getThreadCache().addEventThread(thread);
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {
