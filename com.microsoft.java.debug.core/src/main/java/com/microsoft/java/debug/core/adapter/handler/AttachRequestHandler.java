@@ -110,8 +110,10 @@ public class AttachRequestHandler implements IDebugRequestHandler {
                 long sent = System.currentTimeMillis();
                 request.enable();
                 long received = System.currentTimeMillis();
-                logger.info("Network latency for JDWP command: " + (received - sent) + "ms");
-                traceInfo.put("networkLatency", (received - sent));
+                long latency = received - sent;
+                context.setJDWPLatency(latency);
+                logger.info("Network latency for JDWP command: " + latency + "ms");
+                traceInfo.put("networkLatency", latency);
             }
 
             IEvaluationProvider evaluationProvider = context.getProvider(IEvaluationProvider.class);

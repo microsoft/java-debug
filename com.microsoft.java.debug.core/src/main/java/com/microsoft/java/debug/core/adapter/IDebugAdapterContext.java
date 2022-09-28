@@ -145,7 +145,13 @@ public interface IDebugAdapterContext {
 
     boolean asyncJDWP();
 
+    boolean asyncJDWP(long usableLatency/**ms*/);
+
     boolean isLocalDebugging();
 
     void setLocalDebugging(boolean local);
+
+    long getJDWPLatency();
+
+    void setJDWPLatency(long baseLatency);
 }
