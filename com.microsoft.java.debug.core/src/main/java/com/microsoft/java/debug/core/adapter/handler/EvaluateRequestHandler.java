@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2021 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -65,7 +65,9 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
         String expression = evalArguments.expression;
 
         // Async mode is supposed to be performant, then disable the advanced features like hover evaluation.
-        if (!context.isLocalDebugging() && context.asyncJDWP() && "hover".equals(evalArguments.context)) {
+        if (context.asyncJDWP(VariablesRequestHandler.USABLE_JDWP_LATENCY)
+            && context.getJDWPLatency() > VariablesRequestHandler.USABLE_JDWP_LATENCY
+            && "hover".equals(evalArguments.context)) {
             return CompletableFuture.completedFuture(response);
         }
 
@@ -98,7 +100,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     Value sizeValue = null;
                     if (value instanceof ArrayReference) {
                         indexedVariables = ((ArrayReference) value).length();
-                    } else if (value instanceof ObjectReference && DebugSettings.getCurrent().showLogicalStructure && engine != null) {
+                    } else if (value instanceof ObjectReference && supportsLogicStructureView(context, evalArguments.context) && engine != null) {
                         try {
                             JavaLogicalStructure structure = JavaLogicalStructureManager.getLogicalStructure((ObjectReference) value);
                             if (structure != null && structure.getSizeExpression() != null) {
@@ -135,7 +137,7 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                         // If failed to resolve the variable value, skip the details info as well.
                     } else if (sizeValue != null) {
                         detailsString = "size=" + variableFormatter.valueToString(sizeValue, options);
-                    } else if (DebugSettings.getCurrent().showToString) {
+                    } else if (supportsToStringView(context, evalArguments.context)) {
                         try {
                             detailsString = VariableDetailUtils.formatDetailsValue(value, stackFrameReference.getThread(), variableFormatter, options, engine);
                         } catch (OutOfMemoryError e) {
@@ -181,5 +183,25 @@ public class EvaluateRequestHandler implements IDebugRequestHandler {
                     cause);
             }
         });
+    }
+
+    private boolean supportsLogicStructureView(IDebugAdapterContext context, String evalContext) {
+        if (!"watch".equals(evalContext)) {
+            return true;
+        }
+
+        return (!context.asyncJDWP(VariablesRequestHandler.USABLE_JDWP_LATENCY)
+            || context.getJDWPLatency() <= VariablesRequestHandler.USABLE_JDWP_LATENCY)
+            && DebugSettings.getCurrent().showLogicalStructure;
+    }
+
+    private boolean supportsToStringView(IDebugAdapterContext context, String evalContext) {
+        if (!"watch".equals(evalContext)) {
+            return true;
+        }
+
+        return (!context.asyncJDWP(VariablesRequestHandler.USABLE_JDWP_LATENCY)
+            || context.getJDWPLatency() <= VariablesRequestHandler.USABLE_JDWP_LATENCY)
+            && DebugSettings.getCurrent().showToString;
     }
 }

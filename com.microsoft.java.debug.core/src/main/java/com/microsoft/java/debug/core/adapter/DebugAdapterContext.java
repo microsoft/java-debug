@@ -61,6 +61,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private long processId = -1;
 
     private boolean localDebugging = true;
+    private long jdwpLatency = 0;
 
     private IdCollection<String> sourceReferences = new IdCollection<>();
     private RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
@@ -372,7 +373,21 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     @Override
     public boolean asyncJDWP() {
-        return DebugSettings.getCurrent().asyncJDWP == AsyncMode.ON;
+        /**
+         * If we take 1 second as the acceptable latency for DAP requests,
+         * With a single-threaded strategy for handling JDWP requests,
+         * a latency of about 15ms per JDWP request can ensure the responsiveness
+         * for most DAPs. It allows sending 66 JDWP requests within 1 seconds,
+         * which can cover most DAP operations such as breakpoint, threads,
+         * call stack, step and continue.
+         */
+        return asyncJDWP(15);
+    }
+
+    @Override
+    public boolean asyncJDWP(long usableLatency) {
+        return DebugSettings.getCurrent().asyncJDWP == AsyncMode.ON
+            || (DebugSettings.getCurrent().asyncJDWP == AsyncMode.AUTO && this.jdwpLatency > usableLatency);
     }
 
     public boolean isLocalDebugging() {
@@ -381,5 +396,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
 
     public void setLocalDebugging(boolean local) {
         this.localDebugging = local;
+    }
+
+    @Override
+    public long getJDWPLatency() {
+        return this.jdwpLatency;
+    }
+
+    @Override
+    public void setJDWPLatency(long baseLatency) {
+        this.jdwpLatency = baseLatency;
     }
 }

@@ -68,6 +68,21 @@ import com.sun.jdi.Value;
 
 public class VariablesRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
+    /**
+     * When the debugger enables logical structures and
+     * toString settings, for each Object variable in the
+     * variable list, the debugger needs to check its
+     * superclass and interface to find out if it inherits
+     * from Collection or overrides the toString method.
+     * This will cause the debugger to send a lot of JDWP
+     * requests for them. For a test case with 4 object
+     * variables, the debug adapter may need to send more
+     * than 100 JDWP requests to handle these variable
+     * requests. To achieve a DAP latency of 1s with a
+     * single-threaded JDWP request processing strategy,
+     * a single JDWP latency is about 10ms.
+     */
+    static final long USABLE_JDWP_LATENCY = 10/**ms*/;
 
     @Override
     public List<Command> getTargetCommands() {
@@ -130,7 +145,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     childrenList.add(new Variable(returnIcon + result.method.name() + "()", result.value, null));
                 }
 
-                if (context.asyncJDWP()) {
+                if (useAsyncJDWP(context)) {
                     childrenList.addAll(getVariablesOfFrameAsync(frame, showStaticVariables));
                 } else {
                     childrenList.addAll(VariableUtils.listLocalVariables(frame));
@@ -198,7 +213,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     if (varArgs.count > 0) {
                         childrenList = VariableUtils.listFieldVariables(containerObj, varArgs.start, varArgs.count);
                     } else {
-                        childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables, context.asyncJDWP());
+                        childrenList = VariableUtils.listFieldVariables(containerObj, showStaticVariables, useAsyncJDWP(context));
                     }
                 }
             } catch (AbsentInformationException e) {
@@ -215,7 +230,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 .filter(var -> duplicateNames.contains(var.name))
                 .collect(Collectors.toList());
         // Since JDI caches the fetched properties locally, in async mode we can warm up the JDI cache in advance.
-        if (context.asyncJDWP()) {
+        if (useAsyncJDWP(context)) {
             try {
                 AsyncJdwpUtils.await(warmUpJDICache(childrenList, duplicateVars));
             } catch (CompletionException | CancellationException e) {
@@ -377,11 +392,17 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
     }
 
     private boolean supportsLogicStructureView(IDebugAdapterContext context) {
-        return (!context.asyncJDWP() || context.isLocalDebugging()) && DebugSettings.getCurrent().showLogicalStructure;
+        return (!useAsyncJDWP(context) || context.getJDWPLatency() <= USABLE_JDWP_LATENCY)
+            && DebugSettings.getCurrent().showLogicalStructure;
     }
 
     private boolean supportsToStringView(IDebugAdapterContext context) {
-        return (!context.asyncJDWP() || context.isLocalDebugging()) && DebugSettings.getCurrent().showToString;
+        return (!useAsyncJDWP(context) || context.getJDWPLatency() <= USABLE_JDWP_LATENCY)
+            && DebugSettings.getCurrent().showToString;
+    }
+
+    private boolean useAsyncJDWP(IDebugAdapterContext context) {
+        return context.asyncJDWP(USABLE_JDWP_LATENCY);
     }
 
     private Types.Variable resolveLazyVariable(IDebugAdapterContext context, VariableProxy containerNode, IVariableFormatter variableFormatter,
