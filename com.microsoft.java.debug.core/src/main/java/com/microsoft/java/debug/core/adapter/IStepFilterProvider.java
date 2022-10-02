@@ -12,8 +12,11 @@
 package com.microsoft.java.debug.core.adapter;
 
 import com.microsoft.java.debug.core.protocol.Requests;
+import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 
 public interface IStepFilterProvider extends IProvider {
-    boolean skip(Method method, Requests.StepFilters filters);
+    boolean shouldStepInto(Method method, Requests.StepFilters filters);
+
+    boolean shouldStepOut(Location previousLocation, Method method);
 }
