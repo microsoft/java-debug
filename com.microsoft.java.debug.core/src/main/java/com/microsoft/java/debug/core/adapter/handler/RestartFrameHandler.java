@@ -32,6 +32,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.RestartFrameArguments;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.request.EventRequestManager;
 import com.sun.jdi.request.StepRequest;
 
 /**
@@ -102,8 +103,10 @@ public class RestartFrameHandler implements IDebugRequestHandler {
     }
 
     private void stepInto(IDebugAdapterContext context, ThreadReference thread) {
+        EventRequestManager manager = context.getDebugSession().getVM().eventRequestManager();
         StepRequest request = DebugUtility.createStepIntoRequest(thread, context.getStepFilters().allowClasses, context.getStepFilters().skipClasses);
         context.getDebugSession().getEventHub().stepEvents().filter(debugEvent -> request.equals(debugEvent.event.request())).take(1).subscribe(debugEvent -> {
+            DebugUtility.deleteEventRequestSafely(manager, request);
             debugEvent.shouldResume = false;
             // Have to send two events to keep the UI sync with the step in operations:
             context.getProtocolServer().sendEvent(new Events.ContinuedEvent(thread.uniqueID()));
