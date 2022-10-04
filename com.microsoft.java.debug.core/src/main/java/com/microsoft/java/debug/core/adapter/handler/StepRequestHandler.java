@@ -169,7 +169,6 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     upperLocation = thread.frame(1).location();
                 }
                 if (originalLocation != null && currentLocation != null) {
-                    boolean steppingIn = threadState.pendingStepType == Command.STEPIN;
                     Requests.StepFilters stepFilters = context.getStepFilters();
                     // If we stepped into a method that should be stepped out
                     if (shouldStepOut(stepFilter, threadState.stackDepth, thread.frameCount(), upperLocation, currentLocation)) {
@@ -177,7 +176,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                         return;
                     }
                     // If the ending location is the same as the original location do another step into.
-                    if (steppingIn && shouldDoExtraStep(threadState.stackDepth, originalLocation, thread.frameCount(), currentLocation)) {
+                    if (shouldDoExtraStep(threadState, originalLocation, thread.frameCount(), currentLocation)) {
                         doExtraStepInto(debugEvent, thread, stepFilters, threadState);
                         return;
                     }
@@ -228,7 +227,13 @@ public class StepRequestHandler implements IDebugRequestHandler {
     private boolean shouldStepOut(IStepFilterProvider stepFilter, int originalStackDepth, int currentStackDepth, Location upperLocation,
                                   Location currentLocation)
             throws IncompatibleThreadStateException {
-        return currentStackDepth > originalStackDepth && stepFilter.shouldStepOut(upperLocation, currentLocation.method());
+        if (upperLocation == null) {
+            return false;
+        }
+        if (currentStackDepth <= originalStackDepth) {
+            return false;
+        }
+        return stepFilter.shouldStepOut(upperLocation, currentLocation.method());
     }
 
     /**
@@ -237,9 +242,12 @@ public class StepRequestHandler implements IDebugRequestHandler {
      * @throws IncompatibleThreadStateException
      *                      if the thread is not suspended in the target VM.
      */
-    private boolean shouldDoExtraStep(int originalStackDepth, Location originalLocation, int currentStackDepth, Location currentLocation)
+    private boolean shouldDoExtraStep(ThreadState threadState, Location originalLocation, int currentStackDepth, Location currentLocation)
             throws IncompatibleThreadStateException {
-        if (originalStackDepth != currentStackDepth) {
+        if (threadState.pendingStepType != Command.STEPIN) {
+            return false;
+        }
+        if (threadState.stackDepth != currentStackDepth) {
             return false;
         }
         if (originalLocation == null) {
