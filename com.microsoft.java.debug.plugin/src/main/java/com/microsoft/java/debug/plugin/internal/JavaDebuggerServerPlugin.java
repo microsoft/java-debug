@@ -34,7 +34,6 @@ public class JavaDebuggerServerPlugin implements BundleActivator {
 
     @Override
     public void stop(BundleContext context) throws Exception {
-        logger.info("Stopping " + PLUGIN_ID);
         LogUtils.cleanupHandlers();
     }
 
