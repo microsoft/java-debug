@@ -16,7 +16,7 @@ import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 
 public interface IStepFilterProvider extends IProvider {
-    boolean shouldStepInto(Method method, Requests.StepFilters filters);
+    boolean shouldSkipOver(Method method, Requests.StepFilters filters);
 
-    boolean shouldStepOut(Location upperLocation, Method method);
+    boolean shouldSkipOut(Location upperLocation, Method method);
 }

@@ -34,6 +34,7 @@ import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.IStepFilterProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -43,6 +44,7 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.BooleanValue;
 import com.sun.jdi.Field;
+import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
@@ -175,6 +177,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private void registerBreakpointHandler(IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
+        IStepFilterProvider stepFilterProvider = context.getProvider(IStepFilterProvider.class);
         if (debugSession != null) {
             debugSession.getEventHub().events().filter(debugEvent -> debugEvent.event instanceof BreakpointEvent).subscribe(debugEvent -> {
                 Event event = debugEvent.event;
@@ -185,6 +188,12 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     ThreadReference bpThread = ((BreakpointEvent) event).thread();
                     IEvaluationProvider engine = context.getProvider(IEvaluationProvider.class);
                     if (engine.isInEvaluation(bpThread)) {
+                        debugEvent.shouldResume = true;
+                        return;
+                    }
+                    Method method = bpThread.frame(0).location().method();
+                    if (stepFilterProvider.shouldSkipOver(method, context.getStepFilters())) {
+                        debugEvent.shouldResume = true;
                         return;
                     }
 

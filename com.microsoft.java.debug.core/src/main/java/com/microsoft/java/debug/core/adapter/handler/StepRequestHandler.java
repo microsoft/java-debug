@@ -154,7 +154,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 if (originalLocation != null && currentLocation != null) {
                     Requests.StepFilters stepFilters = context.getStepFilters();
                     // If we stepped into a method that should be stepped out
-                    if (shouldStepOut(stepFilter, threadState.getStackDepth(), thread.frameCount(), upperLocation, currentLocation)) {
+                    if (shouldSkipOut(stepFilter, threadState.getStackDepth(), thread.frameCount(), upperLocation, currentLocation)) {
                         doExtraStepOut(debugEvent, thread, stepFilters, threadState);
                         return;
                     }
@@ -164,7 +164,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                         return;
                     }
                     // If the ending location should be stepped into
-                    if (shouldStepInto(stepFilter, originalLocation, currentLocation, stepFilters)) {
+                    if (shouldSkipOver(stepFilter, originalLocation, currentLocation, stepFilters)) {
                         doExtraStepInto(debugEvent, thread, stepFilters, threadState);
                         return;
                     }
@@ -198,13 +198,13 @@ public class StepRequestHandler implements IDebugRequestHandler {
      * @throws IncompatibleThreadStateException
      *                      if the thread is not suspended in the target VM.
      */
-    private boolean shouldStepInto(IStepFilterProvider stepFilter, Location originalLocation, Location currentLocation, Requests.StepFilters stepFilters)
+    private boolean shouldSkipOver(IStepFilterProvider stepFilter, Location originalLocation, Location currentLocation, Requests.StepFilters stepFilters)
             throws IncompatibleThreadStateException {
-        return !stepFilter.shouldStepInto(originalLocation.method(), stepFilters)
-                && stepFilter.shouldStepInto(currentLocation.method(), stepFilters);
+        return !stepFilter.shouldSkipOver(originalLocation.method(), stepFilters)
+                && stepFilter.shouldSkipOver(currentLocation.method(), stepFilters);
     }
 
-    private boolean shouldStepOut(IStepFilterProvider stepFilter, int originalStackDepth, int currentStackDepth, Location upperLocation,
+    private boolean shouldSkipOut(IStepFilterProvider stepFilter, int originalStackDepth, int currentStackDepth, Location upperLocation,
                                   Location currentLocation)
             throws IncompatibleThreadStateException {
         if (upperLocation == null) {
@@ -213,7 +213,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         if (currentStackDepth <= originalStackDepth) {
             return false;
         }
-        return stepFilter.shouldStepOut(upperLocation, currentLocation.method());
+        return stepFilter.shouldSkipOut(upperLocation, currentLocation.method());
     }
 
     /**

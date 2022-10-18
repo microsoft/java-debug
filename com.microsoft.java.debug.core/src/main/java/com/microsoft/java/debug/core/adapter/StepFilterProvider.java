@@ -18,7 +18,7 @@ import org.apache.commons.lang3.ArrayUtils;
 
 public class StepFilterProvider implements IStepFilterProvider {
     @Override
-    public boolean shouldStepInto(Method method, Requests.StepFilters filters) {
+    public boolean shouldSkipOver(Method method, Requests.StepFilters filters) {
         if (!isConfigured(filters)) {
             return false;
         }
@@ -28,7 +28,7 @@ public class StepFilterProvider implements IStepFilterProvider {
     }
 
     @Override
-    public boolean shouldStepOut(Location previousLocation, Method method) {
+    public boolean shouldSkipOut(Location previousLocation, Method method) {
         return false;
     }
 
