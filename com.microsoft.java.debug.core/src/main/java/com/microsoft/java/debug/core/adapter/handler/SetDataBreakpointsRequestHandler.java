@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import com.sun.jdi.request.EventRequestManager;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.IDebugSession;
@@ -158,15 +159,21 @@ public class SetDataBreakpointsRequestHandler implements IDebugRequestHandler {
                             if (resume) {
                                 debugEvent.eventSet.resume();
                             } else {
-                                context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID()));
+                                notifyStoppedThread(context, bpThread.uniqueID());
                             }
                         });
                     });
                 } else {
-                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID()));
+                    notifyStoppedThread(context, bpThread.uniqueID());
                 }
                 debugEvent.shouldResume = false;
             });
         }
+    }
+
+    private void notifyStoppedThread(IDebugAdapterContext context, long threadId) {
+        EventRequestManager eventRequestManager = context.getDebugSession().getVM().eventRequestManager();
+        context.getStepRequestManager().deletePendingStep(threadId, eventRequestManager);
+        context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", threadId));
     }
 }

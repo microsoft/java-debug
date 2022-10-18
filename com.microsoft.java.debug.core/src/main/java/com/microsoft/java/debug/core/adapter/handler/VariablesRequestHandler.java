@@ -111,7 +111,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             }
             try {
                 long threadId = stackFrameReference.getThread().uniqueID();
-                JdiMethodResult result = context.getStepResultManager().getMethodResult(threadId);
+                JdiMethodResult result = context.getStepRequestManager().getMethodResult(threadId);
                 if (result != null) {
                     String returnIcon = (AdapterUtils.isWin || AdapterUtils.isMac) ? "⎯►" : "->";
                     childrenList.add(new Variable(returnIcon + result.method.name() + "()", result.value, null));

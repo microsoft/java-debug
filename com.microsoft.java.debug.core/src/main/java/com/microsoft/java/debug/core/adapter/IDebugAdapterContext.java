@@ -127,5 +127,5 @@ public interface IDebugAdapterContext {
 
     IBreakpointManager getBreakpointManager();
 
-    IStepResultManager getStepResultManager();
+    StepRequestManager getStepRequestManager();
 }

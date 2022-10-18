@@ -17,11 +17,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.java.debug.core.DebugUtility;
+import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.StepRequestManager;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests;
@@ -36,6 +38,7 @@ import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
+import com.sun.jdi.request.EventRequestManager;
 
 public class ThreadsRequestHandler implements IDebugRequestHandler {
 
@@ -93,14 +96,19 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private CompletableFuture<Response> pause(Requests.PauseArguments arguments, Response response, IDebugAdapterContext context) {
-        ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
+        StepRequestManager stepRequestManager = context.getStepRequestManager();
+        IDebugSession debugSession = context.getDebugSession();
+        EventRequestManager eventRequestManager = debugSession.getVM().eventRequestManager();
+        ThreadReference thread = DebugUtility.getThread(debugSession, arguments.threadId);
         if (thread != null) {
-            context.getStepResultManager().removeMethodResult(arguments.threadId);
+            stepRequestManager.removeMethodResult(arguments.threadId);
+            stepRequestManager.deletePendingStep(arguments.threadId, eventRequestManager);
             thread.suspend();
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId));
         } else {
-            context.getStepResultManager().removeAllMethodResults();
-            context.getDebugSession().suspend();
+            stepRequestManager.removeAllMethodResults();
+            stepRequestManager.deleteAllPendingSteps(eventRequestManager);
+            debugSession.suspend();
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         }
         return CompletableFuture.completedFuture(response);
@@ -115,13 +123,13 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
          * be resumed (through ThreadReference#resume() or VirtualMachine#resume()) the same number of times it has been suspended.
          */
         if (thread != null) {
-            context.getStepResultManager().removeMethodResult(arguments.threadId);
+            context.getStepRequestManager().removeMethodResult(arguments.threadId);
             context.getExceptionManager().removeException(arguments.threadId);
             allThreadsContinued = false;
             DebugUtility.resumeThread(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         } else {
-            context.getStepResultManager().removeAllMethodResults();
+            context.getStepRequestManager().removeAllMethodResults();
             context.getExceptionManager().removeAllExceptions();
             context.getDebugSession().resume();
             context.getRecyclableIdPool().removeAllObjects();
@@ -154,7 +162,12 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private CompletableFuture<Response> pauseAll(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
-        context.getDebugSession().suspend();
+        StepRequestManager stepRequestManager = context.getStepRequestManager();
+        IDebugSession debugSession = context.getDebugSession();
+        EventRequestManager eventRequestManager = debugSession.getVM().eventRequestManager();
+        stepRequestManager.removeAllMethodResults();
+        stepRequestManager.deleteAllPendingSteps(eventRequestManager);
+        debugSession.suspend();
         context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
         return CompletableFuture.completedFuture(response);
     }

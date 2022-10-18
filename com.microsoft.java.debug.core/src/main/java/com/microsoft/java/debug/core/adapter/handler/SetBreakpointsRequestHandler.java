@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.sun.jdi.request.EventRequestManager;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -200,17 +201,23 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                 if (resume) {
                                     debugEvent.eventSet.resume();
                                 } else {
-                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                                    notifyStoppedThread(context, bpThread.uniqueID());
                                 }
                             });
                         });
                     } else {
-                        context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", bpThread.uniqueID()));
+                        notifyStoppedThread(context, bpThread.uniqueID());
                     }
                     debugEvent.shouldResume = false;
                 }
             });
         }
+    }
+
+    private void notifyStoppedThread(IDebugAdapterContext context, long threadId) {
+        EventRequestManager eventRequestManager = context.getDebugSession().getVM().eventRequestManager();
+        context.getStepRequestManager().deletePendingStep(threadId, eventRequestManager);
+        context.getProtocolServer().sendEvent(new Events.StoppedEvent("breakpoint", threadId));
     }
 
     /**

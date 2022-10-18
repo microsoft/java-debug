@@ -40,6 +40,7 @@ import com.sun.jdi.event.ThreadStartEvent;
 import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.event.VMStartEvent;
+import com.sun.jdi.request.EventRequestManager;
 
 public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
     protected final Logger logger;
@@ -78,7 +79,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         if (event instanceof VMStartEvent) {
             if (context.isVmStopOnEntry()) {
                 DebugUtility.stopOnEntry(debugSession, context.getMainClass()).thenAccept(threadId -> {
-                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("entry", threadId));
+                    notifyStopEvent("entry", threadId, context);
                 });
             }
         } else if (event instanceof VMDeathEvent) {
@@ -120,7 +121,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             JdiExceptionReference jdiException = new JdiExceptionReference(((ExceptionEvent) event).exception(),
                     ((ExceptionEvent) event).catchLocation() == null);
             context.getExceptionManager().setException(thread.uniqueID(), jdiException);
-            context.getProtocolServer().sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
+            notifyStopEvent("exception", thread.uniqueID(), context);
             debugEvent.shouldResume = false;
         } else {
             isImportantEvent = false;
@@ -133,5 +134,11 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
                 session.recordEvent(event);
             }
         }
+    }
+
+    private void notifyStopEvent(String reason, long threadId, IDebugAdapterContext context) {
+        EventRequestManager eventRequestManager = context.getDebugSession().getVM().eventRequestManager();
+        context.getStepRequestManager().deletePendingStep(threadId, eventRequestManager);
+        context.getProtocolServer().sendEvent(new Events.StoppedEvent(reason, threadId));
     }
 }

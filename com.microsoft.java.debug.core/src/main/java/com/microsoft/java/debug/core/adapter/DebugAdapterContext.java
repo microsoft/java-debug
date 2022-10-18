@@ -62,7 +62,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private IStackFrameManager stackFrameManager = new StackFrameManager();
     private IExceptionManager exceptionManager = new ExceptionManager();
     private IBreakpointManager breakpointManager;
-    private IStepResultManager stepResultManager = new StepResultManager();
+    private StepRequestManager stepRequestManager = new StepRequestManager();
 
     public DebugAdapterContext(IProtocolServer server, IProviderContext providerContext, Logger logger) {
         this.providerContext = providerContext;
@@ -326,7 +326,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
-    public IStepResultManager getStepResultManager() {
-        return stepResultManager;
+    public StepRequestManager getStepRequestManager() {
+        return stepRequestManager;
     }
 }
