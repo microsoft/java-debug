@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017-2020 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -61,12 +61,9 @@ public final class BindingUtils {
         // use key for now until JDT core provides a public API for this.
         // "Ljava/util/Arrays;.asList<T:Ljava/lang/Object;>([TT;)Ljava/util/List<TT;>;"
         // "([Ljava/lang/String;)V|Ljava/lang/InterruptedException;"
-        if (!binding.getName().equals(name)) {
-            throw new IllegalArgumentException("The method name and binding method name doesn't match.");
-        }
-
         String signatureString = binding.getKey();
         if (signatureString != null) {
+            name = "." + name;
             int index = signatureString.indexOf(name);
             if (index > -1) {
                 int exceptionIndex = signatureString.indexOf("|", signatureString.lastIndexOf(")"));
