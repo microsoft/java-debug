@@ -18,8 +18,6 @@ import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.protocol.Types.SourceBreakpoint;
 
-import com.sun.jdi.StackFrame;
-
 public interface ISourceLookUpProvider extends IProvider {
     boolean supportsRealtimeBreakpointVerification();
 
@@ -70,17 +68,19 @@ public interface ISourceLookUpProvider extends IProvider {
      * Return method invocation found in the statement as the given line number of
      * the source file.
      *
-     * @param stackframe The stack frame where the invocation must be searched.
+     * @param uri The source file where the invocation must be searched.
+     * @param line The line number where the invocation must be searched.
      *
      * @return List of found method invocation or empty if not method invocations
      *         can be found.
      */
-    List<MethodInvocation> findMethodInvocations(StackFrame stackframe);
+    List<MethodInvocation> findMethodInvocations(String uri, int line);
 
     public static class MethodInvocation {
         public String expression;
         public String methodName;
         public String methodSignature;
+        public String methodGenericSignature;
         public String declaringTypeName;
         public int lineStart;
         public int lineEnd;
@@ -89,8 +89,8 @@ public interface ISourceLookUpProvider extends IProvider {
 
         @Override
         public int hashCode() {
-            return Objects.hash(columnEnd, columnStart, declaringTypeName, expression, lineEnd, lineStart, methodName,
-                    methodSignature);
+            return Objects.hash(expression, methodName, methodSignature, methodGenericSignature, declaringTypeName,
+                    lineStart, lineEnd, columnStart, columnEnd);
         }
 
         @Override
@@ -98,18 +98,15 @@ public interface ISourceLookUpProvider extends IProvider {
             if (this == obj) {
                 return true;
             }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
+            if (!(obj instanceof MethodInvocation)) {
                 return false;
             }
             MethodInvocation other = (MethodInvocation) obj;
-            return columnEnd == other.columnEnd && columnStart == other.columnStart
-                    && Objects.equals(declaringTypeName, other.declaringTypeName)
-                    && Objects.equals(expression, other.expression) && lineEnd == other.lineEnd
-                    && lineStart == other.lineStart && Objects.equals(methodName, other.methodName)
-                    && Objects.equals(methodSignature, other.methodSignature);
+            return Objects.equals(expression, other.expression) && Objects.equals(methodName, other.methodName)
+                    && Objects.equals(methodSignature, other.methodSignature)
+                    && Objects.equals(methodGenericSignature, other.methodGenericSignature)
+                    && Objects.equals(declaringTypeName, other.declaringTypeName) && lineStart == other.lineStart
+                    && lineEnd == other.lineEnd && columnStart == other.columnStart && columnEnd == other.columnEnd;
         }
     }
 }

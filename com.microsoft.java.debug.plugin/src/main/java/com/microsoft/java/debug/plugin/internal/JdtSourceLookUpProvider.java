@@ -15,7 +15,6 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -35,28 +34,31 @@ import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.URIUtil;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
-import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.LambdaExpression;
-import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.LibraryLocation;
+import org.eclipse.jdt.ls.core.internal.JDTUtils;
 
 import com.microsoft.java.debug.BindingUtils;
 import com.microsoft.java.debug.BreakpointLocationLocator;
@@ -70,8 +72,6 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.protocol.Types.BreakpointLocation;
 import com.microsoft.java.debug.core.protocol.Types.SourceBreakpoint;
-
-import com.sun.jdi.StackFrame;
 
 public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -452,60 +452,71 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return null;
     }
 
-    @Override
-    public List<MethodInvocation> findMethodInvocations(StackFrame frame) {
-        if (frame == null) {
-            throw new IllegalArgumentException("frame is null");
-        }
-
-        IJavaProject project = JdtUtils.findProject(frame, getSourceContainers());
-        if (project == null) {
-            logger.log(Level.WARNING,
-                    String.format("Failed to resolve project for the frame: %s", frame));
+    public List<MethodInvocation> findMethodInvocations(String uri, int line) {
+        if (uri == null) {
             return Collections.emptyList();
         }
 
-        String uri;
-        try {
-            IType type = project.findType(JdtUtils.getDeclaringTypeName(frame));
-            uri = type.getResource().getLocationURI().toURL().toString();
-        } catch (JavaModelException | DebugException | MalformedURLException e) {
-            logger.log(Level.SEVERE,
-                    String.format("Failed to resolve type for the frame: %s", frame));
-            return Collections.emptyList();
+        boolean useCache = false;
+        CompilationUnit cachedUnit = CoreASTProvider.getInstance().getCachedAST();
+        if (cachedUnit != null) {
+            ITypeRoot cachedElement = cachedUnit.getTypeRoot();
+            if (cachedElement != null && isSameURI(JDTUtils.toUri(cachedElement), uri)) {
+                useCache = true;
+            }
         }
 
-        CompilationUnit astUnit = asCompilationUnit(uri);
+        final CompilationUnit astUnit = useCache ? cachedUnit : asCompilationUnit(uri);
         if (astUnit == null) {
             return Collections.emptyList();
         }
 
-        MethodInvocationLocator locator = new MethodInvocationLocator(frame.location().lineNumber(), astUnit);
+        MethodInvocationLocator locator = new MethodInvocationLocator(line, astUnit);
         astUnit.accept(locator);
 
         return locator.getTargets().entrySet().stream().map(entry -> {
             MethodInvocation invocation = new MethodInvocation();
-            Expression expression = entry.getKey();
-            invocation.expression = expression.toString();
-            IMethodBinding binding = entry.getValue();
-            invocation.methodName = binding.getName();
+            ASTNode astNode = entry.getKey();
+            invocation.expression = astNode.toString();
+            IMethodBinding binding = entry.getValue().getMethodDeclaration();
+            invocation.methodName = binding.isConstructor() ? "<init>" : binding.getName();
             if (binding.getDeclaringClass().isAnonymous()) {
                 ITypeBinding superclass = binding.getDeclaringClass().getSuperclass();
                 if (superclass != null
                         && !superclass.isEqualTo(astUnit.getAST().resolveWellKnownType("java.lang.Object"))) {
-                    invocation.declaringTypeName = superclass.getQualifiedName();
+                    invocation.declaringTypeName = superclass.getBinaryName();
                 } else {
                     return null;
                 }
             } else {
-                invocation.declaringTypeName = binding.getDeclaringClass().getQualifiedName();
+                // Keep consistent with JDI since JDI uses binary class name
+                invocation.declaringTypeName = binding.getDeclaringClass().getBinaryName();
             }
-            invocation.methodSignature = BindingUtils.toSignature(binding, BindingUtils.getMethodName(binding, true));
-            invocation.lineStart = astUnit.getLineNumber(expression.getStartPosition());
-            invocation.lineEnd = astUnit.getLineNumber(expression.getStartPosition() + expression.getLength());
-            invocation.columnStart = astUnit.getColumnNumber(expression.getStartPosition());
-            invocation.columnEnd = astUnit.getColumnNumber(expression.getStartPosition() + expression.getLength());
+            invocation.methodGenericSignature = BindingUtils.toSignature(binding, BindingUtils.getMethodName(binding, true));
+            invocation.methodSignature = Signature.getTypeErasure(invocation.methodGenericSignature);
+            int startOffset = astNode.getStartPosition();
+            if (astNode instanceof org.eclipse.jdt.core.dom.MethodInvocation) {
+                // The range covered by the stepIn target should start with the method name.
+                startOffset = ((org.eclipse.jdt.core.dom.MethodInvocation) astNode).getName().getStartPosition();
+            }
+            invocation.lineStart = astUnit.getLineNumber(startOffset);
+            invocation.columnStart = astUnit.getColumnNumber(startOffset);
+            int endOffset = astNode.getStartPosition() + astNode.getLength();
+            invocation.lineEnd = astUnit.getLineNumber(endOffset);
+            invocation.columnEnd = astUnit.getColumnNumber(endOffset);
             return invocation;
         }).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    private boolean isSameURI(String uri1, String uri2) {
+        if (Objects.equals(uri1, uri2)) {
+            return true;
+        }
+
+        try {
+            return URIUtil.sameURI(new URI(uri1), new URI(uri2));
+        } catch (URISyntaxException e) {
+            return false;
+        }
     }
 }

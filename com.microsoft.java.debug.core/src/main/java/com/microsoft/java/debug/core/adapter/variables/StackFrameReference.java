@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,12 +11,14 @@
 
 package com.microsoft.java.debug.core.adapter.variables;
 
+import com.microsoft.java.debug.core.protocol.Types.Source;
 import com.sun.jdi.ThreadReference;
 
 public class StackFrameReference {
     private final int depth;
     private final int hash;
     private final ThreadReference thread;
+    private Source source;
 
     /**
      * Create a wrapper of JDI stackframe to keep the immutable properties of a stackframe, IStackFrameManager will use
@@ -46,6 +48,14 @@ public class StackFrameReference {
 
     public ThreadReference getThread() {
         return thread;
+    }
+
+    public Source getSource() {
+        return source;
+    }
+
+    public void setSource(Source source) {
+        this.source = source;
     }
 
     @Override

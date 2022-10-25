@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -39,8 +38,9 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.StepArguments;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 import com.microsoft.java.debug.core.protocol.Requests.StepInArguments;
-import com.sun.jdi.AbsentInformationException;
+import com.sun.jdi.ClassType;
 import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.InterfaceType;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
@@ -48,7 +48,6 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
-import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.VoidValue;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
@@ -102,11 +101,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     });
 
                 if (command == Command.STEPIN) {
-                    String[] allowedClasses = threadState.pendingTargetStepIn != null
-                            ? new String[]{threadState.pendingTargetStepIn.declaringTypeName}
-                            : context.getStepFilters().allowClasses;
                     threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
-                            allowedClasses,
+                        context.getStepFilters().allowClasses,
                         context.getStepFilters().skipClasses);
                 } else if (command == Command.STEPOUT) {
                     threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
@@ -119,26 +115,29 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 threadState.pendingMethodExitRequest = thread.virtualMachine().eventRequestManager().createMethodExitRequest();
                 threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
 
-                LocationResponse locationResponse = resolveLocation(thread, targetId, context);
+                threadState.targetStepIn = targetId > 0
+                    ? (MethodInvocation) context.getRecyclableIdPool().getObjectById(targetId) : null;
                 if (context.asyncJDWP()) {
                     List<CompletableFuture<Void>> futures = new ArrayList<>();
                     futures.add(AsyncJdwpUtils.runAsync(() -> {
                         // JDWP Command: TR_FRAMES
-                        threadState.stepLocation = locationResponse.location;
-                        threadState.pendingTargetStepIn = locationResponse.methodInvocation;
-                        threadState.targetStepIn = targetId > 0;
-                        threadState.stepLocation = threadState.topFrame.location();
-                        threadState.pendingMethodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
-                        if (targetThread.virtualMachine().canUseInstanceFilters()) {
-                            try {
-                                // JDWP Command: SF_THIS_OBJECT
-                                ObjectReference thisObject = threadState.topFrame.thisObject();
-                                if (thisObject != null) {
-                                    threadState.pendingMethodExitRequest.addInstanceFilter(thisObject);
+                        try {
+                            threadState.topFrame = getTopFrame(targetThread);
+                            threadState.stepLocation = threadState.topFrame.location();
+                            threadState.pendingMethodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
+                            if (targetThread.virtualMachine().canUseInstanceFilters()) {
+                                try {
+                                    // JDWP Command: SF_THIS_OBJECT
+                                    ObjectReference thisObject = threadState.topFrame.thisObject();
+                                    if (thisObject != null) {
+                                        threadState.pendingMethodExitRequest.addInstanceFilter(thisObject);
+                                    }
+                                } catch (Exception e) {
+                                    // ignore
                                 }
-                            } catch (Exception e) {
-                                // ignore
                             }
+                        } catch (IncompatibleThreadStateException e1) {
+                            throw new CompletionException(e1);
                         }
                     }));
                     futures.add(AsyncJdwpUtils.runAsync(
@@ -170,10 +169,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     // JDWP Command: ER_SET
                     threadState.pendingMethodExitRequest.enable();
                 } else {
+                    threadState.topFrame = getTopFrame(targetThread);
                     threadState.stackDepth = targetThread.frameCount();
-                    threadState.stepLocation = locationResponse.location;
-                    threadState.pendingTargetStepIn = locationResponse.methodInvocation;
-                    threadState.targetStepIn = targetId > 0;
                     threadState.stepLocation = threadState.topFrame.location();
                     threadState.pendingMethodExitRequest.addThreadFilter(thread);
                     threadState.pendingMethodExitRequest.addClassFilter(threadState.stepLocation.declaringType());
@@ -224,57 +221,6 @@ public class StepRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private LocationResponse resolveLocation(ThreadReference thread, int targetId, IDebugAdapterContext context)
-            throws IncompatibleThreadStateException, AbsentInformationException {
-        if (targetId > 0) {
-            Object value = context.getRecyclableIdPool().getObjectById(targetId);
-            if (value instanceof MethodInvocation) {
-                return resolveLocation((MethodInvocation) value, thread);
-            }
-        }
-        return LocationResponse.absolute(getTopFrame(thread).location());
-    }
-
-    private LocationResponse resolveLocation(MethodInvocation invocation, ThreadReference thread)
-            throws AbsentInformationException, IncompatibleThreadStateException {
-        VirtualMachine vm = thread.virtualMachine();
-        List<ReferenceType> refTypes = vm.classesByName(invocation.declaringTypeName);
-
-        // if class is not yet loaded try to make the debugger step in until class is
-        // loaded.
-        if (refTypes.isEmpty()) {
-            return LocationResponse.waitFor(invocation, getTopFrame(thread).location());
-        } else {
-            for (ReferenceType referenceType : refTypes) {
-                Optional<Location> location = referenceType.allLineLocations().stream()
-                        .filter(l -> matchesLocation(l, invocation))
-                        .findFirst();
-                if (location.isPresent()) {
-                    return LocationResponse.absolute(location.get());
-                }
-            }
-            return LocationResponse.absolute(getTopFrame(thread).location());
-        }
-    }
-
-    private boolean matchesLocation(Location l, MethodInvocation invocation) {
-        Method method = l.method();
-        return method != null && Objects.equals(fixedName(method), invocation.methodName)
-                && Objects.equals(method.signature(), invocation.methodSignature);
-    }
-
-    /*
-     * Fix the name so for constructors we return empty to match the captured AST
-     * invocations.
-     */
-    private String fixedName(Method method) {
-        String name = method.name();
-        if ("<init>".equals(name)) {
-            return "";
-        }
-        return name;
-    }
-
     private void handleDebugEvent(DebugEvent debugEvent, IDebugSession debugSession, IDebugAdapterContext context,
             ThreadState threadState) {
         Event event = debugEvent.event;
@@ -283,7 +229,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         // When a breakpoint occurs, abort any pending step requests from the same thread.
         if (event instanceof BreakpointEvent || event instanceof ExceptionEvent) {
             // if we have a pending target step in then ignore and continue.
-            if (threadState.pendingTargetStepIn != null) {
+            if (threadState.targetStepIn != null) {
                 debugEvent.shouldResume = true;
                 return;
             }
@@ -299,41 +245,62 @@ public class StepRequestHandler implements IDebugRequestHandler {
             }
         } else if (event instanceof StepEvent) {
             ThreadReference thread = ((StepEvent) event).thread();
+            long threadId = thread.uniqueID();
             threadState.deleteStepRequest(eventRequestManager);
-            if (isStepFiltersConfigured(context.getStepFilters()) || threadState.targetStepIn) {
+            if (isStepFiltersConfigured(context.getStepFilters()) || threadState.targetStepIn != null) {
                 try {
-                    if (threadState.pendingStepType == Command.STEPIN) {
+                    if (threadState.pendingStepType == Command.STEPIN || threadState.targetStepIn != null) {
                         int currentStackDepth = thread.frameCount();
-                        Location currentStepLocation = getTopFrame(thread).location();
-
-                        // if we are in targetStepIn where the location was pending, then try to resolve
-                        // the location and use it.
-                        if (threadState.pendingTargetStepIn != null) {
-                            LocationResponse newLocation = resolveLocation(threadState.pendingTargetStepIn, thread);
-                            if (!newLocation.isLocationPending()) {
-                                threadState.stepLocation = newLocation.location;
-                                threadState.pendingTargetStepIn = null;
+                        StackFrame topFrame = getTopFrame(thread);
+                        Location currentStepLocation = topFrame.location();
+                        if (threadState.targetStepIn != null) {
+                            if (isStoppedAtSelectedMethod(topFrame, threadState.targetStepIn)) {
+                                // hit: send StoppedEvent
+                            } else {
+                                if (currentStackDepth > threadState.stackDepth) {
+                                    context.getStepResultManager().removeMethodResult(threadId);
+                                    threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
+                                        context.getStepFilters().allowClasses,
+                                        context.getStepFilters().skipClasses);
+                                    threadState.pendingStepRequest.enable();
+                                    debugEvent.shouldResume = true;
+                                    return;
+                                } else if (currentStackDepth == threadState.stackDepth) {
+                                    // If the ending step location is same as the original location where the step into operation is originated,
+                                    // do another step of the same kind.
+                                    if (isSameLocation(currentStepLocation, threadState.stepLocation)) {
+                                        context.getStepResultManager().removeMethodResult(threadId);
+                                        threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                                            context.getStepFilters().allowClasses,
+                                            context.getStepFilters().skipClasses);
+                                        threadState.pendingStepRequest.enable();
+                                        debugEvent.shouldResume = true;
+                                        return;
+                                    }
+                                }
                             }
-                        }
-
-                        // If the ending step location is filtered, or same as the original location where the step into operation is originated,
-                        // do another step of the same kind.
-                        if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, context)
+                        } else if (shouldFilterLocation(threadState.stepLocation, currentStepLocation, context)
                                 || shouldDoExtraStepInto(threadState.stackDepth, threadState.stepLocation,
-                                        currentStackDepth, currentStepLocation, threadState.targetStepIn)
-                                || threadState.pendingTargetStepIn != null) {
-                            String[] allowedClasses = threadState.pendingTargetStepIn != null
-                                    ? new String[]{threadState.pendingTargetStepIn.declaringTypeName}
-                                    : context.getStepFilters().allowClasses;
-                            threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                                        currentStackDepth, currentStepLocation)) {
+                            // If the ending step location is filtered, or same as the original location where the step into operation is originated,
+                            // do another step of the same kind.
+                            context.getStepResultManager().removeMethodResult(threadId);
+                            String[] allowedClasses = context.getStepFilters().allowClasses;
+                            if (currentStackDepth > threadState.stackDepth) {
+                                threadState.pendingStepRequest = DebugUtility.createStepOutRequest(thread,
                                     allowedClasses,
-                                context.getStepFilters().skipClasses);
+                                    context.getStepFilters().skipClasses);
+                            } else {
+                                threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
+                                        allowedClasses,
+                                    context.getStepFilters().skipClasses);
+                            }
                             threadState.pendingStepRequest.enable();
                             debugEvent.shouldResume = true;
                             return;
                         }
                     }
-                } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | AbsentInformationException ex) {
+                } catch (IncompatibleThreadStateException | IndexOutOfBoundsException ex) {
                     // ignore.
                 }
             }
@@ -358,6 +325,56 @@ public class StepRequestHandler implements IDebugRequestHandler {
             }
             debugEvent.shouldResume = true;
         }
+    }
+
+    private boolean isStoppedAtSelectedMethod(StackFrame frame, MethodInvocation selectedMethod) {
+        Method method = frame.location().method();
+        if (method != null
+            && Objects.equals(method.name(), selectedMethod.methodName)
+            && (Objects.equals(method.signature(), selectedMethod.methodSignature)
+                || Objects.equals(method.genericSignature(), selectedMethod.methodGenericSignature))) {
+            ObjectReference thisObject = frame.thisObject();
+            ReferenceType currentType = (thisObject == null) ? method.declaringType() : thisObject.referenceType();
+            if ("java.lang.Object".equals(selectedMethod.declaringTypeName)) {
+                return true;
+            }
+
+            return isSubType(currentType, selectedMethod.declaringTypeName);
+        }
+
+        return false;
+    }
+
+    private boolean isSubType(ReferenceType currentType, String baseType) {
+        if (baseType.equals(currentType.name())) {
+            return true;
+        }
+
+        if (currentType instanceof ClassType) {
+            ClassType classType = (ClassType) currentType;
+            ClassType superClassType = classType.superclass();
+            if (superClassType != null && isSubType(superClassType, baseType)) {
+                return true;
+            }
+
+            List<InterfaceType> interfaces = classType.allInterfaces();
+            for (InterfaceType iface : interfaces) {
+                if (isSubType(iface, baseType)) {
+                    return true;
+                }
+            }
+        }
+
+        if (currentType instanceof InterfaceType) {
+            List<InterfaceType> superInterfaces = ((InterfaceType) currentType).superinterfaces();
+            for (InterfaceType superInterface : superInterfaces) {
+                if (isSubType(superInterface, baseType)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private boolean isStepFiltersConfigured(StepFilters filters) {
@@ -400,25 +417,36 @@ public class StepRequestHandler implements IDebugRequestHandler {
      *                                          the target VM.
      */
     private boolean shouldDoExtraStepInto(int originalStackDepth, Location originalLocation, int currentStackDepth,
-            Location currentLocation, boolean targetStepIn)
+            Location currentLocation)
             throws IncompatibleThreadStateException {
-        if (!targetStepIn) {
-            if (originalStackDepth != currentStackDepth) {
-                return false;
-            }
-            if (originalLocation == null) {
-                return false;
-            }
+        if (originalStackDepth != currentStackDepth) {
+            return false;
         }
+        if (originalLocation == null) {
+            return false;
+        }
+
         Method originalMethod = originalLocation.method();
         Method currentMethod = currentLocation.method();
         if (!originalMethod.equals(currentMethod)) {
-            return targetStepIn;
+            return false;
         }
         if (originalLocation.lineNumber() != currentLocation.lineNumber()) {
-            return targetStepIn;
+            return false;
         }
-        return !targetStepIn;
+
+        return true;
+    }
+
+    private boolean isSameLocation(Location original, Location current) {
+        if (original == null || current == null) {
+            return false;
+        }
+
+        Method originalMethod = original.method();
+        Method currentMethod = current.method();
+        return originalMethod.equals(currentMethod)
+            && original.lineNumber() == current.lineNumber();
     }
 
     /**
@@ -445,8 +473,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         StackFrame topFrame = null;
         Location stepLocation = null;
         Disposable eventSubscription = null;
-        boolean targetStepIn = false;
-        MethodInvocation pendingTargetStepIn;
+        MethodInvocation targetStepIn = null;
 
         public void deleteMethodExitRequest(EventRequestManager manager) {
             DebugUtility.deleteEventRequestSafely(manager, this.pendingMethodExitRequest);
@@ -457,28 +484,5 @@ public class StepRequestHandler implements IDebugRequestHandler {
             DebugUtility.deleteEventRequestSafely(manager, this.pendingStepRequest);
             this.pendingStepRequest = null;
         }
-    }
-
-    static class LocationResponse {
-        Location location;
-        MethodInvocation methodInvocation;
-
-        private LocationResponse(Location location, MethodInvocation methodInvocation) {
-            this.location = location;
-            this.methodInvocation = methodInvocation;
-        }
-
-        public static LocationResponse waitFor(MethodInvocation invocation, Location location) {
-            return new LocationResponse(location, invocation);
-        }
-
-        public static LocationResponse absolute(Location location) {
-            return new LocationResponse(location, null);
-        }
-
-        boolean isLocationPending() {
-            return methodInvocation != null;
-        }
-
     }
 }
