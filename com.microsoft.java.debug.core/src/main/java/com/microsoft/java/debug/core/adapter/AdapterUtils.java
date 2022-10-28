@@ -73,9 +73,9 @@ public class AdapterUtils {
     /**
      * Get the enclosing type name of the given fully qualified name.
      * <pre>
-     * a.b.c        ->   a.b.c
-     * a.b.c$1      ->   a.b.c
-     * a.b.c$1$2    ->   a.b.c
+     * a.b.c     = a.b.c
+     * a.b.c$1   = a.b.c
+     * a.b.c$1$2 = a.b.c
      * </pre>
      * @param fullyQualifiedName
      *                      fully qualified name
