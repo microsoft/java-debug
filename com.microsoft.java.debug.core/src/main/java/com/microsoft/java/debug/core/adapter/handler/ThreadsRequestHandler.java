@@ -159,11 +159,13 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getExceptionManager().removeException(arguments.threadId);
             allThreadsContinued = false;
             DebugUtility.resumeThread(thread);
+            context.getStackFrameManager().clearStackFrames(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         } else {
             context.getStepResultManager().removeAllMethodResults();
             context.getExceptionManager().removeAllExceptions();
             resumeVM(context);
+            context.getStackFrameManager().clearStackFrames();
             context.getRecyclableIdPool().removeAllObjects();
         }
         response.body = new Responses.ContinueResponseBody(allThreadsContinued);
@@ -175,6 +177,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         context.getExceptionManager().removeAllExceptions();
         resumeVM(context);
         context.getProtocolServer().sendEvent(new Events.ContinuedEvent(arguments.threadId, true));
+        context.getStackFrameManager().clearStackFrames();
         context.getRecyclableIdPool().removeAllObjects();
         return CompletableFuture.completedFuture(response);
     }
@@ -280,6 +283,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
                 context.getExceptionManager().removeException(threadId);
                 DebugUtility.resumeThread(thread, suspends);
                 context.getProtocolServer().sendEvent(new Events.ContinuedEvent(threadId));
+                context.getStackFrameManager().clearStackFrames(thread);
                 checkThreadRunningAndRecycleIds(thread, context);
             }
         } catch (ObjectCollectedException ex) {

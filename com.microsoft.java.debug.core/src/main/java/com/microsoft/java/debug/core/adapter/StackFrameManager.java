@@ -32,10 +32,19 @@ public class StackFrameManager implements IStackFrameManager {
 
     @Override
     public synchronized StackFrame[] reloadStackFrames(ThreadReference thread) {
+        return reloadStackFrames(thread, true);
+    }
+
+    @Override
+    public synchronized StackFrame[] reloadStackFrames(ThreadReference thread, boolean force) {
         return threadStackFrameMap.compute(thread.uniqueID(), (key, old) -> {
             try {
                 if (old == null || old.length == 0) {
-                    return thread.frames().toArray(new StackFrame[0]);
+                    if (force) {
+                        return thread.frames().toArray(new StackFrame[0]);
+                    } else {
+                        return new StackFrame[0];
+                    }
                 } else {
                     return thread.frames(0, old.length).toArray(new StackFrame[0]);
                 }
@@ -70,5 +79,10 @@ public class StackFrameManager implements IStackFrameManager {
     @Override
     public synchronized void clearStackFrames(ThreadReference thread) {
         threadStackFrameMap.remove(thread.uniqueID());
+    }
+
+    @Override
+    public synchronized void clearStackFrames() {
+        threadStackFrameMap.clear();
     }
 }

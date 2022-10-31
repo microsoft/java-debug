@@ -317,7 +317,7 @@ public class JdtEvaluationProvider implements IEvaluationProvider {
                 @Override
                 protected synchronized void invokeComplete(int restoreTimeout) {
                     super.invokeComplete(restoreTimeout);
-                    context.getStackFrameManager().reloadStackFrames(thread);
+                    context.getStackFrameManager().reloadStackFrames(thread, false);
                 }
             });
         }

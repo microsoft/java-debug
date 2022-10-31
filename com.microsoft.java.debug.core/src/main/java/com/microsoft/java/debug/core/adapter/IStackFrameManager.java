@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Microsoft Corporation and others.
+ * Copyright (c) 2017-2022 Microsoft Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -33,6 +33,15 @@ public interface IStackFrameManager {
     StackFrame[] reloadStackFrames(ThreadReference thread);
 
     /**
+     * Refresh all stackframes from jdi thread.
+     *
+     * @param thread the jdi thread
+     * @param force Whether to load the whole frames if the thread's stackframes haven't been cached.
+     * @return all the stackframes in the specified thread
+     */
+    StackFrame[] reloadStackFrames(ThreadReference thread, boolean force);
+
+    /**
      * Refersh the stackframes starting from the specified depth and length.
      *
      * @param thread the jdi thread
@@ -48,4 +57,9 @@ public interface IStackFrameManager {
      * @param thread the jdi thread
      */
     void clearStackFrames(ThreadReference thread);
+
+    /**
+     * Clear the whole stackframes cache.
+     */
+    void clearStackFrames();
 }
