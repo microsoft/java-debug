@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -33,6 +33,8 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.protocol.Events.DebugEvent;
 
 import io.reactivex.disposables.Disposable;
@@ -54,6 +56,7 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
     private ByteBuffer rawData;
     private int contentLength = -1;
     private AtomicInteger sequenceNumber = new AtomicInteger(1);
+    private boolean isValidDAPRequest = true;
 
     private PublishSubject<Messages.Response> responseSubject = PublishSubject.<Messages.Response>create();
     private PublishSubject<Messages.Request> requestSubject = PublishSubject.<Messages.Request>create();
@@ -217,7 +220,14 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
 
                         if (message.type.equals("request")) {
                             Messages.Request request = JsonUtils.fromJson(messageData, Messages.Request.class);
-                            requestSubject.onNext(request);
+                            if (this.isValidDAPRequest) {
+                                requestSubject.onNext(request);
+                            } else {
+                                Messages.Response response = new Messages.Response(request.seq, request.command);
+                                sendResponse(AdapterUtils.setErrorResponse(response,
+                                    ErrorCode.INVALID_DAP_HEADER,
+                                    String.format("'%s' request is rejected due to not being a valid DAP message.", request.command)));
+                            }
                         } else if (message.type.equals("response")) {
                             Messages.Response response = JsonUtils.fromJson(messageData, Messages.Response.class);
                             responseSubject.onNext(response);
@@ -235,10 +245,20 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
             if (idx != -1) {
                 Matcher matcher = CONTENT_LENGTH_MATCHER.matcher(rawMessage);
                 if (matcher.find()) {
-                    this.contentLength = Integer.parseInt(matcher.group(1));
-                    int headerByteLength = rawMessage.substring(0, idx + TWO_CRLF.length())
-                            .getBytes(PROTOCOL_ENCODING).length;
+                    final String contentLengthText = matcher.group(1);
+                    this.contentLength = Integer.parseInt(contentLengthText);
+                    final String headerMessage = rawMessage.substring(0, idx + TWO_CRLF.length());
+                    final int headerByteLength = headerMessage.getBytes(PROTOCOL_ENCODING).length;
                     this.rawData.removeFirst(headerByteLength); // Remove the header from the raw message.
+
+                    int expectedHeaderLength = 16 /*"Content-Length: ".length()*/ + contentLengthText.length();
+                    int actualHeaderLength = idx;
+                    if (expectedHeaderLength != actualHeaderLength) {
+                        this.isValidDAPRequest = false;
+                        logger.log(Level.SEVERE, String.format("Illegal DAP request is detected: %s", headerMessage));
+                    } else {
+                        this.isValidDAPRequest = true;
+                    }
                     continue;
                 }
             }

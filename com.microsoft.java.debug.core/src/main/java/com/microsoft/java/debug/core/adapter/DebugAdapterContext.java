@@ -56,6 +56,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     private StepFilters stepFilters;
     private Path classpathJar = null;
     private Path argsfile = null;
+    private boolean isInitialized = false;
 
     private long shellProcessId = -1;
     private long processId = -1;
@@ -406,5 +407,15 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     @Override
     public void setJDWPLatency(long baseLatency) {
         this.jdwpLatency = baseLatency;
+    }
+
+    @Override
+    public boolean isInitialized() {
+        return isInitialized;
+    }
+
+    @Override
+    public void setInitialized(boolean isInitialized) {
+        this.isInitialized = isInitialized;
     }
 }

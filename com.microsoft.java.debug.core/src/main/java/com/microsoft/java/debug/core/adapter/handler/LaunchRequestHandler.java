@@ -77,6 +77,12 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+        if (!context.isInitialized()) {
+            final String errorMessage = "'launch' request is rejected since the debug session has not been initialized yet.";
+            logger.log(Level.SEVERE, errorMessage);
+            return CompletableFuture.completedFuture(
+                AdapterUtils.setErrorResponse(response, ErrorCode.LAUNCH_FAILURE, errorMessage));
+        }
         LaunchArguments launchArguments = (LaunchArguments) arguments;
         Map<String, Object> traceInfo = new HashMap<>();
         traceInfo.put("asyncJDWP", context.asyncJDWP());
