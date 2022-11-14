@@ -40,6 +40,7 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 
 public class LaunchUtils {
@@ -81,10 +82,14 @@ public class LaunchUtils {
      * @return the file path of the generated argfile
      * @throws IOException Some errors occur during generating the argfile
      */
-    public static synchronized Path generateArgfile(String[] classPaths, String[] modulePaths) throws IOException {
+    public static synchronized Path generateArgfile(String vmArgs, String[] classPaths, String[] modulePaths) throws IOException {
         String argfile = "";
+        if (StringUtils.isNotBlank(vmArgs)) {
+            argfile += vmArgs;
+        }
+
         if (ArrayUtils.isNotEmpty(classPaths)) {
-            argfile = "-cp \"" + String.join(File.pathSeparator, classPaths) + "\"";
+            argfile += " -cp \"" + String.join(File.pathSeparator, classPaths) + "\"";
         }
 
         if (ArrayUtils.isNotEmpty(modulePaths)) {
