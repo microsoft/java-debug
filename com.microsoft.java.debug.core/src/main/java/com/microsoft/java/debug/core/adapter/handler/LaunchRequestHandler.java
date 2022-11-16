@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2018-2021 Microsoft Corporation and others.
+* Copyright (c) 2018-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -134,11 +135,50 @@ public class LaunchRequestHandler implements IDebugRequestHandler {
             }
         } else if (launchArguments.shortenCommandLine == ShortenApproach.ARGFILE) {
             try {
-                Path tempfile = LaunchUtils.generateArgfile(launchArguments.vmArgs, launchArguments.classPaths, launchArguments.modulePaths);
-                launchArguments.vmArgs = " \"@" + tempfile.toAbsolutePath().toString() + "\"";
-                launchArguments.classPaths = new String[0];
-                launchArguments.modulePaths = new String[0];
-                context.setArgsfile(tempfile);
+                /**
+                 * See the JDK spec https://docs.oracle.com/en/java/javase/18/docs/specs/man/java.html#java-command-line-argument-files.
+                 * The argument file must contain only ASCII characters or characters in system default encoding that's ASCII friendly.
+                 */
+                Charset systemCharset = LaunchUtils.getSystemCharset();
+                CharsetEncoder encoder = systemCharset.newEncoder();
+                String vmArgsForShorten = null;
+                String[] classPathsForShorten = null;
+                String[] modulePathsForShorten = null;
+                if (StringUtils.isNotBlank(launchArguments.vmArgs)) {
+                    if (!encoder.canEncode(launchArguments.vmArgs)) {
+                        logger.warning(String.format("Cannot generate the 'vmArgs' argument into the argfile because it contains characters "
+                            + "that cannot be encoded in the system charset '%s'.", systemCharset.displayName()));
+                    } else {
+                        vmArgsForShorten = launchArguments.vmArgs;
+                    }
+                }
+
+                if (ArrayUtils.isNotEmpty(launchArguments.classPaths)) {
+                    if (!encoder.canEncode(String.join(File.pathSeparator, launchArguments.classPaths))) {
+                        logger.warning(String.format("Cannot generate the '-cp' argument into the argfile because it contains characters "
+                            + "that cannot be encoded in the system charset '%s'.", systemCharset.displayName()));
+                    } else {
+                        classPathsForShorten = launchArguments.classPaths;
+                    }
+                }
+
+                if (ArrayUtils.isNotEmpty(launchArguments.modulePaths)) {
+                    if (!encoder.canEncode(String.join(File.pathSeparator, launchArguments.modulePaths))) {
+                        logger.warning(String.format("Cannot generate the '--module-path' argument into the argfile because it contains characters "
+                            + "that cannot be encoded in the system charset '%s'.", systemCharset.displayName()));
+                    } else {
+                        modulePathsForShorten = launchArguments.modulePaths;
+                    }
+                }
+
+                if (vmArgsForShorten != null || classPathsForShorten != null || modulePathsForShorten != null) {
+                    Path tempfile = LaunchUtils.generateArgfile(vmArgsForShorten, classPathsForShorten, modulePathsForShorten, systemCharset);
+                    launchArguments.vmArgs = (vmArgsForShorten == null ? launchArguments.vmArgs : "")
+                                                + " \"@" + tempfile.toAbsolutePath().toString() + "\"";
+                    launchArguments.classPaths = (classPathsForShorten == null ? launchArguments.classPaths : new String[0]);
+                    launchArguments.modulePaths = (modulePathsForShorten == null ? launchArguments.modulePaths : new String[0]);
+                    context.setArgsfile(tempfile);
+                }
             } catch (IOException e) {
                 logger.log(Level.SEVERE, String.format("Failed to create a temp argfile: %s", e.toString()), e);
             }

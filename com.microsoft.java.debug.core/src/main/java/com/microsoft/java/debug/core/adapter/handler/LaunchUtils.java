@@ -17,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,16 +37,45 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import com.microsoft.java.debug.core.Configuration;
-import com.microsoft.java.debug.core.adapter.AdapterUtils;
-
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 
+import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.adapter.AdapterUtils;
+
 public class LaunchUtils {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static Set<Path> tempFilesInUse = new HashSet<>();
+    private static final Charset SYSTEM_CHARSET;
+
+    static {
+        Charset result = null;
+        try {
+            // JEP 400: Java 17+ populates this system property.
+            String encoding = System.getProperty("native.encoding"); //$NON-NLS-1$
+            if (encoding != null && !encoding.isBlank()) {
+                result = Charset.forName(encoding);
+            } else {
+                // JVM internal property, works on older JVM's too
+                encoding = System.getProperty("sun.jnu.encoding"); //$NON-NLS-1$
+                if (encoding != null && !encoding.isBlank()) {
+                    result = Charset.forName(encoding);
+                }
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error occurs during resolving system encoding", e);
+        }
+        if (result == null) {
+            // This is always UTF-8 on Java >= 18.
+            result = Charset.defaultCharset();
+        }
+        SYSTEM_CHARSET = result;
+    }
+
+    public static Charset getSystemCharset() {
+        return SYSTEM_CHARSET;
+    }
 
     /**
      * Generate the classpath parameters to a temporary classpath.jar.
@@ -82,7 +112,7 @@ public class LaunchUtils {
      * @return the file path of the generated argfile
      * @throws IOException Some errors occur during generating the argfile
      */
-    public static synchronized Path generateArgfile(String vmArgs, String[] classPaths, String[] modulePaths) throws IOException {
+    public static synchronized Path generateArgfile(String vmArgs, String[] classPaths, String[] modulePaths, Charset encoding) throws IOException {
         String argfile = "";
         if (StringUtils.isNotBlank(vmArgs)) {
             argfile += vmArgs;
@@ -100,7 +130,7 @@ public class LaunchUtils {
         String baseName = "cp_" + getMd5(argfile);
         cleanupTempFiles(baseName, ".argfile");
         Path tempfile = createTempFile(baseName, ".argfile");
-        Files.write(tempfile, argfile.getBytes());
+        Files.writeString(tempfile, argfile, encoding);
         lockTempLaunchFile(tempfile);
 
         return tempfile;
