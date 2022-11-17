@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017-2019 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -64,8 +64,12 @@ public class JavaDebugDelegateCommandHandler implements IDelegateCommandHandler 
                 ResolveMainClassHandler resolveMainClassHandler = new ResolveMainClassHandler();
                 return resolveMainClassHandler.resolveMainClass(arguments);
             case BUILD_WORKSPACE:
-                // TODO
-                break;
+                Compile.CompileParams params = null;
+                if (arguments != null && !arguments.isEmpty()) {
+                    params = JsonUtils.fromJson((String) arguments.get(0), Compile.CompileParams.class);
+                }
+
+                return Compile.compile(params, progress);
             case FETCH_USER_DATA:
                 return UsageDataStore.getInstance().fetchAll();
             case UPDATE_DEBUG_SETTINGS:
