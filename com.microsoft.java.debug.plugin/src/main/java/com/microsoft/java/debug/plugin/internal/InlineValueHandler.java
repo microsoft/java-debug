@@ -166,7 +166,7 @@ public class InlineValueHandler {
      */
     private static Position getPosition(IBuffer buffer, int offset) {
         int[] result = JsonRpcHelpers.toLine(buffer, offset);
-        if (result == null && result.length < 1) {
+        if (result == null || result.length < 1) {
             return new Position(-1, -1);
         }
 
