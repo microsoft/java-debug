@@ -154,4 +154,8 @@ public interface IDebugAdapterContext {
     long getJDWPLatency();
 
     void setJDWPLatency(long baseLatency);
+
+    boolean isInitialized();
+
+    void setInitialized(boolean isInitialized);
 }

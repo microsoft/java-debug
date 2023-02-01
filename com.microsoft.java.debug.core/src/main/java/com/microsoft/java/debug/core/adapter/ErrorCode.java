@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Microsoft Corporation and others.
+* Copyright (c) 2017-2022 Microsoft Corporation and others.
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v1.0
 * which accompanies this distribution, and is available at
@@ -35,7 +35,8 @@ public enum ErrorCode {
     EXCEPTION_INFO_FAILURE(1018),
     EVALUATION_COMPILE_ERROR(2001),
     EVALUATE_NOT_SUSPENDED_THREAD(2002),
-    HCR_FAILURE(3001);
+    HCR_FAILURE(3001),
+    INVALID_DAP_HEADER(3002);
 
     private int id;
 
