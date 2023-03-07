@@ -61,6 +61,7 @@
         <module>com.microsoft.java.debug.core</module>
         <module>com.microsoft.java.debug.plugin</module>
         <module>com.microsoft.java.debug.repository</module>
+        <module>com.microsoft.java.debug.target</module>
     </modules>
     <build>
         <pluginManagement>
@@ -135,9 +136,27 @@
                     <groupId>org.eclipse.tycho</groupId>
                     <artifactId>target-platform-configuration</artifactId>
                     <version>${tycho-version}</version>
+                    <configuration>
+                        <resolver>p2</resolver>
+                        <target>
+                            <artifact>
+                                <groupId>com.microsoft.java</groupId>
+                                <artifactId>com.microsoft.java.debug.tp</artifactId>
+                                <version>${project.version}</version>
+                            </artifact>
+                        </target>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-maven-plugin</artifactId>
+                <version>${tycho-version}</version>
+                <extensions>true</extensions>
+            </plugin>
+        </plugins>
     </build>
     <profiles>
         <profile>
@@ -154,36 +173,11 @@
     </profiles>
     <repositories>
         <repository>
-            <id>202212</id>
-            <layout>p2</layout>
-            <url>https://download.eclipse.org/releases/2022-12/202212071000/</url>
-        </repository>
-        <repository>
             <id>oss.sonatype.org</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
-        </repository>
-        <repository>
-            <id>JDT.LS</id>
-            <layout>p2</layout>
-            <url>https://download.eclipse.org/jdtls/snapshots/repository/latest/</url>
-        </repository>
-        <repository>
-            <id>JBOLL.TOOLS</id>
-            <layout>p2</layout>
-            <url>https://download.jboss.org/jbosstools/updates/m2e-extensions/m2e-apt/1.5.3-2019-11-08_11-04-22-H22/</url>
-        </repository>
-        <repository>
-            <id>orbit</id>
-            <layout>p2</layout>
-            <url>https://download.eclipse.org/tools/orbit/R-builds/R20170516192513/repository/</url>
-        </repository>
-        <repository>
-            <id>lsp4j</id>
-            <layout>p2</layout>
-            <url>https://download.eclipse.org/lsp4j/updates/releases/0.20.0/</url>
         </repository>
     </repositories>
 </project>

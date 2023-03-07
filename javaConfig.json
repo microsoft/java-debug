@@ -3,5 +3,5 @@
         "com.microsoft.java.debug.core",
         "com.microsoft.java.debug.plugin"
     ],
-   "targetPlatform": "java.debug.target"
+   "targetPlatform": "com.microsoft.java.debug.target/com.microsoft.java.debug.tp.target"
 }
