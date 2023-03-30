@@ -15,6 +15,7 @@ import com.microsoft.java.debug.core.protocol.Requests;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import org.apache.commons.lang3.ArrayUtils;
+import java.util.Optional;
 
 public class StepFilterProvider implements IStepFilterProvider {
     @Override
@@ -26,6 +27,7 @@ public class StepFilterProvider implements IStepFilterProvider {
                 || (filters.skipSynthetics && method.isSynthetic())
                 || (filters.skipConstructors && method.isConstructor());
     }
+    
 
     @Override
     public boolean shouldSkipOut(Location previousLocation, Method method) {
@@ -40,4 +42,17 @@ public class StepFilterProvider implements IStepFilterProvider {
                 || ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
                 || filters.skipStaticInitializers || filters.skipSynthetics;
     }
+
+
+    @Override
+    public boolean shouldSkipFrame(Method method) {
+       return false;
+    }
+
+
+    @Override
+    public Optional<String> formatMethodName(Method method) {
+        return Optional.of(method.name());
+    }
+
 }

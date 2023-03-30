@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugUtility;
@@ -26,12 +27,14 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.IStepFilterProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.StackTraceArguments;
+import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.AbsentInformationException;
@@ -41,6 +44,7 @@ import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
+import java.util.Optional;
 
 public class StackTraceRequestHandler implements IDebugRequestHandler {
 
@@ -61,22 +65,30 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         int totalFrames = 0;
         if (thread != null) {
             try {
+                
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
                 StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread);
-
+                
                 int count = stacktraceArgs.levels == 0 ? totalFrames - stacktraceArgs.startFrame
                         : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
                 for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
-                    result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context));
+                   IStepFilterProvider stackTraceFilterProvider = context.getProvider(IStepFilterProvider.class);
+                   Optional<String> optionalFormattedName = stackTraceFilterProvider.formatMethodName(thread.frame(i).location().method());
+            
+                   
+                 if(!stackTraceFilterProvider.shouldSkipFrame(thread.frame(i).location().method())  && !optionalFormattedName.isEmpty() )
+                      result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context,optionalFormattedName.get()));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {
+                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                 // when error happens, the possible reason is:
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates
@@ -87,25 +99,26 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId, IDebugAdapterContext context)
+    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId, IDebugAdapterContext context,String formattedName)
             throws URISyntaxException, AbsentInformationException {
         Location location = stackFrame.location();
         Method method = location.method();
         Types.Source clientSource = this.convertDebuggerSourceToClient(location, context);
-        String methodName = formatMethodName(method, true, true);
+      //String methodName = formatMethodName(method, true, true,formattedName);
         int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
         if (lineNumber < 0) {
             if (method.isNative()) {
                 // For native method, display a tip text "native method" in the Call Stack View.
-                methodName += "[native method]";
+                formattedName += "[native method]";
             } else {
                 // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
                 // display "Unknown Source" in the Call Stack View.
                 clientSource = null;
             }
         }
-        return new Types.StackFrame(frameId, methodName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0);
+
+        return new Types.StackFrame(frameId, formattedName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0);
     }
 
     private Types.Source convertDebuggerSourceToClient(Location location, IDebugAdapterContext context) throws URISyntaxException {
@@ -133,6 +146,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             IDebugAdapterContext context) throws URISyntaxException {
         // use a lru cache for better performance
         String uri = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key -> {
+            
             String fromProvider = context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, relativeSourcePath);
             // avoid return null which will cause the compute function executed again
             return StringUtils.isBlank(fromProvider) ? "" : fromProvider;
@@ -162,14 +176,14 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private String formatMethodName(Method method, boolean showContextClass, boolean showParameter) {
+    private String formatMethodName(Method method, boolean showContextClass, boolean showParameter,String formattedNameString) {
         StringBuilder formattedName = new StringBuilder();
-        if (showContextClass) {
-            String fullyQualifiedClassName = method.declaringType().name();
-            formattedName.append(SimpleTypeFormatter.trimTypeName(fullyQualifiedClassName));
+      /*   if (showContextClass) {
+           // String fullyQualifiedClassName = method.declaringType().name();
+            formattedName.append(SimpleTypeFormatter.trimTypeName(formattedNameString));
             formattedName.append(".");
-        }
-        formattedName.append(method.name());
+        }*/
+        formattedName.append(formattedNameString);
         if (showParameter) {
             List<String> argumentTypeNames = method.argumentTypeNames().stream().map(SimpleTypeFormatter::trimTypeName).collect(Collectors.toList());
             formattedName.append("(");
