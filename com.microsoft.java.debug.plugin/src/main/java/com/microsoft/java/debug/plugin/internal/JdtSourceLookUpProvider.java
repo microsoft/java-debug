@@ -29,8 +29,8 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -50,10 +50,10 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.LambdaExpression;
-import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
@@ -157,7 +157,20 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new JavaBreakpointLocation[0];
         }
 
-        CompilationUnit astUnit = asCompilationUnit(sourceUri);
+        boolean useCache = false;
+        CompilationUnit cachedUnit = CoreASTProvider.getInstance().getCachedAST();
+        if (cachedUnit != null) {
+            ITypeRoot cachedElement = cachedUnit.getTypeRoot();
+            if (cachedElement != null && isSameURI(JDTUtils.toUri(cachedElement), sourceUri)) {
+                useCache = true;
+            }
+        }
+
+        final CompilationUnit astUnit = useCache ? cachedUnit : asCompilationUnit(sourceUri);
+        if (astUnit == null) {
+            return new JavaBreakpointLocation[0];
+        }
+
         JavaBreakpointLocation[] sourceLocations = Stream.of(sourceBreakpoints)
             .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
             .toArray(JavaBreakpointLocation[]::new);
