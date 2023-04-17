@@ -38,6 +38,7 @@ import org.eclipse.core.runtime.URIUtil;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
@@ -157,20 +158,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new JavaBreakpointLocation[0];
         }
 
-        boolean useCache = false;
-        CompilationUnit cachedUnit = CoreASTProvider.getInstance().getCachedAST();
-        if (cachedUnit != null) {
-            ITypeRoot cachedElement = cachedUnit.getTypeRoot();
-            if (cachedElement != null && isSameURI(JDTUtils.toUri(cachedElement), sourceUri)) {
-                useCache = true;
-            }
-        }
-
-        final CompilationUnit astUnit = useCache ? cachedUnit : asCompilationUnit(sourceUri);
-        if (astUnit == null) {
-            return new JavaBreakpointLocation[0];
-        }
-
+        CompilationUnit astUnit = asCompilationUnit(sourceUri);
         JavaBreakpointLocation[] sourceLocations = Stream.of(sourceBreakpoints)
             .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
             .toArray(JavaBreakpointLocation[]::new);
@@ -270,7 +258,32 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
+
+        // try resolving compilation util or class file based on file extension from
+        // jdt.ls
+        boolean uriIsClassFile = uri.endsWith(".class");
+        boolean needFallbackResolution = true;
+        if (uriIsClassFile) {
+            IClassFile resolveClassFile = JDTUtils.resolveClassFile(uri);
+            if (resolveClassFile != null) {
+                parser.setSource(resolveClassFile);
+                needFallbackResolution = false;
+            }
+        } else {
+            ICompilationUnit resolveCompilationUnit = JDTUtils.resolveCompilationUnit(uri);
+            if (resolveCompilationUnit != null) {
+                parser.setSource(resolveCompilationUnit);
+                needFallbackResolution = false;
+            }
+        }
         CompilationUnit astUnit = null;
+        if ((needFallbackResolution && configureFallbackResolution(uri, parser)) || !needFallbackResolution) {
+            astUnit = (CompilationUnit) parser.createAST(null);
+        }
+        return astUnit;
+    }
+
+    private boolean configureFallbackResolution(String uri, final ASTParser parser) {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast
         // parser.
@@ -301,17 +314,17 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
             javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
             parser.setCompilerOptions(javaOptions);
-            astUnit = (CompilationUnit) parser.createAST(null);
+            return true;
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
             // leverage jdt to load the source contents.
             ITypeRoot typeRoot = resolveClassFile(uri);
             if (typeRoot != null) {
                 parser.setSource(typeRoot);
-                astUnit = (CompilationUnit) parser.createAST(null);
+                return true;
             }
         }
-        return astUnit;
+        return false;
     }
 
     @Override
@@ -505,7 +518,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // Keep consistent with JDI since JDI uses binary class name
                 invocation.declaringTypeName = binding.getDeclaringClass().getBinaryName();
             }
-            invocation.methodGenericSignature = BindingUtils.toSignature(binding, BindingUtils.getMethodName(binding, true));
+            invocation.methodGenericSignature = BindingUtils.toSignature(binding);
             invocation.methodSignature = Signature.getTypeErasure(invocation.methodGenericSignature);
             int startOffset = astNode.getStartPosition();
             if (astNode instanceof org.eclipse.jdt.core.dom.MethodInvocation) {

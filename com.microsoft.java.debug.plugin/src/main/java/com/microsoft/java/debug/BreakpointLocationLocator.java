@@ -46,7 +46,7 @@ public class BreakpointLocationLocator
         if (this.methodBinding == null) {
             return null;
         }
-        return BindingUtils.toSignature(this.methodBinding, getMethodName());
+        return BindingUtils.toSignature(this.methodBinding);
     }
 
     /**

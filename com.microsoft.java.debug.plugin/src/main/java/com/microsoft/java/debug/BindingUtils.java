@@ -12,10 +12,12 @@
 package com.microsoft.java.debug;
 
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.internal.debug.core.breakpoints.LambdaLocationLocatorHelper;
 
 /**
  * Utility methods around working with JDT Bindings.
  */
+@SuppressWarnings("restriction")
 public final class BindingUtils {
     private BindingUtils() {
 
@@ -33,46 +35,21 @@ public final class BindingUtils {
      */
     public static String getMethodName(IMethodBinding binding, boolean fromKey) {
         if (fromKey) {
-            String key = binding.getKey();
-            int dotAt = key.indexOf('.');
-            int end = key.indexOf('<', dotAt);
-            if (end == -1) {
-                end = key.indexOf('(');
-            } else {
-                end = Math.min(end, key.indexOf('('));
-            }
-            return key.substring(dotAt + 1, end);
+            return LambdaLocationLocatorHelper.toMethodName(binding);
         } else {
             return binding.getName();
         }
     }
 
     /**
-     * Returns the method signature of the method represented by the binding. Since
-     * this implementation use the {@link IMethodBinding#getKey()} to extract the
-     * signature from, the method name must be passed in.
+     * Returns the method signature of the method represented by the binding
+     * including the synthetic outer locals.
      *
      * @param binding the binding which the signature must be resolved for.
-     * @param name    the name of the method.
-     * @return the signature or null if the signature could not be resolved from the
-     *         key.
+     * @return the signature or null if the signature could not be resolved.
      */
-    public static String toSignature(IMethodBinding binding, String name) {
-        // use key for now until JDT core provides a public API for this.
-        // "Ljava/util/Arrays;.asList<T:Ljava/lang/Object;>([TT;)Ljava/util/List<TT;>;"
-        // "([Ljava/lang/String;)V|Ljava/lang/InterruptedException;"
-        String signatureString = binding.getKey();
-        if (signatureString != null) {
-            name = "." + name;
-            int index = signatureString.indexOf(name);
-            if (index > -1) {
-                int exceptionIndex = signatureString.indexOf("|", signatureString.lastIndexOf(")"));
-                if (exceptionIndex > -1) {
-                    return signatureString.substring(index + name.length(), exceptionIndex);
-                }
-                return signatureString.substring(index + name.length());
-            }
-        }
-        return null;
+    public static String toSignature(IMethodBinding binding) {
+        return LambdaLocationLocatorHelper.toMethodSignature(binding);
     }
+
 }
