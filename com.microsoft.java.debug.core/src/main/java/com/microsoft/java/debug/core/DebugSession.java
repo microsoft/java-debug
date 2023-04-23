@@ -16,16 +16,26 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.sun.jdi.ObjectCollectedException;
+import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.event.ClassPrepareEvent;
+import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.EventRequestManager;
 import com.sun.jdi.request.ExceptionRequest;
 
+import io.reactivex.disposables.Disposable;
+
 public class DebugSession implements IDebugSession {
     private VirtualMachine vm;
     private EventHub eventHub = new EventHub();
+    private List<EventRequest> eventRequests = new ArrayList<>();
+    private List<Disposable> subscriptions = new ArrayList<>();
 
     public DebugSession(VirtualMachine virtualMachine) {
         vm = virtualMachine;
@@ -136,38 +146,84 @@ public class DebugSession implements IDebugSession {
 
     @Override
     public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] classFilters, String[] classExclusionFilters) {
-        EventRequestManager manager = vm.eventRequestManager();
-        ArrayList<ExceptionRequest> legacy = new ArrayList<>(manager.exceptionRequests());
-        manager.deleteEventRequests(legacy);
-        // When no exception breakpoints are requested, no need to create an empty exception request.
-        if (notifyCaught || notifyUncaught) {
-            // from: https://www.javatips.net/api/REPLmode-master/src/jm/mode/replmode/REPLRunner.java
-            // Calling this seems to set something internally to make the
-            // Eclipse JDI wake up. Without it, an ObjectCollectedException
-            // is thrown on request.enable(). No idea why this works,
-            // but at least exception handling has returned. (Suspect that it may
-            // block until all or at least some threads are available, meaning
-            // that the app has launched and we have legit objects to talk to).
-            vm.allThreads();
-            // The bug may not have been noticed because the test suite waits for
-            // a thread to be available, and queries it by calling allThreads().
-            // See org.eclipse.debug.jdi.tests.AbstractJDITest for the example.
+        setExceptionBreakpoints(notifyCaught, notifyUncaught, null, classFilters, classExclusionFilters);
+    }
 
-            // get only the uncaught exceptions
-            ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
-            request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-            if (classFilters != null) {
-                for (String classFilter : classFilters) {
-                    request.addClassFilter(classFilter);
+    @Override
+    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] exceptionTypes,
+            String[] classFilters, String[] classExclusionFilters) {
+            EventRequestManager manager = vm.eventRequestManager();
+            
+            try {
+                ArrayList<ExceptionRequest> legacy = new ArrayList<>(manager.exceptionRequests());
+                manager.deleteEventRequests(legacy);
+                manager.deleteEventRequests(eventRequests);
+            } catch (VMDisconnectedException ex) {
+                // ignore since removing breakpoints is meaningless when JVM is terminated.
+            }
+            subscriptions.forEach(subscription -> {
+                subscription.dispose();
+            });
+            subscriptions.clear();
+            eventRequests.clear();
+
+            // When no exception breakpoints are requested, no need to create an empty exception request.
+            if (notifyCaught || notifyUncaught) {
+                // from: https://www.javatips.net/api/REPLmode-master/src/jm/mode/replmode/REPLRunner.java
+                // Calling this seems to set something internally to make the
+                // Eclipse JDI wake up. Without it, an ObjectCollectedException
+                // is thrown on request.enable(). No idea why this works,
+                // but at least exception handling has returned. (Suspect that it may
+                // block until all or at least some threads are available, meaning
+                // that the app has launched and we have legit objects to talk to).
+                vm.allThreads();
+                // The bug may not have been noticed because the test suite waits for
+                // a thread to be available, and queries it by calling allThreads().
+                // See org.eclipse.debug.jdi.tests.AbstractJDITest for the example.
+    
+                if (exceptionTypes == null || exceptionTypes.length == 0) {
+                    ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
+                    request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                    if (classFilters != null) {
+                        for (String classFilter : classFilters) {
+                            request.addClassFilter(classFilter);
+                        }
+                    }
+                    if (classExclusionFilters != null) {
+                        for (String exclusionFilter : classExclusionFilters) {
+                            request.addClassExclusionFilter(exclusionFilter);
+                        }
+                    }
+                    request.enable();
+                    return;
+                }
+
+                for (String exceptionType : exceptionTypes) {
+                    if (StringUtils.isBlank(exceptionType)) {
+                        continue;
+                    }
+
+                    // register exception breakpoint in the future loaded classes.
+                    ClassPrepareRequest classPrepareRequest = manager.createClassPrepareRequest();
+                    classPrepareRequest.addClassFilter(exceptionType);
+                    classPrepareRequest.enable();
+                    eventRequests.add(classPrepareRequest);
+
+                    Disposable subscription = eventHub.events()
+                        .filter(debugEvent -> debugEvent.event instanceof ClassPrepareEvent
+                            && eventRequests.contains(debugEvent.event.request()))
+                        .subscribe(debugEvent -> {
+                            ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
+                            createExceptionBreakpoint(event.referenceType(), notifyCaught, notifyUncaught, classFilters, classExclusionFilters);
+                        });
+                    subscriptions.add(subscription);
+
+                    // register exception breakpoint in the loaded classes.
+                    for (ReferenceType refType : vm.classesByName(exceptionType)) {
+                        createExceptionBreakpoint(refType, notifyCaught, notifyUncaught, classFilters, classExclusionFilters);
+                    }
                 }
             }
-            if (classExclusionFilters != null) {
-                for (String exclusionFilter : classExclusionFilters) {
-                    request.addClassExclusionFilter(exclusionFilter);
-                }
-            }
-            request.enable();
-        }
     }
 
     @Override
@@ -194,5 +250,23 @@ public class DebugSession implements IDebugSession {
     public IMethodBreakpoint createFunctionBreakpoint(String className, String functionName, String condition,
             int hitCount) {
         return new MethodBreakpoint(vm, this.getEventHub(), className, functionName, condition, hitCount);
+    }
+
+    private void createExceptionBreakpoint(ReferenceType refType, boolean notifyCaught, boolean notifyUncaught,
+            String[] classFilters, String[] classExclusionFilters) {
+        EventRequestManager manager = vm.eventRequestManager();
+        ExceptionRequest request = manager.createExceptionRequest(refType, notifyCaught, notifyUncaught);
+        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+        if (classFilters != null) {
+            for (String classFilter : classFilters) {
+                request.addClassFilter(classFilter);
+            }
+        }
+        if (classExclusionFilters != null) {
+            for (String exclusionFilter : classExclusionFilters) {
+                request.addClassExclusionFilter(exclusionFilter);
+            }
+        }
+        request.enable();
     }
 }

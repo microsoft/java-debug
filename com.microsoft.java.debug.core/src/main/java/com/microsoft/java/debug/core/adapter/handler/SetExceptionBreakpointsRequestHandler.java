@@ -26,8 +26,8 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
-import com.microsoft.java.debug.core.protocol.Requests.ClassFilters;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
+import com.microsoft.java.debug.core.protocol.Requests.ExceptionFilters;
 import com.microsoft.java.debug.core.protocol.Requests.SetExceptionBreakpointsArguments;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.event.VMDeathEvent;
@@ -77,10 +77,11 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
     }
 
     private void setExceptionBreakpoints(IDebugSession debugSession, boolean notifyCaught, boolean notifyUncaught) {
-        ClassFilters exceptionFilters = DebugSettings.getCurrent().exceptionFilters;
+        ExceptionFilters exceptionFilters = DebugSettings.getCurrent().exceptionFilters;
+        String[] exceptionTypes = (exceptionFilters == null ? null : exceptionFilters.exceptionTypes);
         String[] classFilters = (exceptionFilters == null ? null : exceptionFilters.allowClasses);
         String[] classExclusionFilters = (exceptionFilters == null ? null : exceptionFilters.skipClasses);
-        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, classFilters, classExclusionFilters);
+        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, exceptionTypes, classFilters, classExclusionFilters);
     }
 
     @Override

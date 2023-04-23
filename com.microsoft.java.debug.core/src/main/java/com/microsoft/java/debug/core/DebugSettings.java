@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.JsonUtils;
-import com.microsoft.java.debug.core.protocol.Requests.ClassFilters;
+import com.microsoft.java.debug.core.protocol.Requests.ExceptionFilters;
 import com.microsoft.java.debug.core.protocol.Requests.StepFilters;
 
 public final class DebugSettings {
@@ -39,7 +39,7 @@ public final class DebugSettings {
     public String javaHome;
     public HotCodeReplace hotCodeReplace = HotCodeReplace.MANUAL;
     public StepFilters stepFilters = new StepFilters();
-    public ClassFilters exceptionFilters = new ClassFilters();
+    public ExceptionFilters exceptionFilters = new ExceptionFilters();
     public boolean exceptionFiltersUpdated = false;
     public int limitOfVariablesPerJdwpRequest = 100;
     public int jdwpRequestTimeout = 3000;

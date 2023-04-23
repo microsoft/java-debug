@@ -67,6 +67,15 @@ public class Requests {
         public String[] skipClasses = new String[0];
     }
 
+    public static class ExceptionFilters extends ClassFilters {
+        /**
+         * Specifies that exceptions which are instances of refType will be reported.
+         * Note: this will include instances of sub-types. If null, all instances
+         * will be reported.
+         */
+        public String[] exceptionTypes = new String[0];
+    }
+
     public static class StepFilters extends ClassFilters {
         /**
          * Deprecated - please use {@link ClassFilters#skipClasses } instead.
