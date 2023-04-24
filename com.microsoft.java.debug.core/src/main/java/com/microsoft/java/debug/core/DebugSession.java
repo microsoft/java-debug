@@ -227,6 +227,18 @@ public class DebugSession implements IDebugSession {
     }
 
     @Override
+    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] exceptionTypes,
+            String[] classFilters, String[] classExclusionFilters, boolean async) {
+        if (async) {
+            AsyncJdwpUtils.runAsync(() -> {
+                setExceptionBreakpoints(notifyCaught, notifyUncaught, exceptionTypes, classFilters, classExclusionFilters);
+            });
+        } else {
+            setExceptionBreakpoints(notifyCaught, notifyUncaught, exceptionTypes, classFilters, classExclusionFilters);
+        }
+    }
+
+    @Override
     public Process process() {
         return vm.process();
     }
