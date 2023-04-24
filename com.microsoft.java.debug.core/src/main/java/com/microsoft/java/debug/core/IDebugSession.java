@@ -40,7 +40,8 @@ public interface IDebugSession {
 
     void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] exceptionTypes, String[] classFilters, String[] classExclusionFilters);
 
-    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] exceptionTypes, String[] classFilters, String[] classExclusionFilters, boolean async);
+    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, String[] exceptionTypes, String[] classFilters, String[] classExclusionFilters,
+        boolean async);
 
     IMethodBreakpoint createFunctionBreakpoint(String className, String functionName, String condition, int hitCount);
 
