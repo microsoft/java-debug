@@ -38,6 +38,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
     private boolean isInitialized = false;
     private boolean notifyCaught = false;
     private boolean notifyUncaught = false;
+    private boolean asyncJDWP = false;
 
     @Override
     public List<Command> getTargetCommands() {
@@ -53,6 +54,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
         if (!isInitialized) {
             isInitialized = true;
             debugSession = context.getDebugSession();
+            asyncJDWP = context.asyncJDWP();
             DebugSettings.addDebugSettingChangeListener(this);
             debugSession.getEventHub().events().subscribe(debugEvent -> {
                 if (debugEvent.event instanceof VMDeathEvent
@@ -81,7 +83,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
         String[] exceptionTypes = (exceptionFilters == null ? null : exceptionFilters.exceptionTypes);
         String[] classFilters = (exceptionFilters == null ? null : exceptionFilters.allowClasses);
         String[] classExclusionFilters = (exceptionFilters == null ? null : exceptionFilters.skipClasses);
-        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, exceptionTypes, classFilters, classExclusionFilters);
+        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, exceptionTypes, classFilters, classExclusionFilters, this.asyncJDWP);
     }
 
     @Override
