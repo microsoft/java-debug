@@ -19,7 +19,7 @@ import java.util.Optional;
 public interface IStepFilterProvider extends IProvider {
     boolean shouldSkipOver(Method method, Requests.StepFilters filters);
     boolean shouldSkipFrame(Method method);
-    Optional<String> formatMethodName(Method method );
+    Optional<String> formatMethodSig(Method method );
 
     boolean shouldSkipOut(Location upperLocation, Method method);
 }

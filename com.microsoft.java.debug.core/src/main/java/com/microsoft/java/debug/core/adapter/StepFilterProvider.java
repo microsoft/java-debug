@@ -51,7 +51,7 @@ public class StepFilterProvider implements IStepFilterProvider {
 
 
     @Override
-    public Optional<String> formatMethodName(Method method) {
+    public Optional<String> formatMethodSig(Method method) {
         return Optional.of(method.name());
     }
 

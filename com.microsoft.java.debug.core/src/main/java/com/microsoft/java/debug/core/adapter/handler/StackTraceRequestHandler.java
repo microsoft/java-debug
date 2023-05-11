@@ -79,7 +79,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
                    IStepFilterProvider stackTraceFilterProvider = context.getProvider(IStepFilterProvider.class);
-                   Optional<String> optionalFormattedName = stackTraceFilterProvider.formatMethodName(thread.frame(i).location().method());
+                   Optional<String> optionalFormattedName = stackTraceFilterProvider.formatMethodSig(thread.frame(i).location().method());
             
                    
                  if(!stackTraceFilterProvider.shouldSkipFrame(thread.frame(i).location().method())  && !optionalFormattedName.isEmpty() )
