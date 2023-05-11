@@ -82,7 +82,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                    Optional<String> optionalFormattedName = stackTraceFilterProvider.formatMethodSig(thread.frame(i).location().method());
             
                    
-                 if(!stackTraceFilterProvider.shouldSkipFrame(thread.frame(i).location().method())  && !optionalFormattedName.isEmpty() )
+                 if(!stackTraceFilterProvider.shouldSkipFrame(thread.frame(i).location().method())  && optionalFormattedName.isPresent() )
                       result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context,optionalFormattedName.get()));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
