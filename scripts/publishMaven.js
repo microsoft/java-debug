@@ -35,7 +35,7 @@ function main() {
     const argv = process.argv;
     const task = argv[argv.indexOf("-task") + 1];
     if (task === "gpg") {
-        pgpSign(configs, artifactFolder);
+        gpgSign(configs, artifactFolder);
     } else if (task === "upload") {
         uploadToStaging(configs, artifactFolder);
     } else if (task === "promote") {
@@ -56,7 +56,7 @@ function main() {
  * - artifactFolder: folder containing *.jar/*.pom files.
  * - GPGPASS: passphrase of GPG key.
  */
-function pgpSign(configs, artifactFolder) {
+function gpgSign(configs, artifactFolder) {
     const props = ["artifactFolder", "gpgpass" ];
     for (const prop of props) {
         if (!configs[prop]) {
