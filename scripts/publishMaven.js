@@ -1,7 +1,8 @@
 /**
  * Usage:
- * node publishMaven.js -task [upload|promote]
+ * node publishMaven.js -task [gpg][upload|promote]
  * 
+ * gpg: Sign artifacts with GPG.
  * upload: Upload artifacts to a nexus staging repo.
  * promote: Promote a repo to get it picked up by Maven Central.
  */
@@ -33,7 +34,9 @@ main(configs, artifactFolder);
 function main() {
     const argv = process.argv;
     const task = argv[argv.indexOf("-task") + 1];
-    if (task === "upload") {
+    if (task === "gpg") {
+        pgpSign(configs, artifactFolder);
+    } else if (task === "upload") {
         uploadToStaging(configs, artifactFolder);
     } else if (task === "promote") {
         promoteToCentral(configs);
@@ -41,6 +44,27 @@ function main() {
         console.error("Task not specified.");
         console.log("Usage: node script.js -task [upload|promote]");
     }
+}
+
+/**
+ * Task gpg: Sign artifacts with GPG.
+ * 
+ * Required binaries:
+ * - gpg
+ * 
+ * Required Environment Variables:
+ * - artifactFolder: folder containing *.jar/*.pom files.
+ * - GPGPASS: passphrase of GPG key.
+ */
+function pgpSign(configs, artifactFolder) {
+    const props = ["artifactFolder", "gpgpass" ];
+    for (const prop of props) {
+        if (!configs[prop]) {
+            console.error(`${prop} is not set.`);
+            process.exit(1);
+        }
+    }
+    addChecksumsAndGpgSignature(configs, artifactFolder);
 }
 
 /**
@@ -141,7 +165,7 @@ function addChecksumsAndGpgSignature(configs, artifactFolder) {
         fs.readdirSync(modulePath)
             .filter(name => name.endsWith(".md5") || name.endsWith(".sha1") || name.endsWith(".asc"))
             .forEach(name => fs.unlinkSync(path.join(modulePath, name)));
-        
+
         const files = fs.readdirSync(modulePath);
         for (let file of files) {
             // calc md5.
@@ -153,7 +177,7 @@ function addChecksumsAndGpgSignature(configs, artifactFolder) {
             const sha1 = childProcess.execSync(`sha1sum "${path.join(modulePath, file)}"`);
             const sha1Match = /([a-z0-9]{40})/.exec(sha1.toString());
             fs.writeFileSync(path.join(modulePath, file + ".sha1"), sha1Match[0]);
-            
+
             // gpg sign.
             childProcess.execSync(`gpg --batch --pinentry-mode loopback --passphrase "${configs.gpgpass}" -ab "${path.join(modulePath, file)}"`)
         }
