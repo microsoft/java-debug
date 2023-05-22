@@ -32,13 +32,14 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.URIUtil;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
-import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
@@ -258,32 +259,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
-
-        // try resolving compilation util or class file based on file extension from
-        // jdt.ls
-        boolean uriIsClassFile = uri.endsWith(".class");
-        boolean needFallbackResolution = true;
-        if (uriIsClassFile) {
-            IClassFile resolveClassFile = JDTUtils.resolveClassFile(uri);
-            if (resolveClassFile != null) {
-                parser.setSource(resolveClassFile);
-                needFallbackResolution = false;
-            }
-        } else {
-            ICompilationUnit resolveCompilationUnit = JDTUtils.resolveCompilationUnit(uri);
-            if (resolveCompilationUnit != null) {
-                parser.setSource(resolveCompilationUnit);
-                needFallbackResolution = false;
-            }
-        }
         CompilationUnit astUnit = null;
-        if ((needFallbackResolution && configureFallbackResolution(uri, parser)) || !needFallbackResolution) {
-            astUnit = (CompilationUnit) parser.createAST(null);
-        }
-        return astUnit;
-    }
-
-    private boolean configureFallbackResolution(String uri, final ASTParser parser) {
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast
         // parser.
@@ -302,8 +278,14 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * setEnvironment(String [], String [], String [], boolean)
              * and a unit name setUnitName(String).
              */
-            parser.setEnvironment(new String[0], new String[0], null, true);
-            parser.setUnitName(Paths.get(filePath).getFileName().toString());
+            IFile resource = (IFile) JDTUtils.findResource(JDTUtils.toURI(uri),
+                    ResourcesPlugin.getWorkspace().getRoot()::findFilesForLocationURI);
+            if (resource != null && JdtUtils.isJavaProject(resource.getProject())) {
+                parser.setProject(JavaCore.create(resource.getProject()));
+            } else {
+                parser.setEnvironment(new String[0], new String[0], null, true);
+                parser.setUnitName(Paths.get(filePath).getFileName().toString());
+            }
             /**
              * See the java doc for { @link ASTParser#setSource(char[]) },
              * the user need specify the compiler options explicitly.
@@ -314,17 +296,17 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
             javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
             parser.setCompilerOptions(javaOptions);
-            return true;
+            astUnit = (CompilationUnit) parser.createAST(null);
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
             // leverage jdt to load the source contents.
             ITypeRoot typeRoot = resolveClassFile(uri);
             if (typeRoot != null) {
                 parser.setSource(typeRoot);
-                return true;
+                astUnit = (CompilationUnit) parser.createAST(null);
             }
         }
-        return false;
+        return astUnit;
     }
 
     @Override
