@@ -284,8 +284,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 parser.setProject(JavaCore.create(resource.getProject()));
             } else {
                 parser.setEnvironment(new String[0], new String[0], null, true);
-                parser.setUnitName(Paths.get(filePath).getFileName().toString());
             }
+            parser.setUnitName(Paths.get(filePath).getFileName().toString());
+            
             /**
              * See the java doc for { @link ASTParser#setSource(char[]) },
              * the user need specify the compiler options explicitly.
