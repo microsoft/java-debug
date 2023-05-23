@@ -35,7 +35,15 @@ public final class BindingUtils {
      */
     public static String getMethodName(IMethodBinding binding, boolean fromKey) {
         if (fromKey) {
-            return LambdaLocationLocatorHelper.toMethodName(binding);
+            String key = binding.getKey();
+            int dotAt = key.indexOf('.');
+            int end = key.indexOf('<', dotAt);
+            if (end == -1) {
+                end = key.indexOf('(');
+            } else {
+                end = Math.min(end, key.indexOf('('));
+            }
+            return key.substring(dotAt + 1, end);
         } else {
             return binding.getName();
         }
