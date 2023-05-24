@@ -29,10 +29,12 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.URIUtil;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
@@ -50,10 +52,10 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.LambdaExpression;
-import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
@@ -276,7 +278,13 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * setEnvironment(String [], String [], String [], boolean)
              * and a unit name setUnitName(String).
              */
-            parser.setEnvironment(new String[0], new String[0], null, true);
+            IFile resource = (IFile) JDTUtils.findResource(JDTUtils.toURI(uri),
+                    ResourcesPlugin.getWorkspace().getRoot()::findFilesForLocationURI);
+            if (resource != null && JdtUtils.isJavaProject(resource.getProject())) {
+                parser.setProject(JavaCore.create(resource.getProject()));
+            } else {
+                parser.setEnvironment(new String[0], new String[0], null, true);
+            }
             parser.setUnitName(Paths.get(filePath).getFileName().toString());
             /**
              * See the java doc for { @link ASTParser#setSource(char[]) },
@@ -492,7 +500,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // Keep consistent with JDI since JDI uses binary class name
                 invocation.declaringTypeName = binding.getDeclaringClass().getBinaryName();
             }
-            invocation.methodGenericSignature = BindingUtils.toSignature(binding, BindingUtils.getMethodName(binding, true));
+            invocation.methodGenericSignature = BindingUtils.toSignature(binding);
             invocation.methodSignature = Signature.getTypeErasure(invocation.methodGenericSignature);
             int startOffset = astNode.getStartPosition();
             if (astNode instanceof org.eclipse.jdt.core.dom.MethodInvocation) {

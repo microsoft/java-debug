@@ -71,7 +71,7 @@ public class LambdaExpressionLocator extends ASTVisitor {
         if (!this.found) {
             return null;
         }
-        return BindingUtils.toSignature(this.lambdaMethodBinding, getMethodName());
+        return BindingUtils.toSignature(this.lambdaMethodBinding);
     }
 
     /**
