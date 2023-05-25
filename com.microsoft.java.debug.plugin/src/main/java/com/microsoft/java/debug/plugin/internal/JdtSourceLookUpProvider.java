@@ -179,7 +179,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 if (sourceColumn > -1) {
                     // if we have a column, try to find the lambda expression at that column
                     LambdaExpressionLocator lambdaExpressionLocator = new LambdaExpressionLocator(astUnit,
-                            sourceLine, sourceColumn);
+                        sourceLine, sourceColumn, true);
                     astUnit.accept(lambdaExpressionLocator);
                     if (lambdaExpressionLocator.isFound()) {
                         sourceLocation.setClassName(lambdaExpressionLocator.getFullyQualifiedTypeName());
@@ -231,6 +231,29 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     sourceLocation.setClassName(locator.getFullyQualifiedTypeName());
                     sourceLocation.setMethodName(locator.getMethodName());
                     sourceLocation.setMethodSignature(locator.getMethodSignature());
+                } else {
+                    // try to see if we have added the breakpoint in a lambda expression in a
+                    // seperate line like
+                    // List<String> list =
+                    // List.of("A", "1").stream().filter(
+                    //      a -> "1".equals(a)
+                    // ).collect(Collectors.toList());
+                    LambdaExpressionLocator lambdaExpressionLocator = new LambdaExpressionLocator(astUnit,
+                            sourceLine, 0, false);
+                    astUnit.accept(lambdaExpressionLocator);
+                    if (lambdaExpressionLocator.isFound()) {
+                        sourceLocation.setClassName(lambdaExpressionLocator.getFullyQualifiedTypeName());
+                        sourceLocation.setMethodName(lambdaExpressionLocator.getMethodName());
+                        sourceLocation.setMethodSignature(lambdaExpressionLocator.getMethodSignature());
+
+                        if (resolvedLocations.containsKey(sourceLine)) {
+                            sourceLocation.setAvailableBreakpointLocations(resolvedLocations.get(sourceLine));
+                        } else {
+                            BreakpointLocation[] inlineLocations = getInlineBreakpointLocations(astUnit, sourceLine);
+                            sourceLocation.setAvailableBreakpointLocations(inlineLocations);
+                            resolvedLocations.put(sourceLine, inlineLocations);
+                        }
+                    }
                 }
             }
         }

@@ -25,11 +25,13 @@ public class LambdaExpressionLocator extends ASTVisitor {
 
     private IMethodBinding lambdaMethodBinding;
     private LambdaExpression lambdaExpression;
+    private boolean exactMatch;
 
-    public LambdaExpressionLocator(CompilationUnit compilationUnit, int line, int column) {
+    public LambdaExpressionLocator(CompilationUnit compilationUnit, int line, int column, boolean exactMatch) {
         this.compilationUnit = compilationUnit;
         this.line = line;
         this.column = column;
+        this.exactMatch = exactMatch;
     }
 
     @Override
@@ -47,7 +49,7 @@ public class LambdaExpressionLocator extends ASTVisitor {
             // Since the debugger supports BreakpointLocations Request to hint user
             // about possible inline breakpoint locations, we will only support
             // inline breakpoints added where a lambda expression begins.
-            if (breakOffset == startPosition) {
+            if (breakOffset == startPosition || (!exactMatch && breakOffset > startPosition && breakOffset < (startPosition + node.getLength()))) {
                 this.lambdaMethodBinding = node.resolveMethodBinding();
                 this.found = true;
                 this.lambdaExpression = node;
