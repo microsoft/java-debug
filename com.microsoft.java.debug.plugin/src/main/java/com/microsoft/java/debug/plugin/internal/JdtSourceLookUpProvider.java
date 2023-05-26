@@ -349,7 +349,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
     /**
      * Get the project associated source containers.
-     * 
+     *
      * @return the initialized source container list
      */
     public synchronized ISourceContainer[] getSourceContainers() {
