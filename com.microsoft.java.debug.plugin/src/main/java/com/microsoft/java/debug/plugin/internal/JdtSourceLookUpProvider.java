@@ -100,7 +100,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             throw new IllegalArgumentException("argument is null");
         }
         options.putAll(props);
-        // During initialization, trigger a background job to load the source containers to improve the perf.
+        // During initialization, trigger a background job to load the source containers
+        // to improve the perf.
         new Thread(() -> {
             getSourceContainers();
         }).start();
@@ -142,15 +143,16 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return Stream.of(locations).map(location -> {
             if (location.className() != null && location.methodName() != null) {
                 return location.className()
-                    .concat("#").concat(location.methodName())
-                    .concat("#").concat(location.methodSignature());
+                        .concat("#").concat(location.methodName())
+                        .concat("#").concat(location.methodSignature());
             }
             return location.className();
         }).toArray(String[]::new);
     }
 
     @Override
-    public JavaBreakpointLocation[] getBreakpointLocations(String sourceUri, SourceBreakpoint[] sourceBreakpoints) throws DebugException {
+    public JavaBreakpointLocation[] getBreakpointLocations(String sourceUri, SourceBreakpoint[] sourceBreakpoints)
+            throws DebugException {
         if (sourceUri == null) {
             throw new IllegalArgumentException("sourceUri is null");
         }
@@ -161,8 +163,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
         CompilationUnit astUnit = asCompilationUnit(sourceUri);
         JavaBreakpointLocation[] sourceLocations = Stream.of(sourceBreakpoints)
-            .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
-            .toArray(JavaBreakpointLocation[]::new);
+                .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
+                .toArray(JavaBreakpointLocation[]::new);
         if (astUnit != null) {
             Map<Integer, BreakpointLocation[]> resolvedLocations = new HashMap<>();
             for (JavaBreakpointLocation sourceLocation : sourceLocations) {
@@ -171,7 +173,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 if (sourceColumn > -1) {
                     // if we have a column, try to find the lambda expression at that column
                     LambdaExpressionLocator lambdaExpressionLocator = new LambdaExpressionLocator(astUnit,
-                        sourceLine, sourceColumn);
+                            sourceLine, sourceColumn);
                     astUnit.accept(lambdaExpressionLocator);
                     if (lambdaExpressionLocator.isFound()) {
                         sourceLocation.setClassName(lambdaExpressionLocator.getFullyQualifiedTypeName());
@@ -232,7 +234,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
     private BreakpointLocation[] getInlineBreakpointLocations(final CompilationUnit astUnit, int sourceLine) {
         List<BreakpointLocation> locations = new ArrayList<>();
-        // The starting position of each line is the default breakpoint location for that line.
+        // The starting position of each line is the default breakpoint location for
+        // that line.
         locations.add(new BreakpointLocation(sourceLine, 0));
         astUnit.accept(new ASTVisitor() {
             @Override
@@ -284,18 +287,18 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 parser.setProject(JavaCore.create(resource.getProject()));
             } else {
                 parser.setEnvironment(new String[0], new String[0], null, true);
+                /**
+                 * See the java doc for { @link ASTParser#setSource(char[]) },
+                 * the user need specify the compiler options explicitly.
+                 */
+                Map<String, String> javaOptions = JavaCore.getOptions();
+                javaOptions.put(JavaCore.COMPILER_SOURCE, this.latestJavaVersion);
+                javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, this.latestJavaVersion);
+                javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
+                javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
+                parser.setCompilerOptions(javaOptions);
             }
             parser.setUnitName(Paths.get(filePath).getFileName().toString());
-            /**
-             * See the java doc for { @link ASTParser#setSource(char[]) },
-             * the user need specify the compiler options explicitly.
-             */
-            Map<String, String> javaOptions = JavaCore.getOptions();
-            javaOptions.put(JavaCore.COMPILER_SOURCE, this.latestJavaVersion);
-            javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, this.latestJavaVersion);
-            javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
-            javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
-            parser.setCompilerOptions(javaOptions);
             astUnit = (CompilationUnit) parser.createAST(null);
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
@@ -336,7 +339,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
                 return resolveSystemLibraryVersion(project, vmInstall);
             } catch (CoreException e) {
-                logger.log(Level.SEVERE, "Failed to get Java runtime version for project '" + projectName + "': " + e.getMessage(), e);
+                logger.log(Level.SEVERE,
+                        "Failed to get Java runtime version for project '" + projectName + "': " + e.getMessage(), e);
             }
         }
 
@@ -345,6 +349,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
     /**
      * Get the project associated source containers.
+     *
      * @return the initialized source container list
      */
     public synchronized ISourceContainer[] getSourceContainers() {
@@ -373,7 +378,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     source = buffer.getContents();
                 }
             } catch (JavaModelException e) {
-                logger.log(Level.SEVERE, String.format("Failed to parse the source contents of the class file: %s", e.toString()), e);
+                logger.log(Level.SEVERE,
+                        String.format("Failed to parse the source contents of the class file: %s", e.toString()), e);
             }
             if (source == null) {
                 source = "";
@@ -388,7 +394,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         try {
             return new URI(JDT_SCHEME, "contents", PATH_SEPARATOR + jarName + PATH_SEPARATOR + packageName
                     + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null)
-                            .toASCIIString();
+                    .toASCIIString();
         } catch (URISyntaxException e) {
             return null;
         }
@@ -425,8 +431,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
 
     private static String readFile(String filePath) {
         StringBuilder builder = new StringBuilder();
-        try (BufferedReader bufferReader =
-                new BufferedReader(new InputStreamReader(new FileInputStream(filePath)))) {
+        try (BufferedReader bufferReader = new BufferedReader(new InputStreamReader(new FileInputStream(filePath)))) {
             final int BUFFER_SIZE = 4096;
             char[] buffer = new char[BUFFER_SIZE];
             while (true) {
@@ -442,7 +447,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return builder.toString();
     }
 
-    private static String resolveSystemLibraryVersion(IJavaProject project, IVMInstall vmInstall) throws JavaModelException {
+    private static String resolveSystemLibraryVersion(IJavaProject project, IVMInstall vmInstall)
+            throws JavaModelException {
         LibraryLocation[] libraries = JavaRuntime.getLibraryLocations(vmInstall);
         if (libraries != null && libraries.length > 0) {
             IPackageFragmentRoot root = project.findPackageFragmentRoot(libraries[0].getSystemLibraryPath());
