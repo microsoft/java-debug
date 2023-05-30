@@ -49,7 +49,17 @@ public class LambdaExpressionLocator extends ASTVisitor {
             // Since the debugger supports BreakpointLocations Request to hint user
             // about possible inline breakpoint locations, we will only support
             // inline breakpoints added where a lambda expression begins.
-            if (breakOffset == startPosition || (!exactMatch && breakOffset > startPosition && breakOffset < (startPosition + node.getLength()))) {
+
+            // the second expression tries to find lambda expression which are formatted as
+            // list.stream().map(
+            // user -> user.isSystem() ? new SystemUser(user) : new EndUser(user));
+            // since lambda is on a different line it will not match the first expression.
+
+            if (breakOffset == startPosition
+                    || (!exactMatch
+                            && this.compilationUnit.getLineNumber(breakOffset) == this.compilationUnit
+                                    .getLineNumber(startPosition)
+                            && breakOffset < (startPosition + node.getLength()))) {
                 this.lambdaMethodBinding = node.resolveMethodBinding();
                 this.found = true;
                 this.lambdaExpression = node;
