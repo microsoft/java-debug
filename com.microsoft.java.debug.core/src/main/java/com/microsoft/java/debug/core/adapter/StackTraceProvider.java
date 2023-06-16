@@ -17,7 +17,7 @@ import com.sun.jdi.Method;
 import org.apache.commons.lang3.ArrayUtils;
 import java.util.Optional;
 
-public class StepFilterProvider implements IStepFilterProvider {
+public class StackTraceProvider implements IStackTraceProvider {
     @Override
     public boolean shouldSkipOver(Method method, Requests.StepFilters filters) {
         if (!isConfigured(filters)) {
@@ -27,11 +27,16 @@ public class StepFilterProvider implements IStepFilterProvider {
                 || (filters.skipSynthetics && method.isSynthetic())
                 || (filters.skipConstructors && method.isConstructor());
     }
-    
 
     @Override
     public boolean shouldSkipOut(Location previousLocation, Method method) {
         return false;
+    }
+
+
+    @Override
+    public Optional<String> formatMethod(Method method) {
+        return Optional.of(method.name());
     }
 
     private boolean isConfigured(Requests.StepFilters filters) {
@@ -42,17 +47,4 @@ public class StepFilterProvider implements IStepFilterProvider {
                 || ArrayUtils.isNotEmpty(filters.classNameFilters) || filters.skipConstructors
                 || filters.skipStaticInitializers || filters.skipSynthetics;
     }
-
-
-    @Override
-    public boolean shouldSkipFrame(Method method) {
-       return false;
-    }
-
-
-    @Override
-    public Optional<String> formatMethodSig(Method method) {
-        return Optional.of(method.name());
-    }
-
 }

@@ -16,10 +16,8 @@ import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import java.util.Optional;
 
-public interface IStepFilterProvider extends IProvider {
+public interface IStackTraceProvider extends IProvider {
     boolean shouldSkipOver(Method method, Requests.StepFilters filters);
-    boolean shouldSkipFrame(Method method);
-    Optional<String> formatMethodSig(Method method );
-
     boolean shouldSkipOut(Location upperLocation, Method method);
+    Optional<String> formatMethod(Method method);
 }

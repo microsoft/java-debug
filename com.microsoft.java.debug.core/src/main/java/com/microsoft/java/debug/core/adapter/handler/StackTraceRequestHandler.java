@@ -27,7 +27,7 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
-import com.microsoft.java.debug.core.adapter.IStepFilterProvider;
+import com.microsoft.java.debug.core.adapter.IStackTraceProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -78,12 +78,12 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
-                   IStepFilterProvider stackTraceFilterProvider = context.getProvider(IStepFilterProvider.class);
-                   Optional<String> optionalFormattedName = stackTraceFilterProvider.formatMethodSig(thread.frame(i).location().method());
+                   IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
+                   Optional<String> formattedMethod = stackTraceProvider.formatMethod(thread.frame(i).location().method());
             
                    
-                 if(!stackTraceFilterProvider.shouldSkipFrame(thread.frame(i).location().method())  && optionalFormattedName.isPresent() )
-                      result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context,optionalFormattedName.get()));
+                 if(formattedMethod.isPresent() )
+                      result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, formattedMethod.get()));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {

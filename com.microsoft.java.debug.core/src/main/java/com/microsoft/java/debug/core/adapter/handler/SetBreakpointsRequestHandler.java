@@ -34,7 +34,7 @@ import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IHotCodeReplaceProvider;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
-import com.microsoft.java.debug.core.adapter.IStepFilterProvider;
+import com.microsoft.java.debug.core.adapter.IStackTraceProvider;
 import com.microsoft.java.debug.core.protocol.Events;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -177,7 +177,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
 
     private void registerBreakpointHandler(IDebugAdapterContext context) {
         IDebugSession debugSession = context.getDebugSession();
-        IStepFilterProvider stepFilterProvider = context.getProvider(IStepFilterProvider.class);
+        IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
         if (debugSession != null) {
             debugSession.getEventHub().events().filter(debugEvent -> debugEvent.event instanceof BreakpointEvent).subscribe(debugEvent -> {
                 Event event = debugEvent.event;
@@ -192,7 +192,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                         return;
                     }
                     Method method = bpThread.frame(0).location().method();
-                    if (stepFilterProvider.shouldSkipOver(method, context.getStepFilters())) {
+                    if (stackTraceProvider.shouldSkipOver(method, context.getStepFilters())) {
                         debugEvent.shouldResume = true;
                         return;
                     }
