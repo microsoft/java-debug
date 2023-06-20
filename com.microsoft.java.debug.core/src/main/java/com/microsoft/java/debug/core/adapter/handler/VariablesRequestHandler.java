@@ -33,6 +33,7 @@ import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IStackFrameManager;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
+import com.microsoft.java.debug.core.adapter.variables.IVariableProvider;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalStructureExpression;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure.LogicalVariable;
@@ -78,6 +79,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
 
         Map<String, Object> options = variableFormatter.getDefaultOptions();
+        IVariableProvider variableProvider = context.getProvider(IVariableProvider.class);
         VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex);
         IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
 
@@ -260,12 +262,12 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 String typeName = ((ObjectReference) containerNode.getProxiedVariable()).referenceType().name();
                 // TODO: This replacement will possibly change the $ in the class name itself.
                 typeName = typeName.replaceAll("\\$", ".");
-                evaluateName = VariableUtils.getEvaluateName(javaVariable.evaluateName, "((" + typeName + ")" + containerEvaluateName + ")", false);
+                evaluateName = variableProvider.getEvaluateName(javaVariable.evaluateName, "((" + typeName + ")" + containerEvaluateName + ")", false);
             } else {
                 if (containerEvaluateName != null && containerEvaluateName.contains("%s")) {
                     evaluateName = String.format(containerEvaluateName, javaVariable.evaluateName);
                 } else {
-                    evaluateName = VariableUtils.getEvaluateName(javaVariable.evaluateName, containerEvaluateName, containerNode.isIndexedVariable());
+                    evaluateName = variableProvider.getEvaluateName(javaVariable.evaluateName, containerEvaluateName, containerNode.isIndexedVariable());
                 }
             }
 

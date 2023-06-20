@@ -38,6 +38,7 @@ public abstract class JdtProviderContextFactory {
         context.registerProvider(IEvaluationProvider.class, new JdtEvaluationProvider());
         context.registerProvider(ICompletionsProvider.class, new CompletionsProvider());
         context.registerProvider(IStepFilterProvider.class, new StepFilterProvider());
+        context.registerProvider(IVariableProvider.class, new VariableProvider());
 
         return context;
     }
