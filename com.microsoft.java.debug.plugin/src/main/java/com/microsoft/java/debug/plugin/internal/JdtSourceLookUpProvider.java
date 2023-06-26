@@ -36,6 +36,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.URIUtil;
 import org.eclipse.debug.core.sourcelookup.ISourceContainer;
 import org.eclipse.jdt.core.IBuffer;
@@ -60,14 +61,19 @@ import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.LibraryLocation;
+import org.eclipse.jdt.ls.core.internal.DecompilerResult;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
+import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
+import org.eclipse.jdt.ls.core.internal.managers.ContentProviderManager;
 
 import com.microsoft.java.debug.BindingUtils;
 import com.microsoft.java.debug.BreakpointLocationLocator;
 import com.microsoft.java.debug.LambdaExpressionLocator;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.JavaBreakpointLocation;
+import com.microsoft.java.debug.core.DebugSettings.Switch;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -303,10 +309,42 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
             // leverage jdt to load the source contents.
-            ITypeRoot typeRoot = resolveClassFile(uri);
-            if (typeRoot != null) {
-                parser.setSource(typeRoot);
-                astUnit = (CompilationUnit) parser.createAST(null);
+            IClassFile typeRoot = resolveClassFile(uri);
+            try {
+                if (typeRoot != null && typeRoot.getSourceRange() != null) {
+                    parser.setSource(typeRoot);
+                    astUnit = (CompilationUnit) parser.createAST(null);
+                } else if (typeRoot != null && DebugSettings.getCurrent().debugSupportOnDecompiledSource == Switch.ON) {
+                    ContentProviderManager contentProvider = JavaLanguageServerPlugin.getContentProviderManager();
+                    try {
+                        String contents = contentProvider.getSource(typeRoot, new NullProgressMonitor());
+                        if (contents != null && !contents.isBlank()) {
+                            IJavaProject javaProject = typeRoot.getJavaProject();
+                            if (javaProject != null) {
+                                parser.setProject(javaProject);
+                            } else {
+                                parser.setEnvironment(new String[0], new String[0], null, true);
+                                /**
+                                 * See the java doc for { @link ASTParser#setSource(char[]) },
+                                 * the user need specify the compiler options explicitly.
+                                 */
+                                Map<String, String> javaOptions = JavaCore.getOptions();
+                                javaOptions.put(JavaCore.COMPILER_SOURCE, this.latestJavaVersion);
+                                javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, this.latestJavaVersion);
+                                javaOptions.put(JavaCore.COMPILER_COMPLIANCE, this.latestJavaVersion);
+                                javaOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.ENABLED);
+                                parser.setCompilerOptions(javaOptions);
+                            }
+                            parser.setUnitName(typeRoot.getElementName());
+                            parser.setSource(contents.toCharArray());
+                            astUnit = (CompilationUnit) parser.createAST(null);
+                        }
+                    } catch (Exception e) {
+                        JavaLanguageServerPlugin.logException(e.getMessage(), e);
+                    }
+                }
+            } catch (JavaModelException e) {
+                // ignore
             }
         }
         return astUnit;
@@ -532,5 +570,59 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         } catch (URISyntaxException e) {
             return false;
         }
+    }
+
+    public int[] getOriginalLineMappings(String uri) {
+        IClassFile classFile = resolveClassFile(uri);
+        try {
+            if (classFile == null) {
+                return null;
+            }
+
+            IPackageFragmentRoot packageRoot = (IPackageFragmentRoot) classFile.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
+            if (packageRoot != null && packageRoot.getSourceAttachmentPath() != null) {
+                return null;
+            }
+
+            if (classFile.getSourceRange() == null) {
+                ContentProviderManager contentProvider = JavaLanguageServerPlugin.getContentProviderManager();
+                try {
+                    DecompilerResult result = contentProvider.getSourceResult(classFile, new NullProgressMonitor());
+                    if (result != null) {
+                        return result.getOriginalLineMappings();
+                    }
+                } catch (NoSuchMethodError e) {
+                    // ignore it if old language server version is installed.
+                } catch (Exception e) {
+                    JavaLanguageServerPlugin.logException(e.getMessage(), e);
+                }
+            }
+        } catch (JavaModelException e) {
+            // ignore
+        }
+        return null;
+    }
+
+    public int[] getDecompiledLineMappings(String uri) {
+        IClassFile classFile = resolveClassFile(uri);
+        try {
+            if (classFile != null && classFile.getSourceRange() == null) {
+                ContentProviderManager contentProvider = JavaLanguageServerPlugin.getContentProviderManager();
+                try {
+                    DecompilerResult result = contentProvider.getSourceResult(classFile, new NullProgressMonitor());
+                    if (result != null) {
+                        return result.getDecompiledLineMappings();
+                    }
+                } catch (NoSuchMethodError e) {
+                    // ignore it if old Java language server version is installed.
+                } catch (Exception e) {
+                    JavaLanguageServerPlugin.logException(e.getMessage(), e);
+                }
+            }
+        } catch (JavaModelException e) {
+            // ignore
+        }
+
+        return null;
     }
 }

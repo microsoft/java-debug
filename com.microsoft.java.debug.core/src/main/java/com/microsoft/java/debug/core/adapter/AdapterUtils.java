@@ -310,4 +310,58 @@ public class AdapterUtils {
             return uri;
         }
     }
+
+    /**
+     * Find the mapped lines based on the given line number.
+     *
+     * The line mappings format is as follows:
+     * - [i]: key
+     * - [i+1]: value
+     */
+    public static int[] binarySearchMappedLines(int[] lineMappings, int targetLine) {
+        if (lineMappings == null || lineMappings.length == 0 || lineMappings.length % 2 != 0) {
+            return null;
+        }
+
+        final int MAX = lineMappings.length / 2 - 1;
+        int low = 0;
+        int high = MAX;
+        int found = -1;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            int actualMid = mid * 2;
+            if (lineMappings[actualMid] == targetLine) {
+                found = mid;
+                break;
+            }
+
+            if (lineMappings[actualMid] < targetLine) {
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        if (found == -1) {
+            return null;
+        }
+
+        // Find the duplicates in the sorted array
+        int left = found;
+        while ((left - 1) >= 0 && lineMappings[(left - 1) * 2] == targetLine) {
+            left--;
+        }
+
+        int right = found;
+        while ((right + 1) <= MAX && lineMappings[(right + 1) * 2] == targetLine) {
+            right++;
+        }
+
+        int[] values = new int[right - left + 1];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = lineMappings[(left + i) * 2 + 1];
+        }
+
+        return values;
+    }
 }

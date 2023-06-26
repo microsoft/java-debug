@@ -25,8 +25,10 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.DebugSettings.Switch;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -188,6 +190,14 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
                 // display "Unknown Source" in the Call Stack View.
                 clientSource = null;
+            }
+        } else if (DebugSettings.getCurrent().debugSupportOnDecompiledSource == Switch.ON
+            && clientSource != null && clientSource.path != null) {
+            // Align the original line with the decompiled line.
+            int[] lineMappings = context.getProvider(ISourceLookUpProvider.class).getOriginalLineMappings(clientSource.path);
+            int[] renderLines = AdapterUtils.binarySearchMappedLines(lineMappings, clientLineNumber);
+            if (renderLines != null && renderLines.length > 0) {
+                clientLineNumber = renderLines[0];
             }
         }
 

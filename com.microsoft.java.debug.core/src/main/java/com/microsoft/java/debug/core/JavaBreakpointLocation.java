@@ -17,7 +17,11 @@ import com.microsoft.java.debug.core.protocol.Types;
 
 public class JavaBreakpointLocation {
     /**
-     * The source line of the breakpoint or logpoint.
+     * The line number in the source file.
+     */
+    private int lineNumberInSourceFile = Integer.MIN_VALUE;
+    /**
+     * The line number in the class file.
      */
     private int lineNumber;
     /**
@@ -109,5 +113,13 @@ public class JavaBreakpointLocation {
 
     public void setAvailableBreakpointLocations(Types.BreakpointLocation[] availableBreakpointLocations) {
         this.availableBreakpointLocations = availableBreakpointLocations;
+    }
+
+    public int lineNumberInSourceFile() {
+        return lineNumberInSourceFile == Integer.MIN_VALUE ? lineNumber : lineNumberInSourceFile;
+    }
+
+    public void setLineNumberInSourceFile(int lineNumberInSourceFile) {
+        this.lineNumberInSourceFile = lineNumberInSourceFile;
     }
 }

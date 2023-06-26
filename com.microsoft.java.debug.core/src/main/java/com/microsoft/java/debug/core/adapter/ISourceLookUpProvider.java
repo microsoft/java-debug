@@ -76,6 +76,26 @@ public interface ISourceLookUpProvider extends IProvider {
      */
     List<MethodInvocation> findMethodInvocations(String uri, int line);
 
+    /**
+     * Return the line mappings from the original line to the decompiled line.
+     *
+     * @param uri The uri
+     * @return the line mappings from the original line to the decompiled line.
+     */
+    default int[] getOriginalLineMappings(String uri) {
+        return null;
+    }
+
+    /**
+     * Return the line mappings from the decompiled line to the original line.
+     *
+     * @param uri The uri
+     * @return the line mappings from the decompiled line to the original line.
+     */
+    default int[] getDecompiledLineMappings(String uri) {
+        return null;
+    }
+
     public static class MethodInvocation {
         public String expression;
         public String methodName;

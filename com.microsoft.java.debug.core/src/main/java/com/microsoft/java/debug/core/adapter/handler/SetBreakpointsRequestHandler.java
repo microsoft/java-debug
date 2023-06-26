@@ -24,6 +24,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
+import com.microsoft.java.debug.core.DebugSettings;
+import com.microsoft.java.debug.core.DebugSettings.Switch;
 import com.microsoft.java.debug.core.IBreakpoint;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.IEvaluatableBreakpoint;
@@ -296,7 +298,8 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
     private Types.Breakpoint convertDebuggerBreakpointToClient(IBreakpoint breakpoint, IDebugAdapterContext context) {
         int id = (int) breakpoint.getProperty("id");
         boolean verified = breakpoint.getProperty("verified") != null && (boolean) breakpoint.getProperty("verified");
-        int lineNumber = AdapterUtils.convertLineNumber(breakpoint.getLineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
+        int lineNumber = AdapterUtils.convertLineNumber(breakpoint.sourceLocation().lineNumberInSourceFile(),
+                                            context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         return new Types.Breakpoint(id, verified, lineNumber, "");
     }
 
@@ -317,6 +320,19 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 hitCount = Integer.parseInt(sourceBreakpoints[i].hitCondition);
             } catch (NumberFormatException e) {
                 hitCount = 0; // If hitCount is an illegal number, ignore hitCount condition.
+            }
+
+            if (DebugSettings.getCurrent().debugSupportOnDecompiledSource == Switch.ON) {
+                // Align the decompiled line with the original line.
+                int[] lineMappings = sourceProvider.getDecompiledLineMappings(sourceFile);
+                if (locations[i] != null && lineMappings != null) {
+                    int lineNumberInSourceFile = locations[i].lineNumber();
+                    int[] originalLines = AdapterUtils.binarySearchMappedLines(lineMappings, lineNumberInSourceFile);
+                    if (originalLines != null && originalLines.length > 0) {
+                        locations[i].setLineNumberInSourceFile(lineNumberInSourceFile);
+                        locations[i].setLineNumber(originalLines[0]);
+                    }
+                }
             }
             breakpoints[i] = context.getDebugSession().createBreakpoint(locations[i], hitCount, sourceBreakpoints[i].condition,
                 sourceBreakpoints[i].logMessage);
