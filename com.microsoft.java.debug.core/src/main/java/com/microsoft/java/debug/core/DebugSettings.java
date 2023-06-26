@@ -44,6 +44,7 @@ public final class DebugSettings {
     public int limitOfVariablesPerJdwpRequest = 100;
     public int jdwpRequestTimeout = 3000;
     public AsyncMode asyncJDWP = AsyncMode.OFF;
+    public Switch debugSupportOnDecompiledSource = Switch.OFF;
 
     public static DebugSettings getCurrent() {
         return current;
@@ -91,6 +92,13 @@ public final class DebugSettings {
     public static enum AsyncMode {
         @SerializedName("auto")
         AUTO,
+        @SerializedName("on")
+        ON,
+        @SerializedName("off")
+        OFF
+    }
+
+    public static enum Switch {
         @SerializedName("on")
         ON,
         @SerializedName("off")
