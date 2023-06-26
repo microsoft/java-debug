@@ -323,12 +323,12 @@ public class AdapterUtils {
             return null;
         }
 
-        final int MAX = lineMappings.length/2 - 1;
+        final int MAX = lineMappings.length / 2 - 1;
         int low = 0;
         int high = MAX;
         int found = -1;
         while (low <= high) {
-            int mid = low + (high - low)/2;
+            int mid = low + (high - low) / 2;
             int actualMid = mid * 2;
             if (lineMappings[actualMid] == targetLine) {
                 found = mid;
@@ -348,7 +348,7 @@ public class AdapterUtils {
 
         // Find the duplicates in the sorted array
         int left = found;
-        while ((left-1) >= 0 && lineMappings[(left - 1) * 2] == targetLine) {
+        while ((left - 1) >= 0 && lineMappings[(left - 1) * 2] == targetLine) {
             left--;
         }
 
