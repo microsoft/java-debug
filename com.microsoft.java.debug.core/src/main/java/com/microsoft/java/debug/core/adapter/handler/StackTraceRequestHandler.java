@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
@@ -41,6 +42,7 @@ import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.StackTraceArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
+import com.microsoft.java.debug.core.protocol.Events.TelemetryEvent;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.LocalVariable;
@@ -54,6 +56,7 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.BreakpointRequest;
 
 public class StackTraceRequestHandler implements IDebugRequestHandler {
+    private ThreadLocal<Boolean> isDecompilerInvoked = new ThreadLocal<>();
 
     @Override
     public List<Command> getTargetCommands() {
@@ -62,6 +65,8 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
 
     @Override
     public CompletableFuture<Response> handle(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
+        final long startAt = System.currentTimeMillis();
+        isDecompilerInvoked.set(false);
         StackTraceArguments stacktraceArgs = (StackTraceArguments) arguments;
         List<Types.StackFrame> result = new ArrayList<>();
         if (stacktraceArgs.startFrame < 0 || stacktraceArgs.levels < 0) {
@@ -108,6 +113,15 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             }
         }
         response.body = new Responses.StackTraceResponseBody(result, totalFrames);
+        long duration = System.currentTimeMillis() - startAt;
+        JsonObject properties = new JsonObject();
+        properties.addProperty("command", "stackTrace");
+        properties.addProperty("duration", duration);
+        properties.addProperty("decompileSupport", DebugSettings.getCurrent().debugSupportOnDecompiledSource.toString());
+        if (isDecompilerInvoked.get() != null) {
+            properties.addProperty("isDecompilerInvoked", Boolean.toString(isDecompilerInvoked.get()));
+        }
+        context.getProtocolServer().sendEvent(new TelemetryEvent("dap", properties));
         return CompletableFuture.completedFuture(response);
     }
 
@@ -198,6 +212,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             int[] renderLines = AdapterUtils.binarySearchMappedLines(lineMappings, clientLineNumber);
             if (renderLines != null && renderLines.length > 0) {
                 clientLineNumber = renderLines[0];
+                isDecompilerInvoked.set(true);
             }
         }
 

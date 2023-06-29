@@ -246,6 +246,30 @@ public class Events {
         }
     }
 
+    public static class TelemetryEvent extends DebugEvent {
+        /**
+         * The telemetry event name.
+         */
+        public String name;
+
+        /**
+         * The properties is an object as below.
+         * {
+         *   [key: string]: string | number;
+         * }
+         */
+        public Object properties;
+
+        /**
+         * Constructor.
+         */
+        public TelemetryEvent(String name, Object data) {
+            super("telemetry");
+            this.name = name;
+            this.properties = data;
+        }
+    }
+
     public static enum InvalidatedAreas {
         @SerializedName("all")
         ALL,
