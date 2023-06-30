@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.microsoft.java</groupId>
         <artifactId>java-debug-parent</artifactId>
-        <version>0.46.0</version>
+        <version>0.47.0</version>
     </parent>
 	<artifactId>com.microsoft.java.debug.repository</artifactId>
 	<packaging>eclipse-repository</packaging>
