@@ -56,6 +56,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
@@ -72,8 +73,8 @@ import com.microsoft.java.debug.LambdaExpressionLocator;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
-import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.DebugSettings.Switch;
+import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -167,11 +168,13 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             return new JavaBreakpointLocation[0];
         }
 
-        CompilationUnit astUnit = asCompilationUnit(sourceUri);
+        CompilationUnitResult result = asCompilationUnit(sourceUri);
+        CompilationUnit astUnit = (result != null) ? result.compilationUnit : null;
         JavaBreakpointLocation[] sourceLocations = Stream.of(sourceBreakpoints)
                 .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
                 .toArray(JavaBreakpointLocation[]::new);
         if (astUnit != null) {
+            final String source = result.source;
             Map<Integer, BreakpointLocation[]> resolvedLocations = new HashMap<>();
             for (JavaBreakpointLocation sourceLocation : sourceLocations) {
                 int sourceLine = sourceLocation.lineNumber();
@@ -190,7 +193,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     if (resolvedLocations.containsKey(sourceLine)) {
                         sourceLocation.setAvailableBreakpointLocations(resolvedLocations.get(sourceLine));
                     } else {
-                        BreakpointLocation[] inlineLocations = getInlineBreakpointLocations(astUnit, sourceLine);
+                        BreakpointLocation[] inlineLocations = getInlineBreakpointLocations(astUnit, sourceLine,
+                                source);
                         sourceLocation.setAvailableBreakpointLocations(inlineLocations);
                         resolvedLocations.put(sourceLine, inlineLocations);
                     }
@@ -223,7 +227,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     if (resolvedLocations.containsKey(sourceLine)) {
                         sourceLocation.setAvailableBreakpointLocations(resolvedLocations.get(sourceLine));
                     } else {
-                        BreakpointLocation[] inlineLocations = getInlineBreakpointLocations(astUnit, sourceLine);
+                        BreakpointLocation[] inlineLocations = getInlineBreakpointLocations(astUnit, sourceLine,
+                                source);
                         sourceLocation.setAvailableBreakpointLocations(inlineLocations);
                         resolvedLocations.put(sourceLine, inlineLocations);
                     }
@@ -238,7 +243,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return sourceLocations;
     }
 
-    private BreakpointLocation[] getInlineBreakpointLocations(final CompilationUnit astUnit, int sourceLine) {
+    private BreakpointLocation[] getInlineBreakpointLocations(final CompilationUnit astUnit, int sourceLine,
+            String source) {
         List<BreakpointLocation> locations = new ArrayList<>();
         // The starting position of each line is the default breakpoint location for
         // that line.
@@ -255,6 +261,23 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     int endColumn = astUnit.getColumnNumber(lambdaEnd);
                     BreakpointLocation location = new BreakpointLocation(startLine, startColumn, endLine, endColumn);
                     locations.add(location);
+                } else if (sourceLine < startLine && node.getParent() != null) {
+                    ASTNode parent = node.getParent();
+                    if (astUnit.getLineNumber(parent.getStartPosition()) == sourceLine
+                            && parent instanceof org.eclipse.jdt.core.dom.MethodInvocation) {
+                        org.eclipse.jdt.core.dom.MethodInvocation methodInvc = (org.eclipse.jdt.core.dom.MethodInvocation) parent;
+                        SimpleName name = methodInvc.getName();
+                        int nameEnd = name.getStartPosition() + name.getLength();
+                        if (hasOnlyWhitespaceInBetween(nameEnd + 1, lambdaStart, source)) {
+                            int lambdaEnd = lambdaStart + node.getLength();
+                            int startColumn = astUnit.getColumnNumber(lambdaStart);
+                            int endLine = astUnit.getLineNumber(lambdaEnd);
+                            int endColumn = astUnit.getColumnNumber(lambdaEnd);
+                            BreakpointLocation location = new BreakpointLocation(startLine, startColumn, endLine,
+                                    endColumn);
+                            locations.add(location);
+                        }
+                    }
                 }
                 return super.visit(node);
             }
@@ -263,12 +286,12 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return locations.toArray(BreakpointLocation[]::new);
     }
 
-    private CompilationUnit asCompilationUnit(String uri) {
+    private CompilationUnitResult asCompilationUnit(String uri) {
         final ASTParser parser = ASTParser.newParser(this.latestASTLevel);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
-        CompilationUnit astUnit = null;
+        CompilationUnitResult astUnit = null;
         String filePath = AdapterUtils.toPath(uri);
         // For file uri, read the file contents directly and pass them to the ast
         // parser.
@@ -305,7 +328,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 parser.setCompilerOptions(javaOptions);
             }
             parser.setUnitName(Paths.get(filePath).getFileName().toString());
-            astUnit = (CompilationUnit) parser.createAST(null);
+            astUnit = new CompilationUnitResult((CompilationUnit) parser.createAST(null), source);
         } else {
             // For non-file uri (e.g. jdt://contents/rt.jar/java.io/PrintStream.class),
             // leverage jdt to load the source contents.
@@ -313,7 +336,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             try {
                 if (typeRoot != null && typeRoot.getSourceRange() != null) {
                     parser.setSource(typeRoot);
-                    astUnit = (CompilationUnit) parser.createAST(null);
+                    astUnit = new CompilationUnitResult((CompilationUnit) parser.createAST(null), typeRoot.getSource());
                 } else if (typeRoot != null && DebugSettings.getCurrent().debugSupportOnDecompiledSource == Switch.ON) {
                     ContentProviderManager contentProvider = JavaLanguageServerPlugin.getContentProviderManager();
                     try {
@@ -337,7 +360,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                             }
                             parser.setUnitName(typeRoot.getElementName());
                             parser.setSource(contents.toCharArray());
-                            astUnit = (CompilationUnit) parser.createAST(null);
+                            astUnit = new CompilationUnitResult((CompilationUnit) parser.createAST(null), contents);
                         }
                     } catch (Exception e) {
                         JavaLanguageServerPlugin.logException(e.getMessage(), e);
@@ -348,6 +371,13 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             }
         }
         return astUnit;
+    }
+
+    private boolean hasOnlyWhitespaceInBetween(int start, int end, String source) {
+        if (source != null && start < end && source.length() >= end) {
+            return source.substring(start, end).isBlank();
+        }
+        return false;
     }
 
     @Override
@@ -518,7 +548,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             }
         }
 
-        final CompilationUnit astUnit = useCache ? cachedUnit : asCompilationUnit(uri);
+        final CompilationUnit astUnit = useCache ? cachedUnit : asCompilationUnit(uri).compilationUnit;
         if (astUnit == null) {
             return Collections.emptyList();
         }
@@ -579,7 +609,8 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 return null;
             }
 
-            IPackageFragmentRoot packageRoot = (IPackageFragmentRoot) classFile.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
+            IPackageFragmentRoot packageRoot = (IPackageFragmentRoot) classFile
+                    .getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
             if (packageRoot != null && packageRoot.getSourceAttachmentPath() != null) {
                 return null;
             }
@@ -624,5 +655,15 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         }
 
         return null;
+    }
+
+    public static class CompilationUnitResult {
+        public CompilationUnit compilationUnit;
+        public String source;
+
+        public CompilationUnitResult(CompilationUnit compilationUnit, String source) {
+            this.compilationUnit = compilationUnit;
+            this.source = source;
+        }
     }
 }
