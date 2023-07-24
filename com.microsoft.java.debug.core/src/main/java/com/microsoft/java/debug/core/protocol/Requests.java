@@ -426,6 +426,15 @@ public class Requests {
         public int endColumn;
     }
 
+    public static class RefreshFramesArguments extends Arguments {
+        /**
+         * If provided, refresh the stack frames of the paused threads that previously
+         * requested decompiled sources for classes in the affected root paths.
+         * Otherwise, refresh all paused threads.
+         */
+        public String[] affectedRootPaths;
+    }
+
     public static enum Command {
         INITIALIZE("initialize", InitializeArguments.class),
         LAUNCH("launch", LaunchArguments.class),
@@ -464,6 +473,7 @@ public class Requests {
         REFRESHVARIABLES("refreshVariables", RefreshVariablesArguments.class),
         PROCESSID("processId", Arguments.class),
         BREAKPOINTLOCATIONS("breakpointLocations", BreakpointLocationsArguments.class),
+        REFRESHFRAMES("refreshFrames", RefreshFramesArguments.class),
         UNSUPPORTED("", Arguments.class);
 
         private String command;

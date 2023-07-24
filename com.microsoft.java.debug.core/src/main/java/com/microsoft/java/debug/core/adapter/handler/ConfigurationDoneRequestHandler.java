@@ -76,6 +76,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             if (context.isVmStopOnEntry()) {
                 DebugUtility.stopOnEntry(debugSession, context.getMainClass()).thenAccept(threadId -> {
                     context.getProtocolServer().sendEvent(new Events.StoppedEvent("entry", threadId));
+                    context.getThreadCache().setThreadStoppedReason(threadId, "entry");
                 });
             }
         } else if (event instanceof VMDeathEvent) {
@@ -117,7 +118,7 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
             JdiExceptionReference jdiException = new JdiExceptionReference(((ExceptionEvent) event).exception(),
                     ((ExceptionEvent) event).catchLocation() == null);
             context.getExceptionManager().setException(thread.uniqueID(), jdiException);
-            context.getThreadCache().addEventThread(thread);
+            context.getThreadCache().addEventThread(thread, "exception");
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("exception", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else {

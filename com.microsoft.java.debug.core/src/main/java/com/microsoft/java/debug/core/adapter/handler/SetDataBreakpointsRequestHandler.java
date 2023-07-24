@@ -151,13 +151,13 @@ public class SetDataBreakpointsRequestHandler implements IDebugRequestHandler {
                             if (resume) {
                                 debugEvent.eventSet.resume();
                             } else {
-                                context.getThreadCache().addEventThread(bpThread);
+                                context.getThreadCache().addEventThread(bpThread, "data breakpoint");
                                 context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID()));
                             }
                         });
                     });
                 } else {
-                    context.getThreadCache().addEventThread(bpThread);
+                    context.getThreadCache().addEventThread(bpThread, "data breakpoint");
                     context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID()));
                 }
                 debugEvent.shouldResume = false;
