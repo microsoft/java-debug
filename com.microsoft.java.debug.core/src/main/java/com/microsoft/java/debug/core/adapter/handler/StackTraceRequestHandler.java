@@ -15,8 +15,10 @@ import java.io.File;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -73,16 +75,23 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             response.body = new Responses.StackTraceResponseBody(result, 0);
             return CompletableFuture.completedFuture(response);
         }
-        ThreadReference thread = context.getThreadCache().getThread(stacktraceArgs.threadId);
+        long threadId = stacktraceArgs.threadId;
+        ThreadReference thread = context.getThreadCache().getThread(threadId);
         if (thread == null) {
-            thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
+            thread = DebugUtility.getThread(context.getDebugSession(), threadId);
         }
         int totalFrames = 0;
         if (thread != null) {
+            Set<String> decompiledClasses = new LinkedHashSet<>();
             try {
                 // Thread state has changed and then invalidate the stack frame cache.
                 if (stacktraceArgs.startFrame == 0) {
                     context.getStackFrameManager().clearStackFrames(thread);
+                } else {
+                    Set<String> existing = context.getThreadCache().getDecompiledClassesByThread(threadId);
+                    if (existing != null) {
+                        decompiledClasses.addAll(existing);
+                    }
                 }
 
                 totalFrames = thread.frameCount();
@@ -102,6 +111,10 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     Types.StackFrame lspFrame = convertDebuggerStackFrameToClient(jdiFrame, frameId, i == 0, context);
                     result.add(lspFrame);
                     frameReference.setSource(lspFrame.source);
+                    int jdiLineNumber = AdapterUtils.convertLineNumber(jdiFrame.lineNumber, context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
+                    if (jdiLineNumber != lspFrame.line) {
+                        decompiledClasses.add(lspFrame.source.path);
+                    }
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException
@@ -110,6 +123,8 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 // 1. the vscode has wrong parameter/wrong uri
                 // 2. the thread actually terminates
                 // TODO: should record a error log here.
+            } finally {
+                context.getThreadCache().setDecompiledClassesByThread(threadId, decompiledClasses);
             }
         }
         response.body = new Responses.StackTraceResponseBody(result, totalFrames);

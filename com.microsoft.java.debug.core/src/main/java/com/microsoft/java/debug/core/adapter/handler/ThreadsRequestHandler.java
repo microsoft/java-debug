@@ -138,6 +138,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getStepResultManager().removeAllMethodResults();
             context.getDebugSession().suspend();
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
+            context.getThreadCache().setThreadStoppedReason(arguments.threadId, "pause");
         }
         return CompletableFuture.completedFuture(response);
     }
@@ -158,12 +159,14 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             context.getStepResultManager().removeMethodResult(arguments.threadId);
             context.getExceptionManager().removeException(arguments.threadId);
             allThreadsContinued = false;
+            context.getThreadCache().clearThreadStoppedState(arguments.threadId);
             DebugUtility.resumeThread(thread);
             context.getStackFrameManager().clearStackFrames(thread);
             checkThreadRunningAndRecycleIds(thread, context);
         } else {
             context.getStepResultManager().removeAllMethodResults();
             context.getExceptionManager().removeAllExceptions();
+            context.getThreadCache().clearAllThreadStoppedState();
             resumeVM(context);
             context.getStackFrameManager().clearStackFrames();
             context.getRecyclableIdPool().removeAllObjects();
@@ -175,6 +178,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private CompletableFuture<Response> resumeAll(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
         context.getStepResultManager().removeAllMethodResults();
         context.getExceptionManager().removeAllExceptions();
+        context.getThreadCache().clearAllThreadStoppedState();
         resumeVM(context);
         context.getProtocolServer().sendEvent(new Events.ContinuedEvent(arguments.threadId, true));
         context.getStackFrameManager().clearStackFrames();
@@ -190,6 +194,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
                 continue;
             }
 
+            context.getThreadCache().clearThreadStoppedState(thread.uniqueID());
             if (context.asyncJDWP()) {
                 futures.add(AsyncJdwpUtils.runAsync(() -> resumeThread(thread, context)));
             } else {
@@ -203,6 +208,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     private CompletableFuture<Response> pauseAll(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
         context.getDebugSession().suspend();
         context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", arguments.threadId, true));
+        context.getThreadCache().setThreadStoppedReason(arguments.threadId, "pause");
         return CompletableFuture.completedFuture(response);
     }
 
@@ -300,6 +306,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
                 context.getStepResultManager().removeMethodResult(threadId);
                 thread.suspend();
                 context.getProtocolServer().sendEvent(new Events.StoppedEvent("pause", threadId));
+                context.getThreadCache().setThreadStoppedReason(threadId, "pause");
             }
         } catch (ObjectCollectedException ex) {
             // the thread is garbage collected.

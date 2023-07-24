@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,6 +33,8 @@ public class ThreadCache {
         }
     });
     private Map<Long, ThreadReference> eventThreads = new ConcurrentHashMap<>();
+    private Map<Long, Set<String>> decompiledClassesByThread = new HashMap<>();
+    private Map<Long, String> threadStoppedReasons = new HashMap<>();
 
     public synchronized void resetThreads(List<ThreadReference> threads) {
         allThreads.clear();
@@ -80,6 +83,13 @@ public class ThreadCache {
         eventThreads.put(thread.uniqueID(), thread);
     }
 
+    public void addEventThread(ThreadReference thread, String reason) {
+        eventThreads.put(thread.uniqueID(), thread);
+        if (reason != null) {
+            threadStoppedReasons.put(thread.uniqueID(), reason);
+        }
+    }
+
     public void removeEventThread(long threadId) {
         eventThreads.remove(threadId);
     }
@@ -112,5 +122,41 @@ public class ThreadCache {
         }
 
         return visibleThreads;
+    }
+
+    public Set<String> getDecompiledClassesByThread(long threadId) {
+        return decompiledClassesByThread.get(threadId);
+    }
+
+    public void setDecompiledClassesByThread(long threadId, Set<String> decompiledClasses) {
+        if (decompiledClasses == null || decompiledClasses.isEmpty()) {
+            decompiledClassesByThread.remove(threadId);
+            return;
+        }
+
+        decompiledClassesByThread.put(threadId, decompiledClasses);
+    }
+
+    public String getThreadStoppedReason(long threadId) {
+        return threadStoppedReasons.get(threadId);
+    }
+
+    public void setThreadStoppedReason(long threadId, String reason) {
+        if (reason == null) {
+            threadStoppedReasons.remove(threadId);
+            return;
+        }
+
+        threadStoppedReasons.put(threadId, reason);
+    }
+
+    public void clearThreadStoppedState(long threadId) {
+        threadStoppedReasons.remove(threadId);
+        decompiledClassesByThread.remove(threadId);
+    }
+
+    public void clearAllThreadStoppedState() {
+        threadStoppedReasons.clear();
+        decompiledClassesByThread.clear();
     }
 }
