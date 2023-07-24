@@ -13,6 +13,7 @@ package com.microsoft.java.debug.core.adapter.handler;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -52,25 +53,8 @@ public class RefreshFramesHandler implements IDebugRequestHandler {
                 continue;
             }
 
-            boolean shouldRefresh = false;
-            for (String classUri : decompiledClasses) {
-                // decompiled class uri is like 'jdt://contents/rt.jar/java.io/PrintStream.class?=1.helloworld/%5C/usr%5C/lib%5C/jvm%5C/
-                // java-8-oracle%5C/jre%5C/lib%5C/rt.jar%3Cjava.io(PrintStream.class'.
-                if (classUri.startsWith("jdt://contents/")) {
-                    String jarName = classUri.substring("jdt://contents/".length());
-                    int sep = jarName.indexOf("/");
-                    jarName = sep >= 0 ? jarName.substring(0, sep) : jarName;
-                    for (String affectedRootPath : affectedRootPaths) {
-                        if (affectedRootPath.endsWith("/" + jarName) || affectedRootPath.endsWith("\\" + jarName)) {
-                            shouldRefresh = true;
-                            break;
-                        }
-                    }
-                }
-                if (shouldRefresh) {
-                    refreshFrames(threadId, context);
-                    break;
-                }
+            if (anyInAffectedRootPaths(decompiledClasses, affectedRootPaths)) {
+                refreshFrames(threadId, context);
             }
         }
 
@@ -125,5 +109,28 @@ public class RefreshFramesHandler implements IDebugRequestHandler {
         StoppedEvent stoppedEvent = new StoppedEvent(context.getThreadCache().getThreadStoppedReason(threadId), threadId);
         stoppedEvent.preserveFocusHint = true;
         context.getProtocolServer().sendEvent(stoppedEvent);
+    }
+
+    boolean anyInAffectedRootPaths(Collection<String> classes, String[] affectedRootPaths) {
+        if (affectedRootPaths == null || affectedRootPaths.length == 0) {
+            return true;
+        }
+
+        for (String classUri : classes) {
+            // decompiled class uri is like 'jdt://contents/rt.jar/java.io/PrintStream.class?=1.helloworld/%5C/usr%5C/lib%5C/jvm%5C/
+            // java-8-oracle%5C/jre%5C/lib%5C/rt.jar%3Cjava.io(PrintStream.class'.
+            if (classUri.startsWith("jdt://contents/")) {
+                String jarName = classUri.substring("jdt://contents/".length());
+                int sep = jarName.indexOf("/");
+                jarName = sep >= 0 ? jarName.substring(0, sep) : jarName;
+                for (String affectedRootPath : affectedRootPaths) {
+                    if (affectedRootPath.endsWith("/" + jarName) || affectedRootPath.endsWith("\\" + jarName)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }
