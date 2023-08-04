@@ -42,7 +42,9 @@ import com.microsoft.java.debug.core.Configuration;
 public class Compile {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
-    public static BuildWorkspaceStatus compile(CompileParams params, IProgressMonitor monitor) {
+    private static final int GRADLE_BS_COMPILATION_ERROR = 100;
+
+    public static Object compile(CompileParams params, IProgressMonitor monitor) {
         IProject mainProject = params == null ? null : ProjectUtils.getProject(params.getProjectName());
         if (mainProject == null) {
             try {
@@ -68,7 +70,7 @@ public class Compile {
                 );
             } catch (CoreException e) {
                 if (e.getStatus().getCode() == IResourceStatus.BUILD_FAILED) {
-                    return BuildWorkspaceStatus.WITH_ERROR;
+                    return GRADLE_BS_COMPILATION_ERROR;
                 } else {
                     return BuildWorkspaceStatus.FAILED;
                 }
