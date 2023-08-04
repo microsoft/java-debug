@@ -18,9 +18,11 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.resources.IBuildConfiguration;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IResourceStatus;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -40,7 +42,42 @@ import com.microsoft.java.debug.core.Configuration;
 public class Compile {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
 
-    public static BuildWorkspaceStatus compile(CompileParams params, IProgressMonitor monitor) {
+    private static final int GRADLE_BS_COMPILATION_ERROR = 100;
+
+    public static Object compile(CompileParams params, IProgressMonitor monitor) {
+        IProject mainProject = params == null ? null : ProjectUtils.getProject(params.getProjectName());
+        if (mainProject == null) {
+            try {
+                // Q: is infer project by main class name necessary? perf impact?
+                List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(params.getMainClass());
+                if (javaProjects.size() == 1) {
+                    mainProject = javaProjects.get(0).getProject();
+                }
+            } catch (CoreException e) {
+                JavaLanguageServerPlugin.logException("Failed to resolve project from main class name.", e);
+            }
+        }
+
+        if (isBspProject(mainProject)) {
+            // Just need to trigger a build for the target project, the Gradle build server will
+            // handle the build dependencies for us.
+            try {
+                ResourcesPlugin.getWorkspace().build(
+                    new IBuildConfiguration[]{mainProject.getActiveBuildConfig()},
+                    IncrementalProjectBuilder.INCREMENTAL_BUILD,
+                    false /*buildReference*/,
+                    monitor
+                );
+            } catch (CoreException e) {
+                if (e.getStatus().getCode() == IResourceStatus.BUILD_FAILED) {
+                    return GRADLE_BS_COMPILATION_ERROR;
+                } else {
+                    return BuildWorkspaceStatus.FAILED;
+                }
+            }
+            return BuildWorkspaceStatus.SUCCEED;
+        }
+
         try {
             if (monitor.isCanceled()) {
                 return BuildWorkspaceStatus.CANCELLED;
@@ -55,7 +92,6 @@ public class Compile {
             }
             logger.info("Time cost for ECJ: " + (System.currentTimeMillis() - compileAt) + "ms");
 
-            IProject mainProject = params == null ? null : ProjectUtils.getProject(params.getProjectName());
             IResource currentResource = mainProject;
             if (isUnmanagedFolder(mainProject) && StringUtils.isNotBlank(params.getMainClass())) {
                 IType mainType = ProjectUtils.getJavaProject(mainProject).findType(params.getMainClass());
@@ -115,6 +151,11 @@ public class Compile {
     private static boolean isUnmanagedFolder(IProject project) {
         return project != null && ProjectUtils.isUnmanagedFolder(project)
             && ProjectUtils.isJavaProject(project);
+    }
+
+    private static boolean isBspProject(IProject project) {
+        return project != null && ProjectUtils.isJavaProject(project)
+            && ProjectUtils.hasNature(project, "com.microsoft.gradle.bs.importer.GradleBuildServerProjectNature");
     }
 
     private static IProject getDefaultProject() {
