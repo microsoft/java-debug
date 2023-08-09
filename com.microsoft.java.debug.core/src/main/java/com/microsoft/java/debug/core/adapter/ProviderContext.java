@@ -62,4 +62,8 @@ public class ProviderContext implements IProviderContext {
         providerMap.put(clazz, provider);
     }
 
+    public Map<Class<? extends IProvider>, IProvider> getProviders() {
+        return providerMap;
+    }
+
 }

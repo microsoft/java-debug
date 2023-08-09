@@ -78,12 +78,12 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
-                   IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
-                   Optional<String> formattedMethod = stackTraceProvider.formatMethod(thread.frame(i).location().method());
+                    IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
+                    Optional<String> formattedMethod = stackTraceProvider.formatMethod(thread.frame(i).location().method());
             
-                   
-                 if(formattedMethod.isPresent() )
-                      result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, formattedMethod.get()));
+                    if(formattedMethod.isPresent()) {
+                        result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, formattedMethod.get()));
+                    }
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {
