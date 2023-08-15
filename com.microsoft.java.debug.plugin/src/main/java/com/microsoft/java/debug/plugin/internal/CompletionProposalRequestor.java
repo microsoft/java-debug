@@ -45,6 +45,7 @@ import org.eclipse.jdt.ls.core.internal.handlers.CompletionResponse;
 import org.eclipse.jdt.ls.core.internal.handlers.CompletionResponses;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.CompletionItemLabelDetails;
 
 import com.google.common.collect.ImmutableSet;
 import com.microsoft.java.debug.core.Configuration;
@@ -159,6 +160,8 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
         data.put(CompletionResolveHandler.DATA_FIELD_PROPOSAL_ID, String.valueOf(index));
         $.setData(data);
         this.descriptionProvider.updateDescription(proposal, $);
+        // Use fully qualified name as needed.
+        $.setInsertText(String.valueOf(proposal.getCompletion()));
         adjustCompleteItem($);
         $.setSortText(SortTextHelper.computeSortText(proposal));
         return $;
@@ -166,6 +169,17 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
 
     private void adjustCompleteItem(CompletionItem item) {
         if (item.getKind() == CompletionItemKind.Function) {
+            // Merge the label details into the label property
+            // because the completion provider in DEBUG CONSOLE
+            // doesn't support the label details.
+            CompletionItemLabelDetails labelDetails = item.getLabelDetails();
+            if (labelDetails != null && StringUtils.isNotBlank(labelDetails.getDetail())) {
+                item.setLabel(item.getLabel() + labelDetails.getDetail());
+            }
+            if (labelDetails != null && StringUtils.isNotBlank(labelDetails.getDescription())) {
+                item.setLabel(item.getLabel() + " : " + labelDetails.getDescription());
+            }
+
             String text = item.getInsertText();
             if (StringUtils.isNotBlank(text) && !text.endsWith(")")) {
                 item.setInsertText(text + "()");
