@@ -11,9 +11,13 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.util.List;
+
 public interface IProviderContext {
 
     <T extends IProvider> T getProvider(Class<T> clazz);
 
     void registerProvider(Class<? extends IProvider> clazz, IProvider provider);
+    
+    List<IProvider> getProviders();
 }

@@ -11,7 +11,9 @@
 
 package com.microsoft.java.debug.core.adapter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ProviderContext implements IProviderContext {
@@ -62,8 +64,9 @@ public class ProviderContext implements IProviderContext {
         providerMap.put(clazz, provider);
     }
 
-    public Map<Class<? extends IProvider>, IProvider> getProviders() {
-        return providerMap;
+    @Override
+    public List<IProvider> getProviders() {
+        return new ArrayList<IProvider>(providerMap.values());
     }
 
 }
