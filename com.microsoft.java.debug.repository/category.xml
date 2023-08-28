@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <bundle id="com.microsoft.java.debug.plugin" version="0.48.0">
+   <bundle id="com.microsoft.java.debug.plugin" version="0.49.0">
    <category name="javadebug" />
    </bundle>
    <category-def name="javadebug" label="Java Debug Server"/>
