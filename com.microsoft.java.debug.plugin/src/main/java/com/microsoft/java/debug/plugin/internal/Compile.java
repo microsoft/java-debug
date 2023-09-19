@@ -58,7 +58,7 @@ public class Compile {
             }
         }
 
-        if (isBspProject(mainProject)) {
+        if (isBspProject(mainProject) && !ProjectUtils.isGradleProject(mainProject)) {
             // Just need to trigger a build for the target project, the Gradle build server will
             // handle the build dependencies for us.
             try {
