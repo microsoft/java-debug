@@ -53,6 +53,20 @@ public class ProtocolServer extends AbstractProtocolServer {
     }
 
     /**
+     * Constructs a protocol server instance based on the given input stream and output stream.
+     * @param input
+     *              the input stream
+     * @param output
+     *              the output stream
+     * @param debugAdapterFactory
+     *              factory to create debug adapter that implements DAP communication
+     */
+    public ProtocolServer(InputStream input, OutputStream output, IDebugAdapterFactory debugAdapterFactory) {
+        super(input, output);
+        debugAdapter = debugAdapterFactory.create(this);
+    }
+
+    /**
      * A while-loop to parse input data and send output data constantly.
      */
     @Override
