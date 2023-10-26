@@ -32,7 +32,7 @@ import org.apache.commons.lang3.ArrayUtils;
 public class DebugAdapterContext implements IDebugAdapterContext {
     private static final int MAX_CACHE_ITEMS = 10000;
     private final StepFilters defaultFilters = new StepFilters();
-    private Map<String, String> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
+    private Map<String, Source> sourceMappingCache = Collections.synchronizedMap(new LRUCache<>(MAX_CACHE_ITEMS));
     private IProviderContext providerContext;
     private IProtocolServer server;
 
@@ -212,7 +212,7 @@ public class DebugAdapterContext implements IDebugAdapterContext {
     }
 
     @Override
-    public Map<String, String> getSourceLookupCache() {
+    public Map<String, Source> getSourceLookupCache() {
         return sourceMappingCache;
     }
 

@@ -8,7 +8,6 @@
  * Contributors:
  *     Microsoft Corporation - initial API and implementation
  *******************************************************************************/
-
 package com.microsoft.java.debug.core.adapter;
 
 import java.util.List;
@@ -42,17 +41,30 @@ public interface ISourceLookUpProvider extends IProvider {
     JavaBreakpointLocation[] getBreakpointLocations(String sourceUri, SourceBreakpoint[] sourceBreakpoints) throws DebugException;
 
     /**
-     * Given a fully qualified class name and source file path, search the associated disk source file.
-     *
-     * @param fullyQualifiedName
-     *                  the fully qualified class name (e.g. com.microsoft.java.debug.core.adapter.ISourceLookUpProvider).
-     * @param sourcePath
-     *                  the qualified source file path (e.g. com\microsoft\java\debug\core\adapter\ISourceLookupProvider.java).
-     * @return the associated source file uri.
+     * Deprecated, please use {@link #getSource(String, String)} instead.
      */
+    @Deprecated
     String getSourceFileURI(String fullyQualifiedName, String sourcePath);
 
     String getSourceContents(String uri);
+
+    /**
+     * Retrieves a {@link Source} object representing the source code associated with the given fully qualified class name and source file path.
+     * The implementation of this interface can determine a source is "local" or "remote".
+     * In case of "remote" a follow up "source" request will be issued by the client
+     *
+     * @param fullyQualifiedName
+     *                  the fully qualified class name,
+     *                  e.g., "com.microsoft.java.debug.core.adapter.ISourceLookUpProvider".
+     * @param sourcePath
+     *                  the qualified source file path,
+     *                  e.g., "com/microsoft/java/debug/core/adapter/ISourceLookupProvider.java".
+     * @return A {@link Source} object encapsulating the source file URI obtained from
+     *                  {@link #getSourceFileURI(String, String)} and the source type as {@link SourceType#LOCAL}.
+     */
+    default Source getSource(String fullyQualifiedName, String sourcePath) {
+        return new Source(getSourceFileURI(fullyQualifiedName, sourcePath), SourceType.LOCAL);
+    }
 
     /**
      * Returns the Java runtime that the specified project's build path used.
