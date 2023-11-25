@@ -28,6 +28,7 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.CompletionContext;
 import org.eclipse.jdt.core.CompletionProposal;
 import org.eclipse.jdt.core.CompletionRequestor;
+import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaElement;
@@ -45,6 +46,7 @@ import org.eclipse.jdt.ls.core.internal.handlers.CompletionResponse;
 import org.eclipse.jdt.ls.core.internal.handlers.CompletionResponses;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.CompletionItemLabelDetails;
 
 import com.google.common.collect.ImmutableSet;
 import com.microsoft.java.debug.core.Configuration;
@@ -153,19 +155,40 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
      */
     public CompletionItem toCompletionItem(CompletionProposal proposal, int index) {
         final CompletionItem $ = new CompletionItem();
-        $.setKind(mapKind(proposal.getKind()));
+        $.setKind(mapKind(proposal.getKind(), proposal.getFlags()));
         Map<String, String> data = new HashMap<>();
         data.put(CompletionResolveHandler.DATA_FIELD_REQUEST_ID, String.valueOf(response.getId()));
         data.put(CompletionResolveHandler.DATA_FIELD_PROPOSAL_ID, String.valueOf(index));
         $.setData(data);
         this.descriptionProvider.updateDescription(proposal, $);
+        // Use fully qualified name as needed.
+        $.setInsertText(String.valueOf(proposal.getCompletion()));
         adjustCompleteItem($);
         $.setSortText(SortTextHelper.computeSortText(proposal));
         return $;
     }
 
     private void adjustCompleteItem(CompletionItem item) {
-        if (item.getKind() == CompletionItemKind.Function) {
+        CompletionItemKind itemKind = item.getKind();
+        if (itemKind == CompletionItemKind.Class || itemKind == CompletionItemKind.Interface
+            || itemKind == CompletionItemKind.Enum) {
+            // Display the package name in the label property.
+            CompletionItemLabelDetails labelDetails = item.getLabelDetails();
+            if (labelDetails != null && StringUtils.isNotBlank(labelDetails.getDescription())) {
+                item.setLabel(item.getLabel() + " - " + labelDetails.getDescription());
+            }
+        } else if (itemKind == CompletionItemKind.Function) {
+            // Merge the label details into the label property
+            // because the completion provider in DEBUG CONSOLE
+            // doesn't support the label details.
+            CompletionItemLabelDetails labelDetails = item.getLabelDetails();
+            if (labelDetails != null && StringUtils.isNotBlank(labelDetails.getDetail())) {
+                item.setLabel(item.getLabel() + labelDetails.getDetail());
+            }
+            if (labelDetails != null && StringUtils.isNotBlank(labelDetails.getDescription())) {
+                item.setLabel(item.getLabel() + " : " + labelDetails.getDescription());
+            }
+
             String text = item.getInsertText();
             if (StringUtils.isNotBlank(text) && !text.endsWith(")")) {
                 item.setInsertText(text + "()");
@@ -181,7 +204,7 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
         this.descriptionProvider = new CompletionProposalDescriptionProvider(context);
     }
 
-    private CompletionItemKind mapKind(final int kind) {
+    private CompletionItemKind mapKind(final int kind, final int flags) {
         // When a new CompletionItemKind is added, don't forget to update
         // SUPPORTED_KINDS
         switch (kind) {
@@ -190,6 +213,11 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
                 return CompletionItemKind.Constructor;
             case CompletionProposal.ANONYMOUS_CLASS_DECLARATION:
             case CompletionProposal.TYPE_REF:
+                if (Flags.isInterface(flags)) {
+                    return CompletionItemKind.Interface;
+                } else if (Flags.isEnum(flags)) {
+                    return CompletionItemKind.Enum;
+                }
                 return CompletionItemKind.Class;
             case CompletionProposal.FIELD_IMPORT:
             case CompletionProposal.METHOD_IMPORT:
@@ -199,6 +227,9 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
                 return CompletionItemKind.Module;
             case CompletionProposal.FIELD_REF:
             case CompletionProposal.FIELD_REF_WITH_CASTED_RECEIVER:
+                if (Flags.isStatic(flags) && Flags.isFinal(flags)) {
+                    return CompletionItemKind.Constant;
+                }
                 return CompletionItemKind.Field;
             case CompletionProposal.KEYWORD:
                 return CompletionItemKind.Keyword;

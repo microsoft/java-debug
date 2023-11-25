@@ -211,14 +211,14 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                 if (resume) {
                                     debugEvent.eventSet.resume();
                                 } else {
-                                    context.getThreadCache().addEventThread(bpThread);
+                                    context.getThreadCache().addEventThread(bpThread, breakpointName);
                                     context.getProtocolServer().sendEvent(new Events.StoppedEvent(
                                             breakpointName, bpThread.uniqueID()));
                                 }
                             });
                         });
                     } else {
-                        context.getThreadCache().addEventThread(bpThread);
+                        context.getThreadCache().addEventThread(bpThread, breakpointName);
                         context.getProtocolServer().sendEvent(new Events.StoppedEvent(
                                 breakpointName, bpThread.uniqueID()));
                     }

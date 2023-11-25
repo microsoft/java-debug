@@ -34,6 +34,7 @@ import com.microsoft.java.debug.core.adapter.handler.InitializeRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.InlineValuesRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.LaunchRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ProcessIdHandler;
+import com.microsoft.java.debug.core.adapter.handler.RefreshFramesHandler;
 import com.microsoft.java.debug.core.adapter.handler.RefreshVariablesHandler;
 import com.microsoft.java.debug.core.adapter.handler.RestartFrameHandler;
 import com.microsoft.java.debug.core.adapter.handler.ScopesRequestHandler;
@@ -101,7 +102,7 @@ public class DebugAdapter implements IDebugAdapter {
         }
     }
 
-    private void initialize() {
+    protected void initialize() {
         // Register request handlers.
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
@@ -133,21 +134,22 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForDebug(new SetFunctionBreakpointsRequestHandler());
         registerHandlerForDebug(new BreakpointLocationsRequestHander());
         registerHandlerForDebug(new StepInTargetsRequestHandler());
+        registerHandlerForDebug(new RefreshFramesHandler());
 
         // NO_DEBUG mode only
         registerHandlerForNoDebug(new DisconnectRequestWithoutDebuggingHandler());
         registerHandlerForNoDebug(new ProcessIdHandler());
     }
 
-    private void registerHandlerForDebug(IDebugRequestHandler handler) {
+    protected void registerHandlerForDebug(IDebugRequestHandler handler) {
         registerHandler(requestHandlersForDebug, handler);
     }
 
-    private void registerHandlerForNoDebug(IDebugRequestHandler handler) {
+    protected void registerHandlerForNoDebug(IDebugRequestHandler handler) {
         registerHandler(requestHandlersForNoDebug, handler);
     }
 
-    private void registerHandler(IDebugRequestHandler handler) {
+    protected void registerHandler(IDebugRequestHandler handler) {
         registerHandler(requestHandlersForDebug, handler);
         registerHandler(requestHandlersForNoDebug, handler);
     }
@@ -163,4 +165,5 @@ public class DebugAdapter implements IDebugAdapter {
             handlerList.add(handler);
         }
     }
+
 }

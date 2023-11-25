@@ -38,6 +38,11 @@ public class Events {
         public String description;
         public String text;
         public boolean allThreadsStopped;
+        /**
+         * A value of true hints to the client that this event should not change the
+         * focus.
+         */
+        public Boolean preserveFocusHint;
 
         /**
          * Constructor.

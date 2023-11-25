@@ -122,6 +122,7 @@ public class RestartFrameHandler implements IDebugRequestHandler {
             // Have to send two events to keep the UI sync with the step in operations:
             context.getProtocolServer().sendEvent(new Events.ContinuedEvent(thread.uniqueID()));
             context.getProtocolServer().sendEvent(new Events.StoppedEvent("restartframe", thread.uniqueID()));
+            context.getThreadCache().setThreadStoppedReason(thread.uniqueID(), "restartframe");
         });
         request.enable();
         thread.resume();

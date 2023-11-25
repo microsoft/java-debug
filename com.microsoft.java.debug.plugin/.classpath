@@ -11,6 +11,6 @@
 	<classpathentry kind="src" path="src/main/java"/>
 	<classpathentry exported="true" kind="lib" path="lib/rxjava-2.2.21.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/reactive-streams-1.0.4.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/com.microsoft.java.debug.core-0.47.0.jar" sourcepath="/com.microsoft.java.debug.core"/>
+	<classpathentry exported="true" kind="lib" path="lib/com.microsoft.java.debug.core-0.50.0.jar" sourcepath="/com.microsoft.java.debug.core"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
