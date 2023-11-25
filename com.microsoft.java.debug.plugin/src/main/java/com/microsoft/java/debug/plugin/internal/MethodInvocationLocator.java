@@ -71,7 +71,11 @@ public class MethodInvocationLocator extends ASTVisitor {
 
     @Override
     public boolean visit(TypeDeclaration node) {
-        return shouldVisitNode(node);
+        // when root type declaration doesn't ends with a empty line, the end position
+        // for the root type returned from getLineNumber becomes -1. Therefore the
+        // shouldVisitNode fails, so the extra check unit.getRoot() == node.getRoot() is
+        // added.
+        return unit.getRoot() == node.getRoot() || shouldVisitNode(node);
     }
 
     @Override
