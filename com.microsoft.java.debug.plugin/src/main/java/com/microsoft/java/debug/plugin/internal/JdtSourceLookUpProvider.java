@@ -248,7 +248,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             public boolean visit(LambdaExpression node) {
                 int lambdaStart = node.getStartPosition();
                 int startLine = astUnit.getLineNumber(lambdaStart);
-                if (startLine == sourceLine) {
+                if (findNearestRelatedLineToLambda(node) == sourceLine) {
                     int startColumn = astUnit.getColumnNumber(lambdaStart);
                     int lambdaEnd = lambdaStart + node.getLength();
                     int endLine = astUnit.getLineNumber(lambdaEnd);
@@ -257,6 +257,21 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     locations.add(location);
                 }
                 return super.visit(node);
+            }
+
+            private int findNearestRelatedLineToLambda(LambdaExpression lambda) {
+                ASTNode node = lambda;
+                while (node != null) {
+                    int line = astUnit.getLineNumber(node.getStartPosition());
+                    if(line == sourceLine) {
+                        return line;
+                    } else if (line < sourceLine) {
+                        // the lambda doesn't belong to current line at all
+                        break;
+                    }
+                    node = node.getParent();
+                }
+                return -1;
             }
         });
 
