@@ -100,7 +100,7 @@ public class DebugAdapter implements IDebugAdapter {
         }
     }
 
-    private void initialize() {
+    protected void initialize() {
         // Register request handlers.
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
@@ -139,15 +139,15 @@ public class DebugAdapter implements IDebugAdapter {
         registerHandlerForNoDebug(new ProcessIdHandler());
     }
 
-    private void registerHandlerForDebug(IDebugRequestHandler handler) {
+    protected void registerHandlerForDebug(IDebugRequestHandler handler) {
         registerHandler(requestHandlersForDebug, handler);
     }
 
-    private void registerHandlerForNoDebug(IDebugRequestHandler handler) {
+    protected void registerHandlerForNoDebug(IDebugRequestHandler handler) {
         registerHandler(requestHandlersForNoDebug, handler);
     }
 
-    private void registerHandler(IDebugRequestHandler handler) {
+    protected void registerHandler(IDebugRequestHandler handler) {
         registerHandler(requestHandlersForDebug, handler);
         registerHandler(requestHandlersForNoDebug, handler);
     }
@@ -163,4 +163,5 @@ public class DebugAdapter implements IDebugAdapter {
             handlerList.add(handler);
         }
     }
+
 }
