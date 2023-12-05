@@ -338,7 +338,9 @@ public class Breakpoint implements IBreakpoint {
     private String toNoneGeneric(String genericSig) {
         StringBuilder builder = new StringBuilder();
         boolean skip = false;
-        for (char c : genericSig.toCharArray()) {
+        char[] chars = genericSig.toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            char c = chars[i];
             if (c == '<') {
                 skip = true;
             }
@@ -346,7 +348,11 @@ public class Breakpoint implements IBreakpoint {
                 builder.append(c);
             }
             if (skip && c == '>') {
-                skip = false;
+                if (i + 2 < chars.length) {
+                    skip = chars[i + 2] == '>';
+                } else {
+                    skip = false;
+                }
             }
         }
         return builder.toString();
