@@ -335,24 +335,23 @@ public class Breakpoint implements IBreakpoint {
         return location;
     }
 
-    private String toNoneGeneric(String genericSig) {
+    static String toNoneGeneric(String genericSig) {
         StringBuilder builder = new StringBuilder();
-        boolean skip = false;
+        boolean append = true;
+        int depth = 0;
         char[] chars = genericSig.toCharArray();
         for (int i = 0; i < chars.length; i++) {
             char c = chars[i];
             if (c == '<') {
-                skip = true;
+                depth ++;
+                append = (depth == 0);
             }
-            if (!skip) {
+            if (append) {
                 builder.append(c);
             }
-            if (skip && c == '>') {
-                if (i + 2 < chars.length) {
-                    skip = chars[i + 2] == '>';
-                } else {
-                    skip = false;
-                }
+            if (c == '>') {
+                depth --;
+                append = (depth == 0);
             }
         }
         return builder.toString();
