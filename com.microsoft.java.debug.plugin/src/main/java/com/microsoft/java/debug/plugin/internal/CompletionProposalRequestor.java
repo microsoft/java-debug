@@ -160,9 +160,16 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
         data.put(CompletionResolveHandler.DATA_FIELD_REQUEST_ID, String.valueOf(response.getId()));
         data.put(CompletionResolveHandler.DATA_FIELD_PROPOSAL_ID, String.valueOf(index));
         $.setData(data);
+
         this.descriptionProvider.updateDescription(proposal, $);
         // Use fully qualified name as needed.
-        $.setInsertText(String.valueOf(proposal.getCompletion()));
+        String insertText = String.valueOf(proposal.getCompletion());
+        int prefix = proposal.getReplaceEnd() - proposal.getReplaceStart();
+        if (prefix > 0) {
+          $.setInsertText(insertText.substring(prefix));
+        } else {
+          $.setInsertText(insertText);
+        }
         adjustCompleteItem($);
         $.setSortText(SortTextHelper.computeSortText(proposal));
         return $;
