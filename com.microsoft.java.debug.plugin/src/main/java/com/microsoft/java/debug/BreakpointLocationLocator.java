@@ -26,6 +26,11 @@ public class BreakpointLocationLocator
         super(compilationUnit, lineNumber, bindingsResolved, bestMatch);
     }
 
+    public BreakpointLocationLocator(CompilationUnit compilationUnit, int lineNumber, boolean bindingsResolved,
+            boolean bestMatch, int offset, int end) {
+        super(compilationUnit, lineNumber, bindingsResolved, bestMatch, offset, end);
+    }
+
     @Override
     public boolean visit(MethodDeclaration node) {
         boolean result = super.visit(node);

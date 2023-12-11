@@ -211,7 +211,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // In future, we could consider supporting to update the breakpoint to a valid
                 // location.
                 BreakpointLocationLocator locator = new BreakpointLocationLocator(astUnit,
-                        sourceLine, true, true);
+                        sourceLine, true, true, astUnit.getPosition(sourceLine, 0), 0);
                 astUnit.accept(locator);
                 // When the final valid line location is same as the original line, that
                 // represents it's a valid breakpoint.
