@@ -343,14 +343,14 @@ public class Breakpoint implements IBreakpoint {
         for (int i = 0; i < chars.length; i++) {
             char c = chars[i];
             if (c == '<') {
-                depth ++;
+                depth++;
                 append = (depth == 0);
             }
             if (append) {
                 builder.append(c);
             }
             if (c == '>') {
-                depth --;
+                depth--;
                 append = (depth == 0);
             }
         }
