@@ -72,8 +72,8 @@ import com.microsoft.java.debug.LambdaExpressionLocator;
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.DebugSettings;
-import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.DebugSettings.Switch;
+import com.microsoft.java.debug.core.JavaBreakpointLocation;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -210,8 +210,11 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // mark it as "unverified".
                 // In future, we could consider supporting to update the breakpoint to a valid
                 // location.
+
+                // passing the offset to the constructor, it can recognize the multiline lambda
+                // expression well
                 BreakpointLocationLocator locator = new BreakpointLocationLocator(astUnit,
-                        sourceLine, true, true);
+                        sourceLine, true, true, astUnit.getPosition(sourceLine, 0), 0);
                 astUnit.accept(locator);
                 // When the final valid line location is same as the original line, that
                 // represents it's a valid breakpoint.
@@ -248,7 +251,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
             public boolean visit(LambdaExpression node) {
                 int lambdaStart = node.getStartPosition();
                 int startLine = astUnit.getLineNumber(lambdaStart);
-                if (findNearestRelatedLineToLambda(node) == sourceLine) {
+                if (startLine == sourceLine) {
                     int startColumn = astUnit.getColumnNumber(lambdaStart);
                     int lambdaEnd = lambdaStart + node.getLength();
                     int endLine = astUnit.getLineNumber(lambdaEnd);
@@ -257,21 +260,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                     locations.add(location);
                 }
                 return super.visit(node);
-            }
-
-            private int findNearestRelatedLineToLambda(LambdaExpression lambda) {
-                ASTNode node = lambda;
-                while (node != null) {
-                    int line = astUnit.getLineNumber(node.getStartPosition());
-                    if(line == sourceLine) {
-                        return line;
-                    } else if (line < sourceLine) {
-                        // the lambda doesn't belong to current line at all
-                        break;
-                    }
-                    node = node.getParent();
-                }
-                return -1;
             }
         });
 
