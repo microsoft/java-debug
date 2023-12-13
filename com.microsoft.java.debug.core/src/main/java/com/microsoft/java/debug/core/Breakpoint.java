@@ -325,13 +325,36 @@ public class Breakpoint implements IBreakpoint {
         for (Method method : methods) {
             if (!method.isAbstract() && !method.isNative()
                     && methodName.equals(method.name())
-                    && (methodSiguature.equals(method.genericSignature()) || methodSiguature.equals(method.signature()))) {
+                    && (methodSiguature.equals(method.genericSignature()) || methodSiguature.equals(method.signature())
+                            || toNoneGeneric(methodSiguature).equals(method.signature()))) {
                 location = method.location();
                 break;
             }
         }
 
         return location;
+    }
+
+    static String toNoneGeneric(String genericSig) {
+        StringBuilder builder = new StringBuilder();
+        boolean append = true;
+        int depth = 0;
+        char[] chars = genericSig.toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            char c = chars[i];
+            if (c == '<') {
+                depth++;
+                append = (depth == 0);
+            }
+            if (append) {
+                builder.append(c);
+            }
+            if (c == '>') {
+                depth--;
+                append = (depth == 0);
+            }
+        }
+        return builder.toString();
     }
 
     private List<Location> findLocaitonsOfLine(Method method, int lineNumber) {
