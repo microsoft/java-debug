@@ -22,8 +22,8 @@ public class BreakpointLocationLocator
 
     public BreakpointLocationLocator(CompilationUnit compilationUnit, int lineNumber,
             boolean bindingsResolved,
-            boolean bestMatch) {
-        super(compilationUnit, lineNumber, bindingsResolved, bestMatch);
+            boolean bestMatch, int offset, int end) {
+        super(compilationUnit, lineNumber, bindingsResolved, bestMatch, offset, end);
     }
 
     @Override
