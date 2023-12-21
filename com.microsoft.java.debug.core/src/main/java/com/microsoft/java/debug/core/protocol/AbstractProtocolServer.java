@@ -77,7 +77,7 @@ public abstract class AbstractProtocolServer implements IProtocolServer {
         requestSubject.observeOn(Schedulers.newThread()).subscribe(request -> {
             try {
                 this.dispatchRequest(request);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 logger.log(Level.SEVERE, String.format("Dispatch debug protocol error: %s", e.toString()), e);
             }
         });
