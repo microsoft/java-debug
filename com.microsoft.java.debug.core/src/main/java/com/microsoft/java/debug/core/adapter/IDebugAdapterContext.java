@@ -85,7 +85,7 @@ public interface IDebugAdapterContext {
 
     void setVariableFormatter(IVariableFormatter variableFormatter);
 
-    Map<String, String> getSourceLookupCache();
+    Map<String, Source> getSourceLookupCache();
 
     void setDebuggeeEncoding(Charset encoding);
 

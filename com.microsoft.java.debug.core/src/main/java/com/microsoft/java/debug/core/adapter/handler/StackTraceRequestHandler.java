@@ -36,6 +36,8 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.Source;
+import com.microsoft.java.debug.core.adapter.SourceType;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
@@ -141,7 +143,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
     }
 
     private static List<StackFrameInfo> resolveStackFrameInfos(StackFrame[] frames, boolean async)
-        throws AbsentInformationException, IncompatibleThreadStateException {
+            throws AbsentInformationException, IncompatibleThreadStateException {
         List<StackFrameInfo> jdiFrames = new ArrayList<>();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (StackFrame frame : frames) {
@@ -221,7 +223,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 clientSource = null;
             }
         } else if (DebugSettings.getCurrent().debugSupportOnDecompiledSource == Switch.ON
-            && clientSource != null && clientSource.path != null) {
+                && clientSource != null && clientSource.path != null) {
             // Align the original line with the decompiled line.
             int[] lineMappings = context.getProvider(ISourceLookUpProvider.class).getOriginalLineMappings(clientSource.path);
             int[] renderLines = AdapterUtils.binarySearchMappedLines(lineMappings, clientLineNumber);
@@ -244,7 +246,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     });
                     if (match) {
                         clientColumnNumber = AdapterUtils.convertColumnNumber(breakpoint.getColumnNumber(),
-                            context.isDebuggerColumnsStartAt1(), context.isClientColumnsStartAt1());
+                                context.isDebuggerColumnsStartAt1(), context.isClientColumnsStartAt1());
                     }
                 }
             }
@@ -256,33 +258,44 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
     /**
      * Find the source mapping for the specified source file name.
      */
-    public static Types.Source convertDebuggerSourceToClient(String fullyQualifiedName, String sourceName, String relativeSourcePath,
+    public static Types.Source convertDebuggerSourceToClient(String fullyQualifiedName, String sourceName,
+            String relativeSourcePath,
             IDebugAdapterContext context) throws URISyntaxException {
+
         // use a lru cache for better performance
-        String uri = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key -> {
-            String fromProvider = context.getProvider(ISourceLookUpProvider.class).getSourceFileURI(key, relativeSourcePath);
-            // avoid return null which will cause the compute function executed again
-            return StringUtils.isBlank(fromProvider) ? "" : fromProvider;
+        Source source = context.getSourceLookupCache().computeIfAbsent(fullyQualifiedName, key -> {
+            Source result = context.getProvider(ISourceLookUpProvider.class).getSource(key, relativeSourcePath);
+            if (result == null) {
+                return new Source("", SourceType.LOCAL);
+            }
+            return result;
         });
+
+        Integer sourceReference = 0;
+        String uri = source.getUri();
+
+        if (source.getType().equals(SourceType.REMOTE)) {
+            sourceReference = context.createSourceReference(source.getUri());
+        }
 
         if (!StringUtils.isBlank(uri)) {
             // The Source.path could be a file system path or uri string.
             if (uri.startsWith("file:")) {
                 String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
-                return new Types.Source(sourceName, clientPath, 0);
+                return new Types.Source(sourceName, clientPath, sourceReference);
             } else {
                 // If the debugger returns uri in the Source.path for the StackTrace response, VSCode client will try to find a TextDocumentContentProvider
                 // to render the contents.
                 // Language Support for Java by Red Hat extension has already registered a jdt TextDocumentContentProvider to parse the jdt-based uri.
                 // The jdt uri looks like 'jdt://contents/rt.jar/java.io/PrintStream.class?=1.helloworld/%5C/usr%5C/lib%5C/jvm%5C/java-8-oracle%5C/jre%5C/
                 // lib%5C/rt.jar%3Cjava.io(PrintStream.class'.
-                return new Types.Source(sourceName, uri, 0);
+                return new Types.Source(sourceName, uri, sourceReference);
             }
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
             String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), relativeSourcePath);
             if (absoluteSourcepath != null) {
-                return new Types.Source(sourceName, absoluteSourcepath, 0);
+                return new Types.Source(sourceName, absoluteSourcepath, sourceReference);
             } else {
                 return null;
             }

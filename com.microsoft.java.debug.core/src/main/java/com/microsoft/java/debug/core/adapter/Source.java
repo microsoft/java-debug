@@ -1,0 +1,30 @@
+/*******************************************************************************
+ * Copyright (c) 2017 Microsoft Corporation and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Microsoft Corporation - initial API and implementation
+ *******************************************************************************/
+
+package com.microsoft.java.debug.core.adapter;
+
+public class Source {
+    public final String uri;
+    public final SourceType type;
+
+    public Source(String uri, SourceType type) {
+        this.uri = uri;
+        this.type = type;
+    }
+
+    public String getUri() {
+        return this.uri;
+    }
+
+    public SourceType getType() {
+        return this.type;
+    }
+}
