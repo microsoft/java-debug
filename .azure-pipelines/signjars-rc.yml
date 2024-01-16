@@ -1,0 +1,236 @@
+name: $(Date:yyyyMMdd).$(Rev:r)
+variables:
+  - name: Codeql.Enabled
+    value: true
+resources:
+  repositories:
+    - repository: self
+      type: git
+      ref: refs/heads/main
+    - repository: 1esPipelines
+      type: git
+      name: 1ESPipelineTemplates/1ESPipelineTemplates
+      ref: refs/tags/release
+trigger: none
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      os: linux
+      name: 1ES_JavaTooling_Pool
+      image: 1ES_JavaTooling_Ubuntu-2004
+    sdl:
+      sourceAnalysisPool:
+        name: 1ES_JavaTooling_Pool
+        image: 1ES_JavaTooling_Windows_2022
+        os: windows
+    customBuildTags:
+      - MigrationTooling-mseng-VSJava-9151-Tool
+    stages:
+      - stage: Build
+        jobs:
+          - job: Job_1
+            displayName: Sign-Jars-RC
+            templateContext:
+              outputs:
+                - output: pipelineArtifact
+                  artifactName: m2
+                  targetPath: $(Build.ArtifactStagingDirectory)/m2
+                  displayName: "Publish Artifact: m2"
+                - output: pipelineArtifact
+                  artifactName: p2
+                  targetPath: $(Build.ArtifactStagingDirectory)/p2
+                  displayName: "Publish Artifact: p2"
+            steps:
+              - checkout: self
+                fetchTags: true
+              - task: JavaToolInstaller@0
+                displayName: Use Java 17
+                inputs:
+                  versionSpec: "17"
+                  jdkArchitectureOption: x64
+                  jdkSourceOption: PreInstalled
+              - task: CmdLine@2
+                displayName: Parse the release version from pom.xml
+                inputs:
+                  script: |-
+                    #!/bin/bash
+
+                    sudo apt-get install xmlstarlet
+                    xmlstarlet --version
+                    RELEASE_VERSION=$(xmlstarlet sel -t -v "/_:project/_:version" pom.xml)
+                    echo $RELEASE_VERSION
+                    echo "##vso[task.setvariable variable=RELEASE_VERSION]$RELEASE_VERSION"
+              - task: CmdLine@2
+                displayName: Build core.jar
+                inputs:
+                  script: |
+                    ./mvnw -N clean install -Dmaven.repo.local=./.repository
+
+                    ./mvnw clean install -f com.microsoft.java.debug.core/pom.xml -Dmaven.repo.local=./.repository
+
+                    mkdir -p jars
+                    mv .repository/com/microsoft/java/com.microsoft.java.debug.core/$RELEASE_VERSION/com.microsoft.java.debug.core*.jar jars/
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+                displayName: Sign core.jar
+                inputs:
+                  ConnectedServiceName: vscjavaci_codesign
+                  FolderPath: jars
+                  Pattern: com.microsoft.java.debug.core*.jar
+                  signConfigType: inlineSignParams
+                  inlineOperation: |-
+                    [
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaSign",
+                        "Parameters" : {
+                            "SigAlg" : "SHA256withRSA",
+                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
+                        },
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      },
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaVerify",
+                        "Parameters" : {},
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      }
+                    ]
+              - task: CmdLine@2
+                displayName: install signed core.jar
+                inputs:
+                  script: cp jars/com.microsoft.java.debug.core*.jar .repository/com/microsoft/java/com.microsoft.java.debug.core/$RELEASE_VERSION/
+              - task: CmdLine@2
+                displayName: Build plugin.jar
+                inputs:
+                  script: |-
+                    ./mvnw clean install -f com.microsoft.java.debug.target/pom.xml -Dmaven.repo.local=./.repository
+                    ./mvnw clean install -f com.microsoft.java.debug.plugin/pom.xml -Dmaven.repo.local=./.repository
+
+                    mkdir -p jars
+                    mv .repository/com/microsoft/java/com.microsoft.java.debug.plugin/$RELEASE_VERSION/com.microsoft.java.debug.plugin*.jar jars/
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+                displayName: Sign plugin.jar
+                inputs:
+                  ConnectedServiceName: vscjavaci_codesign
+                  FolderPath: jars
+                  Pattern: com.microsoft.java.debug.plugin*.jar
+                  signConfigType: inlineSignParams
+                  inlineOperation: |-
+                    [
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaSign",
+                        "Parameters" : {
+                            "SigAlg" : "SHA256withRSA",
+                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
+                        },
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      },
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaVerify",
+                        "Parameters" : {},
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      }
+                    ]
+              - task: CmdLine@2
+                displayName: install signed plugin.jar
+                inputs:
+                  script: cp jars/com.microsoft.java.debug.plugin*.jar .repository/com/microsoft/java/com.microsoft.java.debug.plugin/$RELEASE_VERSION/
+              - task: CmdLine@2
+                displayName: Build p2 artifacts
+                inputs:
+                  script: |-
+                    # 3. Build the p2 artifacts.
+                    ./mvnw clean package -f com.microsoft.java.debug.repository/pom.xml -Dmaven.repo.local=./.repository
+
+                    mkdir -p p2/target
+                    cp -r  com.microsoft.java.debug.repository/target/repository p2/target/
+                    cp com.microsoft.java.debug.repository/pushToBintray.sh p2/
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+                displayName: Sign p2
+                inputs:
+                  ConnectedServiceName: vscjavaci_codesign
+                  FolderPath: p2
+                  Pattern: "*.jar"
+                  signConfigType: inlineSignParams
+                  inlineOperation: |-
+                    [
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaSign",
+                        "Parameters" : {
+                            "SigAlg" : "SHA256withRSA",
+                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
+                        },
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      },
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaVerify",
+                        "Parameters" : {},
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      }
+                    ]
+              - task: CmdLine@2
+                displayName: build m2 artifacts
+                inputs:
+                  script: |
+                    ./mvnw source:jar -f com.microsoft.java.debug.core/pom.xml -Dmaven.repo.local=./.repository
+                    ./mvnw javadoc:jar -f com.microsoft.java.debug.core/pom.xml -Ddoclint=none -Dmaven.repo.local=./.repository
+
+                    ./mvnw source:jar -f com.microsoft.java.debug.plugin/pom.xml -Dmaven.repo.local=./.repository
+                    ./mvnw javadoc:jar -f com.microsoft.java.debug.plugin/pom.xml -Ddoclint=none -Dmaven.repo.local=./.repository
+
+                    mkdir -p m2/java-debug-parent
+                    cp pom.xml m2/java-debug-parent/java-debug-parent-$RELEASE_VERSION.pom
+
+                    mkdir -p m2/com.microsoft.java.debug.core
+                    cp com.microsoft.java.debug.core/target/com.microsoft.java.debug.core*.jar m2/com.microsoft.java.debug.core
+                    cp com.microsoft.java.debug.core/pom.xml m2/com.microsoft.java.debug.core/com.microsoft.java.debug.core-$RELEASE_VERSION.pom
+
+                    mkdir -p m2/com.microsoft.java.debug.plugin
+                    cp com.microsoft.java.debug.plugin/target/com.microsoft.java.debug.plugin*.jar m2/com.microsoft.java.debug.plugin
+                    cp com.microsoft.java.debug.plugin/pom.xml m2/com.microsoft.java.debug.plugin/com.microsoft.java.debug.plugin-$RELEASE_VERSION.pom
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+                displayName: Sign m2
+                inputs:
+                  ConnectedServiceName: vscjavaci_codesign
+                  FolderPath: m2
+                  Pattern: "*.jar"
+                  signConfigType: inlineSignParams
+                  inlineOperation: |-
+                    [
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaSign",
+                        "Parameters" : {
+                            "SigAlg" : "SHA256withRSA",
+                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
+                        },
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      },
+                      {
+                        "KeyCode" : "CP-447347-Java",
+                        "OperationCode" : "JavaVerify",
+                        "Parameters" : {},
+                        "ToolName" : "sign",
+                        "ToolVersion" : "1.0"
+                      }
+                    ]
+              - task: CopyFiles@2
+                displayName: "Copy p2/m2 to: $(Build.ArtifactStagingDirectory)"
+                inputs:
+                  Contents: |+
+                    p2/**
+                    m2/**
+
+                  TargetFolder: $(Build.ArtifactStagingDirectory)
