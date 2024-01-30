@@ -451,7 +451,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         // expression which is wrapped.
         return originalMethod.equals(currentMethod)
                 && (original.lineNumber() == current.lineNumber()
-                        || (targetStepIn != null && targetStepIn.lineStart >= current.lineNumber()));
+                        || (targetStepIn != null && targetStepIn.lineEnd >= current.lineNumber()));
     }
 
     /**
