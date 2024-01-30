@@ -268,7 +268,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
                                 } else if (currentStackDepth == threadState.stackDepth) {
                                     // If the ending step location is same as the original location where the step into operation is originated,
                                     // do another step of the same kind.
-                                    if (isSameLocation(currentStepLocation, threadState.stepLocation)) {
+                                    if (isSameLocation(currentStepLocation, threadState.stepLocation,
+                                            threadState.targetStepIn)) {
                                         context.getStepResultManager().removeMethodResult(threadId);
                                         threadState.pendingStepRequest = DebugUtility.createStepIntoRequest(thread,
                                             context.getStepFilters().allowClasses,
@@ -438,15 +439,19 @@ public class StepRequestHandler implements IDebugRequestHandler {
         return true;
     }
 
-    private boolean isSameLocation(Location original, Location current) {
+    private boolean isSameLocation(Location current, Location original, MethodInvocation targetStepIn) {
         if (original == null || current == null) {
             return false;
         }
 
         Method originalMethod = original.method();
         Method currentMethod = current.method();
+        // if the lines doesn't match, check if the current line is still behind the
+        // target if a target exist. This handles where the target is part of a
+        // expression which is wrapped.
         return originalMethod.equals(currentMethod)
-            && original.lineNumber() == current.lineNumber();
+                && (original.lineNumber() == current.lineNumber()
+                        || (targetStepIn != null && targetStepIn.lineEnd >= current.lineNumber()));
     }
 
     /**

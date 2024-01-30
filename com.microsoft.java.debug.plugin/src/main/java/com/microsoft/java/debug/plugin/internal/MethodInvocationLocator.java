@@ -217,7 +217,7 @@ public class MethodInvocationLocator extends ASTVisitor {
 
     private boolean shouldVisitNode(ASTNode node) {
         int start = unit.getLineNumber(node.getStartPosition());
-        int end = unit.getLineNumber(node.getStartPosition() + node.getLength());
+        int end = unit.getLineNumber(node.getStartPosition() + node.getLength() - 1);
 
         if (line >= start && line <= end) {
             return true;
