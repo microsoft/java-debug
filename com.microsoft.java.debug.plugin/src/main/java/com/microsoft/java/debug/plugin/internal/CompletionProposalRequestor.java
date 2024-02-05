@@ -321,7 +321,7 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
                 case CompletionProposal.JAVADOC_TYPE_REF:
                 case CompletionProposal.TYPE_REF: {
                     char[] declaringType = getDeclaringType(proposal);
-                    return declaringType != null && org.eclipse.jdt.ls.core.internal.contentassist.TypeFilter.isFiltered(declaringType);
+                    return declaringType != null && isFiltered(declaringType);
                 }
                 default: // do nothing
             }
@@ -330,6 +330,10 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
         }
 
         return false;
+    }
+
+    private static boolean isFiltered(char[] fullTypeName) {
+        return JavaLanguageServerPlugin.getInstance().getTypeFilter().filter(new String(fullTypeName));
     }
 
     /**
