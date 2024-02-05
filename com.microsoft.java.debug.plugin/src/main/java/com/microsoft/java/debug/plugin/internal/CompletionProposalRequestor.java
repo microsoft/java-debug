@@ -332,8 +332,21 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
         return false;
     }
 
+    // Temp workaround for the completion error https://github.com/microsoft/java-debug/issues/534
+    private static boolean isFilterFailed = false;
     private static boolean isFiltered(char[] fullTypeName) {
-        return JavaLanguageServerPlugin.getInstance().getTypeFilter().filter(new String(fullTypeName));
+        if (isFilterFailed) {
+            return false;
+        }
+
+        try {
+            return JavaLanguageServerPlugin.getInstance().getTypeFilter().filter(new String(fullTypeName));
+        } catch (NoSuchMethodError ex) {
+            isFilterFailed = true;
+            JavaLanguageServerPlugin.logException("isFiltered for the completion failed.", ex);
+        }
+
+        return false;
     }
 
     /**
