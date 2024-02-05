@@ -72,6 +72,8 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
             CompletionItemKind.Text);
     // @formatter:on
 
+    private static boolean isFilterFailed = false;
+
     /**
      * Constructor.
      * @param typeRoot ITypeRoot
@@ -333,7 +335,6 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
     }
 
     // Temp workaround for the completion error https://github.com/microsoft/java-debug/issues/534
-    private static boolean isFilterFailed = false;
     private static boolean isFiltered(char[] fullTypeName) {
         if (isFilterFailed) {
             return false;
