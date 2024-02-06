@@ -72,6 +72,8 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
             CompletionItemKind.Text);
     // @formatter:on
 
+    private static boolean isFilterFailed = false;
+
     /**
      * Constructor.
      * @param typeRoot ITypeRoot
@@ -321,12 +323,28 @@ public final class CompletionProposalRequestor extends CompletionRequestor {
                 case CompletionProposal.JAVADOC_TYPE_REF:
                 case CompletionProposal.TYPE_REF: {
                     char[] declaringType = getDeclaringType(proposal);
-                    return declaringType != null && org.eclipse.jdt.ls.core.internal.contentassist.TypeFilter.isFiltered(declaringType);
+                    return declaringType != null && isFiltered(declaringType);
                 }
                 default: // do nothing
             }
         } catch (Exception e) {
             // do nothing
+        }
+
+        return false;
+    }
+
+    // Temp workaround for the completion error https://github.com/microsoft/java-debug/issues/534
+    private static boolean isFiltered(char[] fullTypeName) {
+        if (isFilterFailed) {
+            return false;
+        }
+
+        try {
+            return JavaLanguageServerPlugin.getInstance().getTypeFilter().filter(new String(fullTypeName));
+        } catch (NoSuchMethodError ex) {
+            isFilterFailed = true;
+            JavaLanguageServerPlugin.logException("isFiltered for the completion failed.", ex);
         }
 
         return false;
