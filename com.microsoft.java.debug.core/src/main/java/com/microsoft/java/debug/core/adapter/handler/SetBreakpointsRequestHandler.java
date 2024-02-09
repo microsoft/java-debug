@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import com.sun.jdi.request.EventRequestManager;
 import org.apache.commons.io.FilenameUtils;
@@ -130,31 +131,10 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
             IBreakpoint[] toAdds = this.convertClientBreakpointsToDebugger(sourcePath, bpArguments.breakpoints, context);
             // See the VSCode bug https://github.com/Microsoft/vscode/issues/36471.
             // The source uri sometimes is encoded by VSCode, the debugger will decode it to keep the uri consistent.
-            IBreakpoint[] added = context.getBreakpointManager()
-                                         .setBreakpoints(AdapterUtils.decodeURIComponent(sourcePath), toAdds, bpArguments.sourceModified);
-            for (int i = 0; i < bpArguments.breakpoints.length; i++) {
-                // For newly added breakpoint, should install it to debuggee first.
-                if (toAdds[i] == added[i] && added[i].className() != null) {
-                    added[i].install().thenAccept(bp -> {
-                        Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
-                        context.getProtocolServer().sendEvent(bpEvent);
-                    });
-                } else if (added[i].className() != null) {
-                    if (toAdds[i].getHitCount() != added[i].getHitCount()) {
-                        // Update hitCount condition.
-                        added[i].setHitCount(toAdds[i].getHitCount());
-                    }
-
-                    if (!StringUtils.equals(toAdds[i].getLogMessage(), added[i].getLogMessage())) {
-                        added[i].setLogMessage(toAdds[i].getLogMessage());
-                    }
-
-                    if (!StringUtils.equals(toAdds[i].getCondition(), added[i].getCondition())) {
-                        added[i].setCondition(toAdds[i].getCondition());
-                    }
-
-                }
-                res.add(this.convertDebuggerBreakpointToClient(added[i], context));
+            String decodedSourcePath = AdapterUtils.decodeURIComponent(sourcePath);
+            IBreakpoint[] added = installBreakpoints(decodedSourcePath, toAdds, "new", bpArguments.sourceModified, context);
+            for (IBreakpoint addedBreakpoint : added) {
+                res.add(this.convertDebuggerBreakpointToClient(addedBreakpoint, context));
             }
             response.body = new Responses.SetBreakpointsResponseBody(res);
             return CompletableFuture.completedFuture(response);
@@ -163,6 +143,34 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 String.format("Failed to setBreakpoint. Reason: '%s'", e.toString()),
                 ErrorCode.SET_BREAKPOINT_FAILURE);
         }
+    }
+
+    private IBreakpoint[] installBreakpoints(String sourcePath, IBreakpoint[] toAdds, String reason, boolean sourceModified, IDebugAdapterContext context) {
+        IBreakpoint[] added = context.getBreakpointManager().setBreakpoints(sourcePath, toAdds, sourceModified);
+        for (int i = 0; i < toAdds.length; i++) {
+            // For newly added breakpoint, should install it to debuggee first.
+            if (toAdds[i] == added[i] && added[i].className() != null) {
+                added[i].install().thenAccept(bp -> {
+                    Events.BreakpointEvent bpEvent = new Events.BreakpointEvent(reason, this.convertDebuggerBreakpointToClient(bp, context));
+                    context.getProtocolServer().sendEvent(bpEvent);
+                });
+            } else if (added[i].className() != null) {
+                if (toAdds[i].getHitCount() != added[i].getHitCount()) {
+                    // Update hitCount condition.
+                    added[i].setHitCount(toAdds[i].getHitCount());
+                }
+
+                if (!StringUtils.equals(toAdds[i].getLogMessage(), added[i].getLogMessage())) {
+                    added[i].setLogMessage(toAdds[i].getLogMessage());
+                }
+
+                if (!StringUtils.equals(toAdds[i].getCondition(), added[i].getCondition())) {
+                    added[i].setCondition(toAdds[i].getCondition());
+                }
+
+            }
+        }
+        return added;
     }
 
     private IBreakpoint getAssociatedEvaluatableBreakpoint(IDebugAdapterContext context, BreakpointEvent event) {
@@ -310,24 +318,38 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         return breakpoints;
     }
 
-    private void reinstallBreakpoints(IDebugAdapterContext context, List<String> typenames) {
-        if (typenames == null || typenames.isEmpty()) {
-            return;
-        }
-        IBreakpoint[] breakpoints = context.getBreakpointManager().getBreakpoints();
-
-        for (IBreakpoint breakpoint : breakpoints) {
-            if (typenames.contains(breakpoint.className())) {
-                try {
-                    breakpoint.close();
-                    breakpoint.install().thenAccept(bp -> {
-                        Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("new", this.convertDebuggerBreakpointToClient(bp, context));
-                        context.getProtocolServer().sendEvent(bpEvent);
-                    });
-                } catch (Exception e) {
-                    logger.log(Level.SEVERE, String.format("Remove breakpoint exception: %s", e.toString()), e);
-                }
+    private IBreakpoint[] createFreshBreakpoints(String sourceFile, IBreakpoint[] oldBreakpoints, IDebugAdapterContext context)
+            throws DebugException {
+        int[] lines = Arrays.asList(oldBreakpoints).stream().mapToInt(b -> b.getLineNumber()).toArray();
+        ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+        String[] fqns = sourceProvider.getFullyQualifiedName(sourceFile, lines, null);
+        IBreakpoint[] breakpoints = new IBreakpoint[lines.length];
+        for (int i = 0; i < lines.length; i++) {
+            IBreakpoint oldBreakpoint = oldBreakpoints[i];
+            breakpoints[i] = context.getDebugSession().createBreakpoint(fqns[i], lines[i], oldBreakpoint.getHitCount(),
+                oldBreakpoint.getCondition(), oldBreakpoint.getLogMessage());
+            breakpoints[i].putProperty("id", oldBreakpoint.getProperty("id"));
+            if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(fqns[i])) {
+                breakpoints[i].putProperty("verified", true);
             }
+        }
+        return breakpoints;
+    }
+
+    private void reinstallBreakpoints(IDebugAdapterContext context, List<String> fqcns) {
+        try {
+            ISourceLookUpProvider sourceProvider = context.getProvider(ISourceLookUpProvider.class);
+            List<String> sourceFiles = fqcns.stream()
+                .map(fqcn -> sourceProvider.getSourceFileURI(fqcn, ""))
+                .distinct()
+                .collect(Collectors.toList());
+
+            for (String sourceFile : sourceFiles) {
+                IBreakpoint[] breakpoints = createFreshBreakpoints(sourceFile, context.getBreakpointManager().getBreakpoints(sourceFile), context);
+                IBreakpoint[] added = installBreakpoints(sourceFile, breakpoints, "changed", true, context);
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, String.format("Failed to reinstall breakpoints: %s", e.toString()), e);
         }
     }
 }

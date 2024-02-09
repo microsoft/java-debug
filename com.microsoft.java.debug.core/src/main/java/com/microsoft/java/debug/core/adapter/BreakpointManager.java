@@ -108,7 +108,8 @@ public class BreakpointManager implements IBreakpointManager {
 
         if (breakpoints != null && breakpoints.length > 0) {
             for (IBreakpoint breakpoint : breakpoints) {
-                breakpoint.putProperty("id", this.nextBreakpointId.getAndIncrement());
+                if (breakpoint.getProperty("id") == null)
+                    breakpoint.putProperty("id", this.nextBreakpointId.getAndIncrement());
                 this.breakpoints.add(breakpoint);
                 breakpointMap.put(String.valueOf(breakpoint.getLineNumber()), breakpoint);
             }
