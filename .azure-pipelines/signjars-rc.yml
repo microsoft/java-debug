@@ -74,7 +74,7 @@ extends:
               - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
                 displayName: Sign core.jar
                 inputs:
-                  ConnectedServiceName: vscjavaci_codesign_token
+                  ConnectedServiceName: vscjavaci_esrp_codesign
                   FolderPath: jars
                   Pattern: com.microsoft.java.debug.core*.jar
                   signConfigType: inlineSignParams
@@ -114,7 +114,7 @@ extends:
               - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
                 displayName: Sign plugin.jar
                 inputs:
-                  ConnectedServiceName: vscjavaci_codesign_token
+                  ConnectedServiceName: vscjavaci_esrp_codesign
                   FolderPath: jars
                   Pattern: com.microsoft.java.debug.plugin*.jar
                   signConfigType: inlineSignParams
@@ -155,7 +155,7 @@ extends:
               - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
                 displayName: Sign p2
                 inputs:
-                  ConnectedServiceName: vscjavaci_codesign_token
+                  ConnectedServiceName: vscjavaci_esrp_codesign
                   FolderPath: p2
                   Pattern: "*.jar"
                   signConfigType: inlineSignParams
@@ -202,7 +202,7 @@ extends:
               - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
                 displayName: Sign m2
                 inputs:
-                  ConnectedServiceName: vscjavaci_codesign_token
+                  ConnectedServiceName: vscjavaci_esrp_codesign
                   FolderPath: m2
                   Pattern: "*.jar"
                   signConfigType: inlineSignParams
