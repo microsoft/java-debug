@@ -31,4 +31,8 @@ public interface IStackFrameManager {
      * @return all the stackframes in the specified thread
      */
     StackFrame[] reloadStackFrames(ThreadReference thread);
+
+    void setStackFrameOffset(ThreadReference thread, int frame, int offset);
+
+    int getStackFrameOffset(ThreadReference thread, int frame);
 }

@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.StackFrame;
@@ -22,6 +24,8 @@ import com.sun.jdi.ThreadReference;
 
 public class StackFrameManager implements IStackFrameManager {
     private Map<Long, StackFrame[]> threadStackFrameMap = Collections.synchronizedMap(new HashMap<>());
+    private Map<Pair<Long, Integer>, Integer> threadStackFrameOffsetMap =
+        Collections.synchronizedMap(new HashMap<>());
 
     @Override
     public StackFrame getStackFrame(StackFrameReference ref) {
@@ -40,5 +44,20 @@ public class StackFrameManager implements IStackFrameManager {
                 return new StackFrame[0];
             }
         });
+    }
+
+    @Override
+    public void setStackFrameOffset(ThreadReference thread, int frame, int offset) {
+        threadStackFrameOffsetMap.put(Pair.of(thread.uniqueID(), frame), offset);
+        return;
+    }
+
+    @Override
+    public int getStackFrameOffset(ThreadReference thread, int frame) {
+        Pair<Long, Integer> key = Pair.of(thread.uniqueID(), frame);
+        if (threadStackFrameOffsetMap.containsKey(key)) {
+            return threadStackFrameOffsetMap.get(key);
+        }
+        return 0;
     }
 }

@@ -27,6 +27,7 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.IStackFrameManager;
 import com.microsoft.java.debug.core.adapter.IStackTraceProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.stacktrace.DecodedMethod;
@@ -45,7 +46,6 @@ import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
-import java.util.Optional;
 
 public class StackTraceRequestHandler implements IDebugRequestHandler {
 
@@ -63,20 +63,20 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             return CompletableFuture.completedFuture(response);
         }
         ThreadReference thread = DebugUtility.getThread(context.getDebugSession(), stacktraceArgs.threadId);
+        IStackFrameManager stackFrameManager = context.getStackFrameManager();
         int totalFrames = 0;
         if (thread != null) {
             try {
-                
                 totalFrames = thread.frameCount();
                 if (totalFrames <= stacktraceArgs.startFrame) {
                     response.body = new Responses.StackTraceResponseBody(result, totalFrames);
                     return CompletableFuture.completedFuture(response);
                 }
-                StackFrame[] frames = context.getStackFrameManager().reloadStackFrames(thread);
+                StackFrame[] frames = stackFrameManager.reloadStackFrames(thread);
+                int offset = stackFrameManager.getStackFrameOffset(thread, stacktraceArgs.startFrame);
                 
-                int count = stacktraceArgs.levels == 0 ? totalFrames - stacktraceArgs.startFrame
-                        : Math.min(totalFrames - stacktraceArgs.startFrame, stacktraceArgs.levels);
-                for (int i = stacktraceArgs.startFrame; i < frames.length && count-- > 0; i++) {
+                int maxSize = stacktraceArgs.levels == 0 ? frames.length : stacktraceArgs.levels;
+                for (int i = offset; i < frames.length && result.size() < maxSize; i++) {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
                     IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
@@ -84,6 +84,12 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
 
                     if(!decodedMethod.isGenerated()) {
                         result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, decodedMethod));
+                    }
+
+                    stackFrameManager.setStackFrameOffset(thread, stacktraceArgs.startFrame + result.size(), i + 1);
+
+                    if (i == frames.length - 1) {
+                        totalFrames = stacktraceArgs.startFrame + result.size();
                     }
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
