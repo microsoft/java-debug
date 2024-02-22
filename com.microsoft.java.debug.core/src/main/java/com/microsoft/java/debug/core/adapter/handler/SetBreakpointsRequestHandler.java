@@ -200,7 +200,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                         return;
                     }
                     Method method = bpThread.frame(0).location().method();
-                    if (stackTraceProvider.shouldSkipOver(method, context.getStepFilters())) {
+                    if (stackTraceProvider.skipOver(method, context.getStepFilters())) {
                         debugEvent.shouldResume = true;
                         return;
                     }

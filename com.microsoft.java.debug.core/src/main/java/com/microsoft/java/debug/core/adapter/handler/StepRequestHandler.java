@@ -200,8 +200,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
      */
     private boolean shouldSkipOver(IStackTraceProvider stackTrace, Location originalLocation, Location currentLocation, Requests.StepFilters stepFilters)
             throws IncompatibleThreadStateException {
-        return !stackTrace.shouldSkipOver(originalLocation.method(), stepFilters)
-                && stackTrace.shouldSkipOver(currentLocation.method(), stepFilters);
+        return !stackTrace.skipOver(originalLocation.method(), stepFilters)
+                && stackTrace.skipOver(currentLocation.method(), stepFilters);
     }
 
     private boolean shouldSkipOut(IStackTraceProvider stackTrace, int originalStackDepth, int currentStackDepth, Location upperLocation,
@@ -213,7 +213,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
         if (currentStackDepth <= originalStackDepth) {
             return false;
         }
-        return stackTrace.shouldSkipOut(upperLocation, currentLocation.method());
+        return stackTrace.skipOut(upperLocation, currentLocation.method());
     }
 
     /**

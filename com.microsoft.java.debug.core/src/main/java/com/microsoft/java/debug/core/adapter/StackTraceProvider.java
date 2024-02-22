@@ -12,6 +12,8 @@
 package com.microsoft.java.debug.core.adapter;
 
 import com.microsoft.java.debug.core.protocol.Requests;
+import com.microsoft.java.debug.core.adapter.stacktrace.DecodedMethod;
+import com.microsoft.java.debug.core.adapter.stacktrace.JavaMethod;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import org.apache.commons.lang3.ArrayUtils;
@@ -19,7 +21,7 @@ import java.util.Optional;
 
 public class StackTraceProvider implements IStackTraceProvider {
     @Override
-    public boolean shouldSkipOver(Method method, Requests.StepFilters filters) {
+    public boolean skipOver(Method method, Requests.StepFilters filters) {
         if (!isConfigured(filters)) {
             return false;
         }
@@ -29,14 +31,14 @@ public class StackTraceProvider implements IStackTraceProvider {
     }
 
     @Override
-    public boolean shouldSkipOut(Location previousLocation, Method method) {
+    public boolean skipOut(Location previousLocation, Method method) {
         return false;
     }
 
 
     @Override
-    public Optional<String> formatMethod(Method method) {
-        return Optional.of(method.name());
+    public DecodedMethod decode(Method method) {
+        return new JavaMethod(method);
     }
 
     private boolean isConfigured(Requests.StepFilters filters) {

@@ -29,6 +29,7 @@ import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
 import com.microsoft.java.debug.core.adapter.IStackTraceProvider;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
+import com.microsoft.java.debug.core.adapter.stacktrace.DecodedMethod;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -79,10 +80,10 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     StackFrameReference stackframe = new StackFrameReference(thread, i);
                     int frameId = context.getRecyclableIdPool().addObject(thread.uniqueID(), stackframe);
                     IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
-                    Optional<String> formattedMethod = stackTraceProvider.formatMethod(thread.frame(i).location().method());
-            
-                    if(formattedMethod.isPresent()) {
-                        result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, formattedMethod.get()));
+                    DecodedMethod decodedMethod = stackTraceProvider.decode(thread.frame(i).location().method());
+
+                    if(!decodedMethod.isGenerated()) {
+                        result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, decodedMethod));
                     }
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
@@ -99,25 +100,18 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
         return CompletableFuture.completedFuture(response);
     }
 
-    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId, IDebugAdapterContext context,String formattedName)
+    private Types.StackFrame convertDebuggerStackFrameToClient(StackFrame stackFrame, int frameId, IDebugAdapterContext context, DecodedMethod decodedMethod)
             throws URISyntaxException, AbsentInformationException {
         Location location = stackFrame.location();
-        Method method = location.method();
         Types.Source clientSource = this.convertDebuggerSourceToClient(location, context);
-      //String methodName = formatMethodName(method, true, true,formattedName);
+        String formattedName = decodedMethod.format();
         int lineNumber = AdapterUtils.convertLineNumber(location.lineNumber(), context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
         // Line number returns -1 if the information is not available; specifically, always returns -1 for native methods.
-        if (lineNumber < 0) {
-            if (method.isNative()) {
-                // For native method, display a tip text "native method" in the Call Stack View.
-                formattedName += "[native method]";
-            } else {
-                // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
-                // display "Unknown Source" in the Call Stack View.
-                clientSource = null;
-            }
+        if (lineNumber < 0 && !location.method().isNative()) {
+            // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
+            // display "Unknown Source" in the Call Stack View.
+            clientSource = null;
         }
-
         return new Types.StackFrame(frameId, formattedName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0);
     }
 
@@ -174,22 +168,5 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                 return null;
             }
         }
-    }
-
-    private String formatMethodName(Method method, boolean showContextClass, boolean showParameter,String formattedNameString) {
-        StringBuilder formattedName = new StringBuilder();
-      /*   if (showContextClass) {
-           // String fullyQualifiedClassName = method.declaringType().name();
-            formattedName.append(SimpleTypeFormatter.trimTypeName(formattedNameString));
-            formattedName.append(".");
-        }*/
-        formattedName.append(formattedNameString);
-        if (showParameter) {
-            List<String> argumentTypeNames = method.argumentTypeNames().stream().map(SimpleTypeFormatter::trimTypeName).collect(Collectors.toList());
-            formattedName.append("(");
-            formattedName.append(String.join(",", argumentTypeNames));
-            formattedName.append(")");
-        }
-        return formattedName.toString();
     }
 }

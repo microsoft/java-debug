@@ -12,12 +12,13 @@
 package com.microsoft.java.debug.core.adapter;
 
 import com.microsoft.java.debug.core.protocol.Requests;
+import com.microsoft.java.debug.core.adapter.stacktrace.DecodedMethod;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import java.util.Optional;
 
 public interface IStackTraceProvider extends IProvider {
-    boolean shouldSkipOver(Method method, Requests.StepFilters filters);
-    boolean shouldSkipOut(Location upperLocation, Method method);
-    Optional<String> formatMethod(Method method);
+    boolean skipOver(Method method, Requests.StepFilters filters);
+    boolean skipOut(Location upperLocation, Method method);
+    DecodedMethod decode(Method method);
 }
