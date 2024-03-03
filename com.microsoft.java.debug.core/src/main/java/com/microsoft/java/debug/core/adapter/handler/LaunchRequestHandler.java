@@ -66,7 +66,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
 
 public class LaunchRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
-    protected static final long RUNINTERMINAL_TIMEOUT = 10 * 1000;
+
     protected ILaunchDelegate activeLaunchHandler;
     private CompletableFuture<Boolean> waitForDebuggeeConsole = new CompletableFuture<>();
 
