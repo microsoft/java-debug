@@ -82,9 +82,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
                     DecodedMethod decodedMethod = stackTraceProvider.decode(thread.frame(i).location().method());
 
-                    if(!decodedMethod.isGenerated()) {
-                        result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, decodedMethod));
-                    }
+                    result.add(convertDebuggerStackFrameToClient(frames[i], frameId, context, decodedMethod));
                 }
             } catch (IncompatibleThreadStateException | IndexOutOfBoundsException | URISyntaxException
                     | AbsentInformationException | ObjectCollectedException e) {
@@ -112,7 +110,8 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             // display "Unknown Source" in the Call Stack View.
             clientSource = null;
         }
-        return new Types.StackFrame(frameId, formattedName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0);
+        String presentationHint = decodedMethod.isGenerated() ? "subtle" : null;
+        return new Types.StackFrame(frameId, formattedName, clientSource, lineNumber, context.isClientColumnsStartAt1() ? 1 : 0, presentationHint);
     }
 
     private Types.Source convertDebuggerSourceToClient(Location location, IDebugAdapterContext context) throws URISyntaxException {
