@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -30,7 +31,11 @@ import org.eclipse.jdt.core.IOpenable;
 import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.ISourceReference;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
+import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+import org.eclipse.jdt.internal.core.SourceMethod;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.handlers.DocumentLifeCycleHandler;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
@@ -104,14 +109,56 @@ public class ResolveMainMethodHandler {
      * Returns the main method defined in the type.
      */
     public static IMethod getMainMethod(IType type) throws JavaModelException {
+        boolean allowInstanceMethod = isInstanceMainMethodSupported(type);
+        List<IMethod> methods = new ArrayList<>();
         for (IMethod method : type.getMethods()) {
-            // Have at most one main method in the member methods of the type.
+            if (method instanceof SourceMethod
+                && ((SourceMethod) method).isMainMethodCandidate()) {
+                methods.add(method);
+            }
+
             if (method.isMainMethod()) {
-                return method;
+                methods.add(method);
+            }
+
+            if (!allowInstanceMethod && !methods.isEmpty()) {
+                return methods.get(0);
             }
         }
 
+        if (!methods.isEmpty()) {
+            methods.sort((method1, method2) -> {
+                return getMainMethodPriority(method1) - getMainMethodPriority(method2);
+            });
+
+            return methods.get(0);
+        }
+
         return null;
+    }
+
+    private static boolean isInstanceMainMethodSupported(IType type) {
+        Map<String, String> options = type.getJavaProject().getOptions(true);
+        return CompilerOptions.versionToJdkLevel(options.get(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM)) >= ClassFileConstants.JDK21;
+    }
+
+    private static int getMainMethodPriority(IMethod method) {
+        int flags = 0;
+        try {
+            flags = method.getFlags();
+        } catch (JavaModelException e) {
+            // do nothing
+        }
+        String[] params = method.getParameterTypes();
+        if (Flags.isStatic(flags) && params.length == 1) {
+            return 1;
+        } else if (Flags.isStatic(flags)) {
+            return 2;
+        } else if (params.length == 1) {
+            return 3;
+        }
+
+        return 4;
     }
 
     private static List<IType> getPotentialMainClassTypes(ICompilationUnit compilationUnit) throws JavaModelException {
