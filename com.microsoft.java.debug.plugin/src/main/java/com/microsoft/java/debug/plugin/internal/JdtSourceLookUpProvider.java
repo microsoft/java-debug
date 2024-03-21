@@ -32,6 +32,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -56,6 +57,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.dom.UnnamedClass;
 import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
@@ -172,6 +174,11 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 .map(sourceBreakpoint -> new JavaBreakpointLocation(sourceBreakpoint.line, sourceBreakpoint.column))
                 .toArray(JavaBreakpointLocation[]::new);
         if (astUnit != null) {
+            List<?> types = astUnit.types();
+            String unnamedClass = null;
+            if (types.size() == 1 && types.get(0) instanceof UnnamedClass) {
+                unnamedClass = inferPrimaryTypeName(sourceUri, astUnit);
+            }
             Map<Integer, BreakpointLocation[]> resolvedLocations = new HashMap<>();
             for (JavaBreakpointLocation sourceLocation : sourceLocations) {
                 int sourceLine = sourceLocation.lineNumber();
@@ -222,7 +229,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                 // be hit in current implementation.
                 if (sourceLine == locator.getLineLocation()
                         && locator.getLocationType() == BreakpointLocationLocator.LOCATION_LINE) {
-                    sourceLocation.setClassName(locator.getFullyQualifiedTypeName());
+                    sourceLocation.setClassName(StringUtils.isBlank(unnamedClass) ? locator.getFullyQualifiedTypeName() : unnamedClass);
                     if (resolvedLocations.containsKey(sourceLine)) {
                         sourceLocation.setAvailableBreakpointLocations(resolvedLocations.get(sourceLine));
                     } else {
@@ -231,7 +238,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
                         resolvedLocations.put(sourceLine, inlineLocations);
                     }
                 } else if (locator.getLocationType() == BreakpointLocationLocator.LOCATION_METHOD) {
-                    sourceLocation.setClassName(locator.getFullyQualifiedTypeName());
+                    sourceLocation.setClassName(StringUtils.isBlank(unnamedClass) ? locator.getFullyQualifiedTypeName() : unnamedClass);
                     sourceLocation.setMethodName(locator.getMethodName());
                     sourceLocation.setMethodSignature(locator.getMethodSignature());
                 }
@@ -239,6 +246,27 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         }
 
         return sourceLocations;
+    }
+
+    private String inferPrimaryTypeName(String uri, CompilationUnit astUnit) {
+        String fileName = "";
+        String filePath = AdapterUtils.toPath(uri);
+        if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
+            fileName = Paths.get(filePath).getFileName().toString();
+        } else if (astUnit.getTypeRoot() != null) {
+            fileName = astUnit.getTypeRoot().getElementName();
+        }
+
+        if (StringUtils.isNotBlank(fileName)) {
+            String[] extensions = JavaCore.getJavaLikeExtensions();
+            for (String extension : extensions) {
+                if (fileName.endsWith("." + extension)) {
+                    return fileName.substring(0, fileName.length() - 1 - extension.length());
+                }
+            }
+        }
+
+        return fileName;
     }
 
     private BreakpointLocation[] getInlineBreakpointLocations(final CompilationUnit astUnit, int sourceLine) {

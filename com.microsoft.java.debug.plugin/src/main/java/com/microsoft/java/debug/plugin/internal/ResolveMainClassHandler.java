@@ -43,6 +43,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.internal.core.SourceMethod;
 import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
@@ -101,8 +102,7 @@ public class ResolveMainClassHandler {
         // Limit to search main method from source code only.
         IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(ProjectUtils.getJavaProjects(),
             IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
-        SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
-                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
+        SearchPattern pattern = createMainMethodSearchPattern();
         final List<ResolutionItem> res = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
             @Override
@@ -110,40 +110,36 @@ public class ResolveMainClassHandler {
                 Object element = match.getElement();
                 if (element instanceof IMethod) {
                     IMethod method = (IMethod) element;
-                    try {
-                        if (method.isMainMethod()) {
-                            IResource resource = method.getResource();
-                            if (resource != null) {
-                                IProject project = resource.getProject();
-                                if (project != null) {
-                                    String mainClass = method.getDeclaringType().getFullyQualifiedName();
-                                    IJavaProject javaProject = JdtUtils.getJavaProject(project);
-                                    if (javaProject != null) {
-                                        String moduleName = JdtUtils.getModuleName(javaProject);
-                                        if (moduleName != null) {
-                                            mainClass = moduleName + "/" + mainClass;
-                                        }
+                    if (isMainMethod(method)) {
+                        IResource resource = method.getResource();
+                        if (resource != null) {
+                            IProject project = resource.getProject();
+                            if (project != null) {
+                                String mainClass = method.getDeclaringType().getFullyQualifiedName();
+                                IJavaProject javaProject = JdtUtils.getJavaProject(project);
+                                if (javaProject != null) {
+                                    String moduleName = JdtUtils.getModuleName(javaProject);
+                                    if (moduleName != null) {
+                                        mainClass = moduleName + "/" + mainClass;
                                     }
-                                    String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
-                                    if (parentPaths.isEmpty()
-                                        || ResourceUtils.isContainedIn(project.getLocation(), parentPaths)
-                                        || isContainedInInvisibleProject(project, parentPaths)) {
-                                        String filePath = null;
+                                }
+                                String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
+                                if (parentPaths.isEmpty()
+                                    || ResourceUtils.isContainedIn(project.getLocation(), parentPaths)
+                                    || isContainedInInvisibleProject(project, parentPaths)) {
+                                    String filePath = null;
 
-                                        if (match.getResource() instanceof IFile) {
-                                            try {
-                                                filePath = match.getResource().getLocation().toOSString();
-                                            } catch (Exception ex) {
-                                                // ignore
-                                            }
+                                    if (match.getResource() instanceof IFile) {
+                                        try {
+                                            filePath = match.getResource().getLocation().toOSString();
+                                        } catch (Exception ex) {
+                                            // ignore
                                         }
-                                        res.add(new ResolutionItem(mainClass, projectName, filePath));
                                     }
+                                    res.add(new ResolutionItem(mainClass, projectName, filePath));
                                 }
                             }
                         }
-                    } catch (JavaModelException e) {
-                        // ignore
                     }
                 }
             }
@@ -166,8 +162,7 @@ public class ResolveMainClassHandler {
         IJavaProject javaProject = ProjectUtils.getJavaProject(projectName);
         IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(javaProject == null ? new IJavaProject[0] : new IJavaProject[] {javaProject},
             IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
-        SearchPattern pattern = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
-                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
+        SearchPattern pattern = createMainMethodSearchPattern();;
         final List<ResolutionItem> res = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
             @Override
@@ -175,35 +170,31 @@ public class ResolveMainClassHandler {
                 Object element = match.getElement();
                 if (element instanceof IMethod) {
                     IMethod method = (IMethod) element;
-                    try {
-                        if (method.isMainMethod()) {
-                            IResource resource = method.getResource();
-                            if (resource != null) {
-                                IProject project = resource.getProject();
-                                if (project != null) {
-                                    String mainClass = method.getDeclaringType().getFullyQualifiedName();
-                                    IJavaProject javaProject = JdtUtils.getJavaProject(project);
-                                    if (javaProject != null) {
-                                        String moduleName = JdtUtils.getModuleName(javaProject);
-                                        if (moduleName != null) {
-                                            mainClass = moduleName + "/" + mainClass;
-                                        }
+                    if (isMainMethod(method)) {
+                        IResource resource = method.getResource();
+                        if (resource != null) {
+                            IProject project = resource.getProject();
+                            if (project != null) {
+                                String mainClass = method.getDeclaringType().getFullyQualifiedName();
+                                IJavaProject javaProject = JdtUtils.getJavaProject(project);
+                                if (javaProject != null) {
+                                    String moduleName = JdtUtils.getModuleName(javaProject);
+                                    if (moduleName != null) {
+                                        mainClass = moduleName + "/" + mainClass;
                                     }
-
-                                    String filePath = null;
-                                    if (match.getResource() instanceof IFile) {
-                                        try {
-                                            filePath = match.getResource().getLocation().toOSString();
-                                        } catch (Exception ex) {
-                                            // ignore
-                                        }
-                                    }
-                                    res.add(new ResolutionItem(mainClass, projectName, filePath));
                                 }
+
+                                String filePath = null;
+                                if (match.getResource() instanceof IFile) {
+                                    try {
+                                        filePath = match.getResource().getLocation().toOSString();
+                                    } catch (Exception ex) {
+                                        // ignore
+                                    }
+                                }
+                                res.add(new ResolutionItem(mainClass, projectName, filePath));
                             }
                         }
-                    } catch (JavaModelException e) {
-                        // ignore
                     }
                 }
             }
@@ -219,6 +210,29 @@ public class ResolveMainClassHandler {
         List<ResolutionItem> resolutions = res.stream().distinct().collect(Collectors.toList());
         Collections.sort(resolutions);
         return resolutions;
+    }
+
+    private SearchPattern createMainMethodSearchPattern() {
+        SearchPattern pattern1 = SearchPattern.createPattern("main(String[]) void", IJavaSearchConstants.METHOD,
+                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
+        SearchPattern pattern2 = SearchPattern.createPattern("main() void", IJavaSearchConstants.METHOD,
+                IJavaSearchConstants.DECLARATIONS, SearchPattern.R_CASE_SENSITIVE | SearchPattern.R_EXACT_MATCH);
+        return SearchPattern.createOrPattern(pattern1, pattern2);
+    }
+
+    private boolean isMainMethod(IMethod method) {
+        try {
+            if (method instanceof SourceMethod
+                    && ((SourceMethod) method).isMainMethodCandidate()) {
+                return true;
+            }
+
+            return method.isMainMethod();
+        } catch (JavaModelException e) {
+            // do nothing
+        }
+
+        return false;
     }
 
     private boolean isContainedInInvisibleProject(IProject project, Collection<IPath> rootPaths) {
