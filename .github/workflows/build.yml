@@ -85,7 +85,7 @@ jobs:
           ${{ runner.os }}-maven-
 
     - name: Verify
-      run: ./mvnw clean verify
+      run: ./mvnw clean verify -U
 
     - name: Checkstyle
       run: ./mvnw checkstyle:check
