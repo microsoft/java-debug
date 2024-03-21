@@ -162,7 +162,7 @@ public class ResolveMainClassHandler {
         IJavaProject javaProject = ProjectUtils.getJavaProject(projectName);
         IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(javaProject == null ? new IJavaProject[0] : new IJavaProject[] {javaProject},
             IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
-        SearchPattern pattern = createMainMethodSearchPattern();;
+        SearchPattern pattern = createMainMethodSearchPattern();
         final List<ResolutionItem> res = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
             @Override
