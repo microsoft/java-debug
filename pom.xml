@@ -6,7 +6,7 @@
     <name>${base.name} :: Parent</name>
     <description>The Java Debug Server is an implementation of Visual Studio Code (VSCode) Debug Protocol. It can be used in Visual Studio Code to debug Java programs.</description>
     <url>https://github.com/Microsoft/java-debug</url>
-    <version>0.51.1</version>
+    <version>0.52.0</version>
     <packaging>pom</packaging>
     <properties>
         <base.name>Java Debug Server for Visual Studio Code</base.name>
