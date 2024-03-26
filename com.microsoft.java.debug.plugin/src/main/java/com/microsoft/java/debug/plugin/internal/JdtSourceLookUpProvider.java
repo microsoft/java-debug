@@ -20,11 +20,14 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
@@ -57,7 +60,6 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.LambdaExpression;
-import org.eclipse.jdt.core.dom.UnnamedClass;
 import org.eclipse.jdt.core.manipulation.CoreASTProvider;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.launching.IVMInstall;
@@ -87,6 +89,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static final String JDT_SCHEME = "jdt";
     private static final String PATH_SEPARATOR = "/";
+    private static final Set<String> IMPLICITLY_DECLARED_CLASSES = new HashSet<>(
+        Arrays.asList("org.eclipse.jdt.core.dom.UnnamedClass",
+            "org.eclipse.jdt.core.dom.ImplicitTypeDeclaration"));
     private ISourceContainer[] sourceContainers = null;
 
     private HashMap<String, Object> options = new HashMap<String, Object>();
@@ -176,7 +181,10 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         if (astUnit != null) {
             List<?> types = astUnit.types();
             String unnamedClass = null;
-            if (types.size() == 1 && types.get(0) instanceof UnnamedClass) {
+            // See https://github.com/eclipse-jdt/eclipse.jdt.core/pull/2220
+            // Given that the JDT plans to rename UnamedClass to ImplicitTypeDeclaration, we will check
+            // the class name of the ASTNode to prevent the potential breaking in the future.
+            if (types.size() == 1 && IMPLICITLY_DECLARED_CLASSES.contains(types.get(0).getClass().getName())) {
                 unnamedClass = inferPrimaryTypeName(sourceUri, astUnit);
             }
             Map<Integer, BreakpointLocation[]> resolvedLocations = new HashMap<>();
