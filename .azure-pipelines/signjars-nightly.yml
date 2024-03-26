@@ -105,6 +105,7 @@ extends:
                 displayName: Build plugin.jar
                 inputs:
                   script: |-
+                    ./mvnw clean install -N -f pom.xml -Dmaven.repo.local=./.repository
                     ./mvnw clean install -f com.microsoft.java.debug.target/pom.xml -Dmaven.repo.local=./.repository
                     ./mvnw clean install -f com.microsoft.java.debug.plugin/pom.xml -Dmaven.repo.local=./.repository
 
