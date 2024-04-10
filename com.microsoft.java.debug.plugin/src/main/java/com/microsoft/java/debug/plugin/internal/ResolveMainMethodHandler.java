@@ -142,23 +142,15 @@ public class ResolveMainMethodHandler {
         return CompilerOptions.versionToJdkLevel(options.get(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM)) >= ClassFileConstants.JDK21;
     }
 
+    /**
+     * See Java 22 JEP 463 https://openjdk.org/jeps/463.
+     * It searches the main method in the launched class by following a specific order:
+     * - If the launched class contains a main method with a String[] parameter then choose that method.
+     * - Otherwise, if the class contains a main method with no parameters then choose that method.
+     */
     private static int getMainMethodPriority(IMethod method) {
-        int flags = 0;
-        try {
-            flags = method.getFlags();
-        } catch (JavaModelException e) {
-            // do nothing
-        }
         String[] params = method.getParameterTypes();
-        if (Flags.isStatic(flags) && params.length == 1) {
-            return 1;
-        } else if (Flags.isStatic(flags)) {
-            return 2;
-        } else if (params.length == 1) {
-            return 3;
-        }
-
-        return 4;
+        return params.length == 1 ?  1 : 2;
     }
 
     private static List<IType> getPotentialMainClassTypes(ICompilationUnit compilationUnit) throws JavaModelException {
