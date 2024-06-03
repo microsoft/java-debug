@@ -418,7 +418,7 @@ public class JdtUtils {
     }
 
     /**
-     * Check if the project is managed by Gradle Build Server
+     * Check if the project is managed by Gradle Build Server.
      */
     public static boolean isBspProject(IProject project) {
         return project != null && ProjectUtils.isJavaProject(project)
