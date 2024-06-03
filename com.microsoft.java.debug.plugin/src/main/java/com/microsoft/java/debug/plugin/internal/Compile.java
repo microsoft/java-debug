@@ -58,7 +58,7 @@ public class Compile {
             }
         }
 
-        if (isBspProject(mainProject) && !ProjectUtils.isGradleProject(mainProject)) {
+        if (JdtUtils.isBspProject(mainProject) && !ProjectUtils.isGradleProject(mainProject)) {
             // Just need to trigger a build for the target project, the Gradle build server will
             // handle the build dependencies for us.
             try {
@@ -151,11 +151,6 @@ public class Compile {
     private static boolean isUnmanagedFolder(IProject project) {
         return project != null && ProjectUtils.isUnmanagedFolder(project)
             && ProjectUtils.isJavaProject(project);
-    }
-
-    private static boolean isBspProject(IProject project) {
-        return project != null && ProjectUtils.isJavaProject(project)
-            && ProjectUtils.hasNature(project, "com.microsoft.gradle.bs.importer.GradleBuildServerProjectNature");
     }
 
     private static IProject getDefaultProject() {

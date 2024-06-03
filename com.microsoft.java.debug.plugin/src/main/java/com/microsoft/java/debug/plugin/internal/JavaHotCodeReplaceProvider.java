@@ -34,16 +34,20 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.core.resources.IBuildConfiguration;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceChangeEvent;
 import org.eclipse.core.resources.IResourceChangeListener;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.IResourceDeltaVisitor;
+import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -54,6 +58,7 @@ import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.util.IClassFileReader;
 import org.eclipse.jdt.core.util.ISourceAttribute;
 import org.eclipse.jdt.internal.core.util.Util;
+import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
 import org.eclipse.jdt.ls.core.internal.JobHelpers;
 
 import com.microsoft.java.debug.core.Configuration;
@@ -319,6 +324,25 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     @Override
     public CompletableFuture<List<String>> redefineClasses() {
+        try {
+            IProject mainProject = null;
+            List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(context.getMainClass());
+            if (javaProjects.size() == 1) {
+                mainProject = javaProjects.get(0).getProject();
+            }
+
+            if (mainProject != null && JdtUtils.isBspProject(mainProject)) {
+                ResourcesPlugin.getWorkspace().build(
+                    new IBuildConfiguration[]{mainProject.getActiveBuildConfig()},
+                    IncrementalProjectBuilder.INCREMENTAL_BUILD,
+                    false /*buildReference*/,
+                    new NullProgressMonitor()
+                );
+            }
+        } catch (CoreException e) {
+            JavaLanguageServerPlugin.log(e);
+        }
+
         JobHelpers.waitForBuildJobs(10 * 1000);
         return CompletableFuture.supplyAsync(() -> {
             List<String> classNames = new ArrayList<>();
