@@ -34,7 +34,6 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IBuildConfiguration;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
@@ -59,7 +58,6 @@ import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.util.IClassFileReader;
 import org.eclipse.jdt.core.util.ISourceAttribute;
 import org.eclipse.jdt.internal.core.util.Util;
-import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
 import org.eclipse.jdt.ls.core.internal.JobHelpers;
 import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 
@@ -112,7 +110,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     private List<String> deltaClassNames = new ArrayList<>();
 
-    private String mainProject = "";
+    private String mainProjectName = "";
 
     /**
      * Visitor for resource deltas.
@@ -279,7 +277,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         }
         this.context = context;
         currentDebugSession = context.getDebugSession();
-        this.mainProject = ((String) options.get(Constants.PROJECT_NAME));
+        this.mainProjectName = ((String) options.get(Constants.PROJECT_NAME));
     }
 
     @Override
@@ -761,7 +759,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
             return;
         }
 
-        IProject mainProject = JdtUtils.getMainProject(this.mainProject, context.getMainClass());
+        IProject mainProject = JdtUtils.getMainProject(this.mainProjectName, context.getMainClass());
         if (mainProject != null && JdtUtils.isBspProject(mainProject)) {
             try {
                 ResourcesPlugin.getWorkspace().build(

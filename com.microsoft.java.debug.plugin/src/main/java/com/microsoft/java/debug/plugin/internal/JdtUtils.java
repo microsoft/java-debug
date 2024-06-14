@@ -435,7 +435,7 @@ public class JdtUtils {
         if (StringUtils.isNotEmpty(mainProjectName)) {
             mainProject = ProjectUtils.getProject(mainProjectName);
         }
-        
+
         if (mainProject == null && StringUtils.isNotBlank(mainClassName)) {
             try {
                 List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(mainClassName);
