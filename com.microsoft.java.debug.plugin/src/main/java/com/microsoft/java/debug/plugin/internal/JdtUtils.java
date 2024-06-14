@@ -40,6 +40,7 @@ import org.eclipse.jdt.launching.IRuntimeClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.sourcelookup.containers.JavaProjectSourceContainer;
 import org.eclipse.jdt.launching.sourcelookup.containers.PackageFragmentRootSourceContainer;
+import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
 import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 
 import com.microsoft.java.debug.core.DebugException;
@@ -423,5 +424,29 @@ public class JdtUtils {
     public static boolean isBspProject(IProject project) {
         return project != null && ProjectUtils.isJavaProject(project)
             && ProjectUtils.hasNature(project, "com.microsoft.gradle.bs.importer.GradleBuildServerProjectNature");
+    }
+
+    /**
+     * Get main project according to the main project name or main class name,
+     * or return <code>null</code> if the main project cannot be resolved.
+     */
+    public static IProject getMainProject(String mainProjectName, String mainClassName) {
+        IProject mainProject = null;
+        if (StringUtils.isNotEmpty(mainProjectName)) {
+            mainProject = ProjectUtils.getProject(mainProjectName);
+        }
+        
+        if (mainProject == null && StringUtils.isNotBlank(mainClassName)) {
+            try {
+                List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(mainClassName);
+                if (javaProjects.size() == 1) {
+                    mainProject = javaProjects.get(0).getProject();
+                }
+            } catch (CoreException e) {
+                JavaLanguageServerPlugin.logException("Failed to resolve project from main class name.", e);
+            }
+        }
+
+        return mainProject;
     }
 }

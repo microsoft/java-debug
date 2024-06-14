@@ -52,20 +52,7 @@ public class Compile {
             throw new IllegalArgumentException("The compile parameters should not be null.");
         }
 
-        IProject mainProject = null;
-        if (StringUtils.isNotBlank(params.getProjectName())) {
-            mainProject = ProjectUtils.getProject(params.getProjectName());
-        } else if (mainProject == null && StringUtils.isNotBlank(params.getMainClass())) {
-            try {
-                List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(params.getMainClass());
-                if (javaProjects.size() == 1) {
-                    mainProject = javaProjects.get(0).getProject();
-                }
-            } catch (CoreException e) {
-                JavaLanguageServerPlugin.logException("Failed to resolve project from main class name.", e);
-            }
-        }
-
+        IProject mainProject = JdtUtils.getMainProject(params.getProjectName(), params.getMainClass());
         if (JdtUtils.isBspProject(mainProject) && !ProjectUtils.isGradleProject(mainProject)) {
             // Just need to trigger a build for the target project, the Gradle build server will
             // handle the build dependencies for us.

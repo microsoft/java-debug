@@ -34,6 +34,7 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IBuildConfiguration;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
@@ -60,6 +61,7 @@ import org.eclipse.jdt.core.util.ISourceAttribute;
 import org.eclipse.jdt.internal.core.util.Util;
 import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
 import org.eclipse.jdt.ls.core.internal.JobHelpers;
+import org.eclipse.jdt.ls.core.internal.ProjectUtils;
 
 import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.DebugException;
@@ -68,6 +70,7 @@ import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.StackFrameUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
+import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.HotCodeReplaceEvent;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
@@ -108,6 +111,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
     private List<IResource> deltaResources = new ArrayList<>();
 
     private List<String> deltaClassNames = new ArrayList<>();
+
+    private String mainProject = "";
 
     /**
      * Visitor for resource deltas.
@@ -274,6 +279,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
         }
         this.context = context;
         currentDebugSession = context.getDebugSession();
+        this.mainProject = ((String) options.get(Constants.PROJECT_NAME));
     }
 
     @Override
@@ -324,25 +330,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
 
     @Override
     public CompletableFuture<List<String>> redefineClasses() {
-        try {
-            IProject mainProject = null;
-            List<IJavaProject> javaProjects = ResolveClasspathsHandler.getJavaProjectFromType(context.getMainClass());
-            if (javaProjects.size() == 1) {
-                mainProject = javaProjects.get(0).getProject();
-            }
-
-            if (mainProject != null && JdtUtils.isBspProject(mainProject)) {
-                ResourcesPlugin.getWorkspace().build(
-                    new IBuildConfiguration[]{mainProject.getActiveBuildConfig()},
-                    IncrementalProjectBuilder.INCREMENTAL_BUILD,
-                    false /*buildReference*/,
-                    new NullProgressMonitor()
-                );
-            }
-        } catch (CoreException e) {
-            JavaLanguageServerPlugin.log(e);
-        }
-
+        triggerBuildForBspProject();
         JobHelpers.waitForBuildJobs(10 * 1000);
         return CompletableFuture.supplyAsync(() -> {
             List<String> classNames = new ArrayList<>();
@@ -760,5 +748,40 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
                 return oldValue;
             }
         });
+    }
+
+    /**
+     * Trigger build separately if the main project is a BSP project.
+     * This is because auto build for BSP project will not update the class files to disk.
+     */
+    private void triggerBuildForBspProject() {
+        // check if the workspace contains BSP project first. This is for performance consideration.
+        // Due to that getJavaProjectFromType() is a heavy operation.
+        if (!containsBspProjects()) {
+            return;
+        }
+
+        IProject mainProject = JdtUtils.getMainProject(this.mainProject, context.getMainClass());
+        if (mainProject != null && JdtUtils.isBspProject(mainProject)) {
+            try {
+                ResourcesPlugin.getWorkspace().build(
+                    new IBuildConfiguration[]{mainProject.getActiveBuildConfig()},
+                    IncrementalProjectBuilder.INCREMENTAL_BUILD,
+                    false /*buildReference*/,
+                    new NullProgressMonitor()
+                );
+            } catch (CoreException e) {
+                // ignore compilation errors
+            }
+        }
+    }
+
+    private boolean containsBspProjects() {
+        for (IJavaProject javaProject : ProjectUtils.getJavaProjects()) {
+            if (JdtUtils.isBspProject(javaProject.getProject())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
