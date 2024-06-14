@@ -432,7 +432,7 @@ public class JdtUtils {
      */
     public static IProject getMainProject(String mainProjectName, String mainClassName) {
         IProject mainProject = null;
-        if (StringUtils.isNotEmpty(mainProjectName)) {
+        if (StringUtils.isNotBlank(mainProjectName)) {
             mainProject = ProjectUtils.getProject(mainProjectName);
         }
 
