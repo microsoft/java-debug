@@ -13,12 +13,16 @@ package com.microsoft.java.debug.core.adapter;
 
 import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.adapter.stacktrace.DecodedMethod;
+import com.microsoft.java.debug.core.adapter.stacktrace.DecodedVariable;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
+import com.sun.jdi.LocalVariable;
 import java.util.Optional;
 
 public interface IStackTraceProvider extends IProvider {
     boolean skipOver(Method method, Requests.StepFilters filters);
     boolean skipOut(Location upperLocation, Method method);
     DecodedMethod decode(Method method);
+    // TODO // p1i8
+    DecodedVariable decode(LocalVariable variable);
 }

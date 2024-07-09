@@ -31,7 +31,9 @@ import com.microsoft.java.debug.core.adapter.ErrorCode;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
+import com.microsoft.java.debug.core.adapter.IStackTraceProvider;
 import com.microsoft.java.debug.core.adapter.IStackFrameManager;
+import com.microsoft.java.debug.core.adapter.stacktrace.DecodedVariable;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.IVariableProvider;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure;
@@ -54,6 +56,7 @@ import com.sun.jdi.ArrayReference;
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InternalException;
 import com.sun.jdi.InvalidStackFrameException;
+import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
@@ -101,11 +104,14 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         VariableProxy containerNode = (VariableProxy) container;
         List<Variable> childrenList = new ArrayList<>();
         IStackFrameManager stackFrameManager = context.getStackFrameManager();
+        IStackTraceProvider stackTraceProvider = context.getProvider(IStackTraceProvider.class);
         String containerEvaluateName = containerNode.getEvaluateName();
         boolean isUnboundedTypeContainer = containerNode.isUnboundedType();
+        Method method = null;
         if (containerNode.getProxiedVariable() instanceof StackFrameReference) {
             StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
             StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
+            method = frame.location().method();
             if (frame == null) {
                 throw AdapterUtils.createCompletionException(
                     String.format("Invalid stackframe id %d to get variables.", varArgs.variablesReference),
@@ -229,7 +235,9 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         }
         for (Variable javaVariable : childrenList) {
             Value value = javaVariable.value;
-            String name = javaVariable.name;
+            // TODO // p2i1
+            DecodedVariable decodedVariable = stackTraceProvider.decode(javaVariable.local, method);
+            String name = decodedVariable.format();
             if (variableNameMap.containsKey(javaVariable)) {
                 name = variableNameMap.get(javaVariable);
             }
