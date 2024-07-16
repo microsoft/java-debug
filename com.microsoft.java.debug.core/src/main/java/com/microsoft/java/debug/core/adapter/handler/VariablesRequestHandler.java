@@ -32,8 +32,10 @@ import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
 import com.microsoft.java.debug.core.adapter.IEvaluationProvider;
 import com.microsoft.java.debug.core.adapter.IStackTraceProvider;
+import com.microsoft.java.debug.core.adapter.StackTraceProvider;
 import com.microsoft.java.debug.core.adapter.IStackFrameManager;
 import com.microsoft.java.debug.core.adapter.stacktrace.DecodedVariable;
+import com.microsoft.java.debug.core.adapter.stacktrace.DecodedField;
 import com.microsoft.java.debug.core.adapter.variables.IVariableFormatter;
 import com.microsoft.java.debug.core.adapter.variables.IVariableProvider;
 import com.microsoft.java.debug.core.adapter.variables.JavaLogicalStructure;
@@ -234,10 +236,28 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             });
         }
         for (Variable javaVariable : childrenList) {
+            // StackTraceProvider s = stackTraceProvider.
             Value value = javaVariable.value;
             // TODO // p2i1
-            DecodedVariable decodedVariable = stackTraceProvider.decode(javaVariable.local, method);
-            String name = decodedVariable.format();
+            String name = javaVariable.name;
+            if (javaVariable.local != null) {
+                StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
+                StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
+                DecodedVariable decodedVariable = stackTraceProvider.decode(javaVariable.local, method, frame.location().lineNumber());
+                name = decodedVariable.format();
+                if (name == "") {
+                    // toRemove.add(javaVariable);
+                    continue;
+                }
+            } else 
+            if (javaVariable.field != null) {
+                DecodedField decodedField = stackTraceProvider.decode(javaVariable.field);
+                name = decodedField.format();
+                if (name == "") {
+                    // toRemove.add(javaVariable);
+                    continue;
+                }
+            } else
             if (variableNameMap.containsKey(javaVariable)) {
                 name = variableNameMap.get(javaVariable);
             }

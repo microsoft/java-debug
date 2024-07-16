@@ -14,11 +14,14 @@ package com.microsoft.java.debug.core.adapter;
 import com.microsoft.java.debug.core.protocol.Requests;
 import com.microsoft.java.debug.core.adapter.stacktrace.DecodedMethod;
 import com.microsoft.java.debug.core.adapter.stacktrace.DecodedVariable;
+import com.microsoft.java.debug.core.adapter.stacktrace.DecodedField;
 import com.microsoft.java.debug.core.adapter.stacktrace.JavaMethod;
 import com.microsoft.java.debug.core.adapter.stacktrace.JavaLocalVariable;
+import com.microsoft.java.debug.core.adapter.stacktrace.JavaField;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.LocalVariable;
+import com.sun.jdi.Field;
 import org.apache.commons.lang3.ArrayUtils;
 import java.util.Optional;
 
@@ -45,8 +48,13 @@ public class StackTraceProvider implements IStackTraceProvider {
     }
 
     @Override
-    public DecodedVariable decode(LocalVariable variable) {
+    public DecodedVariable decode(LocalVariable variable, Method method, int sourceLine) {
         return new JavaLocalVariable(variable);
+    }
+
+    @Override
+    public DecodedField decode(Field field) {
+        return new JavaField(field);
     }
 
     private boolean isConfigured(Requests.StepFilters filters) {
