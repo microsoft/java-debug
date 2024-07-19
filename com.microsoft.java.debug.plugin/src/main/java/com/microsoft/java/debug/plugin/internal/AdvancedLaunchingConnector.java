@@ -195,7 +195,7 @@ public class AdvancedLaunchingConnector extends SocketLaunchingConnectorImpl imp
 
         StringBuilder execString = new StringBuilder();
         execString.append("\"" + javaHome + slash + "bin" + slash + javaExec + "\"");
-        execString.append(" -Xdebug -Xnoagent -Djava.compiler=NONE");
+        execString.append(" -Djava.compiler=NONE");
         execString.append(" -Xrunjdwp:transport=dt_socket,address=" + address + ",server=n,suspend=" + (suspend ? "y" : "n"));
         if (javaOptions != null) {
             execString.append(" " + javaOptions);
