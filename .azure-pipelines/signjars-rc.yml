@@ -71,10 +71,15 @@ extends:
 
                     mkdir -p jars
                     mv .repository/com/microsoft/java/com.microsoft.java.debug.core/$RELEASE_VERSION/com.microsoft.java.debug.core*.jar jars/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
                 displayName: Sign core.jar
                 inputs:
-                  ConnectedServiceName: vscjavaci_esrp_codesign
+                  ConnectedServiceName: $(ConnectedServiceName)
+                  AppRegistrationClientId: $(AppRegistrationClientId)
+                  AppRegistrationTenantId: $(AppRegistrationTenantId)
+                  AuthAKVName: $(AuthAKVName)
+                  AuthCertName: $(AuthCertName)
+                  AuthSignCertName: $(AuthSignCertName)
                   FolderPath: jars
                   Pattern: com.microsoft.java.debug.core*.jar
                   signConfigType: inlineSignParams
@@ -111,10 +116,15 @@ extends:
 
                     mkdir -p jars
                     mv .repository/com/microsoft/java/com.microsoft.java.debug.plugin/$RELEASE_VERSION/com.microsoft.java.debug.plugin*.jar jars/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
                 displayName: Sign plugin.jar
                 inputs:
-                  ConnectedServiceName: vscjavaci_esrp_codesign
+                  ConnectedServiceName: $(ConnectedServiceName)
+                  AppRegistrationClientId: $(AppRegistrationClientId)
+                  AppRegistrationTenantId: $(AppRegistrationTenantId)
+                  AuthAKVName: $(AuthAKVName)
+                  AuthCertName: $(AuthCertName)
+                  AuthSignCertName: $(AuthSignCertName)
                   FolderPath: jars
                   Pattern: com.microsoft.java.debug.plugin*.jar
                   signConfigType: inlineSignParams
@@ -152,10 +162,15 @@ extends:
                     mkdir -p p2/target
                     cp -r  com.microsoft.java.debug.repository/target/repository p2/target/
                     cp com.microsoft.java.debug.repository/pushToBintray.sh p2/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
                 displayName: Sign p2
                 inputs:
-                  ConnectedServiceName: vscjavaci_esrp_codesign
+                  ConnectedServiceName: $(ConnectedServiceName)
+                  AppRegistrationClientId: $(AppRegistrationClientId)
+                  AppRegistrationTenantId: $(AppRegistrationTenantId)
+                  AuthAKVName: $(AuthAKVName)
+                  AuthCertName: $(AuthCertName)
+                  AuthSignCertName: $(AuthSignCertName)
                   FolderPath: p2
                   Pattern: "*.jar"
                   signConfigType: inlineSignParams
@@ -199,10 +214,15 @@ extends:
                     mkdir -p m2/com.microsoft.java.debug.plugin
                     cp com.microsoft.java.debug.plugin/target/com.microsoft.java.debug.plugin*.jar m2/com.microsoft.java.debug.plugin
                     cp com.microsoft.java.debug.plugin/pom.xml m2/com.microsoft.java.debug.plugin/com.microsoft.java.debug.plugin-$RELEASE_VERSION.pom
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
                 displayName: Sign m2
                 inputs:
-                  ConnectedServiceName: vscjavaci_esrp_codesign
+                  ConnectedServiceName: $(ConnectedServiceName)
+                  AppRegistrationClientId: $(AppRegistrationClientId)
+                  AppRegistrationTenantId: $(AppRegistrationTenantId)
+                  AuthAKVName: $(AuthAKVName)
+                  AuthCertName: $(AuthCertName)
+                  AuthSignCertName: $(AuthSignCertName)
                   FolderPath: m2
                   Pattern: "*.jar"
                   signConfigType: inlineSignParams
