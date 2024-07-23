@@ -243,20 +243,39 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             if (javaVariable.local != null) {
                 StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
                 StackFrame frame = stackFrameManager.getStackFrame(stackFrameReference);
-                DecodedVariable decodedVariable = stackTraceProvider.decode(javaVariable.local, method, frame.location().lineNumber());
-                name = decodedVariable.format();
-                if (name == "") {
-                    // toRemove.add(javaVariable);
-                    continue;
+                try {
+                    DecodedVariable decodedVariable = stackTraceProvider.decode(javaVariable.local, method, frame.location().lineNumber());
+                    name = decodedVariable.format();
+                    if (name == "") {
+                        // toRemove.add(javaVariable);
+                        continue;
+                    }
+                } catch (Exception e) {
+                    String notFound = "ch.epfl.scala.decoder.NotFoundException";
+                    String ambiguous = "ch.epfl.scala.decoder.AmbiguousException";
+                    if (e.getMessage().contains(notFound) || e.getMessage().contains(ambiguous)) {
+                        logger.log(Level.INFO, "Failed to decode the variable", e);
+                    } else {
+                        throw e;
+                    }
                 }
             } else 
             if (javaVariable.field != null) {
-                DecodedField decodedField = stackTraceProvider.decode(javaVariable.field);
-                name = decodedField.format();
-                if (name == "") {
-                    // toRemove.add(javaVariable);
-                    continue;
-                }
+                try {
+                    DecodedField decodedField = stackTraceProvider.decode(javaVariable.field);
+                    name = decodedField.format();
+                    if (name == "") {
+                        // toRemove.add(javaVariable);
+                        continue;
+                    }
+                } catch (Exception e) {
+                    String notFound = "ch.epfl.scala.decoder.NotFoundException";
+                    String ambiguous = "ch.epfl.scala.decoder.AmbiguousException";
+                    if (e.getMessage().contains(notFound) || e.getMessage().contains(ambiguous)) {
+                        logger.log(Level.INFO, "Failed to decode the variable", e);
+                    } else {
+                        throw e;
+                    }                }
             } else
             if (variableNameMap.containsKey(javaVariable)) {
                 name = variableNameMap.get(javaVariable);
