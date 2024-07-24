@@ -20,6 +20,6 @@ public class JavaField implements DecodedField {
 
     @Override
     public boolean show() {
-        return !field.isStatic() || true; // TODO // p2i3: This is a bug. It should be !field.isStatic() || field.isValDef_in_an_Object
+        return !field.isStatic() || field.declaringType().name().endsWith("$");
     }
 }

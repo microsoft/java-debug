@@ -64,6 +64,8 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 
+import com.microsoft.java.debug.core.adapter.stacktrace.JavaField;
+
 public class VariablesRequestHandler implements IDebugRequestHandler {
     protected final Logger logger;
 
@@ -236,9 +238,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             });
         }
         for (Variable javaVariable : childrenList) {
-            // StackTraceProvider s = stackTraceProvider.
             Value value = javaVariable.value;
-            // TODO // p2i1
             String name = javaVariable.name;
             if (javaVariable.local != null) {
                 StackFrameReference stackFrameReference = (StackFrameReference) containerNode.getProxiedVariable();
@@ -247,7 +247,6 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                     DecodedVariable decodedVariable = stackTraceProvider.decode(javaVariable.local, method, frame.location().lineNumber());
                     name = decodedVariable.format();
                     if (name == "") {
-                        // toRemove.add(javaVariable);
                         continue;
                     }
                 } catch (Exception e) {
@@ -264,8 +263,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 try {
                     DecodedField decodedField = stackTraceProvider.decode(javaVariable.field);
                     name = decodedField.format();
-                    if (name == "") {
-                        // toRemove.add(javaVariable);
+                    JavaField javaField = new JavaField(javaVariable.field);
+                    if (name == "" || !javaField.show()) {
                         continue;
                     }
                 } catch (Exception e) {
@@ -275,7 +274,8 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                         logger.log(Level.INFO, "Failed to decode the variable", e);
                     } else {
                         throw e;
-                    }                }
+                    }
+                }
             } else
             if (variableNameMap.containsKey(javaVariable)) {
                 name = variableNameMap.get(javaVariable);
