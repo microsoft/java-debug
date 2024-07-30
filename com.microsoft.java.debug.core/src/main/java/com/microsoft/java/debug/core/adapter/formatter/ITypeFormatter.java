@@ -11,5 +11,12 @@
 
 package com.microsoft.java.debug.core.adapter.formatter;
 
+/**
+ * Represents a formatter dedicated to handling specific types within the Java Debug Interface (JDI).
+ * This interface extends the {@link IFormatter}, inheriting its methods for converting objects to string representations
+ * and determining applicability based on type. Implementers of this interface should provide type-specific
+ * formatting logic to accurately represent objects during debugging.
+ */
 public interface ITypeFormatter extends IFormatter  {
+    // Inherits all methods from IFormatter without adding new ones.
 }
