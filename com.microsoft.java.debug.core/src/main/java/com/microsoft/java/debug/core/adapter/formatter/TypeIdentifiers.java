@@ -11,24 +11,31 @@
 
 package com.microsoft.java.debug.core.adapter.formatter;
 
+/**
+ * Defines constants for JDI type signatures. These identifiers are used to
+ * recognize specific types during the debugging process, enabling tailored
+ * formatting and processing for various data types.
+ */
 public final class TypeIdentifiers {
-    public static final char ARRAY = '[';
-    public static final char BYTE = 'B';
-    public static final char CHAR = 'C';
-    public static final char OBJECT = 'L';
-    public static final char FLOAT = 'F';
-    public static final char DOUBLE = 'D';
-    public static final char INT = 'I';
-    public static final char LONG = 'J';
-    public static final char SHORT = 'S';
-    public static final char BOOLEAN = 'Z';
-    public static final char STRING = 's';
-    public static final char THREAD = 't';
+    public static final char ARRAY = '['; // Identifies an array type.
+    public static final char BYTE = 'B'; // Identifies a byte type.
+    public static final char CHAR = 'C'; // Identifies a char type.
+    public static final char OBJECT = 'L'; // Identifies an object type.
+    public static final char FLOAT = 'F'; // Identifies a float type.
+    public static final char DOUBLE = 'D'; // Identifies a double type.
+    public static final char INT = 'I'; // Identifies an int type.
+    public static final char LONG = 'J'; // Identifies a long type.
+    public static final char SHORT = 'S'; // Identifies a short type.
+    public static final char BOOLEAN = 'Z'; // Identifies a boolean type.
+    public static final char STRING = 's'; // Identifies for string types.
+    public static final char THREAD = 't'; // Identifies for thread types.
 
-    public static final char THREAD_GROUP = 'g';
-    public static final char CLASS_LOADER = 'l';
-    public static final char CLASS_OBJECT = 'c';
+    // Specific Java types
+    public static final char THREAD_GROUP = 'g'; // A custom identifier for ThreadGroup types.
+    public static final char CLASS_LOADER = 'l'; // A custom identifier for ClassLoader types.
+    public static final char CLASS_OBJECT = 'c'; // A custom identifier for Class types.
 
-    public static final String STRING_SIGNATURE = "Ljava/lang/String;";
-    public static final String CLASS_SIGNATURE = "Ljava/lang/Class;";
+    // Full signatures for certain types
+    public static final String STRING_SIGNATURE = "Ljava/lang/String;"; // The full signature for the String class.
+    public static final String CLASS_SIGNATURE = "Ljava/lang/Class;"; // The full signature for the Class class.
 }
