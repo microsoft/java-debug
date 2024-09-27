@@ -187,7 +187,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
         if (debugSession != null) {
             debugSession.getEventHub().events().filter(debugEvent -> debugEvent.event instanceof BreakpointEvent).subscribe(debugEvent -> {
                 Event event = debugEvent.event;
-                if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(t -> t instanceof StepEvent)) {
+                if (debugEvent.eventSet.size() > 1 && debugEvent.eventSet.stream().anyMatch(StepEvent.class::isInstance)) {
                     // The StepEvent and BreakpointEvent are grouped in the same event set only if they occurs at the same location and in the same thread.
                     // In order to avoid two duplicated StoppedEvents, the debugger will skip the BreakpointEvent.
                 } else {
