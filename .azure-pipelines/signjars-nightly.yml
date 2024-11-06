@@ -70,10 +70,15 @@ extends:
 
                     mkdir -p jars
                     mv .repository/com/microsoft/java/com.microsoft.java.debug.core/$RELEASE_VERSION/com.microsoft.java.debug.core*.jar jars/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
                 displayName: Sign core.jar
                 inputs:
-                  ConnectedServiceName: vscjavaci_esrp_codesign
+                  ConnectedServiceName: $(ConnectedServiceName)
+                  AppRegistrationClientId: $(AppRegistrationClientId)
+                  AppRegistrationTenantId: $(AppRegistrationTenantId)
+                  AuthAKVName: $(AuthAKVName)
+                  AuthCertName: $(AuthCertName)
+                  AuthSignCertName: $(AuthSignCertName)
                   FolderPath: jars
                   Pattern: com.microsoft.java.debug.core*.jar
                   signConfigType: inlineSignParams
@@ -111,10 +116,15 @@ extends:
 
                     mkdir -p jars
                     mv .repository/com/microsoft/java/com.microsoft.java.debug.plugin/$RELEASE_VERSION/com.microsoft.java.debug.plugin*.jar jars/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@2
+              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
                 displayName: Sign plugin.jar
                 inputs:
-                  ConnectedServiceName: vscjavaci_esrp_codesign
+                  ConnectedServiceName: $(ConnectedServiceName)
+                  AppRegistrationClientId: $(AppRegistrationClientId)
+                  AppRegistrationTenantId: $(AppRegistrationTenantId)
+                  AuthAKVName: $(AuthAKVName)
+                  AuthCertName: $(AuthCertName)
+                  AuthSignCertName: $(AuthSignCertName)
                   FolderPath: jars
                   Pattern: com.microsoft.java.debug.plugin*.jar
                   signConfigType: inlineSignParams
