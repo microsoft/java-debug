@@ -82,7 +82,8 @@ public class ConfigurationDoneRequestHandler implements IDebugRequestHandler {
         } else if (event instanceof VMDeathEvent) {
             vmHandler.disconnectVirtualMachine(event.virtualMachine());
             context.setVmTerminated();
-            context.getProtocolServer().sendEvent(new Events.ExitedEvent(event.virtualMachine().process().exitValue()));
+            int exitValue = event.virtualMachine().process() != null ? event.virtualMachine().process().exitValue() : 0;
+            context.getProtocolServer().sendEvent(new Events.ExitedEvent(exitValue));
         } else if (event instanceof VMDisconnectEvent) {
             vmHandler.disconnectVirtualMachine(event.virtualMachine());
             if (context.isAttached()) {
