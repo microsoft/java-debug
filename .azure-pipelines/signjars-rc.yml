@@ -24,8 +24,6 @@ extends:
         name: 1ES_JavaTooling_Pool
         image: 1ES_JavaTooling_Windows_2022
         os: windows
-    customBuildTags:
-      - MigrationTooling-mseng-VSJava-9151-Tool
     stages:
       - stage: Build
         jobs:
@@ -50,6 +48,23 @@ extends:
                   versionSpec: "17"
                   jdkArchitectureOption: x64
                   jdkSourceOption: PreInstalled
+              - task: UsePythonVersion@0
+                displayName: 'Use Python 3.11.x'
+                inputs:
+                  versionSpec: 3.11.x
+              - task: UseDotNet@2
+                displayName: 'Use .NET Core 3.1.x'
+                inputs:
+                  packageType: 'sdk'
+                  version: '3.1.x'
+              - task: MicroBuildSigningPlugin@4
+                displayName: 'Install Signing Plugin'
+                inputs:
+                  signType: real
+                  azureSubscription: 'MicroBuild Signing Task (MSEng)'
+                  feedSource: 'https://mseng.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json'
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               - task: CmdLine@2
                 displayName: Parse the release version from pom.xml
                 inputs:
@@ -71,38 +86,16 @@ extends:
 
                     mkdir -p jars
                     mv .repository/com/microsoft/java/com.microsoft.java.debug.core/$RELEASE_VERSION/com.microsoft.java.debug.core*.jar jars/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
-                displayName: Sign core.jar
+              - task: CmdLine@2
+                displayName: Sign jars
                 inputs:
-                  ConnectedServiceName: $(ConnectedServiceName)
-                  AppRegistrationClientId: $(AppRegistrationClientId)
-                  AppRegistrationTenantId: $(AppRegistrationTenantId)
-                  AuthAKVName: $(AuthAKVName)
-                  AuthCertName: $(AuthCertName)
-                  AuthSignCertName: $(AuthSignCertName)
-                  FolderPath: jars
-                  Pattern: com.microsoft.java.debug.core*.jar
-                  signConfigType: inlineSignParams
-                  inlineOperation: |-
-                    [
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaSign",
-                        "Parameters" : {
-                            "SigAlg" : "SHA256withRSA",
-                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
-                        },
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      },
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaVerify",
-                        "Parameters" : {},
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      }
-                    ]
+                  script: |
+                    files=$(find . -type f -name "com.microsoft.java.debug.core*.jar")
+                    for file in $files; do
+                        fileName=$(basename "$file")
+                        dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$fileName" /certs:100010171
+                    done
+                  workingDirectory: 'jars'
               - task: CmdLine@2
                 displayName: install signed core.jar
                 inputs:
@@ -116,38 +109,16 @@ extends:
 
                     mkdir -p jars
                     mv .repository/com/microsoft/java/com.microsoft.java.debug.plugin/$RELEASE_VERSION/com.microsoft.java.debug.plugin*.jar jars/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
-                displayName: Sign plugin.jar
+              - task: CmdLine@2
+                displayName: Sign jars
                 inputs:
-                  ConnectedServiceName: $(ConnectedServiceName)
-                  AppRegistrationClientId: $(AppRegistrationClientId)
-                  AppRegistrationTenantId: $(AppRegistrationTenantId)
-                  AuthAKVName: $(AuthAKVName)
-                  AuthCertName: $(AuthCertName)
-                  AuthSignCertName: $(AuthSignCertName)
-                  FolderPath: jars
-                  Pattern: com.microsoft.java.debug.plugin*.jar
-                  signConfigType: inlineSignParams
-                  inlineOperation: |-
-                    [
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaSign",
-                        "Parameters" : {
-                            "SigAlg" : "SHA256withRSA",
-                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
-                        },
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      },
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaVerify",
-                        "Parameters" : {},
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      }
-                    ]
+                  script: |
+                    files=$(find . -type f -name "com.microsoft.java.debug.plugin*.jar")
+                    for file in $files; do
+                        fileName=$(basename "$file")
+                        dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$fileName" /certs:100010171
+                    done
+                  workingDirectory: 'jars'
               - task: CmdLine@2
                 displayName: install signed plugin.jar
                 inputs:
@@ -162,38 +133,6 @@ extends:
                     mkdir -p p2/target
                     cp -r  com.microsoft.java.debug.repository/target/repository p2/target/
                     cp com.microsoft.java.debug.repository/pushToBintray.sh p2/
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
-                displayName: Sign p2
-                inputs:
-                  ConnectedServiceName: $(ConnectedServiceName)
-                  AppRegistrationClientId: $(AppRegistrationClientId)
-                  AppRegistrationTenantId: $(AppRegistrationTenantId)
-                  AuthAKVName: $(AuthAKVName)
-                  AuthCertName: $(AuthCertName)
-                  AuthSignCertName: $(AuthSignCertName)
-                  FolderPath: p2
-                  Pattern: "*.jar"
-                  signConfigType: inlineSignParams
-                  inlineOperation: |-
-                    [
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaSign",
-                        "Parameters" : {
-                            "SigAlg" : "SHA256withRSA",
-                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
-                        },
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      },
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaVerify",
-                        "Parameters" : {},
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      }
-                    ]
               - task: CmdLine@2
                 displayName: build m2 artifacts
                 inputs:
@@ -214,38 +153,6 @@ extends:
                     mkdir -p m2/com.microsoft.java.debug.plugin
                     cp com.microsoft.java.debug.plugin/target/com.microsoft.java.debug.plugin*.jar m2/com.microsoft.java.debug.plugin
                     cp com.microsoft.java.debug.plugin/pom.xml m2/com.microsoft.java.debug.plugin/com.microsoft.java.debug.plugin-$RELEASE_VERSION.pom
-              - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@5
-                displayName: Sign m2
-                inputs:
-                  ConnectedServiceName: $(ConnectedServiceName)
-                  AppRegistrationClientId: $(AppRegistrationClientId)
-                  AppRegistrationTenantId: $(AppRegistrationTenantId)
-                  AuthAKVName: $(AuthAKVName)
-                  AuthCertName: $(AuthCertName)
-                  AuthSignCertName: $(AuthSignCertName)
-                  FolderPath: m2
-                  Pattern: "*.jar"
-                  signConfigType: inlineSignParams
-                  inlineOperation: |-
-                    [
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaSign",
-                        "Parameters" : {
-                            "SigAlg" : "SHA256withRSA",
-                            "Timestamp" : "-tsa http://sha256timestamp.ws.digicert.com/sha256/timestamp"
-                        },
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      },
-                      {
-                        "KeyCode" : "CP-447347-Java",
-                        "OperationCode" : "JavaVerify",
-                        "Parameters" : {},
-                        "ToolName" : "sign",
-                        "ToolVersion" : "1.0"
-                      }
-                    ]
               - task: CopyFiles@2
                 displayName: "Copy p2/m2 to: $(Build.ArtifactStagingDirectory)"
                 inputs:
@@ -254,3 +161,73 @@ extends:
                     m2/**
 
                   TargetFolder: $(Build.ArtifactStagingDirectory)
+      - stage: PublishToMaven
+        jobs:
+        - deployment: PublishToMaven
+          displayName: Publish to Maven
+          environment: Java-Debugger-Publish-Approval
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                - script: |
+                    echo "import public key"
+                    echo $GPG_PUBLIC_B64 | base64 -d | gpg --import 
+                    echo "import secret key"
+                    echo $GPG_SECRET_B64 | base64 -d | gpg --batch --passphrase $GPGPASS --import
+                  displayName: 'import GPG keys'
+                  env:
+                    GPG_PUBLIC_B64: $(GPG_PUBLIC_B64)
+                    GPG_SECRET_B64: $(GPG_SECRET_B64)
+                    GPGPASS: $(GPGPASS)
+                - task: NodeTool@0
+                  displayName: 'Use Node 18.x'
+                  inputs:
+                    versionSpec: 18.x
+                - script: |
+                    cd $(System.DefaultWorkingDirectory)/_microsoft.java-debug.signjars.rc/m2
+                    pluginJarFile=$(basename -- java-debug-parent/*.pom)
+                    # remove .* from end
+                    noExt=${pluginJarFile%.*}
+                    # remove *- from start
+                    export releaseVersion=${noExt##*-} 
+                    echo $releaseVersion
+                    export artifactFolder=$(pwd .)
+                    wget https://raw.githubusercontent.com/microsoft/java-debug/master/scripts/publishMaven.js
+                    export GPG_TTY=$(tty)
+                    node publishMaven.js -task gpg
+                  displayName: 'sign artifacts'
+                  env:
+                    GPG_PUBLIC_B64: $(GPG_PUBLIC_B64)
+                    GPG_SECRET_B64: $(GPG_SECRET_B64)
+                    GPGPASS: $(GPGPASS)
+                    NEXUS_OSSRHPASS: $(NEXUS_OSSRHPASS)
+                    NEXUS_OSSRHUSER: $(NEXUS_OSSRHUSER)
+                    NEXUS_STAGINGPROFILEID: $(NEXUS_STAGINGPROFILEID)
+                - template: MicroBuild.Publish.yml@MicroBuildTemplate
+                  parameters: 
+                    intent: 'PackageDistribution'
+                    contentType: 'Maven'
+                    contentSource: 'Folder'
+                    folderLocation: '$(System.DefaultWorkingDirectory)/_microsoft.java-debug.signjars.rc/m2/java-debug-parent'
+                    waitForReleaseCompletion: true
+                    owners: 'jinbwan@microsoft.com'
+                    approvers: 'roml@microsoft.com'
+                - template: MicroBuild.Publish.yml@MicroBuildTemplate
+                  parameters: 
+                    intent: 'PackageDistribution'
+                    contentType: 'Maven'
+                    contentSource: 'Folder'
+                    folderLocation: '$(System.DefaultWorkingDirectory)/_microsoft.java-debug.signjars.rc/m2/com.microsoft.java.debug.core'
+                    waitForReleaseCompletion: true
+                    owners: 'jinbwan@microsoft.com'
+                    approvers: 'roml@microsoft.com'
+                - template: MicroBuild.Publish.yml@MicroBuildTemplate
+                  parameters: 
+                    intent: 'PackageDistribution'
+                    contentType: 'Maven'
+                    contentSource: 'Folder'
+                    folderLocation: '$(System.DefaultWorkingDirectory)/_microsoft.java-debug.signjars.rc/m2/com.microsoft.java.debug.plugin'
+                    waitForReleaseCompletion: true
+                    owners: 'jinbwan@microsoft.com'
+                    approvers: 'roml@microsoft.com'
