@@ -37,10 +37,6 @@ extends:
                   artifactName: m2
                   targetPath: $(Build.ArtifactStagingDirectory)/m2
                   displayName: "Publish Artifact: m2"
-                - output: pipelineArtifact
-                  artifactName: p2
-                  targetPath: $(Build.ArtifactStagingDirectory)/p2
-                  displayName: "Publish Artifact: p2"
             steps:
               - checkout: self
                 fetchTags: true
@@ -160,5 +156,4 @@ extends:
                 inputs:
                   Contents: |+
                     m2/**
-
                   TargetFolder: $(Build.ArtifactStagingDirectory)
