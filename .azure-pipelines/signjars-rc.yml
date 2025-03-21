@@ -147,8 +147,8 @@ extends:
                   script: |
                     files=$(find . -type f -name "*.jar")
                     for file in $files; do
-                        fileName=$(basename "$file")
-                        dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$fileName" /certs:100010171
+                        # fileName=$(basename "$file")
+                        dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$file" /certs:100010171
                     done
                   workingDirectory: 'm2'
               - task: CopyFiles@2
