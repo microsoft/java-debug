@@ -156,10 +156,9 @@ extends:
                     done
                   workingDirectory: 'm2'
               - task: CopyFiles@2
-                displayName: "Copy p2/m2 to: $(Build.ArtifactStagingDirectory)"
+                displayName: "Copy m2 to: $(Build.ArtifactStagingDirectory)"
                 inputs:
                   Contents: |+
-                    p2/**
                     m2/**
 
                   TargetFolder: $(Build.ArtifactStagingDirectory)
