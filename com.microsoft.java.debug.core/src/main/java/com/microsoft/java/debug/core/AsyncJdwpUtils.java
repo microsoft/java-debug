@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 public class AsyncJdwpUtils {
+    private AsyncJdwpUtils(){}
     /**
      * Create a the thread pool to process JDWP tasks.
      * JDWP tasks are IO-bounded, so use a relatively large thread pool for JDWP tasks.
