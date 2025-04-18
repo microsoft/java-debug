@@ -2,6 +2,8 @@ name: $(Date:yyyyMMdd).$(Rev:r)
 variables:
   - name: Codeql.Enabled
     value: true
+  - name: MicroBuildOutputFolderOverride
+    value: '$(Agent.TempDirectory)'
 resources:
   repositories:
     - repository: self

@@ -2,6 +2,8 @@ name: $(Date:yyyyMMdd).$(Rev:r)
 variables:
   - name: Codeql.Enabled
     value: true
+  - name: MicroBuildOutputFolderOverride
+    value: '$(Agent.TempDirectory)'
 schedules:
   - cron: 0 5 * * 1,2,3,4,5
     branches:
