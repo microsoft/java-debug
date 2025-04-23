@@ -2,8 +2,6 @@ name: $(Date:yyyyMMdd).$(Rev:r)
 variables:
   - name: Codeql.Enabled
     value: true
-  - name: MicroBuildOutputFolderOverride
-    value: '$(Agent.TempDirectory)'
 resources:
   repositories:
     - repository: self
@@ -59,6 +57,7 @@ extends:
                   feedSource: 'https://mseng.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json'
                 env:
                   SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                  MicroBuildOutputFolderOverride: '$(Agent.TempDirectory)'
               - task: JavaToolInstaller@0
                 displayName: Use Java 21
                 inputs:
