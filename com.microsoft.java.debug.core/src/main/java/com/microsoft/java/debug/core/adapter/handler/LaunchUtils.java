@@ -95,7 +95,7 @@ public class LaunchUtils {
         // In jar manifest, the absolute path C:\a.jar should be converted to the url style file:///C:/a.jar
         String classpathValue = String.join(" ", classpathUrls);
         attributes.put(Attributes.Name.CLASS_PATH, classpathValue);
-        String baseName = "cp_" + getMd5(classpathValue);
+        String baseName = "cp_" + getSha256(classpathValue);
         cleanupTempFiles(baseName, ".jar");
         Path tempfile = createTempFile(baseName, ".jar");
         JarOutputStream jar = new JarOutputStream(new FileOutputStream(tempfile.toFile()), manifest);
@@ -127,7 +127,7 @@ public class LaunchUtils {
         }
 
         argfile = argfile.replace("\\", "\\\\");
-        String baseName = "cp_" + getMd5(argfile);
+        String baseName = "cp_" + getSha256(argfile);
         cleanupTempFiles(baseName, ".argfile");
         Path tempfile = createTempFile(baseName, ".argfile");
         Files.writeString(tempfile, argfile, encoding);
@@ -364,12 +364,15 @@ public class LaunchUtils {
         }
     }
 
-    private static String getMd5(String input) {
+    private static String getSha256(String input) {
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] messageDigest = md.digest(input.getBytes());
-            BigInteger md5 = new BigInteger(1, messageDigest);
-            return md5.toString(Character.MAX_RADIX);
+            // Use only first 16 bytes to keep filename shorter
+            byte[] truncated = new byte[16];
+            System.arraycopy(messageDigest, 0, truncated, 0, 16);
+            BigInteger hash = new BigInteger(1, truncated);
+            return hash.toString(Character.MAX_RADIX);
         } catch (NoSuchAlgorithmException e) {
             return Integer.toString(input.hashCode(), Character.MAX_RADIX);
         }
