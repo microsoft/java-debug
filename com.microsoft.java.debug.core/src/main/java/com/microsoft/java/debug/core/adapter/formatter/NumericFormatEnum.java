@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core.adapter.formatter;
 
 public enum NumericFormatEnum {
+    BIN,
     HEX,
     OCT,
     DEC
