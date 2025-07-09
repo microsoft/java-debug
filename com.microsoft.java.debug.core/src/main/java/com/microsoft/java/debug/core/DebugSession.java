@@ -163,9 +163,7 @@ public class DebugSession implements IDebugSession {
         } catch (VMDisconnectedException ex) {
             // ignore since removing breakpoints is meaningless when JVM is terminated.
         }
-        subscriptions.forEach(subscription -> {
-            subscription.dispose();
-        });
+        subscriptions.forEach(Disposable::dispose);
         subscriptions.clear();
         eventRequests.clear();
 

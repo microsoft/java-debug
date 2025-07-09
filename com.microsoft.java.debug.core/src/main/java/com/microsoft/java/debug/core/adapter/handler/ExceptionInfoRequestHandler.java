@@ -79,7 +79,7 @@ public class ExceptionInfoRequestHandler implements IDebugRequestHandler {
         String exceptionToString = typeName;
         if (toStringMethod != null) {
             try {
-                Value returnValue = jdiException.exception.invokeMethod(thread, toStringMethod, Collections.EMPTY_LIST, ObjectReference.INVOKE_SINGLE_THREADED);
+                Value returnValue = jdiException.exception.invokeMethod(thread, toStringMethod, Collections.emptyList(), ObjectReference.INVOKE_SINGLE_THREADED);
                 exceptionToString = returnValue.toString();
             } catch (InvalidTypeException | ClassNotLoadedException | IncompatibleThreadStateException
                     | InvocationException e) {
