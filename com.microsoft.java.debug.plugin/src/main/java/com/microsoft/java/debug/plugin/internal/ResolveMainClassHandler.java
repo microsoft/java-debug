@@ -35,6 +35,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
@@ -100,8 +101,18 @@ public class ResolveMainClassHandler {
 
     private List<ResolutionItem> resolveMainClassUnderPaths(List<IPath> parentPaths) {
         // Limit to search main method from source code only.
-        IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(ProjectUtils.getJavaProjects(),
-            IJavaSearchScope.REFERENCED_PROJECTS | IJavaSearchScope.SOURCES);
+        IJavaProject[] projects;
+        if (parentPaths == null || parentPaths.isEmpty()) {
+            projects = ProjectUtils.getJavaProjects();
+        } else {
+            projects = Stream.of(ProjectUtils.getAllProjects())
+                .filter(p -> ProjectUtils.isJavaProject(p)  && p.getLocation() != null && ResourceUtils.isContainedIn(p.getLocation(), parentPaths))
+                .map(p -> JavaCore.create(p))
+                .filter(p -> p.exists())
+                .toArray(IJavaProject[]::new);
+        }
+        IJavaSearchScope searchScope = SearchEngine.createJavaSearchScope(projects,
+            IJavaSearchScope.SOURCES);
         SearchPattern pattern = createMainMethodSearchPattern();
         final List<ResolutionItem> res = new ArrayList<>();
         SearchRequestor requestor = new SearchRequestor() {
