@@ -22,6 +22,10 @@ extends:
     - stage: PublishToMaven
       jobs:
       - job: PublishToMaven
+        displayName: Maven Release job
+        templateContext:
+          type: releaseJob
+          isProduction: true
         steps:
         - task: DownloadBuildArtifacts@1
           displayName: 'Download Jar Artifacts'
