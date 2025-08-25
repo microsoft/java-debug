@@ -61,6 +61,7 @@ extends:
                   signType: real
                   azureSubscription: 'MicroBuild Signing Task (MSEng)'
                   useEsrpCli: true
+                  ConnectedPMEServiceName: 0e38ce24-f885-4c86-b997-5887b97a1899
                   feedSource: 'https://mseng.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json'
                 env:
                   SYSTEM_ACCESSTOKEN: $(System.AccessToken)
