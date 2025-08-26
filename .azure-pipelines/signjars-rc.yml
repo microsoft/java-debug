@@ -98,6 +98,8 @@ extends:
                         dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$fileName" /certs:100010171
                     done
                   workingDirectory: 'jars'
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               - task: CmdLine@2
                 displayName: install signed core.jar
                 inputs:
@@ -121,6 +123,8 @@ extends:
                         dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$fileName" /certs:100010171
                     done
                   workingDirectory: 'jars'
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               - task: CmdLine@2
                 displayName: install signed plugin.jar
                 inputs:
@@ -155,6 +159,8 @@ extends:
                         dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$file" /certs:100010171
                     done
                   workingDirectory: 'm2'
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               - task: CopyFiles@2
                 displayName: "Copy m2 to: $(Build.ArtifactStagingDirectory)"
                 inputs:
