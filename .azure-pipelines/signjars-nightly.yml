@@ -61,6 +61,7 @@ extends:
                   signType: real
                   azureSubscription: 'MicroBuild Signing Task (MSEng)'
                   useEsrpCli: true
+                  ConnectedPMEServiceName: 0e38ce24-f885-4c86-b997-5887b97a1899
                   feedSource: 'https://mseng.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json'
                 env:
                   SYSTEM_ACCESSTOKEN: $(System.AccessToken)
@@ -100,6 +101,8 @@ extends:
                         dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$fileName" /certs:100010171
                     done
                   workingDirectory: 'jars'
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               - task: CmdLine@2
                 displayName: install signed core.jar
                 inputs:
@@ -124,6 +127,8 @@ extends:
                         dotnet "$MBSIGN_APPFOLDER/DDSignFiles.dll" -- /file:"$fileName" /certs:100010171
                     done
                   workingDirectory: 'jars'
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               - task: CopyFiles@2
                 displayName: "Copy plugin.jar to: $(Build.ArtifactStagingDirectory)"
                 inputs:
