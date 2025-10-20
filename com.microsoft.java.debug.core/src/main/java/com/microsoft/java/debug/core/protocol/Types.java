@@ -209,6 +209,7 @@ public class Types {
         public String hitCondition;
         public String condition;
         public String logMessage;
+        public String mode;
 
         public SourceBreakpoint(int line, int column) {
             this.line = line;
@@ -232,6 +233,14 @@ public class Types {
             this.column = column;
             this.condition = condition;
             this.hitCondition = hitCondition;
+        }
+
+        public SourceBreakpoint(int line, String condition, String hitCondition, int column, String mode) {
+            this.line = line;
+            this.column = column;
+            this.condition = condition;
+            this.hitCondition = hitCondition;
+            this.mode = mode;
         }
     }
 
@@ -414,6 +423,130 @@ public class Types {
         }
     }
 
+    /**
+     * An ExceptionPathSegment represents a segment in a path that is used to match leafs or nodes in a tree of exceptions.
+     * If a segment consists of more than one name, it matches the names provided if negate is false or missing,
+     * or it matches anything except the names provided if negate is true.
+     */
+    public static class ExceptionPathSegment {
+        /**
+         * If false or missing this segment matches the names provided, otherwise it matches anything except the names provided.
+         */
+        public boolean negate;
+        
+        /**
+         * Depending on the value of negate the names that should match or not match.
+         */
+        public String[] names;
+
+        public ExceptionPathSegment() {
+        }
+
+        public ExceptionPathSegment(boolean negate, String[] names) {
+            this.negate = negate;
+            this.names = names;
+        }
+    }
+
+    /**
+     * An ExceptionOptions assigns configuration options to a set of exceptions.
+     */
+    public static class ExceptionOptions {
+        /**
+         * A path that selects a single or multiple exceptions in a tree. If path is missing, the whole tree is selected.
+         * By convention the first segment of the path is a category that is used to group exceptions in the UI.
+         */
+        public ExceptionPathSegment[] path;
+        
+        /**
+         * Condition when a thrown exception should result in a break.
+         */
+        public ExceptionBreakMode breakMode;
+
+        public ExceptionOptions() {
+        }
+
+        public ExceptionOptions(ExceptionPathSegment[] path, ExceptionBreakMode breakMode) {
+            this.path = path;
+            this.breakMode = breakMode;
+        }
+    }
+
+    /**
+     * An ExceptionFilterOptions is used to specify an exception filter together with its options.
+     */
+    public static class ExceptionFilterOptions {
+        /**
+         * ID of an exception filter returned by the exceptionBreakpointFilters capability.
+         */
+        public String filterId;
+        
+        /**
+         * An expression for conditional exceptions. The exception breaks into the debugger if the result of the condition is true.
+         */
+        public String condition;
+        
+        /**
+         * The mode of this exception breakpoint. If defined, this must be one of the breakpointModes the debug adapter advertised in its Capabilities.
+         */
+        public String mode;
+
+        public ExceptionFilterOptions() {
+        }
+
+        public ExceptionFilterOptions(String filterId) {
+            this.filterId = filterId;
+        }
+
+        public ExceptionFilterOptions(String filterId, String condition, String mode) {
+            this.filterId = filterId;
+            this.condition = condition;
+            this.mode = mode;
+        }
+    }
+
+    public static enum BreakpointModeApplicability {
+        @SerializedName("source")
+        SOURCE,
+        @SerializedName("exception")
+        EXCEPTION,
+        @SerializedName("data")
+        DATA,
+        @SerializedName("instruction")
+        INSTRUCTION,
+    }
+
+    public static class BreakpointMode {
+        public BreakpointMode(String mode, String label, String description, BreakpointModeApplicability[] appliesTo) {
+            this.mode = mode;
+            this.label = label;
+            this.description = description;
+            this.appliesTo = appliesTo;
+        }
+        /**
+         * The internal ID of the mode. This value is passed to the `setBreakpoints`
+         * request.
+         */
+        public String mode;   
+      
+        /**
+         * The name of the breakpoint mode. This is shown in the UI.
+         */
+        public String label;
+      
+        /**
+         * A help text providing additional information about the breakpoint mode.
+         * This string is typically shown as a hover and can be translated.
+         */
+        public String description;
+      
+        /**
+         * Describes one or more type of breakpoint this mode applies to.
+         */
+        public BreakpointModeApplicability[] appliesTo;
+      }
+      
+
     public static class Capabilities {
         public boolean supportsConfigurationDoneRequest;
         public boolean supportsHitConditionalBreakpoints;
@@ -434,6 +567,7 @@ public class Types {
         // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_BreakpointLocations
         public boolean supportsBreakpointLocationsRequest;
         public boolean supportsStepInTargetsRequest;
+        public BreakpointMode[] breakpointModes;
     }
 
     public static class StepInTarget {

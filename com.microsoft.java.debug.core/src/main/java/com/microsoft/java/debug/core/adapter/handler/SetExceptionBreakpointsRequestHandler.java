@@ -14,9 +14,6 @@ package com.microsoft.java.debug.core.adapter.handler;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
-import org.apache.commons.lang3.ArrayUtils;
-
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.DebugSettings.IDebugSettingChangeListener;
@@ -29,9 +26,11 @@ import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.ExceptionFilters;
 import com.microsoft.java.debug.core.protocol.Requests.SetExceptionBreakpointsArguments;
+import com.microsoft.java.debug.core.protocol.Types.ExceptionFilterOptions;
 import com.microsoft.java.debug.core.protocol.Types;
 import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
+import com.sun.jdi.request.EventRequest;
 
 public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandler, IDebugSettingChangeListener {
     private IDebugSession debugSession = null;
@@ -39,6 +38,8 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
     private boolean notifyCaught = false;
     private boolean notifyUncaught = false;
     private boolean asyncJDWP = false;
+    private int suspendModeOnCaught;
+    private int suspendModeOnUncaught;
 
     @Override
     public List<Command> getTargetCommands() {
@@ -63,12 +64,38 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
                 }
             });
         }
+        
+        SetExceptionBreakpointsArguments requestArgs = (SetExceptionBreakpointsArguments)arguments;
+        String[] filters = requestArgs.filters;
 
-        String[] filters = ((SetExceptionBreakpointsArguments) arguments).filters;
         try {
-            this.notifyCaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER_NAME);
-            this.notifyUncaught = ArrayUtils.contains(filters, Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME);
-            setExceptionBreakpoints(context.getDebugSession(), this.notifyCaught, this.notifyUncaught);
+            this.notifyCaught = false;
+            this.notifyUncaught = false;
+            if (filters != null) {
+                for (String filter : filters) {
+                    if (filter.equals(Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER_NAME)) {
+                        this.notifyCaught = true;
+                    } else if (filter.equals(Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME)) {
+                        this.notifyUncaught = true;
+                    }
+                }
+            }
+            this.suspendModeOnCaught = EventRequest.SUSPEND_EVENT_THREAD;
+            this.suspendModeOnUncaught = EventRequest.SUSPEND_EVENT_THREAD;
+            
+            ExceptionFilterOptions[] filterOptions = requestArgs.filterOptions;
+            if (filterOptions != null) {
+                for (ExceptionFilterOptions filterOption : requestArgs.filterOptions) {
+                    if (filterOption.filterId.equals(Types.ExceptionBreakpointFilter.CAUGHT_EXCEPTION_FILTER_NAME)) {
+                        this.notifyCaught = true;
+                        this.suspendModeOnCaught = AdapterUtils.suspendPolicyFromBreakpointMode(filterOption.mode);
+                    } else if (filterOption.filterId.equals(Types.ExceptionBreakpointFilter.UNCAUGHT_EXCEPTION_FILTER_NAME)) {
+                        this.notifyUncaught = true;
+                        this.suspendModeOnUncaught = AdapterUtils.suspendPolicyFromBreakpointMode(filterOption.mode);
+                    }
+                }
+            } 
+            setExceptionBreakpoints(context.getDebugSession(), this.notifyCaught, this.notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught);
             return CompletableFuture.completedFuture(response);
         } catch (Exception ex) {
             throw AdapterUtils.createCompletionException(
@@ -78,19 +105,19 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
         }
     }
 
-    private void setExceptionBreakpoints(IDebugSession debugSession, boolean notifyCaught, boolean notifyUncaught) {
+    private void setExceptionBreakpoints(IDebugSession debugSession, boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught) {
         ExceptionFilters exceptionFilters = DebugSettings.getCurrent().exceptionFilters;
         String[] exceptionTypes = (exceptionFilters == null ? null : exceptionFilters.exceptionTypes);
         String[] classFilters = (exceptionFilters == null ? null : exceptionFilters.allowClasses);
         String[] classExclusionFilters = (exceptionFilters == null ? null : exceptionFilters.skipClasses);
-        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, exceptionTypes, classFilters, classExclusionFilters, this.asyncJDWP);
+        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, exceptionTypes, classFilters, classExclusionFilters, this.asyncJDWP);
     }
 
     @Override
     public synchronized void update(DebugSettings oldSettings, DebugSettings newSettings) {
         try {
             if (newSettings != null && newSettings.exceptionFiltersUpdated) {
-                setExceptionBreakpoints(debugSession, notifyCaught, notifyUncaught);
+                setExceptionBreakpoints(debugSession, notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught);
             }
         } catch (Exception ex) {
             DebugSettings.removeDebugSettingChangeListener(this);
