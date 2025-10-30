@@ -37,6 +37,11 @@ extends:
           - job: Job_1
             displayName: Sign-Jars-Nightly
             templateContext:
+              mb:
+                signing:
+                  enabled: true
+                  signType: real
+                  signWithProd: true
               outputs:
                 - output: pipelineArtifact
                   artifactName: plugin
