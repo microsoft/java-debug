@@ -32,6 +32,11 @@ extends:
           - job: Job_1
             displayName: Sign-Jars-RC
             templateContext:
+              mb:
+                signing:
+                  enabled: true
+                  signType: real
+                  signWithProd: true
               outputs:
                 - output: pipelineArtifact
                   artifactName: m2
