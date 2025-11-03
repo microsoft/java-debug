@@ -433,7 +433,7 @@ public class Types {
          * If false or missing this segment matches the names provided, otherwise it matches anything except the names provided.
          */
         public boolean negate;
-        
+
         /**
          * Depending on the value of negate the names that should match or not match.
          */
@@ -457,7 +457,7 @@ public class Types {
          * By convention the first segment of the path is a category that is used to group exceptions in the UI.
          */
         public ExceptionPathSegment[] path;
-        
+
         /**
          * Condition when a thrown exception should result in a break.
          */
@@ -480,12 +480,12 @@ public class Types {
          * ID of an exception filter returned by the exceptionBreakpointFilters capability.
          */
         public String filterId;
-        
+
         /**
          * An expression for conditional exceptions. The exception breaks into the debugger if the result of the condition is true.
          */
         public String condition;
-        
+
         /**
          * The mode of this exception breakpoint. If defined, this must be one of the breakpointModes the debug adapter advertised in its Capabilities.
          */
@@ -527,25 +527,24 @@ public class Types {
          * The internal ID of the mode. This value is passed to the `setBreakpoints`
          * request.
          */
-        public String mode;   
-      
+        public String mode;
+
         /**
          * The name of the breakpoint mode. This is shown in the UI.
          */
         public String label;
-      
+
         /**
          * A help text providing additional information about the breakpoint mode.
          * This string is typically shown as a hover and can be translated.
          */
         public String description;
-      
+
         /**
          * Describes one or more type of breakpoint this mode applies to.
          */
         public BreakpointModeApplicability[] appliesTo;
-      }
-      
+    }
 
     public static class Capabilities {
         public boolean supportsConfigurationDoneRequest;

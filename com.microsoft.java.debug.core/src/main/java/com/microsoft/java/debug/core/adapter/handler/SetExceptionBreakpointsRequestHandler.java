@@ -64,8 +64,8 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
                 }
             });
         }
-        
-        SetExceptionBreakpointsArguments requestArgs = (SetExceptionBreakpointsArguments)arguments;
+
+        SetExceptionBreakpointsArguments requestArgs = (SetExceptionBreakpointsArguments) arguments;
         String[] filters = requestArgs.filters;
 
         try {
@@ -82,7 +82,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
             }
             this.suspendModeOnCaught = EventRequest.SUSPEND_EVENT_THREAD;
             this.suspendModeOnUncaught = EventRequest.SUSPEND_EVENT_THREAD;
-            
+
             ExceptionFilterOptions[] filterOptions = requestArgs.filterOptions;
             if (filterOptions != null) {
                 for (ExceptionFilterOptions filterOption : requestArgs.filterOptions) {
@@ -94,7 +94,7 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
                         this.suspendModeOnUncaught = AdapterUtils.suspendPolicyFromBreakpointMode(filterOption.mode);
                     }
                 }
-            } 
+            }
             setExceptionBreakpoints(context.getDebugSession(), this.notifyCaught, this.notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught);
             return CompletableFuture.completedFuture(response);
         } catch (Exception ex) {
@@ -105,12 +105,14 @@ public class SetExceptionBreakpointsRequestHandler implements IDebugRequestHandl
         }
     }
 
-    private void setExceptionBreakpoints(IDebugSession debugSession, boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught) {
+    private void setExceptionBreakpoints(IDebugSession debugSession, boolean notifyCaught, boolean notifyUncaught,
+            int suspendModeOnCaught, int suspendModeOnUncaught) {
         ExceptionFilters exceptionFilters = DebugSettings.getCurrent().exceptionFilters;
         String[] exceptionTypes = (exceptionFilters == null ? null : exceptionFilters.exceptionTypes);
         String[] classFilters = (exceptionFilters == null ? null : exceptionFilters.allowClasses);
         String[] classExclusionFilters = (exceptionFilters == null ? null : exceptionFilters.skipClasses);
-        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, exceptionTypes, classFilters, classExclusionFilters, this.asyncJDWP);
+        debugSession.setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught,
+                exceptionTypes, classFilters, classExclusionFilters, this.asyncJDWP);
     }
 
     @Override

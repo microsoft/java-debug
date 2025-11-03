@@ -68,30 +68,27 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         caps.supportsClipboardContext = true;
         caps.supportsBreakpointLocationsRequest = true;
         caps.supportsStepInTargetsRequest = true;
-        
+
         // Add breakpoint modes for suspend behavior
         Types.BreakpointMode[] breakpointModes = {
-            new Types.BreakpointMode (
-                Constants.SUSPEND_THREAD,
-                "Suspend Thread", 
-                "Suspends only the thread that hit the breakpoint",
-                new Types.BreakpointModeApplicability[] { 
-                    Types.BreakpointModeApplicability.SOURCE 
-                    // data and function breakpoints are not supported by VS Code
-                    // instruction breakpoints are not supported by this adapter
-                }
-            ),
-            new Types.BreakpointMode(
-                Constants.SUSPEND_VM,
-                "Suspend VM",
-                "Suspends the entire virtual machine when breakpoint is hit",
-                new Types.BreakpointModeApplicability[] { 
-                    Types.BreakpointModeApplicability.SOURCE                }
-            )
-           
+                new Types.BreakpointMode(
+                        Constants.SUSPEND_THREAD,
+                        "Suspend Thread",
+                        "Suspends only the thread that hit the breakpoint",
+                        new Types.BreakpointModeApplicability[] {
+                                Types.BreakpointModeApplicability.SOURCE
+                        // data and function breakpoints are not supported by VS Code
+                        // instruction breakpoints are not supported by this adapter
+                        }),
+                new Types.BreakpointMode(
+                        Constants.SUSPEND_VM,
+                        "Suspend VM",
+                        "Suspends the entire virtual machine when breakpoint is hit",
+                        new Types.BreakpointModeApplicability[] {
+                                Types.BreakpointModeApplicability.SOURCE })
         };
         caps.breakpointModes = breakpointModes;
-        
+
         response.body = caps;
         context.setInitialized(true);
         return CompletableFuture.completedFuture(response);

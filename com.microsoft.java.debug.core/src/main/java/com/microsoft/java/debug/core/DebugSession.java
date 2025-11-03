@@ -151,13 +151,16 @@ public class DebugSession implements IDebugSession {
     }
 
     @Override
-    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught, String[] classFilters, String[] classExclusionFilters) {
-        setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, null, classFilters, classExclusionFilters);
+    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught,
+            int suspendModeOnUncaught, String[] classFilters, String[] classExclusionFilters) {
+        setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, null,
+                classFilters, classExclusionFilters);
     }
 
     @Override
-    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught, String[] exceptionTypes,
-        String[] classFilters, String[] classExclusionFilters) {
+    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught,
+            int suspendModeOnUncaught, String[] exceptionTypes,
+            String[] classFilters, String[] classExclusionFilters) {
         EventRequestManager manager = vm.eventRequestManager();
 
         try {
@@ -173,7 +176,8 @@ public class DebugSession implements IDebugSession {
         subscriptions.clear();
         eventRequests.clear();
 
-        // When no exception breakpoints are requested, no need to create an empty exception request.
+        // When no exception breakpoints are requested, no need to create an empty
+        // exception request.
         if (notifyCaught || notifyUncaught) {
             // from: https://www.javatips.net/api/REPLmode-master/src/jm/mode/replmode/REPLRunner.java
             // Calling this seems to set something internally to make the
@@ -188,7 +192,8 @@ public class DebugSession implements IDebugSession {
             // See org.eclipse.debug.jdi.tests.AbstractJDITest for the example.
 
             if (exceptionTypes == null || exceptionTypes.length == 0) {
-                createExceptionBreakpoint(null, notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, classFilters, classExclusionFilters);
+                createExceptionBreakpoint(null, notifyCaught, notifyUncaught, suspendModeOnCaught,
+                        suspendModeOnUncaught, classFilters, classExclusionFilters);
                 return;
             }
 
@@ -204,31 +209,36 @@ public class DebugSession implements IDebugSession {
                 eventRequests.add(classPrepareRequest);
 
                 Disposable subscription = eventHub.events()
-                    .filter(debugEvent -> debugEvent.event instanceof ClassPrepareEvent
-                        && eventRequests.contains(debugEvent.event.request()))
-                    .subscribe(debugEvent -> {
-                        ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
-                        createExceptionBreakpoint(event.referenceType(), notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, classFilters, classExclusionFilters);
-                    });
+                        .filter(debugEvent -> debugEvent.event instanceof ClassPrepareEvent
+                                && eventRequests.contains(debugEvent.event.request()))
+                        .subscribe(debugEvent -> {
+                            ClassPrepareEvent event = (ClassPrepareEvent) debugEvent.event;
+                            createExceptionBreakpoint(event.referenceType(), notifyCaught, notifyUncaught,
+                                    suspendModeOnCaught, suspendModeOnUncaught, classFilters, classExclusionFilters);
+                        });
                 subscriptions.add(subscription);
 
                 // register exception breakpoint in the loaded classes.
                 for (ReferenceType refType : vm.classesByName(exceptionType)) {
-                    createExceptionBreakpoint(refType, notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, classFilters, classExclusionFilters);
+                    createExceptionBreakpoint(refType, notifyCaught, notifyUncaught, suspendModeOnCaught,
+                            suspendModeOnUncaught, classFilters, classExclusionFilters);
                 }
             }
         }
     }
 
     @Override
-    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught, String[] exceptionTypes,
+    public void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught,
+            int suspendModeOnUncaught, String[] exceptionTypes,
             String[] classFilters, String[] classExclusionFilters, boolean async) {
         if (async) {
             AsyncJdwpUtils.runAsync(() -> {
-                setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, exceptionTypes, classFilters, classExclusionFilters);
+                setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught,
+                        exceptionTypes, classFilters, classExclusionFilters);
             });
         } else {
-            setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught, exceptionTypes, classFilters, classExclusionFilters);
+            setExceptionBreakpoints(notifyCaught, notifyUncaught, suspendModeOnCaught, suspendModeOnUncaught,
+                    exceptionTypes, classFilters, classExclusionFilters);
         }
     }
 

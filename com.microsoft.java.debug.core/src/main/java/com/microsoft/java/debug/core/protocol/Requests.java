@@ -262,7 +262,8 @@ public class Requests {
         public ExceptionFilterOptions[] filterOptions;
 
         /**
-         * Configuration options for selected exceptions. The attribute is only honored by a debug adapter if the corresponding capability `supportsExceptionOptions` is true.
+         * Configuration options for selected exceptions. The attribute is only honored by a debug adapter
+         * if the corresponding capability `supportsExceptionOptions` is true.
          */
         public ExceptionOptions[] exceptionOptions;
     }

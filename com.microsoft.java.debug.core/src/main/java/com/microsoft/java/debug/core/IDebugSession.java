@@ -28,20 +28,25 @@ public interface IDebugSession {
     void terminate();
 
     // breakpoints
-    IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition, String logMessage, int suspendPolicy);
+    IBreakpoint createBreakpoint(String className, int lineNumber, int hitCount, String condition, String logMessage,
+            int suspendPolicy);
 
-    IBreakpoint createBreakpoint(JavaBreakpointLocation sourceLocation, int hitCount, String condition, String logMessage, int suspendPolicy);
+    IBreakpoint createBreakpoint(JavaBreakpointLocation sourceLocation, int hitCount, String condition,
+            String logMessage, int suspendPolicy);
 
     IWatchpoint createWatchPoint(String className, String fieldName, String accessType, String condition, int hitCount);
 
-    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught);
+    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught,
+            int suspendModeOnUncaught);
 
-    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught, String[] classFilters, String[] classExclusionFilters);
+    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught,
+            int suspendModeOnUncaught, String[] classFilters, String[] classExclusionFilters);
 
-    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught, String[] exceptionTypes, String[] classFilters, String[] classExclusionFilters);
+    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught,
+            int suspendModeOnUncaught, String[] exceptionTypes, String[] classFilters, String[] classExclusionFilters);
 
-    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught, int suspendModeOnUncaught, String[] exceptionTypes, String[] classFilters, String[] classExclusionFilters,
-        boolean async);
+    void setExceptionBreakpoints(boolean notifyCaught, boolean notifyUncaught, int suspendModeOnCaught,
+            int suspendModeOnUncaught, String[] exceptionTypes, String[] classFilters, String[] classExclusionFilters, boolean async);
 
     IMethodBreakpoint createFunctionBreakpoint(String className, String functionName, String condition, int hitCount);
 
