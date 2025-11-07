@@ -86,7 +86,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
                 "Suspend VM",
                 "Suspends the entire virtual machine when breakpoint is hit",
                 new Types.BreakpointModeApplicability[] {
-                    Types.BreakpointModeApplicability.SOURCE 
+                    Types.BreakpointModeApplicability.SOURCE
                 }
             )
         };
