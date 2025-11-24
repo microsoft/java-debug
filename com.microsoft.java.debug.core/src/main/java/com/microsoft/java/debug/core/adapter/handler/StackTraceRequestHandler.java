@@ -220,7 +220,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             } else {
                 // For other unavailable method, such as lambda expression's built-in methods run/accept/apply,
                 // display "Unknown Source" in the Call Stack View.
-                clientSource = new Types.Source("Unknown Source", "unknown", 0);
+                clientSource = null;
             }
             // DAP specifies lineNumber to be set to 0 when unavailable
             clientLineNumber = 0;
