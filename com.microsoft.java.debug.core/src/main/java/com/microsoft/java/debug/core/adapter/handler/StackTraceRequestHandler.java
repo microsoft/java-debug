@@ -29,9 +29,9 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.gson.JsonObject;
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugSettings;
+import com.microsoft.java.debug.core.DebugSettings.Switch;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IBreakpoint;
-import com.microsoft.java.debug.core.DebugSettings.Switch;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
@@ -40,13 +40,13 @@ import com.microsoft.java.debug.core.adapter.Source;
 import com.microsoft.java.debug.core.adapter.SourceType;
 import com.microsoft.java.debug.core.adapter.formatter.SimpleTypeFormatter;
 import com.microsoft.java.debug.core.adapter.variables.StackFrameReference;
+import com.microsoft.java.debug.core.protocol.Events.TelemetryEvent;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.StackTraceArguments;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
-import com.microsoft.java.debug.core.protocol.Events.TelemetryEvent;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.LocalVariable;
@@ -114,7 +114,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     result.add(lspFrame);
                     frameReference.setSource(lspFrame.source);
                     int jdiLineNumber = AdapterUtils.convertLineNumber(jdiFrame.lineNumber, context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
-                    if (jdiLineNumber != lspFrame.line) {
+                    if (jdiLineNumber != lspFrame.line && lspFrame.source != null) {
                         decompiledClasses.add(lspFrame.source.path);
                     }
                 }
