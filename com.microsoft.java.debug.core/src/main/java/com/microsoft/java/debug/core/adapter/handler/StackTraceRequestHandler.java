@@ -114,7 +114,7 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
                     result.add(lspFrame);
                     frameReference.setSource(lspFrame.source);
                     int jdiLineNumber = AdapterUtils.convertLineNumber(jdiFrame.lineNumber, context.isDebuggerLinesStartAt1(), context.isClientLinesStartAt1());
-                    if (jdiLineNumber != lspFrame.line && lspFrame.source != null) {
+                    if (jdiLineNumber >= 0 && jdiLineNumber != lspFrame.line) {
                         decompiledClasses.add(lspFrame.source.path);
                     }
                 }
