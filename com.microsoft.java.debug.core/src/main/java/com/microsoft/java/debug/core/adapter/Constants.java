@@ -15,4 +15,8 @@ public final class Constants {
     public static final String PROJECT_NAME = "projectName";
     public static final String DEBUGGEE_ENCODING = "debuggeeEncoding";
     public static final String MAIN_CLASS = "mainClass";
+
+    // Breakpoint suspend modes
+    public static final String SUSPEND_VM = "suspendVM";
+    public static final String SUSPEND_THREAD = "suspendThread";
 }

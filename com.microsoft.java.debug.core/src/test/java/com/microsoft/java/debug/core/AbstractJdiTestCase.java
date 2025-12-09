@@ -22,6 +22,7 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.BreakpointEvent;
+import com.sun.jdi.request.EventRequest;
 
 public abstract class AbstractJdiTestCase extends EasyMockSupport {
     private static int TEST_TIME_OUT = 1000 * 10;
@@ -38,7 +39,7 @@ public abstract class AbstractJdiTestCase extends EasyMockSupport {
         }
         IDebugSession debugSession = getCurrentDebugSession();
 
-        IBreakpoint breakpointToAdd = debugSession.createBreakpoint(breakpointAtClass, line, 0, null, null);
+        IBreakpoint breakpointToAdd = debugSession.createBreakpoint(breakpointAtClass, line, 0, null, null, EventRequest.SUSPEND_EVENT_THREAD);
         breakpointToAdd.install().thenAccept(t -> {
             System.out.println("Breakpoint is accepted.");
         });

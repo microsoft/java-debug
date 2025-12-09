@@ -41,6 +41,7 @@ public class Breakpoint implements IBreakpoint {
     private int hitCount = 0;
     private String condition = null;
     private String logMessage = null;
+    private int suspendPolicy = BreakpointRequest.SUSPEND_EVENT_THREAD;
     private HashMap<Object, Object> propertyMap = new HashMap<>();
 
     private boolean async = false;
@@ -412,7 +413,7 @@ public class Breakpoint implements IBreakpoint {
 
             newLocations.forEach(location -> {
                 BreakpointRequest request = vm.eventRequestManager().createBreakpointRequest(location);
-                request.setSuspendPolicy(BreakpointRequest.SUSPEND_EVENT_THREAD);
+                request.setSuspendPolicy(suspendPolicy);
                 if (hitCount > 0) {
                     request.addCountFilter(hitCount);
                 }
@@ -467,5 +468,15 @@ public class Breakpoint implements IBreakpoint {
     @Override
     public Object getProperty(Object key) {
         return propertyMap.get(key);
+    }
+
+    @Override
+    public int getSuspendPolicy() {
+        return this.suspendPolicy;
+    }
+
+    @Override
+    public void setSuspendPolicy(int suspendPolicy) {
+        this.suspendPolicy = suspendPolicy;
     }
 }

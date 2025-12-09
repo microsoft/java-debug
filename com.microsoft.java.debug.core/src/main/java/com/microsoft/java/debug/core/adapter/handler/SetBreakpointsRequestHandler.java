@@ -134,6 +134,19 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                         added[i].setCondition(toAdds[i].getCondition());
                     }
 
+                    if (toAdds[i].getSuspendPolicy() != added[i].getSuspendPolicy()) {
+                        added[i].setSuspendPolicy(toAdds[i].getSuspendPolicy());
+                        try {
+                            added[i].close();
+                            added[i].install().thenAccept(bp -> {
+                                Events.BreakpointEvent bpEvent = new Events.BreakpointEvent("changed", this.convertDebuggerBreakpointToClient(bp, context));
+                                context.getProtocolServer().sendEvent(bpEvent);
+                            });
+                        } catch (Exception e) {
+                            logger.log(Level.SEVERE, String.format("Close breakpoint exception: %s", e.toString()), e);
+                        }
+                    }
+
                 }
                 res.add(this.convertDebuggerBreakpointToClient(added[i], context));
             }
@@ -200,6 +213,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                     // find the breakpoint related to this breakpoint event
                     IBreakpoint expressionBP = getAssociatedEvaluatableBreakpoint(context, (BreakpointEvent) event);
                     String breakpointName = computeBreakpointName(event.request());
+                    boolean suspendAll = event.request() != null ? event.request().suspendPolicy() == EventRequest.SUSPEND_ALL : false;
 
                     if (expressionBP != null) {
                         CompletableFuture.runAsync(() -> {
@@ -212,15 +226,14 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                                     debugEvent.eventSet.resume();
                                 } else {
                                     context.getThreadCache().addEventThread(bpThread, breakpointName);
-                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent(
-                                            breakpointName, bpThread.uniqueID()));
+                                    context.getProtocolServer().sendEvent(new Events.StoppedEvent(breakpointName, bpThread.uniqueID(), suspendAll));
                                 }
                             });
                         });
                     } else {
                         context.getThreadCache().addEventThread(bpThread, breakpointName);
                         context.getProtocolServer().sendEvent(new Events.StoppedEvent(
-                                breakpointName, bpThread.uniqueID()));
+                                breakpointName, bpThread.uniqueID(), suspendAll));
                     }
                     debugEvent.shouldResume = false;
                 }
@@ -335,7 +348,7 @@ public class SetBreakpointsRequestHandler implements IDebugRequestHandler {
                 }
             }
             breakpoints[i] = context.getDebugSession().createBreakpoint(locations[i], hitCount, sourceBreakpoints[i].condition,
-                sourceBreakpoints[i].logMessage);
+                sourceBreakpoints[i].logMessage, AdapterUtils.suspendPolicyFromBreakpointMode(sourceBreakpoints[i].mode));
             if (sourceProvider.supportsRealtimeBreakpointVerification() && StringUtils.isNotBlank(locations[i].className())) {
                 breakpoints[i].putProperty("verified", true);
             }
