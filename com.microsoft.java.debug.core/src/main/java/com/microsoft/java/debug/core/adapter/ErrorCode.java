@@ -56,9 +56,7 @@ public enum ErrorCode {
      * @return the ErrorCode type.
      */
     public static ErrorCode parse(int id) {
-        ErrorCode[] found = Arrays.stream(ErrorCode.values()).filter(code -> {
-            return code.getId() == id;
-        }).toArray(ErrorCode[]::new);
+        ErrorCode[] found = Arrays.stream(ErrorCode.values()).filter(code -> code.getId() == id).toArray(ErrorCode[]::new);
 
         if (found.length > 0) {
             return found[0];
