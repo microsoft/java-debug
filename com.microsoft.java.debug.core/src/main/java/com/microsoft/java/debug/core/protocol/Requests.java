@@ -17,6 +17,8 @@ import java.util.Objects;
 
 import com.google.gson.annotations.SerializedName;
 import com.microsoft.java.debug.core.protocol.Types.DataBreakpoint;
+import com.microsoft.java.debug.core.protocol.Types.ExceptionFilterOptions;
+import com.microsoft.java.debug.core.protocol.Types.ExceptionOptions;
 import com.microsoft.java.debug.core.protocol.Types.Source;
 
 /**
@@ -250,6 +252,20 @@ public class Requests {
 
     public static class SetExceptionBreakpointsArguments extends Arguments {
         public String[] filters = new String[0];
+        /**
+         * Set of exception filters and their options. The set of all possible
+         * exception filters is defined by the `exceptionBreakpointFilters`
+         * capability. This attribute is only honored by a debug adapter if the
+         * corresponding capability `supportsExceptionFilterOptions` is true. The
+         * `filter` and `filterOptions` sets are additive.
+         */
+        public ExceptionFilterOptions[] filterOptions;
+
+        /**
+         * Configuration options for selected exceptions. The attribute is only honored by a debug adapter
+         * if the corresponding capability `supportsExceptionOptions` is true.
+         */
+        public ExceptionOptions[] exceptionOptions;
     }
 
     public static class ExceptionInfoArguments extends Arguments {

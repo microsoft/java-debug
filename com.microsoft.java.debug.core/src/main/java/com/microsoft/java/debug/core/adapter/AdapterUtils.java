@@ -34,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.DebugException;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
+import com.sun.jdi.request.EventRequest;
 import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 
@@ -363,5 +364,14 @@ public class AdapterUtils {
         }
 
         return values;
+    }
+
+    public static int suspendPolicyFromBreakpointMode(String breakpointMode) {
+        if (Constants.SUSPEND_VM.equals(breakpointMode)) {
+            return EventRequest.SUSPEND_ALL;
+        } else if (Constants.SUSPEND_THREAD.equals(breakpointMode)) {
+            return EventRequest.SUSPEND_EVENT_THREAD;
+        }
+        return EventRequest.SUSPEND_EVENT_THREAD;
     }
 }
