@@ -97,7 +97,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
         boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
 
         Map<String, Object> options = variableFormatter.getDefaultOptions();
-        VariableUtils.applyFormatterOptions(options, varArgs.format != null && varArgs.format.hex);
+        VariableUtils.applyFormatterOptions(options, varArgs.format);
         IEvaluationProvider evaluationEngine = context.getProvider(IEvaluationProvider.class);
 
         List<Types.Variable> list = new ArrayList<>();
