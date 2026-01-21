@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -149,6 +150,11 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         if (thread == null) {
             thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         }
+
+        if (DebugSettings.getCurrent().suspendAllThreads) {
+            thread = null;
+        }
+
         /**
          * See the jdi doc https://docs.oracle.com/javase/7/docs/jdk/api/jpda/jdi/com/sun/jdi/ThreadReference.html#resume(),
          * suspends of both the virtual machine and individual threads are counted. Before a thread will run again, it must

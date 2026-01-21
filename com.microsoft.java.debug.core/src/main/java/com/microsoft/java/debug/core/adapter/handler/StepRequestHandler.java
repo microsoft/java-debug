@@ -22,6 +22,7 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugEvent;
+import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.JdiExceptionReference;
@@ -48,6 +49,7 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
+import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VoidValue;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
@@ -112,8 +114,16 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread, null);
                 }
 
+                if (DebugSettings.getCurrent().suspendAllThreads) {
+                    threadState.pendingStepRequest.setSuspendPolicy(EventRequest.SUSPEND_ALL);
+                }
+
                 threadState.pendingMethodExitRequest = thread.virtualMachine().eventRequestManager().createMethodExitRequest();
-                threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                if (DebugSettings.getCurrent().suspendAllThreads) {
+                    threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_ALL);
+                } else {
+                    threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                }
 
                 threadState.targetStepIn = targetId > 0
                     ? (MethodInvocation) context.getRecyclableIdPool().getObjectById(targetId) : null;
@@ -189,7 +199,15 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 }
 
                 context.getThreadCache().removeEventThread(thread.uniqueID());
-                DebugUtility.resumeThread(thread);
+                if (DebugSettings.getCurrent().suspendAllThreads) {
+                    try {
+                        context.getDebugSession().resume();
+                    } catch (VMDisconnectedException e) {
+                        // ignore
+                    }
+                } else {
+                    DebugUtility.resumeThread(thread);
+                }
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
                 // Roll back the Exception info if stepping fails.

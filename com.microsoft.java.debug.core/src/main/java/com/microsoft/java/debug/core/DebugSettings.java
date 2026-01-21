@@ -45,6 +45,7 @@ public final class DebugSettings {
     public int jdwpRequestTimeout = 3000;
     public AsyncMode asyncJDWP = AsyncMode.OFF;
     public Switch debugSupportOnDecompiledSource = Switch.OFF;
+    public boolean suspendAllThreads = false;
 
     public static DebugSettings getCurrent() {
         return current;

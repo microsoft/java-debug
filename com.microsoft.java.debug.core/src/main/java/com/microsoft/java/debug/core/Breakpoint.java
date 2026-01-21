@@ -204,6 +204,15 @@ public class Breakpoint implements IBreakpoint {
     }
 
     @Override
+    public void setSuspendPolicy(String policy) {
+    }
+
+    @Override
+    public String getSuspendPolicy() {
+        return DebugSettings.getCurrent().suspendAllThreads ? "SUSPEND_ALL" : "SUSPEND_EVENT_THREAD";
+    }
+
+    @Override
     public CompletableFuture<IBreakpoint> install() {
         // It's possible that different class loaders create new class with the same name.
         // Here to listen to future class prepare events to handle such case.
@@ -412,7 +421,11 @@ public class Breakpoint implements IBreakpoint {
 
             newLocations.forEach(location -> {
                 BreakpointRequest request = vm.eventRequestManager().createBreakpointRequest(location);
-                request.setSuspendPolicy(BreakpointRequest.SUSPEND_EVENT_THREAD);
+                if ("SUSPEND_ALL".equals(getSuspendPolicy())) {
+                    request.setSuspendPolicy(BreakpointRequest.SUSPEND_ALL);
+                } else {
+                    request.setSuspendPolicy(BreakpointRequest.SUSPEND_EVENT_THREAD);
+                }
                 if (hitCount > 0) {
                     request.addCountFilter(hitCount);
                 }
