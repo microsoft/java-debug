@@ -394,7 +394,8 @@ public class DebugUtility {
                 request.addClassExclusionFilter(exclusionFilter);
             }
         }
-        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+        boolean suspendAll = DebugSettings.getCurrent().suspendAllThreads;
+        request.setSuspendPolicy(suspendAll ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
         request.addCountFilter(1);
 
         return request;
@@ -415,7 +416,8 @@ public class DebugUtility {
         EventRequestManager manager = debugSession.getVM().eventRequestManager();
         MethodEntryRequest request = manager.createMethodEntryRequest();
         request.addClassFilter(mainClass);
-        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+        boolean suspendAll = DebugSettings.getCurrent().suspendAllThreads;
+        request.setSuspendPolicy(suspendAll ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
 
         debugSession.getEventHub().events().filter(debugEvent -> {
             return debugEvent.event instanceof MethodEntryEvent && request.equals(debugEvent.event.request());

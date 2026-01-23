@@ -41,6 +41,7 @@ import com.microsoft.java.debug.core.protocol.Types.DataBreakpoint;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.WatchpointEvent;
+import com.sun.jdi.request.EventRequest;
 
 public class SetDataBreakpointsRequestHandler implements IDebugRequestHandler {
     private boolean registered = false;
@@ -152,13 +153,17 @@ public class SetDataBreakpointsRequestHandler implements IDebugRequestHandler {
                                 debugEvent.eventSet.resume();
                             } else {
                                 context.getThreadCache().addEventThread(bpThread, "data breakpoint");
-                                context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID()));
+                                boolean allThreadsStopped = event.request() != null
+                                        && event.request().suspendPolicy() == EventRequest.SUSPEND_ALL;
+                                context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID(), allThreadsStopped));
                             }
                         });
                     });
                 } else {
                     context.getThreadCache().addEventThread(bpThread, "data breakpoint");
-                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID()));
+                    boolean allThreadsStopped = event.request() != null
+                            && event.request().suspendPolicy() == EventRequest.SUSPEND_ALL;
+                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("data breakpoint", bpThread.uniqueID(), allThreadsStopped));
                 }
                 debugEvent.shouldResume = false;
             });

@@ -24,11 +24,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microsoft.java.debug.core.Configuration;
+import com.microsoft.java.debug.core.DebugSettings;
+import com.microsoft.java.debug.core.DebugSettings.IDebugSettingChangeListener;
 import com.microsoft.java.debug.core.IBreakpoint;
+import com.microsoft.java.debug.core.IDebugResource;
 import com.microsoft.java.debug.core.IMethodBreakpoint;
 import com.microsoft.java.debug.core.IWatchpoint;
+import com.sun.jdi.VMDisconnectedException;
 
-public class BreakpointManager implements IBreakpointManager {
+public class BreakpointManager implements IBreakpointManager, IDebugSettingChangeListener {
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     /**
      * A collection of breakpoints registered with this manager.
@@ -47,6 +51,7 @@ public class BreakpointManager implements IBreakpointManager {
         this.sourceToBreakpoints = new HashMap<>();
         this.watchpoints = new HashMap<>();
         this.methodBreakpoints = new HashMap<>();
+        DebugSettings.addDebugSettingChangeListener(this);
     }
 
     @Override
@@ -267,5 +272,51 @@ public class BreakpointManager implements IBreakpointManager {
 
     private String getMethodBreakpointKey(IMethodBreakpoint breakpoint) {
         return breakpoint.className() + "#" + breakpoint.methodName();
+    }
+
+    @Override
+    public void update(DebugSettings oldSettings, DebugSettings newSettings) {
+        // If suspend policy changed, recreate all breakpoints with new policy
+        if (oldSettings.suspendAllThreads != newSettings.suspendAllThreads) {
+            // Recreate all line breakpoints
+            synchronized (breakpoints) {
+                for (IBreakpoint bp : breakpoints) {
+                    reinstallBreakpoint(bp);
+                }
+            }
+            
+            // Recreate all watchpoints
+            for (IWatchpoint wp : watchpoints.values()) {
+                if (wp != null) {
+                    reinstallBreakpoint(wp);
+                }
+            }
+            
+            // Recreate all method breakpoints
+            for (IMethodBreakpoint mbp : methodBreakpoints.values()) {
+                if (mbp != null) {
+                    reinstallBreakpoint(mbp);
+                }
+            }
+        }
+    }
+
+    private void reinstallBreakpoint(IDebugResource resource) {
+        try {
+            // Close (delete) existing event requests
+            resource.close();
+            // Reinstall with new suspend policy (which will be read from DebugSettings)
+            if (resource instanceof IBreakpoint) {
+                ((IBreakpoint) resource).install();
+            } else if (resource instanceof IWatchpoint) {
+                ((IWatchpoint) resource).install();
+            } else if (resource instanceof IMethodBreakpoint) {
+                ((IMethodBreakpoint) resource).install();
+            }
+        } catch (VMDisconnectedException ex) {
+            // Ignore since reinstalling breakpoints is meaningless when JVM is disconnected.
+        } catch (Exception e) {
+            logger.log(Level.WARNING, String.format("Failed to reinstall breakpoint: %s", e.toString()), e);
+        }
     }
 }

@@ -28,6 +28,7 @@ import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.event.ThreadDeathEvent;
+import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.MethodEntryRequest;
@@ -262,7 +263,8 @@ public class MethodBreakpoint implements IMethodBreakpoint, IEvaluatableBreakpoi
             MethodEntryRequest request = vm.eventRequestManager().createMethodEntryRequest();
 
             request.addClassFilter(type);
-            request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+            boolean suspendAll = DebugSettings.getCurrent().suspendAllThreads;
+            request.setSuspendPolicy(suspendAll ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
             if (hitCount > 0) {
                 request.addCountFilter(hitCount);
             }

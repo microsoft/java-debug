@@ -81,6 +81,7 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 import io.reactivex.Observable;
@@ -625,7 +626,8 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
                 .take(1).subscribe(debugEvent -> {
                     debugEvent.shouldResume = false;
                     // Have to send to events to keep the UI sync with the step in operations:
-                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
+                    boolean allThreadsStopped = request.suspendPolicy() == EventRequest.SUSPEND_ALL;
+                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID(), allThreadsStopped));
                     context.getProtocolServer().sendEvent(new Events.ContinuedEvent(thread.uniqueID()));
                 });
         request.enable();

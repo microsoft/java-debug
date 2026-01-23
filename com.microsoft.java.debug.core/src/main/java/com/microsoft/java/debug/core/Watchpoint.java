@@ -28,6 +28,7 @@ import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.event.ThreadDeathEvent;
+import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.WatchpointRequest;
@@ -212,7 +213,8 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
         }
 
         watchpointRequests.forEach(request -> {
-            request.setSuspendPolicy(WatchpointRequest.SUSPEND_EVENT_THREAD);
+            boolean suspendAll = DebugSettings.getCurrent().suspendAllThreads;
+            request.setSuspendPolicy(suspendAll ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
             if (hitCount > 0) {
                 request.addCountFilter(hitCount);
             }
