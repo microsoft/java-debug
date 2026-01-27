@@ -81,7 +81,6 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
-import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 import io.reactivex.Observable;
