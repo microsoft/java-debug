@@ -626,8 +626,7 @@ public class JavaHotCodeReplaceProvider implements IHotCodeReplaceProvider, IRes
                 .take(1).subscribe(debugEvent -> {
                     debugEvent.shouldResume = false;
                     // Have to send to events to keep the UI sync with the step in operations:
-                    boolean allThreadsStopped = request.suspendPolicy() == EventRequest.SUSPEND_ALL;
-                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID(), allThreadsStopped));
+                    context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
                     context.getProtocolServer().sendEvent(new Events.ContinuedEvent(thread.uniqueID()));
                 });
         request.enable();

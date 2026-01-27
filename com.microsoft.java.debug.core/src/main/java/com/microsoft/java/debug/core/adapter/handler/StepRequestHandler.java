@@ -48,7 +48,6 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
-import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VoidValue;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
@@ -113,16 +112,8 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread, null);
                 }
 
-                if (context.getDebugSession().suspendAllThreads()) {
-                    threadState.pendingStepRequest.setSuspendPolicy(EventRequest.SUSPEND_ALL);
-                }
-
                 threadState.pendingMethodExitRequest = thread.virtualMachine().eventRequestManager().createMethodExitRequest();
-                if (context.getDebugSession().suspendAllThreads()) {
-                    threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_ALL);
-                } else {
-                    threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-                }
+                threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
 
                 threadState.targetStepIn = targetId > 0
                     ? (MethodInvocation) context.getRecyclableIdPool().getObjectById(targetId) : null;
@@ -198,15 +189,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 }
 
                 context.getThreadCache().removeEventThread(thread.uniqueID());
-                if (context.getDebugSession().suspendAllThreads()) {
-                    try {
-                        context.getDebugSession().resume();
-                    } catch (VMDisconnectedException e) {
-                        // ignore
-                    }
-                } else {
-                    DebugUtility.resumeThread(thread);
-                }
+                DebugUtility.resumeThread(thread);
                 ThreadsRequestHandler.checkThreadRunningAndRecycleIds(thread, context);
             } catch (IncompatibleThreadStateException ex) {
                 // Roll back the Exception info if stepping fails.
@@ -327,9 +310,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 threadState.eventSubscription.dispose();
             }
             context.getThreadCache().addEventThread(thread, "step");
-            boolean allThreadsStopped = event.request() != null
-                    && event.request().suspendPolicy() == EventRequest.SUSPEND_ALL;
-            context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID(), allThreadsStopped));
+            context.getProtocolServer().sendEvent(new Events.StoppedEvent("step", thread.uniqueID()));
             debugEvent.shouldResume = false;
         } else if (event instanceof MethodExitEvent) {
             MethodExitEvent methodExitEvent = (MethodExitEvent) event;
