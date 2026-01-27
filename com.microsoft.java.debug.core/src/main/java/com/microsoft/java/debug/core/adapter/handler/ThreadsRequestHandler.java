@@ -23,7 +23,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
-import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.ErrorCode;
@@ -151,7 +150,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         }
 
-        if (DebugSettings.getCurrent().suspendAllThreads) {
+        if (context.getDebugSession().suspendAllThreads()) {
             thread = null;
         }
 

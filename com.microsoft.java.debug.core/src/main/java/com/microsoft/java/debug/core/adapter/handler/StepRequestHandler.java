@@ -22,7 +22,6 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import com.microsoft.java.debug.core.AsyncJdwpUtils;
 import com.microsoft.java.debug.core.DebugEvent;
-import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.DebugUtility;
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.JdiExceptionReference;
@@ -114,12 +113,12 @@ public class StepRequestHandler implements IDebugRequestHandler {
                     threadState.pendingStepRequest = DebugUtility.createStepOverRequest(thread, null);
                 }
 
-                if (DebugSettings.getCurrent().suspendAllThreads) {
+                if (context.getDebugSession().suspendAllThreads()) {
                     threadState.pendingStepRequest.setSuspendPolicy(EventRequest.SUSPEND_ALL);
                 }
 
                 threadState.pendingMethodExitRequest = thread.virtualMachine().eventRequestManager().createMethodExitRequest();
-                if (DebugSettings.getCurrent().suspendAllThreads) {
+                if (context.getDebugSession().suspendAllThreads()) {
                     threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_ALL);
                 } else {
                     threadState.pendingMethodExitRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
@@ -199,7 +198,7 @@ public class StepRequestHandler implements IDebugRequestHandler {
                 }
 
                 context.getThreadCache().removeEventThread(thread.uniqueID());
-                if (DebugSettings.getCurrent().suspendAllThreads) {
+                if (context.getDebugSession().suspendAllThreads()) {
                     try {
                         context.getDebugSession().resume();
                     } catch (VMDisconnectedException e) {

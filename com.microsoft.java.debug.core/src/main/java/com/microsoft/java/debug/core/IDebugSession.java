@@ -52,4 +52,10 @@ public interface IDebugSession {
     IEventHub getEventHub();
 
     VirtualMachine getVM();
+
+    /**
+     * Returns whether breakpoints should suspend all threads or just the event thread.
+     * This value is captured at session start and persists for the session lifetime.
+     */
+    boolean suspendAllThreads();
 }

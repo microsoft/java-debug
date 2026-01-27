@@ -29,28 +29,28 @@ public class EvaluatableBreakpoint extends Breakpoint implements IEvaluatableBre
     private Object compiledLogpointExpression = null;
     private Map<Long, Object> compiledExpressions = new ConcurrentHashMap<>();
 
-    EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber) {
-        this(vm, eventHub, className, lineNumber, 0, null);
+    EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, boolean suspendAllThreads) {
+        this(vm, eventHub, className, lineNumber, 0, null, suspendAllThreads);
     }
 
-    EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount) {
-        this(vm, eventHub, className, lineNumber, hitCount, null);
-    }
-
-    EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount,
-            String condition) {
-        this(vm, eventHub, className, lineNumber, hitCount, condition, null);
+    EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount, boolean suspendAllThreads) {
+        this(vm, eventHub, className, lineNumber, hitCount, null, suspendAllThreads);
     }
 
     EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount,
-            String condition, String logMessage) {
-        super(vm, eventHub, className, lineNumber, hitCount, condition, logMessage);
+            String condition, boolean suspendAllThreads) {
+        this(vm, eventHub, className, lineNumber, hitCount, condition, null, suspendAllThreads);
+    }
+
+    EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount,
+            String condition, String logMessage, boolean suspendAllThreads) {
+        super(vm, eventHub, className, lineNumber, hitCount, condition, logMessage, suspendAllThreads);
         this.eventHub = eventHub;
     }
 
     EvaluatableBreakpoint(VirtualMachine vm, IEventHub eventHub, JavaBreakpointLocation sourceLocation, int hitCount,
-        String condition, String logMessage) {
-        super(vm, eventHub, sourceLocation, hitCount, condition, logMessage);
+        String condition, String logMessage, boolean suspendAllThreads) {
+        super(vm, eventHub, sourceLocation, hitCount, condition, logMessage, suspendAllThreads);
         this.eventHub = eventHub;
     }
 
