@@ -54,11 +54,13 @@ public class Breakpoint implements IBreakpoint {
         this(vm, eventHub, className, lineNumber, hitCount, null, suspendAllThreads);
     }
 
-    Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount, String condition, boolean suspendAllThreads) {
+    Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount,
+            String condition, boolean suspendAllThreads) {
         this(vm, eventHub, className, lineNumber, hitCount, condition, null, suspendAllThreads);
     }
 
-    Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount, String condition, String logMessage, boolean suspendAllThreads) {
+    Breakpoint(VirtualMachine vm, IEventHub eventHub, String className, int lineNumber, int hitCount,
+            String condition, String logMessage, boolean suspendAllThreads) {
         this.vm = vm;
         this.eventHub = eventHub;
         this.suspendAllThreads = suspendAllThreads;
@@ -81,7 +83,8 @@ public class Breakpoint implements IBreakpoint {
         this.logMessage = logMessage;
     }
 
-    Breakpoint(VirtualMachine vm, IEventHub eventHub, JavaBreakpointLocation sourceLocation, int hitCount, String condition, String logMessage, boolean suspendAllThreads) {
+    Breakpoint(VirtualMachine vm, IEventHub eventHub, JavaBreakpointLocation sourceLocation, int hitCount,
+            String condition, String logMessage, boolean suspendAllThreads) {
         this.vm = vm;
         this.eventHub = eventHub;
         this.sourceLocation = sourceLocation;

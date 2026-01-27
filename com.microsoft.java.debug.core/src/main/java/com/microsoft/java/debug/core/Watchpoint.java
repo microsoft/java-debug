@@ -28,7 +28,6 @@ import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.event.ThreadDeathEvent;
-import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.WatchpointRequest;
@@ -61,7 +60,8 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
         this(vm, eventHub, className, fieldName, accessType, null, 0, suspendAllThreads);
     }
 
-    Watchpoint(VirtualMachine vm, IEventHub eventHub, String className, String fieldName, String accessType, String condition, int hitCount, boolean suspendAllThreads) {
+    Watchpoint(VirtualMachine vm, IEventHub eventHub, String className, String fieldName, String accessType,
+            String condition, int hitCount, boolean suspendAllThreads) {
         Objects.requireNonNull(vm);
         Objects.requireNonNull(eventHub);
         Objects.requireNonNull(className);
