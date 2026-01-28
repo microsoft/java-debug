@@ -188,7 +188,7 @@ public class DebugSession implements IDebugSession {
 
             if (exceptionTypes == null || exceptionTypes.length == 0) {
                 ExceptionRequest request = manager.createExceptionRequest(null, notifyCaught, notifyUncaught);
-                request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                request.setSuspendPolicy(suspendAllThreads ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
                 if (classFilters != null) {
                     for (String classFilter : classFilters) {
                         request.addClassFilter(classFilter);
@@ -278,7 +278,7 @@ public class DebugSession implements IDebugSession {
             String[] classFilters, String[] classExclusionFilters) {
         EventRequestManager manager = vm.eventRequestManager();
         ExceptionRequest request = manager.createExceptionRequest(refType, notifyCaught, notifyUncaught);
-        request.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+        request.setSuspendPolicy(suspendAllThreads ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
         if (classFilters != null) {
             for (String classFilter : classFilters) {
                 request.addClassFilter(classFilter);
