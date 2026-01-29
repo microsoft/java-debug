@@ -150,7 +150,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
             thread = DebugUtility.getThread(context.getDebugSession(), arguments.threadId);
         }
 
-        if (context.getDebugSession().suspendAllThreads()) {
+        if (context.getDebugSession().shouldSuspendAllThreads()) {
             thread = null;
         }
 

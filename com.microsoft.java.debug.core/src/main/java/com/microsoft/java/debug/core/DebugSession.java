@@ -264,7 +264,7 @@ public class DebugSession implements IDebugSession {
     }
 
     @Override
-    public boolean suspendAllThreads() {
+    public boolean shouldSuspendAllThreads() {
         return suspendAllThreads;
     }
 

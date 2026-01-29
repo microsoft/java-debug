@@ -57,5 +57,5 @@ public interface IDebugSession {
      * Returns whether breakpoints should suspend all threads or just the event thread.
      * This value is captured at session start and persists for the session lifetime.
      */
-    boolean suspendAllThreads();
+    boolean shouldSuspendAllThreads();
 }

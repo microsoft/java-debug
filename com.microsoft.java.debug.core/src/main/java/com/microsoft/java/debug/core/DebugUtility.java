@@ -416,7 +416,7 @@ public class DebugUtility {
         EventRequestManager manager = debugSession.getVM().eventRequestManager();
         MethodEntryRequest request = manager.createMethodEntryRequest();
         request.addClassFilter(mainClass);
-        request.setSuspendPolicy(debugSession.suspendAllThreads() ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
+        request.setSuspendPolicy(debugSession.shouldSuspendAllThreads() ? EventRequest.SUSPEND_ALL : EventRequest.SUSPEND_EVENT_THREAD);
 
         debugSession.getEventHub().events().filter(debugEvent -> {
             return debugEvent.event instanceof MethodEntryEvent && request.equals(debugEvent.event.request());
