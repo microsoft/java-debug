@@ -25,6 +25,11 @@ import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
 
+/**
+ * Implements a formatter for numeric values, providing string representations
+ * in various formats (decimal, hexadecimal, octal) and precision levels.
+ * This class supports long, int, short, byte, float, and double types from the JDI.
+ */
 public class NumericFormatter implements IValueFormatter {
     public static final String NUMERIC_FORMAT_OPTION = "numeric_format";
     public static final String NUMERIC_PRECISION_OPTION = "numeric_precision";
@@ -61,6 +66,16 @@ public class NumericFormatter implements IValueFormatter {
         throw new UnsupportedOperationException(String.format("%s is not a numeric type.", value.type().name()));
     }
 
+    /**
+     * Converts a string representation of a number into a JDI Value based on the type's signature.
+     * Supports conversion for numeric types including long, int, short, byte, float, and double.
+     *
+     * @param value The string value to be converted.
+     * @param type The JDI type for the conversion.
+     * @param options Unused in this formatter.
+     * @return A JDI Value representing the numeric value.
+     * @throws UnsupportedOperationException if the type is not numeric.
+     */
     @Override
     public Value valueOf(String value, Type type, Map<String, Object> options) {
         VirtualMachine vm = type.virtualMachine();
@@ -112,6 +127,11 @@ public class NumericFormatter implements IValueFormatter {
                 || signature0 == DOUBLE;
     }
 
+    /**
+     * Provides the default formatting options for numeric values.
+     *
+     * @return A map containing default options for numeric format and precision.
+     */
     @Override
     public Map<String, Object> getDefaultOptions() {
         Map<String, Object> options = new HashMap<>();
@@ -120,34 +140,78 @@ public class NumericFormatter implements IValueFormatter {
         return options;
     }
 
+    /**
+     * Formats a numeric value according to the specified numeric format in the options.
+     *
+     * @param value The numeric value to format.
+     * @param options A map containing the formatting options, which may specify the numeric format.
+     * @return A formatted string representation of the numeric value.
+     */
     static String formatNumber(long value, Map<String, Object> options) {
         NumericFormatEnum formatEnum = getNumericFormatOption(options);
         return String.format(enumFormatMap.get(formatEnum), value);
     }
 
+    /**
+     * Parses a numeric string to its long value representation.
+     *
+     * @param number The string representation of the number.
+     * @return The long value of the parsed number.
+     */
     private static long parseNumber(String number) {
         return Long.decode(number);
     }
 
+    /**
+     * Parses a numeric string to its double value representation.
+     *
+     * @param number The string representation of the number.
+     * @return The double value of the parsed number.
+     */
     private static double parseFloatDouble(String number) {
         return Double.parseDouble(number);
     }
 
+    /**
+     * Formats a floating-point number according to the specified precision in the options.
+     *
+     * @param value The floating-point value to format.
+     * @param options A map containing the formatting options, which may specify the numeric precision.
+     * @return A formatted string representation of the floating-point value.
+     */
     private static String formatFloatDouble(double value, Map<String, Object> options) {
         int precision = getFractionPrecision(options);
         return String.format(precision > 0 ? String.format("%%.%df", precision) : "%f", value);
     }
 
+    /**
+     * Retrieves the numeric format option from the provided options map.
+     *
+     * @param options A map containing the formatting options.
+     * @return The specified NumericFormatEnum, or the default format if not specified.
+     */
     private static NumericFormatEnum getNumericFormatOption(Map<String, Object> options) {
         return options.containsKey(NUMERIC_FORMAT_OPTION)
                 ? (NumericFormatEnum) options.get(NUMERIC_FORMAT_OPTION) : DEFAULT_NUMERIC_FORMAT;
     }
 
+    /**
+     * Checks if the given type signature corresponds to a floating-point number.
+     *
+     * @param signature0 The first character of the type signature.
+     * @return True if the type is a floating-point number, false otherwise.
+     */
     private static boolean hasFraction(char signature0) {
         return signature0 == FLOAT
                 || signature0 == DOUBLE;
     }
 
+    /**
+     * Retrieves the numeric precision option from the provided options map.
+     *
+     * @param options A map containing the formatting options.
+     * @return The specified numeric precision, or the default precision if not specified.
+     */
     private static int getFractionPrecision(Map<String, Object> options) {
         return options.containsKey(NUMERIC_PRECISION_OPTION)
                 ? (int) options.get(NUMERIC_PRECISION_OPTION) : DEFAULT_NUMERIC_PRECISION;
