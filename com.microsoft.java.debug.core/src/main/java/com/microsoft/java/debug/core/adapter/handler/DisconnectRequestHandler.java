@@ -26,6 +26,7 @@ public class DisconnectRequestHandler extends AbstractDisconnectRequestHandler {
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
             if (disconnectArguments.terminateDebuggee && !context.isAttached()) {
+                debugSession.detach();
                 debugSession.terminate();
             } else {
                 debugSession.detach();
