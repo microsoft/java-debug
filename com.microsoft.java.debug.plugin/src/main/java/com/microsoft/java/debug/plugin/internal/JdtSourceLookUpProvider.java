@@ -466,15 +466,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     private static String getFileURI(IClassFile classFile) {
-        String packageName = classFile.getParent().getElementName();
-        String jarName = classFile.getParent().getParent().getElementName();
-        try {
-            return new URI(JDT_SCHEME, "contents", PATH_SEPARATOR + jarName + PATH_SEPARATOR + packageName
-                    + PATH_SEPARATOR + classFile.getElementName(), classFile.getHandleIdentifier(), null)
-                    .toASCIIString();
-        } catch (URISyntaxException e) {
-            return null;
-        }
+        return JDTUtils.toUri(classFile);
     }
 
     private static String getFileURI(IResource resource) {
