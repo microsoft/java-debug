@@ -163,6 +163,13 @@ public class VariableDetailUtils {
             return false;
         }
         String inheritedType = findInheritedType(value, COLLECTION_TYPES);
+        // Map.Entry should not use lazy loading because its details computation
+        // (getKey + getValue) is lightweight and showing "key:value" inline
+        // significantly improves UX for large Maps. See
+        // https://github.com/microsoft/vscode-java-debug/issues/1605
+        if (Objects.equals(inheritedType, ENTRY_TYPE)) {
+            return false;
+        }
         if (inheritedType == null && !containsToStringMethod((ObjectReference) value)) {
             return false;
         }
