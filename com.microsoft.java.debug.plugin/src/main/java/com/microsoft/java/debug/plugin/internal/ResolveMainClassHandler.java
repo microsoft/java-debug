@@ -241,6 +241,13 @@ public class ResolveMainClassHandler {
             return method.isMainMethod();
         } catch (JavaModelException e) {
             // do nothing
+        } catch (NoSuchMethodError e) {
+            // isMainMethodCandidate() was added in JDT Core 3.36, fall back to isMainMethod()
+            try {
+                return method.isMainMethod();
+            } catch (JavaModelException ex) {
+                // do nothing
+            }
         }
 
         return false;

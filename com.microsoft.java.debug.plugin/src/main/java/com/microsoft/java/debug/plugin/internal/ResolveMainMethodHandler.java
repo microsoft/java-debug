@@ -112,9 +112,13 @@ public class ResolveMainMethodHandler {
         boolean allowInstanceMethod = isInstanceMainMethodSupported(type);
         List<IMethod> methods = new ArrayList<>();
         for (IMethod method : type.getMethods()) {
-            if (method instanceof SourceMethod
-                && ((SourceMethod) method).isMainMethodCandidate()) {
-                methods.add(method);
+            try {
+                if (method instanceof SourceMethod
+                    && ((SourceMethod) method).isMainMethodCandidate()) {
+                    methods.add(method);
+                }
+            } catch (NoSuchMethodError e) {
+                // isMainMethodCandidate() was added in JDT Core 3.36, skip if unavailable
             }
 
             if (method.isMainMethod()) {
