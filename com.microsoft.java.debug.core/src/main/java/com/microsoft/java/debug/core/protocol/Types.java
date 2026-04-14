@@ -49,19 +49,13 @@ public class Types {
         /**
          * Constructs a StackFrame with the given information.
          *
-         * @param id
-         *          the stack frame id
-         * @param name
-         *          the stack frame name
-         * @param src
-         *          source info of the stack frame
-         * @param ln
-         *          line number of the stack frame
-         * @param col
-         *          column number of the stack frame
-         * @param presentationHint
-         *          An optional hint for how to present this frame in the UI.
-         *          Values: 'normal', 'label', 'subtle'
+         * @param id               the stack frame id
+         * @param name             the stack frame name
+         * @param src              source info of the stack frame
+         * @param ln               line number of the stack frame
+         * @param col              column number of the stack frame
+         * @param presentationHint An optional hint for how to present this frame in the UI.
+         *                         Values: 'normal', 'label', 'subtle'
          */
         public StackFrame(int id, String name, Source src, int ln, int col, String presentationHint) {
             this.id = id;
@@ -408,9 +402,11 @@ public class Types {
 
     public static class VariablePresentationHint {
         public boolean lazy;
+        public String[] attributes;
 
-        public VariablePresentationHint(boolean lazy) {
+        public VariablePresentationHint(boolean lazy, String[] attributes) {
             this.lazy = lazy;
+            this.attributes = attributes;
         }
     }
 
