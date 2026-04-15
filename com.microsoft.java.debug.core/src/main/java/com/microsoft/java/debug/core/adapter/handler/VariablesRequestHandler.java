@@ -65,6 +65,8 @@ import com.sun.jdi.StackFrame;
 import com.sun.jdi.StringReference;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
+import com.sun.jdi.PrimitiveType;
+import com.sun.jdi.ClassNotLoadedException;
 
 public class VariablesRequestHandler implements IDebugRequestHandler {
     protected static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
@@ -375,7 +377,7 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
             Types.Variable typedVariables = new Types.Variable(name, valueString, typeString, referenceId, evaluateName);
             typedVariables.indexedVariables = Math.max(indexedVariables, 0);
             if ((varProxy != null && varProxy.isLazyVariable()) || (rawAttributes.length > 0)) {
-                typedVariables.presentationHint = new VariablePresentationHint(varProxy == null || varProxy.isLazyVariable(), rawAttributes);
+                typedVariables.presentationHint = new VariablePresentationHint(varProxy != null && varProxy.isLazyVariable(), rawAttributes);
             }
 
             if (detailsValue != null) {
@@ -400,14 +402,22 @@ public class VariablesRequestHandler implements IDebugRequestHandler {
                 attributes.add("static");
             }
             if (variable.field.isFinal()) {
-                // static final fields are compile-time constants in Java
-                if (variable.field.isStatic()) {
+                // static final Primitive or StringRef fields are compile-time constants in Java
+                boolean isPrimitive;
+                try {
+                    isPrimitive = variable.field.type() instanceof PrimitiveType;
+                } catch (ClassNotLoadedException e) { /* type() not yet loaded indicates some ReferenceType */
+                    isPrimitive = false;
+                }
+                boolean canBeTrueConstant = (isPrimitive || variable.field instanceof StringReference);
+                if (variable.field.isStatic() && canBeTrueConstant) {
                     attributes.add("constant");
                 }
                 attributes.add("readOnly");
             }
         }
         // local 'final' variables get inlined by the compiler and do not appear
+
         if (variable.value instanceof StringReference) {
             attributes.add("rawString");
         }
