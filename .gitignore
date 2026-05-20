@@ -30,7 +30,6 @@ hs_err_pid*
 target/
 .settings
 **/.checkstyle
-target/
 bin/
 **/lib/
 

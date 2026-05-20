@@ -18,12 +18,14 @@ import java.util.concurrent.CompletableFuture;
 import com.microsoft.java.debug.core.DebugSettings;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.IDebugRequestHandler;
+import com.microsoft.java.debug.core.adapter.formatter.NumericFormatEnum;
 import com.microsoft.java.debug.core.protocol.Events.InvalidatedAreas;
 import com.microsoft.java.debug.core.protocol.Events.InvalidatedEvent;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.RefreshVariablesArguments;
+
 
 public class RefreshVariablesHandler implements IDebugRequestHandler {
 
@@ -37,7 +39,7 @@ public class RefreshVariablesHandler implements IDebugRequestHandler {
             IDebugAdapterContext context) {
         RefreshVariablesArguments refreshArgs = (RefreshVariablesArguments) arguments;
         if (refreshArgs != null) {
-            DebugSettings.getCurrent().showHex = refreshArgs.showHex;
+            DebugSettings.getCurrent().formatType = getFormatType(refreshArgs.showHex, refreshArgs.formatType);
             DebugSettings.getCurrent().showQualifiedNames = refreshArgs.showQualifiedNames;
             DebugSettings.getCurrent().showStaticVariables = refreshArgs.showStaticVariables;
             DebugSettings.getCurrent().showLogicalStructure = refreshArgs.showLogicalStructure;
@@ -46,5 +48,16 @@ public class RefreshVariablesHandler implements IDebugRequestHandler {
 
         context.getProtocolServer().sendEvent(new InvalidatedEvent(InvalidatedAreas.VARIABLES));
         return CompletableFuture.completedFuture(response);
+    }
+
+    private NumericFormatEnum getFormatType(boolean showHex, String formatType) {
+        if (formatType != null) {
+            try {
+                return NumericFormatEnum.valueOf(formatType);
+            } catch (IllegalArgumentException exp) {
+                // can't parse format so just return default value;
+            }
+        }
+        return showHex ? NumericFormatEnum.HEX : NumericFormatEnum.DEC;
     }
 }
