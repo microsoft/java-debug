@@ -90,9 +90,7 @@ public class DebugAdapter implements IDebugAdapter {
         if (handlers != null && !handlers.isEmpty()) {
             CompletableFuture<Messages.Response> future = CompletableFuture.completedFuture(response);
             for (IDebugRequestHandler handler : handlers) {
-                future = future.thenCompose((res) -> {
-                    return handler.handle(command, cmdArgs, res, debugContext);
-                });
+                future = future.thenCompose(res -> handler.handle(command, cmdArgs, res, debugContext));
             }
             return future;
         } else {
