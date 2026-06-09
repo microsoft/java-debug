@@ -302,13 +302,18 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
     }
 
     private static int getSourceReference(Source source, IDebugAdapterContext context) {
-        return source.getType().equals(SourceType.REMOTE) ? context.createSourceReference(source.getUri()) : 0;
+        return SourceType.REMOTE == source.getType() ? context.createSourceReference(source.getUri()) : 0;
     }
 
     private static Types.Source resolveSourceFromSourcePaths(String sourceName, String relativeSourcePath,
             IDebugAdapterContext context) {
         String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), relativeSourcePath);
-        return absoluteSourcepath == null ? null : new Types.Source(sourceName, absoluteSourcepath, 0);
+        if (absoluteSourcepath == null) {
+            return null;
+        }
+
+        String clientPath = AdapterUtils.convertPath(absoluteSourcepath, false, context.isClientPathsAreUri());
+        return new Types.Source(sourceName, clientPath, 0);
     }
 
     private String formatMethodName(String methodName, List<String> argumentTypeNames, String fqn, boolean showContextClass, boolean showParameter) {

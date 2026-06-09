@@ -67,6 +67,37 @@ public class StackTraceRequestHandlerTest extends EasyMockSupport {
 
         assertEquals(sourceFile.toString(), localSource.path);
         assertEquals(0, localSource.sourceReference);
+
+        context.setClientPathsAreUri(true);
+        Types.Source localUriSource = StackTraceRequestHandler.convertDebuggerSourceToClient(fullyQualifiedName,
+                sourceName, relativeSourcePath, context);
+
+        assertEquals(sourceFile.toUri().toString(), localUriSource.path);
+        verifyAll();
+    }
+
+    @Test
+    public void convertDebuggerSourceShouldHandleSourceWithNullType() throws Exception {
+        String fullyQualifiedName = "com.example.Bar";
+        String sourceName = "Bar.java";
+        Path sourceFile = tempFolder.newFile(sourceName).toPath();
+        String sourceUri = sourceFile.toUri().toString();
+
+        ISourceLookUpProvider sourceProvider = createMock(ISourceLookUpProvider.class);
+        expect(sourceProvider.getSource(fullyQualifiedName, sourceName))
+                .andReturn(new Source(sourceUri, null))
+                .once();
+        replayAll();
+
+        ProviderContext providerContext = new ProviderContext();
+        providerContext.registerProvider(ISourceLookUpProvider.class, sourceProvider);
+        DebugAdapterContext context = new DebugAdapterContext(null, providerContext);
+
+        Types.Source source = StackTraceRequestHandler.convertDebuggerSourceToClient(fullyQualifiedName, sourceName,
+                sourceName, context);
+
+        assertEquals(sourceFile.toString(), source.path);
+        assertEquals(0, source.sourceReference);
         verifyAll();
     }
 }
