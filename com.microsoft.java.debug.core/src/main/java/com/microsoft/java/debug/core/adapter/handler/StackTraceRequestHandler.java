@@ -273,19 +273,21 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             return result;
         });
 
-        Integer sourceReference = 0;
         String uri = source.getUri();
-
-        if (source.getType().equals(SourceType.REMOTE)) {
-            sourceReference = context.createSourceReference(source.getUri());
-        }
 
         if (!StringUtils.isBlank(uri)) {
             // The Source.path could be a file system path or uri string.
             if (uri.startsWith("file:")) {
+                int sourceReference = getSourceReference(source, context);
                 String clientPath = AdapterUtils.convertPath(uri, context.isDebuggerPathsAreUri(), context.isClientPathsAreUri());
                 return new Types.Source(sourceName, clientPath, sourceReference);
             } else {
+                Types.Source sourceInSourcePaths = resolveSourceFromSourcePaths(sourceName, relativeSourcePath, context);
+                if (sourceInSourcePaths != null) {
+                    return sourceInSourcePaths;
+                }
+
+                int sourceReference = getSourceReference(source, context);
                 // If the debugger returns uri in the Source.path for the StackTrace response, VSCode client will try to find a TextDocumentContentProvider
                 // to render the contents.
                 // Language Support for Java by Red Hat extension has already registered a jdt TextDocumentContentProvider to parse the jdt-based uri.
@@ -295,13 +297,18 @@ public class StackTraceRequestHandler implements IDebugRequestHandler {
             }
         } else {
             // If the source lookup engine cannot find the source file, then lookup it in the source directories specified by user.
-            String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), relativeSourcePath);
-            if (absoluteSourcepath != null) {
-                return new Types.Source(sourceName, absoluteSourcepath, sourceReference);
-            } else {
-                return null;
-            }
+            return resolveSourceFromSourcePaths(sourceName, relativeSourcePath, context);
         }
+    }
+
+    private static int getSourceReference(Source source, IDebugAdapterContext context) {
+        return source.getType().equals(SourceType.REMOTE) ? context.createSourceReference(source.getUri()) : 0;
+    }
+
+    private static Types.Source resolveSourceFromSourcePaths(String sourceName, String relativeSourcePath,
+            IDebugAdapterContext context) {
+        String absoluteSourcepath = AdapterUtils.sourceLookup(context.getSourcePaths(), relativeSourcePath);
+        return absoluteSourcepath == null ? null : new Types.Source(sourceName, absoluteSourcepath, 0);
     }
 
     private String formatMethodName(String methodName, List<String> argumentTypeNames, String fqn, boolean showContextClass, boolean showParameter) {
