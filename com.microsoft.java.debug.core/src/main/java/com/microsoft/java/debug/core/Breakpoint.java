@@ -329,16 +329,16 @@ public class Breakpoint implements IBreakpoint {
         List<CompletableFuture<Location>> futures = new ArrayList<>();
         for (ReferenceType refType : refTypes) {
             if (async()) {
-                futures.add(AsyncJdwpUtils.supplyAsync(() -> findMethodLocaiton(refType, methodName, methodSiguature)));
+                futures.add(AsyncJdwpUtils.supplyAsync(() -> findMethodLocation(refType, methodName, methodSiguature)));
             } else {
-                futures.add(CompletableFuture.completedFuture(findMethodLocaiton(refType, methodName, methodSiguature)));
+                futures.add(CompletableFuture.completedFuture(findMethodLocation(refType, methodName, methodSiguature)));
             }
         }
 
         return AsyncJdwpUtils.all(futures);
     }
 
-    private Location findMethodLocaiton(ReferenceType refType, String methodName, String methodSiguature) {
+    private Location findMethodLocation(ReferenceType refType, String methodName, String methodSiguature) {
         List<Method> methods = refType.methods();
         Location location = null;
         for (Method method : methods) {
