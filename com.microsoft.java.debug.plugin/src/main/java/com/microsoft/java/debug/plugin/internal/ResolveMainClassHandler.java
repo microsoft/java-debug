@@ -31,8 +31,10 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.JavaCore;
@@ -106,7 +108,10 @@ public class ResolveMainClassHandler {
             projects = ProjectUtils.getJavaProjects();
         } else {
             projects = Stream.of(ProjectUtils.getAllProjects())
-                .filter(p -> ProjectUtils.isJavaProject(p)  && p.getLocation() != null && ResourceUtils.isContainedIn(p.getLocation(), parentPaths))
+                .filter(p -> ProjectUtils.isJavaProject(p)  && p.getLocation() != null
+                    && (ResourceUtils.isContainedIn(p.getLocation(), parentPaths)
+                        || isContainedInInvisibleProject(p, parentPaths)
+                        || hasSourceFolderContainedIn(p, parentPaths)))
                 .map(p -> JavaCore.create(p))
                 .filter(p -> p.exists())
                 .toArray(IJavaProject[]::new);
@@ -137,7 +142,8 @@ public class ResolveMainClassHandler {
                                 String projectName = ProjectsManager.DEFAULT_PROJECT_NAME.equals(project.getName()) ? null : project.getName();
                                 if (parentPaths.isEmpty()
                                     || ResourceUtils.isContainedIn(project.getLocation(), parentPaths)
-                                    || isContainedInInvisibleProject(project, parentPaths)) {
+                                    || isContainedInInvisibleProject(project, parentPaths)
+                                    || hasSourceFolderContainedIn(project, parentPaths)) {
                                     String filePath = null;
 
                                     if (match.getResource() instanceof IFile) {
@@ -248,6 +254,41 @@ public class ResolveMainClassHandler {
             } catch (JavaModelException ex) {
                 // do nothing
             }
+        }
+
+        return false;
+    }
+
+    /**
+     * A project can keep its description outside of the workspace folders and reach the sources
+     * through linked folders. The invisible project does it with a single link named after
+     * {@link ProjectUtils#WORKSPACE_LINK}, which the check below covers; project importers
+     * contributed by other extensions do it with one link per source root, which it does not. Such a
+     * project belongs to the folder its sources are in rather than to the folder its description
+     * happens to live in, so the source folders are checked as well - otherwise the project is
+     * dropped before the search runs and the folder appears to have no main class in it.
+     */
+    private boolean hasSourceFolderContainedIn(IProject project, Collection<IPath> rootPaths) {
+        IJavaProject javaProject = JdtUtils.getJavaProject(project);
+        if (javaProject == null) {
+            return false;
+        }
+
+        try {
+            for (IClasspathEntry entry : javaProject.getRawClasspath()) {
+                if (entry.getEntryKind() != IClasspathEntry.CPE_SOURCE) {
+                    continue;
+                }
+
+                IResource sourceFolder = ResourcesPlugin.getWorkspace().getRoot().findMember(entry.getPath());
+                if (sourceFolder != null && sourceFolder.getLocation() != null
+                    && ResourceUtils.isContainedIn(sourceFolder.getLocation(), rootPaths)) {
+                    return true;
+                }
+            }
+        } catch (JavaModelException e) {
+            logger.log(Level.WARNING, String.format("Failed to read the classpath of project %s: %s",
+                project.getName(), e.toString()), e);
         }
 
         return false;
