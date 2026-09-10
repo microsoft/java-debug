@@ -77,7 +77,7 @@ public class SetVariableRequestHandler implements IDebugRequestHandler {
         boolean showStaticVariables = DebugSettings.getCurrent().showStaticVariables;
         IVariableFormatter variableFormatter = context.getVariableFormatter();
         Map<String, Object> options = variableFormatter.getDefaultOptions();
-        VariableUtils.applyFormatterOptions(options, setVarArguments.format != null && setVarArguments.format.hex);
+        VariableUtils.applyFormatterOptions(options, setVarArguments.format);
 
         Object container = context.getRecyclableIdPool().getObjectById(setVarArguments.variablesReference);
         // container is null means the stack frame is continued by user manually.
