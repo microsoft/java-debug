@@ -209,7 +209,7 @@ public class BreakpointManager implements IBreakpointManager {
 
     @Override
     public IWatchpoint[] getWatchpoints() {
-        return this.watchpoints.values().stream().filter(wp -> wp != null).toArray(IWatchpoint[]::new);
+        return this.watchpoints.values().stream().filter(Objects::nonNull).toArray(IWatchpoint[]::new);
     }
 
     @Override

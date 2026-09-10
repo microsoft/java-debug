@@ -26,6 +26,7 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 
 public class JavaLogicalStructureManager {
+    private JavaLogicalStructureManager(){}
     private static final List<JavaLogicalStructure> supportedLogicalStructures = Collections.synchronizedList(new ArrayList<>());
 
     static {

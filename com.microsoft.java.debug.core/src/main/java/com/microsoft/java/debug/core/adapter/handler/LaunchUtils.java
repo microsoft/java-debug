@@ -45,6 +45,7 @@ import com.microsoft.java.debug.core.Configuration;
 import com.microsoft.java.debug.core.adapter.AdapterUtils;
 
 public class LaunchUtils {
+    private LaunchUtils(){}
     private static final Logger logger = Logger.getLogger(Configuration.LOGGER_NAME);
     private static Set<Path> tempFilesInUse = new HashSet<>();
     private static final Charset SYSTEM_CHARSET;
@@ -262,7 +263,7 @@ public class LaunchUtils {
         }
 
         if (!javaCandidates.isEmpty()) {
-            Set<Long> descendantWinpids = shellProcess.descendants().map(proc -> proc.pid()).collect(Collectors.toSet());
+            Set<Long> descendantWinpids = shellProcess.descendants().map(ProcessHandle::pid).collect(Collectors.toSet());
             long shellWinpid = shellProcess.pid();
             for (PsProcess javaCandidate: javaCandidates) {
                 if (descendantWinpids.contains(javaCandidate.winpid)) {

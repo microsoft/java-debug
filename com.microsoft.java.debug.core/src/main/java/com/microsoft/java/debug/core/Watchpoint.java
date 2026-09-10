@@ -93,9 +93,7 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
         } catch (VMDisconnectedException ex) {
             // ignore since removing breakpoints is meaningless when JVM is terminated.
         }
-        subscriptions().forEach(subscription -> {
-            subscription.dispose();
-        });
+        subscriptions().forEach(Disposable::dispose);
         requests.clear();
         subscriptions.clear();
     }
@@ -137,7 +135,7 @@ public class Watchpoint implements IWatchpoint, IEvaluatableBreakpoint {
         this.hitCount = hitCount;
 
         Observable.fromIterable(this.requests())
-            .filter(request -> request instanceof WatchpointRequest)
+            .filter(WatchpointRequest.class::isInstance)
             .subscribe(request -> {
                 request.addCountFilter(hitCount);
                 request.enable();
