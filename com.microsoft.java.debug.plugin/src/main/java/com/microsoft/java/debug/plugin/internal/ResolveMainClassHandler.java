@@ -143,7 +143,7 @@ public class ResolveMainClassHandler {
                                 if (parentPaths.isEmpty()
                                     || ResourceUtils.isContainedIn(project.getLocation(), parentPaths)
                                     || isContainedInInvisibleProject(project, parentPaths)
-                                    || hasSourceFolderContainedIn(project, parentPaths)) {
+                                    || isMatchContainedIn(match, parentPaths)) {
                                     String filePath = null;
 
                                     if (match.getResource() instanceof IFile) {
@@ -257,6 +257,20 @@ public class ResolveMainClassHandler {
         }
 
         return false;
+    }
+
+    /**
+     * Where the match itself is, for the projects the source folder check brings into the search:
+     * their source folders can be linked in from more than one workspace folder, and a folder is
+     * only asking about the main classes that are in it. The project checks stay in front of this
+     * one - a caller can ask with a project's own location rather than with a workspace folder, and
+     * for a project whose description lives outside of the workspace folders no match would be
+     * contained in that location. A match whose resource has no location falls back to them as well,
+     * since {@link ResourceUtils#isContainedIn} answers false for a null.
+     */
+    private boolean isMatchContainedIn(SearchMatch match, Collection<IPath> rootPaths) {
+        IResource resource = match.getResource();
+        return resource != null && ResourceUtils.isContainedIn(resource.getLocation(), rootPaths);
     }
 
     /**
