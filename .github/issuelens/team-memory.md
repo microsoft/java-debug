@@ -13,10 +13,16 @@ destination. Never substitute that destination for the source project, force a
 target, or fall back to another wiki.
 
 The destination GitHub App installation needs Contents read permission for
-retrieval and Contents write permission for maintenance. Those permissions are
-separate from source-user authorization and the source workflow's read-only
-GitHub permissions. The mapping grants no issue, label, assignment, or PR write
-authority in either repository. Verify source/destination privacy compatibility
+retrieval and Contents write permission for maintenance. GitHub's Contents write
+permission is a broad repository-content capability, not a wiki-only grant.
+The runtime's fixed wiki-only tools and separately authorized maintenance scope
+restrict this task to the validated wiki; the App permission itself does not
+enforce that restriction.
+
+These App capabilities are separate from source-user authorization and the
+source workflow's `contents: read` permission. The mapping grants no issue,
+label, assignment, or PR write authority in either repository.
+Verify source/destination privacy compatibility
 and authorization before maintenance. Never publish private/internal information
 into the public shared wiki; unknown visibility or authorization is a limitation,
 not permission.
