@@ -16,18 +16,22 @@ import java.util.Map;
 
 import com.sun.jdi.Type;
 
+/**
+ * Implements a type formatter to provide string representations of JDI types,
+ * with the option to use fully qualified class names or simple names.
+ * It facilitates readability and customization in how types are presented during debugging.
+ */
 public class SimpleTypeFormatter implements ITypeFormatter {
     public static final String QUALIFIED_CLASS_NAME_OPTION = "qualified_class_name";
     private static final boolean DEFAULT_QUALIFIED_CLASS_NAME_OPTION = false;
 
     /**
-     * Format a JDI type, using the <code>SimpleTypeFormatter.QUALIFIED_FORMAT_OPTION</code> to control whether or not
-     * to use the fully qualified name. Set QUALIFIED_FORMAT_OPTION to true(<code>java.lang.Boolean</code>) to enable
-     * fully qualified name, the default option for QUALIFIED_FORMAT_OPTION is false.
+     * Formats the given JDI type into a string representation.
+     * The format can be controlled via options to either show the fully qualified class name or just the simple name.
      *
-     * @param type the Jdi type
-     * @param options the format options
-     * @return the type name
+     * @param type The JDI type to be formatted.
+     * @param options Formatting options that dictate whether to use the fully qualified name.
+     * @return The formatted string representation of the type.
      */
     @Override
     public String toString(Object type, Map<String, Object> options) {
@@ -39,11 +43,23 @@ public class SimpleTypeFormatter implements ITypeFormatter {
         return showQualifiedClassName(options) ? typeName : trimTypeName(typeName);
     }
 
+    /**
+     * Always accepts the provided type since it is capable of formatting any type.
+     *
+     * @param type The JDI type.
+     * @param options Not used in this method.
+     * @return Always true, indicating that any type is supported.
+     */
     @Override
     public boolean acceptType(Type type, Map<String, Object> options) {
         return true;
     }
 
+    /**
+     * Provides the default formatting options for this formatter.
+     *
+     * @return A map containing the default options, specifying the use of simple names by default.
+     */
     @Override
     public Map<String, Object> getDefaultOptions() {
         Map<String, Object> options = new HashMap<>();
@@ -52,9 +68,11 @@ public class SimpleTypeFormatter implements ITypeFormatter {
     }
 
     /**
-     * An utility method for convert fully qualified class name to the simplified class name.
-     * @param type the fully qualified class name
-     * @return the simplified class name
+     * Trims a fully qualified class name to its simple name.
+     * If the class name contains a dot, it returns the substring after the last dot.
+     *
+     * @param type The fully qualified class name.
+     * @return The simple class name without package qualification.
      */
     public static String trimTypeName(String type) {
         if (type.indexOf('.') >= 0) {
@@ -63,6 +81,12 @@ public class SimpleTypeFormatter implements ITypeFormatter {
         return type;
     }
 
+    /**
+     * Determines whether to show fully qualified class names based on the provided options.
+     *
+     * @param options The formatting options map which may contain a value for {@link #QUALIFIED_CLASS_NAME_OPTION}.
+     * @return True if the options specify to show fully qualified names; otherwise, false.
+     */
     private static boolean showQualifiedClassName(Map<String, Object> options) {
         return options.containsKey(QUALIFIED_CLASS_NAME_OPTION)
                 ? (Boolean) options.get(QUALIFIED_CLASS_NAME_OPTION) : DEFAULT_QUALIFIED_CLASS_NAME_OPTION;
