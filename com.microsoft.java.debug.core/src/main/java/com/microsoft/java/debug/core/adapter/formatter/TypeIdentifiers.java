@@ -12,6 +12,7 @@
 package com.microsoft.java.debug.core.adapter.formatter;
 
 public final class TypeIdentifiers {
+    private TypeIdentifiers(){}
     public static final char ARRAY = '[';
     public static final char BYTE = 'B';
     public static final char CHAR = 'C';
