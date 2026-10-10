@@ -65,6 +65,43 @@ Once `eclipse.jdt.ls` launched, the client can send a [Command](https://microsof
 The response to this request will contain a port number on which the debug adapter is listening, and to which a client implementing the debug-adapter protocol can connect to.
 
 
+## IssueLens team-memory maintenance
+
+[The source workflow](.github/workflows/team-memory-post-merge.yml) queues eligible
+default-branch pushes through the `team-memory-coordinator.yml` workflow on `main`
+in `microsoft/vscode-java-pack`. The coordinator owns source validation, the
+shared-wiki queue, and maintenance; issue triage is unchanged.
+
+Before merging this migration with the existing
+`ISSUELENS_TEAM_MEMORY_ENABLED` variable set to `true`, configure both independent
+authentication paths. An enabled source switches immediately from direct
+maintenance to queue dispatch:
+
+- **Source dispatch:** set the repository variable `ISSUELENS_DISPATCH_APP_CLIENT_ID`
+  and secret `ISSUELENS_DISPATCH_APP_PRIVATE_KEY` for a dedicated GitHub App
+  installed only on `microsoft/vscode-java-pack`, with Contents read and Actions
+  write permissions. The pinned token action accepts the client ID through its
+  `client-id` input and narrows the token to that repository and those permissions.
+  The source `GITHUB_TOKEN` cannot dispatch across repositories. Do not reuse the
+  hosted IssueLens App key or the central source-read App credentials.
+- **Central source reads:** Java Pack must separately configure the secrets
+  `ISSUELENS_SOURCE_READ_APP_CLIENT_ID` and `ISSUELENS_SOURCE_READ_APP_PRIVATE_KEY`
+  for its source-read App, with Actions, Contents, and Pull requests read access
+  to selected source repositories including `microsoft/java-debug`. A successful
+  coordinator run for Java Pack itself does not verify this external access.
+
+Only ordinary, non-created, non-deleted, non-forced pushes from the actual source
+repository/default branch with matching workflow and head SHAs are queued.
+The five string inputs identify the source run/attempt and the requested commit
+range. `push_after` is verified against the run; `push_before` authorizes ancestor
+reconciliation, not attested original-event provenance.
+
+For manual merged-PR maintenance, use **Run workflow** on the central coordinator
+with `source_repository: microsoft/java-debug` and `pull_request_number`; there
+is no local manual invocation path. Dispatch acceptance is not maintenance
+completion. Inspect central runs before retrying an ambiguous dispatch failure.
+
+
 License
 -------
 EPL 1.0, See [LICENSE](LICENSE.txt) file.
