@@ -419,6 +419,7 @@ public class Types {
         public boolean supportsRestartFrame;
         public boolean supportsSetVariable;
         public boolean supportsRestartRequest;
+        public boolean supportsTerminateRequest;
         public boolean supportTerminateDebuggee;
         public boolean supportsDelayedStackTraceLoading;
         public boolean supportsLogPoints;
