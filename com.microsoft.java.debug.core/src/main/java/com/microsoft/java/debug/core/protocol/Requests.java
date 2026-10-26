@@ -227,6 +227,10 @@ public class Requests {
         public boolean restart;
     }
 
+    public static class TerminateArguments extends Arguments {
+        public boolean restart;
+    }
+
     public static class ConfigurationDoneArguments extends Arguments {
 
     }
@@ -440,6 +444,7 @@ public class Requests {
         LAUNCH("launch", LaunchArguments.class),
         ATTACH("attach", AttachArguments.class),
         DISCONNECT("disconnect", DisconnectArguments.class),
+        TERMINATE("terminate", TerminateArguments.class),
         CONFIGURATIONDONE("configurationDone", ConfigurationDoneArguments.class),
         NEXT("next", NextArguments.class),
         CONTINUE("continue", ContinueArguments.class),

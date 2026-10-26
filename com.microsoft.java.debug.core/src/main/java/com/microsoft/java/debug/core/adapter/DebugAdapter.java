@@ -47,6 +47,7 @@ import com.microsoft.java.debug.core.adapter.handler.SourceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StackTraceRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StepInTargetsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.StepRequestHandler;
+import com.microsoft.java.debug.core.adapter.handler.TerminateRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.ThreadsRequestHandler;
 import com.microsoft.java.debug.core.adapter.handler.VariablesRequestHandler;
 import com.microsoft.java.debug.core.protocol.IProtocolServer;
@@ -107,6 +108,7 @@ public class DebugAdapter implements IDebugAdapter {
         // When there are multiple handlers registered for the same request, follow the rule "first register, first execute".
         registerHandler(new InitializeRequestHandler());
         registerHandler(new LaunchRequestHandler());
+        registerHandler(new TerminateRequestHandler());
 
         // DEBUG mode only
         registerHandlerForDebug(new AttachRequestHandler());

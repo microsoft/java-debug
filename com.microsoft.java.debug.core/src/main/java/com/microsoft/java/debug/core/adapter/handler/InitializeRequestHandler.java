@@ -50,6 +50,7 @@ public class InitializeRequestHandler implements IDebugRequestHandler {
         caps.supportsHitConditionalBreakpoints = true;
         caps.supportsConditionalBreakpoints = true;
         caps.supportsSetVariable = true;
+        caps.supportsTerminateRequest = true;
         caps.supportTerminateDebuggee = true;
         caps.supportsCompletionsRequest = true;
         caps.supportsRestartFrame = true;

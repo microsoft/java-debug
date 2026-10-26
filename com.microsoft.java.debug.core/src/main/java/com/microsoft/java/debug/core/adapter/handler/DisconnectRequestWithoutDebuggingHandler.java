@@ -11,8 +11,6 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
-import java.util.Optional;
-
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Arguments;
@@ -24,14 +22,8 @@ public class DisconnectRequestWithoutDebuggingHandler extends AbstractDisconnect
     @Override
     public void destroyDebugSession(Command command, Arguments arguments, Response response, IDebugAdapterContext context) {
         DisconnectArguments disconnectArguments = (DisconnectArguments) arguments;
-        Process debuggeeProcess = context.getDebuggeeProcess();
-        if (debuggeeProcess != null && disconnectArguments.terminateDebuggee) {
-            debuggeeProcess.destroy();
-        } else if (context.getProcessId() > 0 && disconnectArguments.terminateDebuggee) {
-            Optional<ProcessHandle> debuggeeHandle = ProcessHandle.of(context.getProcessId());
-            if (debuggeeHandle.isPresent()) {
-                debuggeeHandle.get().destroy();
-            }
+        if (disconnectArguments.terminateDebuggee) {
+            DebuggeeProcessHelper.terminate(context);
         }
     }
 }
