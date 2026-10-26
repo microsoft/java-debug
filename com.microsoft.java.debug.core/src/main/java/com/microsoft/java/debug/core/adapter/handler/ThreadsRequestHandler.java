@@ -181,14 +181,22 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
     }
 
     private CompletableFuture<Response> resumeAll(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
+        resumeAllThreads(context, new Events.ContinuedEvent(arguments.threadId, true));
+        return CompletableFuture.completedFuture(response);
+    }
+
+    static void resumeAllThreads(IDebugAdapterContext context) {
+        resumeAllThreads(context, new Events.ContinuedEvent(true));
+    }
+
+    private static void resumeAllThreads(IDebugAdapterContext context, Events.ContinuedEvent continuedEvent) {
         context.getStepResultManager().removeAllMethodResults();
         context.getExceptionManager().removeAllExceptions();
         context.getThreadCache().clearAllThreadStoppedState();
         resumeVM(context);
-        context.getProtocolServer().sendEvent(new Events.ContinuedEvent(arguments.threadId, true));
+        context.getProtocolServer().sendEvent(continuedEvent);
         context.getStackFrameManager().clearStackFrames();
         context.getRecyclableIdPool().removeAllObjects();
-        return CompletableFuture.completedFuture(response);
     }
 
     private CompletableFuture<Response> resumeOthers(Requests.ThreadOperationArguments arguments, Response response, IDebugAdapterContext context) {
@@ -252,7 +260,7 @@ public class ThreadsRequestHandler implements IDebugRequestHandler {
         }
     }
 
-    private void resumeVM(IDebugAdapterContext context) {
+    private static void resumeVM(IDebugAdapterContext context) {
         List<ThreadReference> visibleThreads = context.getThreadCache().visibleThreads(context);
         context.getThreadCache().clearEventThread();
 

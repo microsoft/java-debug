@@ -11,7 +11,11 @@
 
 package com.microsoft.java.debug.core.adapter.handler;
 
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -19,37 +23,92 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.easymock.Capture;
+import org.easymock.EasyMock;
 import org.easymock.EasyMockSupport;
+import org.easymock.IMocksControl;
 import org.junit.Test;
 
 import com.microsoft.java.debug.core.IDebugSession;
 import com.microsoft.java.debug.core.adapter.DebugAdapterContext;
+import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
+import com.microsoft.java.debug.core.adapter.IExceptionManager;
+import com.microsoft.java.debug.core.adapter.IStackFrameManager;
+import com.microsoft.java.debug.core.adapter.IStepResultManager;
 import com.microsoft.java.debug.core.adapter.ProviderContext;
+import com.microsoft.java.debug.core.adapter.RecyclableObjectPool;
+import com.microsoft.java.debug.core.adapter.ThreadCache;
+import com.microsoft.java.debug.core.protocol.Events;
+import com.microsoft.java.debug.core.protocol.IProtocolServer;
 import com.microsoft.java.debug.core.protocol.Messages.Response;
 import com.microsoft.java.debug.core.protocol.Requests.Command;
 import com.microsoft.java.debug.core.protocol.Requests.InitializeArguments;
 import com.microsoft.java.debug.core.protocol.Requests.TerminateArguments;
 import com.microsoft.java.debug.core.protocol.Types.Capabilities;
+import com.sun.jdi.ThreadReference;
+import com.sun.jdi.VirtualMachine;
 
 public class TerminateRequestHandlerTest extends EasyMockSupport {
     @Test
-    public void terminateLaunchShouldKeepDebugSessionActive() {
-        IDebugSession debugSession = createMock(IDebugSession.class);
+    public void terminateLaunchShouldResumeAndClearStateBeforeTermination() {
+        IMocksControl control = EasyMock.createStrictControl();
+        IDebugAdapterContext context = control.createMock(IDebugAdapterContext.class);
+        IDebugSession debugSession = control.createMock(IDebugSession.class);
+        IStepResultManager stepResultManager = control.createMock(IStepResultManager.class);
+        IExceptionManager exceptionManager = control.createMock(IExceptionManager.class);
+        RecordingThreadCache threadCache = new RecordingThreadCache();
+        IProtocolServer protocolServer = control.createMock(IProtocolServer.class);
+        IStackFrameManager stackFrameManager = control.createMock(IStackFrameManager.class);
+        RecyclableObjectPool<Long, Object> recyclableIdPool = new RecyclableObjectPool<>();
+        int recyclableId = recyclableIdPool.addObject(1L, new Object());
+        VirtualMachine vm = control.createMock(VirtualMachine.class);
+        Capture<Events.DebugEvent> event = EasyMock.newCapture();
+        AtomicBoolean vmResumed = new AtomicBoolean();
+
+        expect(context.isAttached()).andReturn(false);
+        expect(context.getDebugSession()).andReturn(debugSession);
+        expect(context.getStepResultManager()).andReturn(stepResultManager);
+        stepResultManager.removeAllMethodResults();
+        expect(context.getExceptionManager()).andReturn(exceptionManager);
+        exceptionManager.removeAllExceptions();
+        expect(context.getThreadCache()).andReturn(threadCache);
+        expect(context.getThreadCache()).andReturn(threadCache);
+        expect(context.getThreadCache()).andReturn(threadCache);
+        expect(context.getDebugSession()).andReturn(debugSession);
+        expect(debugSession.getVM()).andReturn(vm);
+        vm.resume();
+        expectLastCall().andAnswer(() -> {
+            vmResumed.set(true);
+            return null;
+        });
+        expect(context.getProtocolServer()).andReturn(protocolServer);
+        protocolServer.sendEvent(capture(event));
+        expect(context.getStackFrameManager()).andReturn(stackFrameManager);
+        stackFrameManager.clearStackFrames();
+        expect(context.getRecyclableIdPool()).andReturn(recyclableIdPool);
         debugSession.terminate();
-        replayAll();
+        expectLastCall().andAnswer(() -> {
+            assertTrue("The VM must be resumed before it is terminated.", vmResumed.get());
+            assertTrue("Stopped-thread state must be cleared before termination.", threadCache.stoppedStateCleared);
+            assertTrue("Event-thread state must be cleared before termination.", threadCache.eventThreadsCleared);
+            return null;
+        });
+        control.replay();
 
-        DebugAdapterContext context = new DebugAdapterContext(null, new ProviderContext());
-        context.setDebugSession(debugSession);
         Response response = new Response();
-
         Response result = new TerminateRequestHandler()
                 .handle(Command.TERMINATE, new TerminateArguments(), response, context).join();
 
         assertSame(response, result);
-        assertFalse(context.isVmTerminated());
-        verifyAll();
+        assertTrue(event.getValue() instanceof Events.ContinuedEvent);
+        assertTrue(((Events.ContinuedEvent) event.getValue()).allThreadsContinued);
+        assertNull(recyclableIdPool.getObjectById(recyclableId));
+        control.verify();
     }
 
     @Test
@@ -132,6 +191,26 @@ public class TerminateRequestHandlerTest extends EasyMockSupport {
         @Override
         public void destroy() {
             destroyed = true;
+        }
+    }
+
+    private static class RecordingThreadCache extends ThreadCache {
+        private boolean stoppedStateCleared;
+        private boolean eventThreadsCleared;
+
+        @Override
+        public void clearAllThreadStoppedState() {
+            stoppedStateCleared = true;
+        }
+
+        @Override
+        public List<ThreadReference> visibleThreads(IDebugAdapterContext context) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void clearEventThread() {
+            eventThreadsCleared = true;
         }
     }
 }

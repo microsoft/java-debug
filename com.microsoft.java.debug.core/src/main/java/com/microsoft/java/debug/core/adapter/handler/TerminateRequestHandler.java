@@ -37,6 +37,7 @@ public class TerminateRequestHandler implements IDebugRequestHandler {
 
         IDebugSession debugSession = context.getDebugSession();
         if (debugSession != null) {
+            ThreadsRequestHandler.resumeAllThreads(context);
             debugSession.terminate();
         } else {
             DebuggeeProcessHelper.terminate(context);
