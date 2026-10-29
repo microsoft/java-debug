@@ -11,12 +11,11 @@
 
 package com.microsoft.java.debug.plugin.internal;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -35,6 +34,9 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.io.ByteOrderMark;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.BOMInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
@@ -312,7 +314,9 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         // For file uri, read the file contents directly and pass them to the ast
         // parser.
         if (filePath != null && Files.isRegularFile(Paths.get(filePath))) {
-            String source = readFile(filePath);
+            IFile resource = (IFile) JDTUtils.findResource(JDTUtils.toURI(uri),
+                    ResourcesPlugin.getWorkspace().getRoot()::findFilesForLocationURI);
+            String source = readFile(filePath, resource);
             parser.setSource(source.toCharArray());
             /**
              * See the java doc for { @link ASTParser#setResolveBindings(boolean) }.
@@ -326,8 +330,6 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
              * setEnvironment(String [], String [], String [], boolean)
              * and a unit name setUnitName(String).
              */
-            IFile resource = (IFile) JDTUtils.findResource(JDTUtils.toURI(uri),
-                    ResourcesPlugin.getWorkspace().getRoot()::findFilesForLocationURI);
             if (resource != null && JdtUtils.isJavaProject(resource.getProject())) {
                 parser.setProject(JavaCore.create(resource.getProject()));
             } else {
@@ -498,22 +500,21 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
         return null;
     }
 
-    private static String readFile(String filePath) {
-        StringBuilder builder = new StringBuilder();
-        try (BufferedReader bufferReader = new BufferedReader(new InputStreamReader(new FileInputStream(filePath)))) {
-            final int BUFFER_SIZE = 4096;
-            char[] buffer = new char[BUFFER_SIZE];
-            while (true) {
-                int read = bufferReader.read(buffer, 0, BUFFER_SIZE);
-                if (read == -1) {
-                    break;
-                }
-                builder.append(new String(buffer, 0, read));
+    private static String readFile(String filePath, IFile resource) {
+        try {
+            if (resource != null) {
+                return resource.readString();
             }
-        } catch (IOException e) {
-            // do nothing.
+            try (BOMInputStream input = BOMInputStream.builder().setPath(Paths.get(filePath))
+                    .setByteOrderMarks(ByteOrderMark.UTF_8, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_16BE).get();
+                    InputStreamReader reader = new InputStreamReader(input,
+                            input.hasBOM() ? input.getBOMCharsetName() : Charset.defaultCharset().name())) {
+                return IOUtils.toString(reader);
+            }
+        } catch (IOException | CoreException e) {
+            logger.log(Level.SEVERE, "Failed to read source file: " + filePath, e);
+            return "";
         }
-        return builder.toString();
     }
 
     private static String resolveSystemLibraryVersion(IJavaProject project, IVMInstall vmInstall)
