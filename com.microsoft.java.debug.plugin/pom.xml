@@ -10,6 +10,14 @@
     <artifactId>com.microsoft.java.debug.plugin</artifactId>
     <packaging>eclipse-plugin</packaging>
     <name>${base.name} :: Debugger Plugin</name>
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
     <build>
         <plugins>
             <plugin>
@@ -32,6 +40,52 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>target-platform-configuration</artifactId>
+                <version>${tycho-version}</version>
+                <configuration>
+                    <filters>
+                        <filter>
+                            <type>eclipse-plugin</type>
+                            <id>org.eclipse.jdt.core.compiler.batch</id>
+                            <restrictTo>
+                                <!-- Match the JDT model in the Eclipse 4.38 target. -->
+                                <versionRange>[3.44.0,3.45.0)</versionRange>
+                            </restrictTo>
+                        </filter>
+                    </filters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-surefire-plugin</artifactId>
+                <version>${tycho-version}</version>
+                <configuration>
+                    <providerHint>junit4</providerHint>
+                    <importAdditionalPackagesOptional>true</importAdditionalPackagesOptional>
+                    <dependencies>
+                        <dependency>
+                            <type>eclipse-plugin</type>
+                            <artifactId>org.eclipse.m2e.jdt</artifactId>
+                            <version>0.0.0</version>
+                        </dependency>
+                        <dependency>
+                            <type>eclipse-plugin</type>
+                            <artifactId>org.eclipse.buildship.core</artifactId>
+                            <version>0.0.0</version>
+                        </dependency>
+                    </dependencies>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>plugin-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
