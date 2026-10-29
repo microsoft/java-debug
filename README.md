@@ -15,12 +15,6 @@ The Java Debug Server is an implementation of Visual Studio Code (VSCode) Debug 
 - Threads
 - Debug console
 
-### Source encodings
-
-File-backed source resolution, including line breakpoints, uses the workspace resource's
-encoding when available. External source files recognize UTF-8 and UTF-16 LE/BE byte
-order marks; without a byte order mark, they use the language-server JVM's default charset.
-
 ## Background
 
 The Java Debug Server is the bridge between VSCode and JVM. The implementation is based on JDI ([Java Debug Interface](https://docs.oracle.com/javase/7/docs/jdk/api/jpda/jdi/)). It works with [Eclipse JDT Language Server](https://github.com/vscjavaci/eclipse.jdt.ls) as an add-on to provide debug functionalities.
@@ -31,9 +25,6 @@ The Java Debug Server is the bridge between VSCode and JVM. The implementation i
 - com.microsoft.java.debug.plugin - wraps the debug server into an Eclipse plugin to work with Eclipse JDT Language Server
 
 ## Installation
-
-Builds require JDK 21 or newer. `./mvnw clean verify` runs the core tests and
-the headless Eclipse/JDT plugin regression tests.
 
 ### Windows:
 ```
