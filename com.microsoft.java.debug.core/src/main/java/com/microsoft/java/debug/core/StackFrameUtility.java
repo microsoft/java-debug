@@ -19,7 +19,7 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 
 public final class StackFrameUtility {
-
+    private StackFrameUtility(){}
     public static boolean isNative(StackFrame frame) {
         return frame.location().method().isNative();
     }

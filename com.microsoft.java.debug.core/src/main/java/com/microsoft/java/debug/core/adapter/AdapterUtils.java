@@ -38,6 +38,7 @@ import com.microsoft.java.debug.core.protocol.Responses;
 import com.microsoft.java.debug.core.protocol.Types;
 
 public class AdapterUtils {
+    private AdapterUtils(){}
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
     private static final Pattern ENCLOSING_CLASS_REGEX = Pattern.compile("^([^\\$]*)");
     public static final boolean isWin = isWindows();
@@ -288,7 +289,7 @@ public class AdapterUtils {
         } catch (NoSuchAlgorithmException e) {
             // ignore it.
         }
-        StringBuffer buf = new StringBuffer();
+        StringBuilder buf = new StringBuilder();
         if (hashBytes != null) {
             for (byte b : hashBytes) {
                 buf.append(Integer.toHexString((b & 0xFF) + 0x100).substring(1));
