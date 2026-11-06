@@ -105,7 +105,7 @@ public class NumericFormatterTest extends BaseJdiTestCase {
     }
 
     @Test
-    public void testToHexOctString() throws Exception {
+    public void testToHexOctBinString() throws Exception {
         Value i = this.getLocalValue("i");
 
         Map<String, Object> options = formatter.getDefaultOptions();
@@ -116,7 +116,11 @@ public class NumericFormatterTest extends BaseJdiTestCase {
 
         options.put(NUMERIC_FORMAT_OPTION, NumericFormatEnum.OCT);
         assertEquals("NumericFormatter should be able to format an oct integer.",
-            "0" +Integer.toOctalString(111), formatter.toString(i, options));
+            "0" + Integer.toOctalString(111), formatter.toString(i, options));
+
+        options.put(NUMERIC_FORMAT_OPTION, NumericFormatEnum.BIN);
+        assertEquals("NumericFormatter should be able to format an bin integer.",
+            "0b" + Integer.toBinaryString(111), formatter.toString(i, options));
     }
 
     @Test
@@ -130,13 +134,18 @@ public class NumericFormatterTest extends BaseJdiTestCase {
         assertEquals("Should create an integer with right value.", "111", newValue.toString());
 
         options.put(NUMERIC_FORMAT_OPTION, NumericFormatEnum.HEX);
-
         newValue = formatter.valueOf(formatter.toString(i, options), i.type(), options);
         assertNotNull("NumericFormatter should be able to create integer by string.", newValue);
         assertTrue("Should create an integer value.", newValue instanceof IntegerValue);
         assertEquals("Should create an integer with right value.", "111", newValue.toString());
 
         options.put(NUMERIC_FORMAT_OPTION, NumericFormatEnum.OCT);
+        newValue = formatter.valueOf(formatter.toString(i, options), i.type(), options);
+        assertNotNull("NumericFormatter should be able to create integer by string.", newValue);
+        assertTrue("Should create an integer value.", newValue instanceof IntegerValue);
+        assertEquals("Should create an integer with right value.", "111", newValue.toString());
+
+        options.put(NUMERIC_FORMAT_OPTION, NumericFormatEnum.BIN);
         newValue = formatter.valueOf(formatter.toString(i, options), i.type(), options);
         assertNotNull("NumericFormatter should be able to create integer by string.", newValue);
         assertTrue("Should create an integer value.", newValue instanceof IntegerValue);
