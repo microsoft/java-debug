@@ -62,7 +62,7 @@ public abstract class VariableUtils {
      * @return true if this value is reference objects.
      */
     public static boolean hasChildren(Value value, boolean includeStatic) {
-        if (value == null || !(value instanceof ObjectReference)) {
+        if (!(value instanceof ObjectReference)) {
             return false;
         }
         ReferenceType type = ((ObjectReference) value).referenceType();
@@ -189,7 +189,7 @@ public abstract class VariableUtils {
             // avoid listing variable on native methods
 
             try {
-                if (stackFrame.location().method().argumentTypes().size() == 0) {
+                if (stackFrame.location().method().argumentTypes().isEmpty()) {
                     return res;
                 }
             } catch (ClassNotLoadedException ex2) {

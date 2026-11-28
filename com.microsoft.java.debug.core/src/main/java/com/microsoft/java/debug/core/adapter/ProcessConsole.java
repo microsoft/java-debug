@@ -86,7 +86,7 @@ public class ProcessConsole {
         return this.messages().map((message) -> {
             String[] lines = message.output.split("(?<=\n)");
             return Stream.of(lines).map((line) -> new ConsoleMessage(line, message.category)).toArray(ConsoleMessage[]::new);
-        }).concatMap((lines) -> Observable.fromArray(lines));
+        }).concatMap(Observable::fromArray);
     }
 
     public static class InputStreamObservable {
