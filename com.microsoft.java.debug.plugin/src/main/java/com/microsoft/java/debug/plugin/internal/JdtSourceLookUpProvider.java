@@ -16,7 +16,9 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -84,6 +86,8 @@ import com.microsoft.java.debug.core.adapter.AdapterUtils;
 import com.microsoft.java.debug.core.adapter.Constants;
 import com.microsoft.java.debug.core.adapter.IDebugAdapterContext;
 import com.microsoft.java.debug.core.adapter.ISourceLookUpProvider;
+import com.microsoft.java.debug.core.adapter.Source;
+import com.microsoft.java.debug.core.adapter.SourceType;
 import com.microsoft.java.debug.core.protocol.Types.BreakpointLocation;
 import com.microsoft.java.debug.core.protocol.Types.SourceBreakpoint;
 
@@ -407,6 +411,158 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     @Override
+    public Source getSource(String fullyQualifiedName, String sourcePath) {
+        String uri = getSourceFileURI(fullyQualifiedName, sourcePath);
+        if (uri == null || uri.startsWith("file:")) {
+            if (uri == null && sourcePath != null) {
+                // Since #624, getFileURI delegates to JDTUtils.toUri(), which may return null
+                // for class files (depending on the language server version). Fall back to
+                // resolving the class file directly so its source can still be materialized.
+                Object sourceElement = JdtUtils.findSourceElement(sourcePath, getSourceContainers());
+                if (sourceElement instanceof IClassFile) {
+                    String cachedFileUri = materializeClassFile((IClassFile) sourceElement);
+                    if (cachedFileUri != null) {
+                        return new Source(cachedFileUri, SourceType.LOCAL);
+                    }
+                }
+            }
+            return new Source(uri, SourceType.LOCAL);
+        }
+
+        // The jdt:// uri (for classes packaged in a jar or the JRT runtime, with or without
+        // source attachment) can only be rendered by clients that implement a jdt content
+        // provider (e.g. VS Code with the Red Hat Java extension). Clients that can only open
+        // absolute file paths (e.g. Zed) cannot display it. Materialize the source contents
+        // (attached source, or decompiled source) into a local cache file and hand out its
+        // path instead, so that every DAP client can display the source of library classes.
+        String cachedFileUri = materializeSourceToCache(uri);
+        if (cachedFileUri != null) {
+            return new Source(cachedFileUri, SourceType.LOCAL);
+        }
+
+        // Fall back to the jdt:// uri marked as remote source, so that clients able to fetch
+        // contents through the DAP 'source' request can still display it.
+        return new Source(uri, SourceType.REMOTE);
+    }
+
+    private static final String SOURCE_CACHE_DIR_NAME = "java-debug-sources";
+
+    /**
+     * Maps the file uri of a materialized source cache file back to the handle identifier of
+     * the underlying class file, so that the decompiled line mapping APIs keep working when
+     * clients report the cache path.
+     */
+    private final Map<String, String> cachedFileToHandleId = new HashMap<>();
+
+    /**
+     * For non-file (jdt://) source uris, cache the resolved contents (attached source or
+     * decompiled source) into a local file and return the file uri of the cached file.
+     * Returns null when the contents cannot be resolved.
+     */
+    private String materializeSourceToCache(String uri) {
+        IClassFile classFile = resolveClassFile(uri);
+        if (classFile == null) {
+            return null;
+        }
+
+        return materializeClassFile(classFile);
+    }
+
+    /**
+     * Materializes the source of a class file (attached source, or decompiled source when
+     * debugging on decompiled source is enabled) under
+     * {java.io.tmpdir}/java-debug-sources/{jarName}/{package}/{Type}.java and returns the
+     * file uri of the cache file. Returns null when the contents cannot be resolved.
+     */
+    private String materializeClassFile(IClassFile classFile) {
+        String contents = null;
+        try {
+            if (classFile.getSourceRange() != null) {
+                // Source attachment (e.g. JDK src.zip, maven *-sources.jar) is available.
+                // Its line numbers match the line table of the compiled class.
+                contents = getContents(classFile);
+            } else if (DebugSettings.getCurrent().debugSupportOnDecompiledSource == Switch.ON) {
+                // No source attachment. When debugging on decompiled source is enabled,
+                // decompile it with the same decompiler that the VS Code client uses, so that
+                // clients without a jdt content provider can still display the source.
+                ContentProviderManager contentProvider = JavaLanguageServerPlugin.getContentProviderManager();
+                String decompiled = contentProvider.getSource(classFile, new NullProgressMonitor());
+                if (decompiled != null && !decompiled.isBlank()) {
+                    contents = decompiled;
+                }
+            }
+        } catch (JavaModelException e) {
+            logger.log(Level.WARNING, String.format("Failed to load the source contents of %s: %s", classFile.getElementName(), e.toString()), e);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, String.format("Failed to decompile %s: %s", classFile.getElementName(), e.toString()), e);
+        }
+
+        if (contents == null || contents.isEmpty()) {
+            return null;
+        }
+
+        try {
+            String jarName = sanitizeFileName(classFile.getParent().getParent().getElementName());
+            String packageName = classFile.getParent().getElementName().replace('.', '/');
+            String typeName = sanitizeFileName(classFile.getElementName().replaceFirst("\\.class$", ".java"));
+            Path cachedPath = Paths.get(System.getProperty("java.io.tmpdir", "."), SOURCE_CACHE_DIR_NAME, jarName, packageName, typeName);
+            if (!Files.exists(cachedPath)) {
+                Files.createDirectories(cachedPath.getParent());
+                Files.write(cachedPath, contents.getBytes(StandardCharsets.UTF_8));
+            }
+            String cachedUri = cachedPath.toUri().toString();
+            cachedFileToHandleId.put(cachedUri, classFile.getHandleIdentifier());
+            return cachedUri;
+        } catch (IOException e) {
+            logger.log(Level.WARNING, String.format("Failed to cache the source of %s: %s", classFile.getElementName(), e.toString()), e);
+            return null;
+        }
+    }
+
+    /**
+     * Resolves the class file for a source uri that is either a jdt:// uri or the file uri of
+     * a materialized cache file. Returns null when it cannot be resolved.
+     */
+    private IClassFile resolveClassFileForUri(String uri) {
+        if (uri == null) {
+            return null;
+        }
+        if (uri.startsWith(JDT_SCHEME)) {
+            return resolveClassFile(uri);
+        }
+        String handleId = cachedFileToHandleId.get(uri);
+        if (handleId == null) {
+            // The cache files are reported back by clients as plain file paths or file uris.
+            try {
+                String fileName = Paths.get(uri).getFileName().toString();
+                for (Map.Entry<String, String> entry : cachedFileToHandleId.entrySet()) {
+                    if (isSameURI(entry.getKey(), uri) || entry.getKey().endsWith("/" + fileName)) {
+                        handleId = entry.getValue();
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                // not a valid file path, ignore.
+            }
+        }
+        if (handleId != null) {
+            IJavaElement element = JavaCore.create(handleId);
+            if (element != null) {
+                return (IClassFile) element.getAncestor(IJavaElement.CLASS_FILE);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * For the class names loaded from the jrt runtime, the element name may contain
+     * characters (e.g. '!') that are invalid in file names.
+     */
+    private static String sanitizeFileName(String name) {
+        return name.replaceAll("[\\\\/:*?\"<>|!]", "_");
+    }
+
+    @Override
     public String getJavaRuntimeVersion(String projectName) {
         IJavaProject project = JdtUtils.getJavaProject(projectName);
         if (project != null) {
@@ -605,7 +761,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     public int[] getOriginalLineMappings(String uri) {
-        IClassFile classFile = resolveClassFile(uri);
+        IClassFile classFile = resolveClassFileForUri(uri);
         try {
             if (classFile == null) {
                 return null;
@@ -636,7 +792,7 @@ public class JdtSourceLookUpProvider implements ISourceLookUpProvider {
     }
 
     public int[] getDecompiledLineMappings(String uri) {
-        IClassFile classFile = resolveClassFile(uri);
+        IClassFile classFile = resolveClassFileForUri(uri);
         try {
             if (classFile != null && classFile.getSourceRange() == null) {
                 ContentProviderManager contentProvider = JavaLanguageServerPlugin.getContentProviderManager();
